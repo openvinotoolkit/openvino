@@ -150,9 +150,9 @@ static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECOR
  * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.
  * When on, matching subgraphs (matmul, elementwise, SDPA, reduction, etc.) are compiled through the
  * MLIR/Graph-Compiler pipeline and executed as a single fused GPU kernel via cldnn::mlir_primitive.
- * Requires the plugin to be built with -DENABLE_MLIR_FOR_GPU=ON (which in turn requires
- * ENABLE_GPU_DEBUG_CAPS); setting this to true on a plugin built without Graph Compiler support
- * raises an exception at compile_model() time.
+ * Requires the plugin to be built with -DENABLE_MLIR_FOR_GPU=ON; enabling this option on a plugin
+ * built without Graph Compiler support raises an exception at compile_model() time.
+ * The option is RELEASE_INTERNAL: it can be set via the OV_GPU_ENABLE_MLIR env variable only.
  *
  * This is an experimental, not production-ready feature: the set of supported subgraphs, the
  * property itself and the resulting accuracy/performance are all subject to change, so it must
@@ -171,7 +171,7 @@ static constexpr Property<std::string, PropertyMutability::RW> mlir_patterns{"GP
 
 /**
  * @brief Enables verbose logging of the MLIR/Graph-Compiler pipeline: matched subgraphs, generated
- * MLIR modules and the lowering steps are printed to stdout.
+ * MLIR modules and the lowering steps are printed to stderr. Available in builds with debug caps only.
  */
 static constexpr Property<bool, PropertyMutability::RW> mlir_debug{"GPU_MLIR_DEBUG"};
 
@@ -208,14 +208,12 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse
 static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_fusions{"GPU_DISABLE_POST_OPS_FUSIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_disable_fusion{"GPU_MOE_DISABLE_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_ternocl_int2{"GPU_ENABLE_TERNOCL_INT2"};
 static constexpr Property<bool, ov::PropertyMutability::RW> ternocl_int2_int8_prefill{"GPU_TERNOCL_INT2_INT8_PREFILL"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_hadamard_fc_fusion{"GPU_ENABLE_HADAMARD_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_rms_rope_fusion{"GPU_ENABLE_RMS_ROPE_FUSION"};
-static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_micro_gemm_prefill{"GPU_MOE_USE_MICRO_GEMM_PREFILL"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_gpu_mask_gen_prefill{"GPU_MOE_USE_GPU_MASK_GEN_PREFILL"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_grouped_gemm_prefill{"GPU_MOE_USE_GROUPED_GEMM_PREFILL"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> moe_batched_gemv_threshold{"GPU_MOE_BATCHED_GEMV_THRESHOLD"};
@@ -242,6 +240,11 @@ static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sd
 static constexpr Property<int, ov::PropertyMutability::RW> micro_sdpa_disable_prefetch{"GPU_MICRO_SDPA_DISABLE_PREFETCH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
+static constexpr Property<int64_t, ov::PropertyMutability::RW> gr_pd_row_threshold{"GPU_GR_PD_ROW_THRESHOLD"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> gr_scratch_limit_mb{"GPU_GR_SCRATCH_LIMIT_MB"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> gr_kernel_selection{"GPU_GR_KERNEL_SELECTION"};
+static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_types{"GPU_FORCE_FP32_LAYER_TYPES"};
+static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_names{"GPU_FORCE_FP32_LAYER_NAMES"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

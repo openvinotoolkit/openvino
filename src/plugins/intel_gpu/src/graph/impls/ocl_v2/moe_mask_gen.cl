@@ -12,6 +12,9 @@ KERNEL(moe_mask_gen)(
     __global OUTPUT2_TYPE* experts_id,
     __global OUTPUT3_TYPE* tokens_lens_per_expert,
     __global OUTPUT4_TYPE* num_actual_used_experts
+#if ROW_LUT_ENABLE
+    , __global OUTPUT5_TYPE* row_lut
+#endif
 #if SET_TOKEN_LEN
     , const int token_len
 #endif
@@ -58,6 +61,10 @@ KERNEL(moe_mask_gen)(
     for (int t = 0; t < num_tokens; ++t) {
         for (int e = 0; e < NUM_EXPERTS_PER_TOKEN; ++e) {
             if (topk_idx[token_idx] == expert_id) {
+#if ROW_LUT_ENABLE
+                // inverse mapping: (token, topk) pair -> gathered row
+                row_lut[token_idx] = tokens_per_expert_iter;
+#endif
                 tokens_per_expert[tokens_per_expert_iter] = t;
                 tokens_per_expert_iter += 1;
             }

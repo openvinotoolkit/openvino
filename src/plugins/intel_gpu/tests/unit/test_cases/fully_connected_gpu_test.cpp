@@ -2,29 +2,127 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
+#include <intel_gpu/runtime/utils.hpp>
+
+#include "fully_connected_inst.h"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "test_utils.h"
-#include "random_generator.hpp"
 #include "network_test.h"
-#include <intel_gpu/runtime/utils.hpp>
-#include <intel_gpu/primitives/input_layout.hpp>
-#include "intel_gpu/primitives/fully_connected.hpp"
-#include <intel_gpu/primitives/quantize.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "intel_gpu/runtime/compilation_context.hpp"
-#include "fully_connected_inst.h"
-
-#include <cmath>
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/runtime/core.hpp"
+#include "primitive_inst_test_helper.h"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
+
+namespace {
+void test_runtime_weights_lru_buffer(bool large_buffer, bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const layout input_layout_value{ov::PartialShape{1, 32}, data_types::f32, format::bfyx};
+    const layout weights_layout{ov::PartialShape{64, 32}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_value);
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(input, std::vector<float>(32, 1.f));
+    set_values(weights, std::vector<float>(64 * 32, 1.f));
+    topology topology{input_layout("input", {ov::PartialShape{ov::Dimension(1, 10), 32}, data_types::f32, format::bfyx}),
+                      input_layout("weights", weights_layout),
+                      fully_connected("fc", input_info("input"), "weights")};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(
+        ov::intel_gpu::allow_new_shape_infer(true),
+        ov::intel_gpu::use_onednn(false),
+        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl}}}));
+    // An internal program keeps weights reordering in FC instead of inserting a preceding Reorder.
+    auto prog = program::build_program(engine, topology, config, true);
+    if (is_caching_test) {
+        membuf buffer;
+        {
+            std::ostream output(&buffer);
+            BinaryOutputBuffer ob(output);
+            ob.set_stream(get_test_stream_ptr().get());
+            prog->save(ob);
+        }
+        {
+            std::istream input(&buffer);
+            BinaryInputBuffer ib(input, engine);
+            prog = std::make_shared<program>(engine, config);
+            prog->load(ib);
+        }
+    }
+    auto network = std::make_shared<cldnn::network>(prog, true, true);
+    network->set_input_data("input", input);
+    network->set_input_data("weights", weights);
+    network->execute().at("fc").get_memory();
+    auto inst = network->get_primitive("fc");
+    ASSERT_TRUE(inst->get_impl()->is_dynamic());
+    ASSERT_NE(inst->get_impl()->get_weights_reorder_kernel_params(), nullptr);
+    const auto expected_layout = inst->get_impl_params()->weights_layout.value();
+    ASSERT_EQ(inst->dep_memory_ptr(1)->buffer_ptr(), weights->buffer_ptr());
+    ASSERT_FALSE(weights->get_layout().compatible(expected_layout));
+    ASSERT_NE(PrimitiveInstTestHelper::get_cached_weights(inst, expected_layout), nullptr);
+
+    const auto storage_layout = expected_layout.clone_with_other_shape(ov::PartialShape{128, 32});
+    auto storage = engine.allocate_memory(storage_layout);
+    ASSERT_GE(storage->size(), expected_layout.bytes_count());
+    const auto cached_layout = large_buffer ? storage_layout : expected_layout.clone_with_other_shape(ov::PartialShape{1, 1});
+    // Keep backing storage large enough to run the old condition safely; the cached view exposes the tested capacity.
+    auto lru_memory = engine.reinterpret_buffer(*storage, cached_layout);
+    if (large_buffer) {
+        ASSERT_GE(lru_memory->size(), expected_layout.bytes_count());
+    } else {
+        ASSERT_LT(lru_memory->size(), expected_layout.bytes_count());
+    }
+    // Runtime-only weights give this network a one-entry cache. Evict the reordered layout.
+    PrimitiveInstTestHelper::cache_weights(inst, lru_memory);
+    ASSERT_EQ(PrimitiveInstTestHelper::get_cached_weights(inst, expected_layout), nullptr);
+    set_values(weights, std::vector<float>(64 * 32, 2.f));
+    // Check the allocation before execution can switch to an asynchronously compiled implementation.
+    PrimitiveInstTestHelper::update_weights(inst);
+    auto reordered = PrimitiveInstTestHelper::get_cached_weights(inst, expected_layout);
+    ASSERT_NE(reordered, nullptr);
+    EXPECT_GE(reordered->size(), expected_layout.bytes_count());
+    EXPECT_EQ(reordered->buffer_ptr() == lru_memory->buffer_ptr(), large_buffer);
+    auto output = network->execute().at("fc").get_memory();
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), 64u);
+    for (size_t i = 0; i < result.size(); ++i) {
+        EXPECT_FLOAT_EQ(result[i], 64.f);
+    }
+}
+}  // namespace
+
+TEST(fully_connected_gpu, runtime_weights_lru_undersized_view) {
+    test_runtime_weights_lru_buffer(false, false);
+}
+
+TEST(fully_connected_gpu, runtime_weights_lru_large_buffer) {
+    test_runtime_weights_lru_buffer(true, false);
+}
+
+TEST(fully_connected_gpu, runtime_weights_lru_undersized_view_cached) {
+    test_runtime_weights_lru_buffer(false, true);
+}
+
+TEST(fully_connected_gpu, runtime_weights_lru_large_buffer_cached) {
+    test_runtime_weights_lru_buffer(true, true);
+}
 
 TEST(fully_connected_gpu, dynamic_byxf) {
     auto& engine = get_test_engine();
@@ -348,8 +446,9 @@ TEST(fully_connected_gpu, no_biases_fc_i32) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { weight_b, weight_f, 1, 1 } });
+    // Use rank-2 layouts for new shape infer
+    auto input_prim = engine.allocate_memory({ { input_b, input_f}, data_types::i32, format::bfyx});
+    auto weights_prim = engine.allocate_memory({ { weight_b, weight_f} , data_types::i32, format::bfyx});
 
     set_values<int32_t>(input_prim, {
         8, 2, -4
@@ -365,9 +464,9 @@ TEST(fully_connected_gpu, no_biases_fc_i32) {
     cldnn::topology topology{
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
-        reorder("reorder_to_i32", input_info("input"), { data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } }),
+        reorder("reorder_to_i32", input_info("input"), { { input_b, input_f }, data_types::i32, format::bfyx}),
         fully_connected("fc_prim", input_info("reorder_to_i32"), "weights"),
-        reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } })
+        reorder("reorder_to_float", input_info("fc_prim"), { { input_b, weight_b }, data_types::f32, format::bfyx})
     };
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -3274,6 +3373,102 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
+    void test_compressed_int8_parameter_scale_zp(bool is_per_group, bool transpose_scale_zp) {
+        auto& engine = get_test_engine();
+
+        constexpr int64_t ofm = 4;
+        constexpr int64_t ifm = 32;
+        const int64_t groups = is_per_group ? 2 : 1;
+        const int64_t group_size = ifm / groups;
+
+        // Non-transposed scale/zp are [groups, N]; transposed scale/zp are [N, groups].
+        const ov::PartialShape param_shape = transpose_scale_zp ? ov::PartialShape{ofm, groups} : ov::PartialShape{groups, ofm};
+        auto param_offset = [&](int64_t group, int64_t output) {
+            return static_cast<size_t>(transpose_scale_zp ? output * groups + group : group * ofm + output);
+        };
+
+        auto input_mem = engine.allocate_memory({ {1, 2, ifm}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm, ifm}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ param_shape, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ param_shape, data_types::u8, format::bfyx });
+
+        std::vector<float> input_data(2 * ifm);
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data[i] = static_cast<float>(static_cast<int64_t>(i % 3) - 1);
+        }
+        std::vector<uint8_t> weights_data(ofm * ifm);
+        for (int64_t output = 0; output < ofm; ++output) {
+            for (int64_t k = 0; k < ifm; ++k) {
+                weights_data[output * ifm + k] = static_cast<uint8_t>((output * 3 + k) % 8);
+            }
+        }
+        std::vector<float> scale_data(ofm * groups);
+        std::vector<uint8_t> zp_data(ofm * groups);
+        for (int64_t group = 0; group < groups; ++group) {
+            for (int64_t output = 0; output < ofm; ++output) {
+                scale_data[param_offset(group, output)] = 0.5f * static_cast<float>((group + output) % 2 + 1);
+                zp_data[param_offset(group, output)] = static_cast<uint8_t>((group + output) % 3);
+            }
+        }
+
+        std::vector<ov::float16> input_f16(input_data.begin(), input_data.end());
+        std::vector<ov::float16> scale_f16(scale_data.begin(), scale_data.end());
+        set_values(input_mem, input_f16);
+        set_values(weights_mem, weights_data);
+        set_values(scale_mem, scale_f16);
+        set_values(zp_mem, zp_data);
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            input_layout("scale", scale_mem->get_layout()),
+            input_layout("zp", zp_mem->get_layout()),
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 3, 2, true,
+                            transpose_scale_zp, transpose_scale_zp));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network network(engine, topology, config);
+        network.set_input_data("input", input_mem);
+        network.set_input_data("scale", scale_mem);
+        network.set_input_data("zp", zp_mem);
+
+        // Grouped transposed scale/zp [N, groups] must be reordered from bfyx to fbyx to make N innermost.
+        // Per-channel [N, 1] already has N innermost, so it stays as the bfyx parameter.
+        const bool expect_reorder = transpose_scale_zp && is_per_group;
+        auto fc_inst = network.get_primitive("fc_prim");
+        for (size_t idx : {size_t{2}, size_t{3}}) {
+            const auto& dep = fc_inst->get_node().get_dependency(idx);
+            if (expect_reorder) {
+                EXPECT_TRUE(dep.is_type<reorder>()) << "input " << idx;
+                EXPECT_EQ(fc_inst->get_input_layout(idx).format, format::fbyx) << "input " << idx;
+            } else {
+                EXPECT_TRUE(dep.is_type<input_layout>()) << "input " << idx;
+                EXPECT_EQ(fc_inst->get_input_layout(idx).format, format::bfyx) << "input " << idx;
+            }
+        }
+
+        auto outputs = network.execute();
+        auto output_mem = outputs.at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
+
+        for (int64_t token = 0; token < 2; ++token) {
+            for (int64_t output = 0; output < ofm; ++output) {
+                float expected = 0.0f;
+                for (int64_t k = 0; k < ifm; ++k) {
+                    const auto offset = param_offset(k / group_size, output);
+                    const float weight = (static_cast<float>(weights_data[output * ifm + k]) - zp_data[offset]) * scale_data[offset];
+                    expected += input_data[token * ifm + k] * weight;
+                }
+                EXPECT_NEAR(static_cast<float>(output_ptr[token * ofm + output]), expected, 1e-2f)
+                    << "token = " << token << ", output = " << output;
+            }
+        }
+    }
+
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -5251,6 +5446,404 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     }
 }
 
+class fully_connected_onednn_expert_zero_points_test : public testing::TestWithParam<std::tuple<int64_t, bool, bool, std::pair<int64_t, int64_t>>> {};
+
+TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN compressed FC requires IMMAD support.";
+
+    const auto [experts, transpose_b_param, is_caching_test, decompression_groups] = GetParam();
+    const auto scale_groups = decompression_groups.first;
+    const auto zero_point_groups = decompression_groups.second;
+    constexpr int64_t tokens = 2;
+    constexpr int64_t ofm = 16;
+    constexpr int64_t ifm = 64;
+    const auto zero_point_group_size = ifm / zero_point_groups;
+    const size_t weights_rank = experts == 1 ? 2 : 3;
+    const auto weights_shape = experts == 1 ? ov::PartialShape{ofm, ifm}
+                                           : ov::PartialShape{experts, ofm, ifm};
+    const auto zp_shape = experts == 1
+                              ? (transpose_b_param ? ov::PartialShape{ofm, zero_point_groups} : ov::PartialShape{zero_point_groups, ofm})
+                              : (transpose_b_param ? ov::PartialShape{experts, ofm, zero_point_groups} : ov::PartialShape{experts, zero_point_groups, ofm});
+    const auto scale_shape = experts == 1
+                                 ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
+                                                      : ov::PartialShape{scale_groups, ofm})
+                                 : (transpose_b_param ? ov::PartialShape{experts, ofm, scale_groups}
+                                                      : ov::PartialShape{experts, scale_groups, ofm});
+
+    auto input = engine.allocate_memory({ov::PartialShape{experts, tokens, ifm}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({weights_shape, data_types::u8, format::bfyx});
+    auto scale = engine.allocate_memory({scale_shape, data_types::f16, format::bfyx});
+    auto zero_points = engine.allocate_memory({zp_shape, data_types::u8, format::bfyx});
+    set_values<ov::float16>(input, std::vector<ov::float16>(experts * tokens * ifm, ov::float16(1.0f)));
+    set_values<uint8_t>(weights, std::vector<uint8_t>(experts * ofm * ifm, 9));
+    set_values<ov::float16>(scale, std::vector<ov::float16>(experts * ofm * scale_groups, ov::float16(1.0f)));
+    std::vector<uint8_t> zp_values(experts * ofm * zero_point_groups);
+    const bool transpose_zp_layout = transpose_b_param;
+    const auto zp_idx = [=](int64_t expert, int64_t group, int64_t oc) {
+        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * zero_point_groups + oc * zero_point_groups + group)
+                                   : static_cast<size_t>(expert * zero_point_groups * ofm + group * ofm + oc);
+    };
+    for (int64_t expert = 0; expert < experts; ++expert) {
+        for (int64_t group = 0; group < zero_point_groups; ++group) {
+            for (int64_t oc = 0; oc < ofm; ++oc) {
+                zp_values[zp_idx(expert, group, oc)] = static_cast<uint8_t>((expert + group + oc) % 8);
+            }
+        }
+    }
+    set_values<uint8_t>(zero_points, zp_values);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("scale", scale),
+        data("zero_points", zero_points),
+        fully_connected("fc", input_info("input"), "weights", "", "scale", "zero_points",
+                        data_types::f16, 3, weights_rank, true, transpose_b_param, transpose_b_param));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    const ov::intel_gpu::ImplementationDesc impl = {format::bfyx, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", impl}}));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    ASSERT_TRUE(network->get_primitive("fc")->get_impl()->is_onednn());
+    network->set_input_data("input", input);
+    auto output = network->execute().at("fc").get_memory();
+    ASSERT_EQ(output->get_layout().get_partial_shape(), (ov::PartialShape{experts, tokens, ofm}));
+    mem_lock<ov::float16, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), static_cast<size_t>(experts * tokens * ofm));
+    for (int64_t expert = 0; expert < experts; ++expert) {
+        for (int64_t token = 0; token < tokens; ++token) {
+            for (int64_t oc = 0; oc < ofm; ++oc) {
+                const auto idx = (expert * tokens + token) * ofm + oc;
+                float expected = 0.0f;
+                for (int64_t group = 0; group < zero_point_groups; ++group) {
+                    expected += static_cast<float>(zero_point_group_size * (9 - zp_values[zp_idx(expert, group, oc)]));
+                }
+                EXPECT_FLOAT_EQ(static_cast<float>(result[idx]), expected)
+                    << "expert=" << expert << ", token=" << token << ", oc=" << oc;
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_onednn_expert_zero_points_test,
+                         testing::Combine(testing::Values(int64_t{1}, int64_t{64}),
+                                          testing::Bool(),
+                                          testing::Bool(),
+                                          testing::ValuesIn(std::vector<std::pair<int64_t, int64_t>>{{1, 1}, {2, 2}, {1, 4}, {4, 1}})));
+
+// Rounds the values to what the given data type can hold, so that the reference uses the same inputs as the GPU.
+static std::vector<float> round_to_data_type(std::vector<float> values, data_types dt) {
+    for (auto& v : values) {
+        if (dt == data_types::f16) {
+            v = static_cast<float>(ov::float16(v));
+        } else if (dt == data_types::bf16) {
+            v = static_cast<float>(ov::bfloat16(v));
+        } else if (dt == data_types::i8 || dt == data_types::u8) {
+            v = std::round(v);
+        }
+    }
+    return values;
+}
+
+static void set_values_as(memory::ptr mem, const std::vector<float>& values) {
+    switch (mem->get_layout().data_type) {
+    case data_types::f16:
+        set_values(mem, std::vector<ov::float16>(values.begin(), values.end()));
+        break;
+    case data_types::bf16:
+        set_values(mem, std::vector<ov::bfloat16>(values.begin(), values.end()));
+        break;
+    case data_types::f32:
+        set_values(mem, values);
+        break;
+    case data_types::i8:
+        set_values(mem, std::vector<int8_t>(values.begin(), values.end()));
+        break;
+    case data_types::u8:
+        set_values(mem, std::vector<uint8_t>(values.begin(), values.end()));
+        break;
+    default:
+        OPENVINO_THROW("Unexpected data type");
+    }
+}
+
+static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank,
+                                                  bool is_caching_test,
+                                                  bool is_dynamic_ifm = false,
+                                                  data_types in_dt = data_types::f16,
+                                                  data_types wei_dt = data_types::f16,
+                                                  data_types out_dt = data_types::f16,
+                                                  bool weights_transposed = true) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    // Several shapes executed on the same network, including a repeated one
+    const std::vector<std::vector<int64_t>> shapes = input_rank == 2 ? std::vector<std::vector<int64_t>>{{1}, {7}, {16}, {3}, {7}}
+                                                                     : std::vector<std::vector<int64_t>>{{1, 1}, {2, 5}, {1, 16}, {3, 4}, {2, 5}};
+
+    const bool is_int8 = in_dt == data_types::i8 || in_dt == data_types::u8;
+    const auto bias_dt = is_int8 ? data_types::f32 : in_dt;
+    auto gen = [](tests::random_generator& rg, size_t count, data_types dt) {
+        const float min = dt == data_types::u8 ? 0.f : (dt == data_types::i8 ? -4.f : -1.f);
+        const float max = (dt == data_types::u8 || dt == data_types::i8) ? 4.f : 1.f;
+        return round_to_data_type(rg.generate_random_1d<float>(count, min, max), dt);
+    };
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Weights are [ofm, ifm] when transposed and [ifm, ofm] otherwise
+    auto weights_data = gen(rg, ofm * ifm, wei_dt);
+    auto bias_data = gen(rg, ofm, bias_dt);
+
+    const auto weights_shape = weights_transposed ? ov::PartialShape{ofm, ifm} : ov::PartialShape{ifm, ofm};
+    auto weights_mem = engine.allocate_memory({weights_shape, wei_dt, format::bfyx});
+    auto bias_shape = input_rank == 2 ? ov::PartialShape{1, ofm} : ov::PartialShape{1, 1, ofm};
+    auto bias_mem = engine.allocate_memory({bias_shape, bias_dt, format::bfyx});
+    set_values_as(weights_mem, weights_data);
+    set_values_as(bias_mem, bias_data);
+
+    const auto in_dyn_ifm = is_dynamic_ifm ? ov::Dimension::dynamic() : ov::Dimension(ifm);
+    auto in_dyn_shape = input_rank == 2 ? ov::PartialShape{ov::Dimension::dynamic(), in_dyn_ifm}
+                                        : ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), in_dyn_ifm};
+    topology topology(input_layout("input", layout{in_dyn_shape, in_dt, format::bfyx}),
+                      data("weights", weights_mem),
+                      data("bias", bias_mem),
+                      fully_connected("fc", input_info("input"), "weights", "bias", out_dt, input_rank, 2, weights_transposed));
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl_types::onednn};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl_desc}}));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    // Stop asynchronous compilation of shape-specific impls so that every execution goes through the dynamic impl
+    network->get_program()->get_compilation_context().cancel();
+
+    const float tolerance = out_dt == data_types::bf16 ? 1e-1f : (out_dt == data_types::f16 ? 2e-2f : 1e-3f);
+    for (const auto& outer_dims : shapes) {
+        ov::PartialShape in_shape;
+        for (auto d : outer_dims)
+            in_shape.push_back(d);
+        in_shape.push_back(ifm);
+        const int64_t rows = std::accumulate(outer_dims.begin(), outer_dims.end(), int64_t{1}, std::multiplies<int64_t>());
+
+        auto input_data = gen(rg, rows * ifm, in_dt);
+        auto input_mem = engine.allocate_memory({in_shape, in_dt, format::bfyx});
+        set_values_as(input_mem, input_data);
+
+        network->set_input_data("input", input_mem);
+        auto outputs = network->execute();
+
+        auto* impl = network->get_primitive("fc")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_TRUE(impl->is_onednn()) << in_shape;
+        ASSERT_TRUE(impl->is_dynamic()) << in_shape;
+
+        auto output_mem = outputs.at("fc").get_memory();
+        ov::PartialShape expected_out_shape = in_shape;
+        expected_out_shape[expected_out_shape.size() - 1] = ofm;
+        ASSERT_EQ(network->get_output_layout("fc").get_partial_shape(), expected_out_shape);
+        ASSERT_EQ(output_mem->get_layout().data_type, out_dt);
+
+        const auto output = get_output_values_to_float(*network, outputs.at("fc"));
+        for (int64_t r = 0; r < rows; ++r) {
+            for (int64_t o = 0; o < ofm; ++o) {
+                float ref = bias_data[o];
+                for (int64_t i = 0; i < ifm; ++i)
+                    ref += input_data[r * ifm + i] * weights_data[weights_transposed ? o * ifm + i : i * ofm + o];
+                ASSERT_NEAR(ref, output[r * ofm + o], tolerance) << "shape " << in_shape << " row " << r << " ofm " << o;
+            }
+        }
+    }
+}
+
+// In-place crop + unsqueeze propagates a dynamic padding to the FC input. The shape-agnostic impl flattens the
+// tensors and drops the padding, so it must not be used for such a node.
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_dynamic_padding) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(ofm * ifm, -1, 1));
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_length_mem, {ifm, ifm});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), 2 * ifm}, data_types::f16, format::bfyx}),
+        data("split_axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        data("weights", weights_mem),
+        crop("split.out0", {input_info("input"), input_info("split_axis"), input_info("splits_length")}, tensor(1), tensor(0), op_mode, 0, 1),
+        crop("split.out1", {input_info("input"), input_info("split_axis"), input_info("splits_length")}, tensor(1), tensor(0), op_mode, 1, 1),
+        reshape("unsqueeze", input_info("split.out1"), false, std::vector<int64_t>{0}, ov::PartialShape{1, -1, ifm}, reshape::reshape_mode::unsqueeze),
+        fully_connected("fc", input_info("unsqueeze"), "weights", "", 3, 2),
+        reorder("output", input_info("split.out0"), format::bfyx, data_types::f32));
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl_types::onednn};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl_desc}}));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->get_program()->get_compilation_context().cancel();
+
+    for (int64_t rows : {1, 7, 3}) {
+        auto input_mem = engine.allocate_memory({ov::PartialShape{rows, 2 * ifm}, data_types::f16, format::bfyx});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(rows * 2 * ifm, -1, 1));
+        network->set_input_data("input", input_mem);
+        network->execute();
+
+        auto fc_inst = network->get_primitive("fc");
+        ASSERT_TRUE(fc_inst->get_impl_params()->get_input_layout(0).data_padding.is_dynamic()) << "rows " << rows;
+        ASSERT_TRUE(fc_inst->get_impl()->is_onednn()) << "rows " << rows;
+        ASSERT_FALSE(fc_inst->get_impl()->is_dynamic()) << "rows " << rows;
+    }
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_cached) {
+    test_dynamic_shape_agnostic_onednn_fc(2, true);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_cached) {
+    test_dynamic_shape_agnostic_onednn_fc(3, true);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, true);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, true);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_not_transposed_weights) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::f16, data_types::f16, data_types::f16, false);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_not_transposed_weights_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, true, data_types::f16, data_types::f16, data_types::f16, false);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_f32) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::f32, data_types::f32, data_types::f32);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_bf16) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, false, data_types::bf16, data_types::bf16, data_types::bf16);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_u8s8) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::u8, data_types::i8, data_types::f32);
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_u8s8_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, true, data_types::u8, data_types::i8, data_types::f32);
+}
+
+// Fused ops are not supported by the shape-agnostic impl. With forcing, validate_impl() is skipped and create_impl()
+// returns nullptr for the dynamic impl, so a static oneDNN impl with the fused op must be used instead.
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_fused_op_rejected) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_data = round_to_data_type(rg.generate_random_1d<float>(ofm * ifm, -1, 1), data_types::f16);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    set_values_as(weights_mem, weights_data);
+
+    // The output node is not fused, so softmax consumes the activation to let it be fused into the FC
+    topology topology(input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), ifm}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      fully_connected("fc", input_info("input"), "weights", "", 2, 2),
+                      activation("act", input_info("fc"), activation_func::relu),
+                      softmax("softmax", input_info("act"), 1));
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl_types::onednn};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl_desc}}));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->get_program()->get_compilation_context().cancel();
+
+    for (int64_t rows : {1, 7}) {
+        auto input_data = round_to_data_type(rg.generate_random_1d<float>(rows * ifm, -1, 1), data_types::f16);
+        auto input_mem = engine.allocate_memory({ov::PartialShape{rows, ifm}, data_types::f16, format::bfyx});
+        set_values_as(input_mem, input_data);
+        network->set_input_data("input", input_mem);
+        auto outputs = network->execute();
+
+        auto fc_inst = network->get_primitive("fc");
+        ASSERT_FALSE(fc_inst->get_node().get_fused_primitives().empty()) << "rows " << rows;
+        ASSERT_TRUE(fc_inst->get_impl()->is_onednn()) << "rows " << rows;
+        ASSERT_FALSE(fc_inst->get_impl()->is_dynamic()) << "rows " << rows;
+
+        const auto output = get_output_values_to_float(*network, outputs.at("softmax"));
+        for (int64_t r = 0; r < rows; ++r) {
+            std::vector<float> ref(ofm);
+            for (int64_t o = 0; o < ofm; ++o) {
+                float acc = 0.f;
+                for (int64_t i = 0; i < ifm; ++i)
+                    acc += input_data[r * ifm + i] * weights_data[o * ifm + i];
+                ref[o] = std::exp(std::max(acc, 0.f));
+            }
+            const float sum = std::accumulate(ref.begin(), ref.end(), 0.f);
+            for (int64_t o = 0; o < ofm; ++o)
+                ASSERT_NEAR(ref[o] / sum, output[r * ofm + o], 1e-2f) << "rows " << rows << " row " << r << " ofm " << o;
+        }
+    }
+}
+
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_not_selected_on_intel) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().vendor_id != INTEL_VENDOR_ID)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(ofm * ifm, -1, 1));
+
+    topology topology(input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), ifm}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      fully_connected("fc", input_info("input"), "weights", "", 2, 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->get_program()->get_compilation_context().cancel();
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{7, ifm}, data_types::f16, format::bfyx});
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(7 * ifm, -1, 1));
+    network->set_input_data("input", input_mem);
+    network->execute();
+
+    auto* impl = network->get_primitive("fc")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_FALSE(impl->is_onednn() && impl->is_dynamic());
+}
+
 TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     tests::random_generator rg(GET_SUITE_NAME);
 
@@ -5698,6 +6291,256 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_b1_
     this->test_compressed_int4_scale_large_n_gemv(false, true, 1, false, false);
 }
 
+// Primitive-level test for UINT2 (2-bit) compressed weights on the oneDNN path.
+TEST(fully_connected_gpu, compressed_u2_weights_immad) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    // Input: 1x4 (batch=1, ifm=4), distinct per-lane values so a wrong 2-bit lane order is detected
+    // Weights: 2x4 packed as u2 (4 values/byte, low-to-high bit order):
+    //   ofm0 = [1, 2, 3, 0] -> byte 0x39, ofm1 = [3, 1, 0, 2] -> byte 0x87
+    // Scale: 1.0 per output channel, so decompressed weight == raw u2 value
+    // Expected output: ofm0 = 1*1+2*2+3*4+0*8 = 17, ofm1 = 3*1+1*2+0*4+2*8 = 21
+    const int32_t batch_num = 1, ifm_num = 4, ofm_num = 2;
+
+    auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::f16, format::bfyx });
+
+    set_values(input_mem, std::vector<ov::float16>{1, 2, 4, 8});
+    set_values(weights_mem, std::vector<uint8_t>{0x39, 0x87});
+    set_values(scale_mem, std::vector<ov::float16>{1, 1});
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto fc_impl = network.get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_TRUE(fc_impl->is_onednn());
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), size_t(ofm_num));
+    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 17.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 21.0f, 1e-2f);
+}
+
+// Primitive-level test for UINT2 (2-bit) decompression zero-point on the oneDNN path.
+// Zero point dtype is u8 (not u2): the oneDNN u2 kernel cannot unpack a packed-u2 zero-point tensor
+// (OpenCL build failure assigning __global u2 to __private int), so u2 is excluded from
+// is_zp_compressed in fully_connected_onednn.hpp and only wider zp dtypes are supported.
+TEST(fully_connected_gpu, compressed_u2_weights_zp_immad) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    // Weights unchanged from compressed_u2_weights_immad: ofm0 = [1, 2, 3, 0], ofm1 = [3, 1, 0, 2]
+    // Zero point: zp0 = 0, zp1 = 1; input = [1, 2, 4, 8]
+    // Decompressed weight = (raw - zp) * scale (scale == 1):
+    //   ofm0 = [1, 2, 3, 0] - 0 = [1, 2, 3, 0]  -> 1+4+12+0 = 17
+    //   ofm1 = [3, 1, 0, 2] - 1 = [2, 0, -1, 1] -> 2+0-4+8 = 6
+    const int32_t batch_num = 1, ifm_num = 4, ofm_num = 2;
+
+    auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::f16, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::u8, format::bfyx });
+
+    set_values(input_mem, std::vector<ov::float16>{1, 2, 4, 8});
+    set_values(weights_mem, std::vector<uint8_t>{0x39, 0x87});
+    set_values(scale_mem, std::vector<ov::float16>{1, 1});
+    set_values(zp_mem, std::vector<uint8_t>{0, 1});
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 3, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    topology.add(data("zp", zp_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto fc_impl = network.get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_TRUE(fc_impl->is_onednn());
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), size_t(ofm_num));
+    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 17.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 6.0f, 1e-2f);
+}
+
+// u2 with a scale group_size oneDNN can't handle (smoke_MatMulCompressedWeights_corner_cases_basic:
+// weights [16,32], group_size=4) must be routed to a non-oneDNN impl at selection and stay correct.
+TEST(fully_connected_gpu, compressed_u2_weights_unaligned_group_size) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const int32_t batch_num = 4, ifm_num = 16, ofm_num = 32, group_size = 4;
+    const int32_t num_groups = ifm_num / group_size;
+
+    auto input_ps = ov::PartialShape{ batch_num, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+    // k=1 so every byte value 0..255 can occur, exercising all four 2-bit lanes
+    auto packed_weights = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 4, 0, 255, 1);
+    set_values(weights_mem, packed_weights);
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * num_groups, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto fc_impl = network.get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_FALSE(fc_impl->is_onednn());
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), size_t(batch_num * ofm_num));
+
+    for (int n = 0; n < batch_num; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float ref = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                const int w_idx = ofm * ifm_num + ifm;
+                const uint8_t w = (packed_weights[w_idx / 4] >> ((w_idx % 4) * 2)) & 0x3;
+                const float scale = static_cast<float>(scale_data[ofm * num_groups + ifm / group_size]);
+                ref += static_cast<float>(input_data[n * ifm_num + ifm]) * static_cast<float>(w) * scale;
+            }
+            const float out = static_cast<float>(output_ptr[n * ofm_num + ofm]);
+            ASSERT_NEAR(out, ref, 0.1f + 0.01f * std::fabs(ref)) << "Mismatch at b=" << n << " ofm=" << ofm;
+        }
+    }
+}
+
+// u2 with several scale (and optional zero-point) groups on the oneDNN path, checked against a CPU reference.
+static void test_compressed_u2_grouped_onednn(int32_t group_size, bool with_zp, bool is_caching_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const int32_t batch_num = 4, ifm_num = 64, ofm_num = 32;
+    const int32_t num_groups = ifm_num / group_size;
+
+    auto input_ps = ov::PartialShape{ batch_num, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::f16, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::u8, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+    auto packed_weights = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 4, 0, 255, 1);
+    set_values(weights_mem, packed_weights);
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * num_groups, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+    auto zp_data = rg.generate_random_1d<uint8_t>(ofm_num * num_groups, 0, 3, 1);
+    if (!with_zp)
+        std::fill(zp_data.begin(), zp_data.end(), 0);
+    set_values(zp_mem, zp_data);
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", with_zp ? "zp" : "", data_types::f16, 2, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    if (with_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input_mem);
+
+    auto fc_impl = network->get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_TRUE(fc_impl->is_onednn());
+
+    auto outputs = network->execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), size_t(batch_num * ofm_num));
+
+    for (int n = 0; n < batch_num; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float ref = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                const int w_idx = ofm * ifm_num + ifm;
+                const int g_idx = ofm * num_groups + ifm / group_size;
+                const int w = (packed_weights[w_idx / 4] >> ((w_idx % 4) * 2)) & 0x3;
+                const float w_dq = static_cast<float>(w - zp_data[g_idx]) * static_cast<float>(scale_data[g_idx]);
+                ref += static_cast<float>(input_data[n * ifm_num + ifm]) * w_dq;
+            }
+            const float out = static_cast<float>(output_ptr[n * ofm_num + ofm]);
+            ASSERT_NEAR(out, ref, 0.1f + 0.01f * std::fabs(ref)) << "Mismatch at b=" << n << " ofm=" << ofm;
+        }
+    }
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_gs16_immad) {
+    test_compressed_u2_grouped_onednn(16, false, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_gs32_immad) {
+    test_compressed_u2_grouped_onednn(32, false, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_zp_gs16_immad) {
+    test_compressed_u2_grouped_onednn(16, true, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_zp_gs32_immad) {
+    test_compressed_u2_grouped_onednn(32, true, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_zp_gs32_immad_cached) {
+    test_compressed_u2_grouped_onednn(32, true, true);
+}
+
 // Test weight zp for INT8 ASYM
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
     this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
@@ -5771,6 +6614,87 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
     this->test_compressed_int8_transpose_scale_zp(true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel) {
+    this->test_compressed_int8_parameter_scale_zp(false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel_transposed) {
+    this->test_compressed_int8_parameter_scale_zp(false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group) {
+    this->test_compressed_int8_parameter_scale_zp(true, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group_transposed) {
+    this->test_compressed_int8_parameter_scale_zp(true, true);
+}
+
+// Full-pipeline regression for runtime scale/zp: an f32 scale Parameter and a u8 zp Parameter feeding a
+// compressed MatMul reach GPU:PostLPT through ConvertPrecision, so the scale arrives as a bare
+// Convert(Parameter) and the zp as Convert(Parameter) over the Subtract operand. The pipeline must
+// create FullyConnectedCompressed with an f16 scale (Convert preserved) and a u8 integer zero point,
+// and the device must compute the dequantized values.
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_full_pipeline) {
+    auto& engine = get_test_engine();
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    // weights u8 [N=4, K=16] = 5, data all ones -> out[n] = 16 * (5 - zp[n]) * scale[n]
+    auto make_model = [](ov::PartialShape data_ps) {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, data_ps);
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 16}, {5});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 1});
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{4, 1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(data, mul, false, true);
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, scale, zp});
+    };
+
+    auto model = make_model({2, 16});
+    auto config = get_test_default_config(engine);
+    config.finalize(context.get(), model.get());
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    std::shared_ptr<ov::Node> fc_compressed;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (op->get_type_name() == std::string("FullyConnectedCompressed")) {
+            fc_compressed = op;
+        }
+    }
+    ASSERT_TRUE(fc_compressed != nullptr) << "runtime scale/zp graph was not compressed";
+    EXPECT_EQ(fc_compressed->get_input_element_type(3), ov::element::f16) << "scale input must keep the graph precision (its Convert must not be stripped)";
+    EXPECT_EQ(fc_compressed->get_input_element_type(4), ov::element::u8) << "zero point input must stay an integer value";
+
+    // Execute through the real plugin entry point, on the device selected by --device_suffix.
+    ov::Core core;
+    const auto device_name = get_engine_gpu_device_name();
+    auto compiled = core.compile_model(make_model({2, 16}), device_name, ov::hint::inference_precision(ov::element::f16));
+    const auto execution_devices = compiled.get_property(ov::execution_devices);
+    ASSERT_FALSE(execution_devices.empty());
+    // A single GPU is listed as "GPU" but reported as "GPU.0", so compare by uuid rather than by name.
+    EXPECT_EQ(core.get_property(execution_devices.front(), ov::device::uuid).uuid, engine.get_device_info().uuid.uuid)
+        << "test must run on the get_test_engine() device";
+    auto request = compiled.create_infer_request();
+    std::vector<float> data_data(2 * 16, 1.0f);
+    std::vector<float> scale_data = {2.f, 1.f, 1.f, 2.f};
+    std::vector<uint8_t> zp_data = {4, 4, 5, 4};
+    request.set_input_tensor(0, ov::Tensor(ov::element::f32, {2, 16}, data_data.data()));
+    request.set_input_tensor(1, ov::Tensor(ov::element::f32, {4, 1}, scale_data.data()));
+    request.set_input_tensor(2, ov::Tensor(ov::element::u8, {4, 1}, zp_data.data()));
+    request.infer();
+    const float* output = request.get_output_tensor().data<const float>();
+    const float expected[4] = {32.f, 16.f, 0.f, 32.f};  // 16 * (5 - zp) * scale
+    for (int b = 0; b < 2; ++b) {
+        for (int n = 0; n < 4; ++n) {
+            EXPECT_NEAR(expected[n], output[b * 4 + n], 1e-1f) << "batch = " << b << ", output = " << n;
+        }
+    }
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
@@ -6506,8 +7430,8 @@ INSTANTIATE_TEST_SUITE_P(fully_connected_bf_tiled_dyn_b_accuracy,
                              // With post-op eltwise
                              std::make_tuple(16L, 256L, 1024L, true)));
 
-// Parameterized test fixture for UINT2 fully connected kernel across various matrix dimensions
-class fully_connected_gpu_u2_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
+// Common parameterized fixture for sub-byte (UINT2, UINT3) fully connected kernel tests across various matrix dimensions
+class fully_connected_gpu_sub_byte_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, int, bool>>& obj) {
         int batch = std::get<0>(obj.param);
@@ -6524,6 +7448,8 @@ public:
         return name;
     }
 };
+
+class fully_connected_gpu_u2_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT2 decompression correctness across multiple sizes using random data vs inline CPU-computed reference
 TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
@@ -7007,3 +7933,457 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     net->execute();
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
+
+namespace {
+// Counts the async compilation tasks queued by the implementations factory; the tasks still run on a real context.
+class counting_compilation_context : public ICompilationContext {
+public:
+    explicit counting_compilation_context(std::shared_ptr<ICompilationContext> context) : _context(std::move(context)) {}
+    void push_task(kernel_impl_params key, Task&& task) override {
+        pushed_tasks++;
+        _context->push_task(std::move(key), std::move(task));
+    }
+    void remove_keys(std::vector<kernel_impl_params>&& keys) override { _context->remove_keys(std::move(keys)); }
+    bool is_stopped() override { return _context->is_stopped(); }
+    void cancel() override { _context->cancel(); }
+    void wait_all() override { _context->wait_all(); }
+
+    size_t pushed_tasks = 0;
+
+private:
+    std::shared_ptr<ICompilationContext> _context;
+};
+
+// Runs a dynamic u8 compressed FC (scale + zero point) on several new shapes and returns the number of queued async compilation tasks.
+size_t count_async_compilation_tasks(impl_types fc_impl_type) {
+    auto& engine = get_test_engine();
+    const int64_t ifm_num = 64, ofm_num = 32;
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u8, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, 1}, data_types::f16, format::bfyx});
+    auto zp_mem = engine.allocate_memory({{ofm_num, 1}, data_types::u8, format::bfyx});
+    set_values(weights_mem, std::vector<uint8_t>(ofm_num * ifm_num, 3));
+    set_values(scale_mem, std::vector<ov::float16>(ofm_num, ov::float16(0.5f)));
+    set_values(zp_mem, std::vector<uint8_t>(ofm_num, 1));
+
+    topology topology(input_layout("input", layout{{-1, ifm_num}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      data("scale", scale_mem),
+                      data("zp", zp_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, "", fc_impl_type}}}));
+
+    auto context = std::make_shared<counting_compilation_context>(program::make_compilation_context(config));
+    auto prog = program::build_program(engine, topology, config, program::make_task_executor(config), context);
+    auto net = network::allocate_network(engine, prog);
+    for (int64_t batch : {1, 3, 17, 40}) {
+        auto input_mem = engine.allocate_memory({{batch, ifm_num}, data_types::f16, format::bfyx});
+        set_values(input_mem, std::vector<ov::float16>(batch * ifm_num, ov::float16(1.0f)));
+        net->set_input_data("input", input_mem);
+        net->execute();
+        EXPECT_EQ(net->get_primitive("fc_prim")->get_impl()->is_onednn(), fc_impl_type == impl_types::onednn);
+    }
+    context->wait_all();
+    return context->pushed_tasks;
+}
+}  // namespace
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// The oneDNN FC has no shape-agnostic impl, so each new shape is compiled synchronously. An async compilation task for the same
+// shape would only duplicate that work and run create() concurrently on the same onednn attributes, which create() modifies.
+TEST(fully_connected_onednn_gpu, dynamic_compressed_no_async_compilation_without_shape_agnostic_impl) {
+    if (!get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP();
+    ASSERT_EQ(count_async_compilation_tasks(impl_types::onednn), size_t(0));
+}
+#endif
+
+// Async compilation is kept when a shape-agnostic impl serves the new shapes meanwhile.
+TEST(fully_connected_gpu, dynamic_compressed_async_compilation_with_shape_agnostic_impl) {
+    ASSERT_GT(count_async_compilation_tasks(impl_types::ocl), size_t(0));
+}
+
+class fully_connected_gpu_u3_validation : public fully_connected_gpu_sub_byte_validation {};
+
+// Validates UINT3 decompression correctness in the reference kernel. u3 is a tightly packed LSB-first bit stream,
+// so values straddle byte boundaries and rows are not byte-aligned when ifm_num * 3 is not a multiple of 8
+TEST_P(fully_connected_gpu_u3_validation, various_sizes) {
+    auto& engine = get_test_engine();
+
+    const int batch_num = std::get<0>(GetParam());
+    const int ifm_num = std::get<1>(GetParam());
+    const int ofm_num = std::get<2>(GetParam());
+    const int scales_group_size = std::get<3>(GetParam());
+    const int seq_len = std::get<4>(GetParam());  // 1 = 2D path, >1 = 3D (OUTPUT_3D) path
+    const bool use_zp = std::get<5>(GetParam());
+    const bool is_3d = seq_len > 1;
+
+    ASSERT_EQ(ifm_num % scales_group_size, 0) << "ifm_num must be multiple of scales_group_size";
+
+    auto input_shape = is_3d ? ov::PartialShape{batch_num, seq_len, ifm_num} : ov::PartialShape{batch_num, ifm_num};
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u3, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto zp_mem = use_zp ? engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx}) : nullptr;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int input_elems = is_3d ? batch_num * seq_len * ifm_num : batch_num * ifm_num;
+    auto input_data = rg.generate_random_1d<ov::float16>(input_elems, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+
+    const size_t weights_count = static_cast<size_t>(ofm_num) * ifm_num;
+    auto unpacked_weights = rg.generate_random_1d<uint8_t>(weights_count, 0, 7, 1);
+    std::vector<uint8_t> packed_weights((weights_count * 3 + 7) / 8, 0);
+    for (size_t i = 0; i < weights_count; ++i) {
+        const uint32_t bits = static_cast<uint32_t>(unpacked_weights[i] & 0x7) << ((i * 3) % 8);
+        const size_t byte_idx = i * 3 / 8;
+        packed_weights[byte_idx] |= static_cast<uint8_t>(bits);
+        if (bits > 0xFF)
+            packed_weights[byte_idx + 1] |= static_cast<uint8_t>(bits >> 8);
+    }
+    ASSERT_EQ(weights_mem->size(), packed_weights.size());
+    set_values(weights_mem, packed_weights);
+
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> zp_data;
+    if (use_zp) {
+        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 2.5f, 4.5f);
+        set_values(zp_mem, zp_data);
+    }
+
+    auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
+    const int input_size = is_3d ? 3 : 2;
+
+    topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem));
+    if (use_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", use_zp ? "zp" : "", data_types::f16, input_size, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    const int outer_count = is_3d ? batch_num * seq_len : batch_num;
+    std::vector<float> expected_output(outer_count * ofm_num);
+    for (int n = 0; n < outer_count; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float acc = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                int group_id = ifm / scales_group_size;
+                uint8_t weight_u3 = unpacked_weights[ofm * ifm_num + ifm];
+                float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                float zp = use_zp ? static_cast<float>(zp_data[ofm * (ifm_num / scales_group_size) + group_id]) : 0.0f;
+                float weight_f16 = (static_cast<float>(weight_u3) - zp) * scale;
+                float inp = static_cast<float>(input_data[n * ifm_num + ifm]);
+                acc += inp * weight_f16;
+            }
+            expected_output[n * ofm_num + ofm] = acc;
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f) << "Mismatch at output index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_gpu_u3_validation,
+                         ::testing::Values(std::make_tuple(1, 8, 4, 8, 1, false),         // minimum byte-aligned row
+                                           std::make_tuple(2, 16, 8, 4, 1, false),        // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32, 1, false),      // multiple groups per row
+                                           std::make_tuple(1, 512, 256, 128, 1, false),   // larger dimensions
+                                           std::make_tuple(2, 12, 7, 4, 1, false),        // rows not byte-aligned, odd ofm_num
+                                           std::make_tuple(2, 60, 63, 4, 1, false),       // rows not byte-aligned, many groups
+                                           std::make_tuple(2, 12, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
+                                           std::make_tuple(2, 16, 8, 4, 1, true),         // with zero-point
+                                           std::make_tuple(1, 60, 33, 12, 1, true),       // zero-point, rows not byte-aligned
+                                           std::make_tuple(2, 12, 5, 4, 3, true)          // 3D with zero-point
+                                           ),
+                         fully_connected_gpu_u3_validation::GetTestCaseName);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+struct onednn_int4_fc_params {
+    size_t k;
+    bool is_3d;
+    bool is_u4;
+    bool expect_onednn;
+    bool is_f32 = false;
+};
+
+class fully_connected_onednn_int4_alignment : public ::testing::TestWithParam<onednn_int4_fc_params> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<onednn_int4_fc_params>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.is_u4 ? "u4" : "i4") + "_k" + std::to_string(p.k) + (p.is_3d ? "_3d" : "_2d") + (p.is_f32 ? "_f32" : "_f16");
+    }
+};
+
+template <typename T>
+void run_onednn_int4_fc_alignment(const onednn_int4_fc_params& p) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN INT4 FC requires XMX";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    constexpr size_t rows = 32;
+    constexpr size_t ofm = 32;
+    const size_t k = p.k;
+    const int zero_point = p.is_u4 ? 8 : 0;
+    const float scale_value = 1.0f / 16;
+    const auto activation_type = p.is_f32 ? data_types::f32 : data_types::f16;
+
+    const auto in_shape = p.is_3d ? ov::PartialShape{2, static_cast<int64_t>(rows / 2), static_cast<int64_t>(k)}
+                                  : ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(k)};
+    auto input_mem = engine.allocate_memory({in_shape, activation_type, format::bfyx});
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), static_cast<int64_t>(k)},
+                                               p.is_u4 ? data_types::u4 : data_types::i4, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), 1}, data_types::f16, format::bfyx});
+
+    auto input = rg.generate_random_1d<T>(rows * k, -1.0f, 1.0f);
+    std::vector<uint8_t> weights((ofm * k + 1) / 2);
+    for (size_t i = 0; i < weights.size(); ++i)
+        weights[i] = static_cast<uint8_t>((i * 5 + 3) % 16 | ((i * 7 + 1) % 16) << 4);
+    set_values(input_mem, input);
+    set_values(weights_mem, weights);
+    set_values(scale_mem, std::vector<ov::float16>(ofm, ov::float16(scale_value)));
+
+    topology topo;
+    topo.add(input_layout("input", input_mem->get_layout()));
+    topo.add(data("weights", weights_mem));
+    topo.add(data("scale", scale_mem));
+    if (p.is_u4) {
+        auto zp_mem = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::u8, format::bfyx});
+        set_values<uint8_t>(zp_mem, {static_cast<uint8_t>(zero_point)});
+        topo.add(data("zp", zp_mem));
+    }
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scale", p.is_u4 ? "zp" : "", activation_type, in_shape.size(), 2);
+    if (p.is_u4)
+        fc.decompression_zero_point_scalar = zero_point;
+    topo.add(fc);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    const auto impl = net.get_primitive("fc")->get_impl();
+    if (!p.is_3d) {
+        ASSERT_TRUE(impl->is_onednn());
+    }
+    if (p.expect_onednn) {
+        EXPECT_EQ(impl->get_kernel_name().find("ref"), std::string::npos) << "oneDNN kernel: " << impl->get_kernel_name();
+    }
+
+    auto output_mem = outputs.at("fc").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> output(output_mem, get_test_stream());
+    ASSERT_EQ(output.size(), rows * ofm);
+    for (size_t r = 0; r < rows; ++r) {
+        for (size_t n = 0; n < ofm; ++n) {
+            float expected = 0.0f;
+            for (size_t c = 0; c < k; ++c) {
+                const auto index = n * k + c;
+                int w = (weights[index / 2] >> (4 * (index % 2))) & 0xf;
+                if (!p.is_u4 && w >= 8)
+                    w -= 16;
+                expected += static_cast<float>(input[r * k + c]) * static_cast<float>(w - zero_point) * scale_value;
+            }
+            ASSERT_NEAR(static_cast<float>(output[r * ofm + n]), expected, 0.1f) << "row=" << r << ", ofm=" << n;
+        }
+    }
+}
+
+TEST_P(fully_connected_onednn_int4_alignment, compare_with_host_reference) {
+    const auto p = GetParam();
+    if (p.is_f32)
+        run_onednn_int4_fc_alignment<float>(p);
+    else
+        run_onednn_int4_fc_alignment<ov::float16>(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_onednn_int4_alignment,
+                         ::testing::Values(onednn_int4_fc_params{9, false, true, true},
+                                           onednn_int4_fc_params{9, false, false, true},
+                                           onednn_int4_fc_params{33, false, true, true},
+                                           onednn_int4_fc_params{33, false, false, true},
+                                           onednn_int4_fc_params{11, false, true, true},
+                                           onednn_int4_fc_params{11, false, false, true},
+                                           onednn_int4_fc_params{13, false, true, true},
+                                           onednn_int4_fc_params{13, false, false, true},
+                                           onednn_int4_fc_params{15, false, true, true},
+                                           onednn_int4_fc_params{15, false, false, true},
+                                           onednn_int4_fc_params{10, false, true, false},
+                                           onednn_int4_fc_params{10, false, false, false},
+                                           onednn_int4_fc_params{9, false, true, false, true},
+                                           onednn_int4_fc_params{9, false, false, false, true},
+                                           onednn_int4_fc_params{9, true, true, false},
+                                           onednn_int4_fc_params{33, true, false, false}),
+                         fully_connected_onednn_int4_alignment::GetTestCaseName);
+}  // namespace
+#endif
+
+// fully_connected_gpu_gemv has no tail handling for a partial OFM tile (GWS[0] = OFM / ofm_per_work_item, LWS[0] = 16).
+// It must be rejected at Validate for an unaligned OFM, also for the shape-agnostic impl built with a dynamic batch.
+TEST_F(fully_connected_gpu_tests, gemv_rejects_unaligned_ofm_with_dynamic_batch) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto supports_immad = engine.get_device_info().supports_immad;
+    const long int ifm_num = 1024;
+    const long int group_size = 128;
+
+    for (long int ofm_num : {1024L, 1000L}) {
+        SCOPED_TRACE("OFM=" + std::to_string(ofm_num));
+        auto input_mem = engine.allocate_memory({{1, ifm_num}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
+        auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / group_size}, data_types::f16, format::bfyx});
+        auto dcomp_zp_mem = engine.allocate_memory({{1, 1, 1, 1}, data_types::u8, format::bfyx});
+        set_values<int8_t>(dcomp_zp_mem, {8});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(ifm_num, -1.0f, 1.0f));
+        set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5));
+        set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / group_size, -2.0f, 2.0f));
+
+        // Fresh topology per network: program build may modify the primitive descriptors.
+        auto make_topology = [&]() {
+            auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", supports_immad ? "dcomp_zp" : "", data_types::f16, 2, 2);
+            fc_prim.decompression_zero_point_scalar = 8;
+            return topology(input_layout("input", layout{{-1, ifm_num}, data_types::f16, format::bfyx}),
+                            data("weights", weights_mem),
+                            data("scale", scale_mem),
+                            data("dcomp_zp", dcomp_zp_mem),
+                            fc_prim);
+        };
+
+        auto make_config = [&](const std::string& forced_kernel) {
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+            if (!forced_kernel.empty()) {
+                config.set_property(
+                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, forced_kernel, impl_types::ocl}}}));
+            }
+            return config;
+        };
+        auto execute = [&](network& net) {
+            net.set_input_data("input", input_mem);
+            return net.execute().at("fc_prim").get_memory();
+        };
+
+        network ref_net(engine, make_topology(), make_config("fully_connected_gpu_bfyx_ref"));
+        auto ref_mem = execute(ref_net);
+
+        auto kernel_name_of = [](network& net) {
+            auto impl = net.get_primitive("fc_prim")->get_impl();
+            return impl ? impl->get_kernel_name() : std::string("<none>");
+        };
+        auto is_gemv = [](const std::string& kernel_name) {
+            return kernel_name.find("fully_connected_gpu_gemv") != std::string::npos;
+        };
+
+        // With a dynamic batch the shape-agnostic impl is selected at build time, before any enqueue, so this checks
+        // the Validate decision.
+        const bool ofm_aligned = ofm_num % 16 == 0;
+        auto gemv_net = std::make_shared<network>(engine, make_topology(), make_config("fully_connected_gpu_gemv"));
+        const auto shape_agnostic_kernel = kernel_name_of(*gemv_net);
+        EXPECT_EQ(is_gemv(shape_agnostic_kernel), ofm_aligned) << "shape-agnostic kernel " << shape_agnostic_kernel;
+
+        auto net = ofm_aligned ? gemv_net : std::make_shared<network>(engine, make_topology(), make_config(""));
+        auto out_mem = execute(*net);
+        const auto kernel_name = kernel_name_of(*net);
+        EXPECT_EQ(is_gemv(kernel_name), ofm_aligned) << "kernel " << kernel_name;
+
+        compare_outputs<ov::float16>(out_mem, ref_mem);
+    }
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// A residual add fused into an f32 oneDNN fully_connected must reach oneDNN as a binary post-op. As a sum post-op it
+// becomes GEMM beta = 1, and oneDNN may then split K between work-groups that add their partial sums to dst with
+// float atomics, which makes the f32 result change from run to run.
+TEST(fully_connected_onednn_gpu, f32_residual_add_fused_as_binary_post_op) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN fully_connected requires a device with immad";
+
+    const int64_t m = 32, k = 64, n = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto x = rg.generate_random_1d<float>(m * k, -1.0f, 1.0f);
+    auto w = rg.generate_random_1d<float>(n * k, -1.0f, 1.0f);
+    auto h = rg.generate_random_1d<float>(m * n, -1.0f, 1.0f);
+
+    auto input_mem = engine.allocate_memory({{m, k}, data_types::f32, format::bfyx});
+    auto hidden_mem = engine.allocate_memory({{m, n}, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{n, k}, data_types::f32, format::bfyx});
+    set_values(input_mem, x);
+    set_values(hidden_mem, h);
+    set_values(weights_mem, w);
+
+    topology topology(input_layout("input", input_mem->get_layout()),
+                      input_layout("hidden", hidden_mem->get_layout()),
+                      data("weights", weights_mem),
+                      // The addend is computed by the network: a network input never becomes a sum post-op.
+                      activation("residual", input_info("hidden"), activation_func::abs),
+                      fully_connected("fc", input_info("input"), "weights"),
+                      eltwise("sum", {input_info("fc"), input_info("residual")}, eltwise_mode::sum),
+                      reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("hidden", hidden_mem);
+    auto outputs = network.execute();
+
+    // Look up by type, not id: the node is renamed to "out" when the redundant reorder is dropped.
+    const auto& infos = network.get_primitives_info();
+    auto fc_info = std::find_if(infos.begin(), infos.end(), [](const primitive_info& info) {
+        return info.type_id == "fully_connected";
+    });
+    ASSERT_NE(fc_info, infos.end());
+    ASSERT_NE(std::find(fc_info->c_fused_ids.begin(), fc_info->c_fused_ids.end(), "sum"), fc_info->c_fused_ids.end())
+        << "the residual add did not fuse into the fully_connected";
+    auto fc_inst = network.get_primitive(fc_info->original_id);
+    ASSERT_TRUE(fc_inst->get_impl()->is_onednn());
+    const auto& post_ops = fc_inst->get_fused_primitives_onednn();
+    auto has_post_op = [&](onednn_post_op_type type) {
+        return std::any_of(post_ops.begin(), post_ops.end(), [&](const fused_primitive_desc_onednn& p) {
+            return p.op_type == type;
+        });
+    };
+    ASSERT_TRUE(has_post_op(onednn_post_op_type::binary_add));
+    ASSERT_FALSE(has_post_op(onednn_post_op_type::sum));
+
+    cldnn::mem_lock<float> out(outputs.at("out").get_memory(), get_test_stream());
+    for (int64_t i = 0; i < m; ++i) {
+        for (int64_t j = 0; j < n; ++j) {
+            float ref = std::abs(h[i * n + j]);
+            for (int64_t kk = 0; kk < k; ++kk)
+                ref += x[i * k + kk] * w[j * k + kk];
+            ASSERT_NEAR(out[i * n + j], ref, 1e-4f) << "at (" << i << ", " << j << ")";
+        }
+    }
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU

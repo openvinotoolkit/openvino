@@ -57,18 +57,24 @@ std::shared_ptr<kernel_string> make_source(tensor_conversion_key key) {
         break;
     case data_types::i32:
         input_type = "int";
-        output_type = key.second == data_types::i64 ? "long" :
-                      key.second == data_types::u64 ? "ulong" : "uint";
+        output_type = "uint";
+        if (key.second == data_types::i64) {
+            output_type = "long";
+        } else if (key.second == data_types::u64) {
+            output_type = "ulong";
+        }
         value = "(" + std::string(output_type) + ")input[src_index]";
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported state conversion type");
     }
 
-    if (key.first == data_types::f64 || key.second == data_types::f64)
+    if (key.first == data_types::f64 || key.second == data_types::f64) {
         source->str += "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-    if (key.second == data_types::f16)
+    }
+    if (key.second == data_types::f16) {
         source->str += "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
+    }
     source->str += "__kernel void " + source->entry_point + "(__global const " + input_type + "* input, "
                   "__global " + output_type + "* output, ulong count, ulong src_count, ulong dst_count,\n"
                   "    ulong src_offset, ulong padded, ulong transpose,\n"
@@ -141,16 +147,18 @@ bool tensor_conversion::has_kernel(tensor_conversion_key key) const {
 std::vector<tensor_conversion_key> tensor_conversion::get_keys() const {
     std::lock_guard<std::mutex> lock(_mutex);
     std::vector<tensor_conversion_key> keys;
-    for (const auto& entry : _kernels)
+    for (const auto& entry : _kernels) {
         keys.push_back(entry.first);
+    }
     return keys;
 }
 
 std::vector<kernel::ptr> tensor_conversion::get_kernels() const {
     std::lock_guard<std::mutex> lock(_mutex);
     std::vector<kernel::ptr> kernels;
-    for (const auto& entry : _kernels)
+    for (const auto& entry : _kernels) {
         kernels.push_back(entry.second.compiled_kernel);
+    }
     return kernels;
 }
 
@@ -158,8 +166,9 @@ bool tensor_conversion::prepare_input(const layout& source_layout, const ov::Str
                                       bool transpose, tensor_conversion_input& input) {
     const auto shape = source_layout.get_shape();
     if (shape.empty() || shape.size() > 6 || strides.size() != shape.size() ||
-        !format::is_default_format(source_layout.format) || (transpose && shape.size() < 2))
+        !format::is_default_format(source_layout.format) || (transpose && shape.size() < 2)) {
         return false;
+    }
 
     const auto physical_shape = source_layout.get_padded_dims();
     const auto element_size = data_type_traits::size_of(source_layout.data_type);
@@ -171,8 +180,9 @@ bool tensor_conversion::prepare_input(const layout& source_layout, const ov::Str
     for (size_t i = shape.size(); i-- > 0;) {
         if (shape[i] == 0 || strides[i] == 0 || (shape[i] > 1 && strides[i] != pitch_bytes) ||
             source_layout.data_padding._lower_size[i] < 0 || source_layout.data_padding._upper_size[i] < 0 ||
-            physical_shape[i] <= 0)
+            physical_shape[i] <= 0) {
             return false;
+        }
         const auto lower = static_cast<size_t>(source_layout.data_padding._lower_size[i]);
         prepared.source_span_bytes += lower * pitch_bytes;
         prepared.source_offset += lower * (pitch_bytes / element_size);
@@ -195,8 +205,9 @@ event::ptr tensor_conversion::execute(tensor_conversion_key key, memory::cptr sr
     auto it = _kernels.find(key);
     OPENVINO_ASSERT(it != _kernels.end(), "[GPU] State conversion kernel was not prepared");
     const auto count = input.count;
-    if (count == 0)
+    if (count == 0) {
         return nullptr;
+    }
     const auto dst_count = dst->size() / data_type_traits::size_of(key.second);
     OPENVINO_ASSERT(count <= dst_count, "[GPU] State conversion destination memory is too small");
 
@@ -220,10 +231,12 @@ event::ptr tensor_conversion::execute(tensor_conversion_key key, memory::cptr sr
     add_scalar(input.source_offset);
     add_scalar(static_cast<uint64_t>(input.padded));
     add_scalar(static_cast<uint64_t>(input.transpose));
-    for (auto dimension : input.dimensions)
+    for (auto dimension : input.dimensions) {
         add_scalar(dimension);
-    for (auto stride : input.strides)
+    }
+    for (auto stride : input.strides) {
         add_scalar(stride);
+    }
     desc.layerID = "state_conversion";
 
     kernel_arguments_data args;
@@ -246,16 +259,18 @@ void tensor_conversion::prepare(const engine& engine, kernels_cache& cache,
             const bool needs_fp64 = key.first == data_types::f64 || key.second == data_types::f64;
             const bool needs_fp16 = key.first == data_types::f16 || key.second == data_types::f16;
             if (key.first != key.second && tensor_conversion::supports(key) &&
-                (!needs_fp64 || device_info.supports_fp64) && (!needs_fp16 || device_info.supports_fp16))
+                (!needs_fp64 || device_info.supports_fp64) && (!needs_fp16 || device_info.supports_fp16)) {
                 unique_keys.insert(key);
+            }
         }
     }
     std::vector<tensor_conversion_key> keys(unique_keys.begin(), unique_keys.end());
 
     if (_prepared) {
         std::vector<tensor_conversion_key> existing_keys;
-        for (const auto& entry : _kernels)
+        for (const auto& entry : _kernels) {
             existing_keys.push_back(entry.first);
+        }
         OPENVINO_ASSERT(keys == existing_keys, "[GPU] State conversion kernels do not match the network");
         return;
     }
@@ -263,8 +278,9 @@ void tensor_conversion::prepare(const engine& engine, kernels_cache& cache,
     if (!keys.empty()) {
         std::vector<std::shared_ptr<kernel_string>> sources;
         sources.reserve(keys.size());
-        for (const auto& key : keys)
+        for (const auto& key : keys) {
             sources.push_back(make_source(key));
+        }
 
         kernel_impl_params params;
         auto compiled = cache.compile(params, sources);
@@ -282,21 +298,24 @@ void tensor_conversion::prepare(const engine& engine, kernels_cache& cache,
 void tensor_conversion::restore(const engine& engine, const std::vector<tensor_conversion_key>& keys,
                                 const std::vector<kernel::ptr>& kernels) {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (!keys.empty())
+    if (!keys.empty()) {
         set_kernels(keys, kernels, engine);
+    }
     _prepared = true;
 }
 
 std::shared_ptr<tensor_conversion> program::get_tensor_conversion(bool create_if_not_exist) const {
     std::lock_guard<std::mutex> lock(_tensor_conversion_mutex);
-    if (!_tensor_conversion && create_if_not_exist)
+    if (!_tensor_conversion && create_if_not_exist) {
         _tensor_conversion = std::make_shared<tensor_conversion>();
+    }
     return _tensor_conversion;
 }
 
 void program::prepare_tensor_conversions(const std::vector<tensor_conversion_key>& requested_keys) {
-    if (requested_keys.empty())
+    if (requested_keys.empty()) {
         return;
+    }
     get_tensor_conversion()->prepare(_engine, *_kernels_cache, requested_keys);
 }
 

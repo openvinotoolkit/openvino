@@ -12,7 +12,7 @@ JitConstants GatherTreeKernelBase::GetJitConstants(const gather_tree_params & pa
     return jit;
 }
 
-GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather_tree_params & params) const {
+GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather_tree_params& params) {
     DispatchData dispatchData;
     /*
         b -> time

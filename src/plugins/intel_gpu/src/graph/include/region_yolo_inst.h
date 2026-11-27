@@ -33,8 +33,7 @@ template<typename ShapeType>
     static layout calc_output_layout(region_yolo_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(region_yolo_node const& node);
 
-public:
-    typed_primitive_inst(network& network, region_yolo_node const& desc);
+    typed_primitive_inst(network& network, const region_yolo_node& node);
 };
 
 using region_yolo_inst = typed_primitive_inst<region_yolo>;

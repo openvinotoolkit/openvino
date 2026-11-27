@@ -25,6 +25,15 @@ struct RoutedWeightViews {
     cldnn::memory::ptr zp[3];
 };
 
+// A scale / zero point shared by all the experts (scalar) is used as is, it has no per-expert slices
+bool is_per_expert(const cldnn::layout& layout, size_t num_expert);
+
+// Whether the slice of each expert is one contiguous byte range, which the slot copies require
+bool has_contiguous_expert_slices(const cldnn::layout& layout, size_t num_expert);
+
+// Layout of the slot buffer of an input with a slice per expert: the same slice, `capacity` times
+cldnn::layout get_slot_layout(const cldnn::layout& input, size_t capacity, size_t num_expert);
+
 // Abstraction over "where the weights of a MoE layer's experts live" and how they
 // are made addressable on the device for a given set of activated experts.
 //
@@ -53,17 +62,19 @@ public:
     // True when expert weights are streamed on demand rather than fully resident.
     virtual bool is_offloaded() const = 0;
 
-    // Fills the RoutedWeightViews with the correct memory pointers for the 3 GEMMs.
-    virtual void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) = 0;
-
     // Attempts to simultaneously acquire slots for all requested experts.
     // Returns nullopt if the number of unique experts exceeds resident_capacity()
     // (the caller should fall back to per-expert streaming).
     // The returned lease's slots vector is parallel to the input experts vector.
-    virtual std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
+    // `inputs` are the primitive inputs, `slots` the slot buffers that a miss loads; a scale / zero point without a slot buffer is
+    // shared by all the experts.
+    virtual std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                                    const RoutedWeightViews& inputs,
+                                                                    const RoutedWeightViews& slots,
+                                                                    cldnn::stream& stream) = 0;
 
     // Acquires a single expert slot. Always succeeds (evicts LRU if needed).
-    virtual size_t acquire_one(uint32_t expert, cldnn::stream& stream) = 0;
+    virtual size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) = 0;
 
     // Binds device-resident weight buffers. Called once on first execution.
     virtual void bind(cldnn::moe_weights& resident) = 0;

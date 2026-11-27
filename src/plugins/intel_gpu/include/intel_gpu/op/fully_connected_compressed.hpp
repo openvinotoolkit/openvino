@@ -14,6 +14,7 @@ public:
 
     FullyConnectedCompressed() = default;
 
+    // weights_layout defaults to NK when transpose_b is true, KN otherwise.
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
                              const ov::Output<Node>& bias,
@@ -22,29 +23,32 @@ public:
                              const ov::Output<Node>& a_decompression_scale,
                              const ov::Output<Node>& a_decompression_zero_point,
                              const ov::Output<Node>& a_precomputed_reduction,
-                             const ov::element::Type output_type = ov::element::dynamic,
-                             const bool transpose_b = true,
-                             const bool transpose_b_scale = true,
-                             const bool transpose_b_zp = true);
+                             ov::element::Type output_type = ov::element::dynamic,
+                             bool transpose_b = true,
+                             bool transpose_b_scale = true,
+                             bool transpose_b_zp = true,
+                             const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
                              const ov::Output<Node>& bias,
                              const ov::Output<Node>& w_decompression_scale,
                              const ov::Output<Node>& w_decompression_zero_point,
-                             const ov::element::Type output_type = ov::element::dynamic,
-                             const bool transpose_b = true,
-                             const bool transpose_b_scale = true,
-                             const bool transpose_b_zp = true);
+                             ov::element::Type output_type = ov::element::dynamic,
+                             bool transpose_b = true,
+                             bool transpose_b_scale = true,
+                             bool transpose_b_zp = true,
+                             const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
                              const ov::Output<Node>& bias,
                              const ov::Output<Node>& w_decompression_scale,
-                             const ov::element::Type output_type = ov::element::dynamic,
-                             const bool transpose_b = true,
-                             const bool transpose_b_scale = true,
-                             const bool transpose_b_zp = true);
+                             ov::element::Type output_type = ov::element::dynamic,
+                             bool transpose_b = true,
+                             bool transpose_b_scale = true,
+                             bool transpose_b_zp = true,
+                             const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     bool get_transpose_b_scale() const { return m_transpose_b_scale; }

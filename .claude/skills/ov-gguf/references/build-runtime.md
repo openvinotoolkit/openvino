@@ -17,6 +17,9 @@ overlay is necessary, check the actual compile and link commands:
 - Verify replacement objects occur in the final link, output is written into the
   overlay, and symlinks resolve inside it. Writing through a symlink can replace a base
   library. Inspect exact symlink targets before removing an overlay link.
+- Use the [link audit](preflight.md#overlay-link-inputs) to require replacement objects exactly
+  once and reject superseded objects. Verify added test IDs in the final binary; compilation
+  alone does not establish that a test was linked.
 - If upstream was merged, account for added translation units and changed dependency
   headers in the overlay. State which unchanged base objects are reused. Do not call an
   overlay a full clean build or treat an old embedded version string as the new commit.

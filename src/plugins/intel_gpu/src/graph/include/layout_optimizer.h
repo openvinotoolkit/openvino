@@ -27,9 +27,12 @@ class primitive_inst;
 struct reorder_cache_key {
     primitive_id data_source;
     layout expected_layout;
+    // Weights reorder that rotates the weights by 180 degrees (WeightsReorderParams::should_be_transposed()). It must
+    // not be shared with a consumer of the same weights that needs them as they are.
+    bool transposed = false;
 
     friend bool operator==(const reorder_cache_key& lhs, const reorder_cache_key& rhs) {
-        bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+        bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout && lhs.transposed == rhs.transposed;
 
         if (ret && lhs.expected_layout.format == cldnn::format::custom) {
             ret &= (lhs.expected_layout.format.traits().block_sizes == rhs.expected_layout.format.traits().block_sizes);
@@ -47,6 +50,9 @@ struct reorder_cache_key {
         }
         if (lhs.expected_layout != rhs.expected_layout) {
             return (lhs.expected_layout < rhs.expected_layout);
+        }
+        if (lhs.transposed != rhs.transposed) {
+            return rhs.transposed;
         }
         return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
     }
@@ -163,42 +169,42 @@ private:
     format get_expected_format(const deconvolution_node& node);
     format get_expected_format(const quantize_node& node);
 
-    void set_onednn_dyn_conv_preferred_format(convolution_node& node);
+    void set_onednn_dyn_conv_preferred_format(convolution_node& node) const;
 
-    bool is_depthwise(const convolution_node& node) const;
+    static bool is_depthwise(const convolution_node& node);
     format imad_case(const convolution_node& node) const;
 
     // custom_list
     // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
     // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
-    bool is_mixed_layout(program_node& prev, program_node& next, bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
+    static bool is_mixed_layout(program_node& prev, program_node& next, bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {});
 
-    bool convolution_bfyx_opt(const layout& output_layout, const layout& weights_layout, std::shared_ptr<const convolution> conv);
-    bool convolution_byxf_opt(const layout& input_layout, const layout& output_layout, const layout& weights_layout, const convolution_node& node);
-    bool convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
-                                       const layout& output_layout,
-                                       const layout& weights_layout,
-                                       std::shared_ptr<const convolution> conv,
-                                       bool weak_restrictions = false);
-    bool convolution_b_fs_zyx_fsv16_opt(const layout& input_layout,
-                                        const layout& output_layout,
-                                        const layout& weights_layout,
-                                        std::shared_ptr<const convolution> conv);
-    bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_layout,
+    bool convolution_bfyx_opt(const layout& output_layout, const layout& weights_layout, std::shared_ptr<const convolution> conv) const;
+    bool convolution_byxf_opt(const layout& input_layout, const layout& output_layout, const layout& weights_layout, const convolution_node& node) const;
+    static bool convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
                                               const layout& output_layout,
                                               const layout& weights_layout,
-                                              std::shared_ptr<const convolution> conv);
+                                              std::shared_ptr<const convolution> conv,
+                                              bool weak_restrictions = false);
+    static bool convolution_b_fs_zyx_fsv16_opt(const layout& input_layout,
+                                               const layout& output_layout,
+                                               const layout& weights_layout,
+                                               std::shared_ptr<const convolution> conv);
+    static bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_layout,
+                                                     const layout& output_layout,
+                                                     const layout& weights_layout,
+                                                     std::shared_ptr<const convolution> conv);
     bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout& input_layout,
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
-    bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
-                                       const layout& output_layout,
-                                       const layout& weights_layout,
-                                       std::shared_ptr<const convolution> conv,
-                                       bool weak_restrictions = false);
-    bool deconvolution_b_fs_zyx_fsv16_opt(const layout& input_layout, const layout& weights_layout, std::shared_ptr<const deconvolution> conv);
-    bool deconvolution_b_fs_yx_fsv16_opt(const layout& input_layout, const layout& weights_layout, std::shared_ptr<const deconvolution> conv);
+    static bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
+                                              const layout& output_layout,
+                                              const layout& weights_layout,
+                                              std::shared_ptr<const convolution> conv,
+                                              bool weak_restrictions = false);
+    static bool deconvolution_b_fs_zyx_fsv16_opt(const layout& input_layout, const layout& weights_layout, std::shared_ptr<const deconvolution> conv);
+    static bool deconvolution_b_fs_yx_fsv16_opt(const layout& input_layout, const layout& weights_layout, std::shared_ptr<const deconvolution> conv);
     bool users_for_convolution_byxf_opt(const program_node& node, uint32_t depth);
     bool deps_for_convolution_byxf_opt(const program_node& node, uint32_t depth);
 
@@ -210,8 +216,9 @@ public:
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     impl_types get_forced_impl_type_by_config(program_node& node);
-    bool is_primitive_implemented_for_onednn(program_node& node);
+    static bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
+    static bool is_byxf_onednn_conv_compatible(primitive_type_id type);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
@@ -245,19 +252,19 @@ public:
         return it->second;
     }
     void set_value_onednn(primitive_type_id p_type, bool val);
-    bool contains_onednn_impls_optimization_attribute(const program_node*);
-    bool is_empty_onednn_impls_optimization_attribute();
+    bool contains_onednn_impls_optimization_attribute(const program_node* /*node*/);
+    bool is_empty_onednn_impls_optimization_attribute() const;
     void clear_onednn_impls_optimization_attribute();
-    std::map<primitive_type_id, bool> get_all_onednn_impls_optimization_attribute();
+    std::map<primitive_type_id, bool> get_all_onednn_impls_optimization_attribute() const;
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
     const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
-    bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
-    bool is_format_optimized(const deconvolution_node& node, const format& format);
+    bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false) const;
+    static bool is_format_optimized(const deconvolution_node& node, const format& format);
     size_t get_optimized_conv_count(const std::pair<format::type, bool>& format);
-    size_t get_total_conv_count();
+    size_t get_total_conv_count() const;
 
     bool should_select_b_fs_yx_fsv16_layout(const convolution_node& node, const layout& output_or_weights_layout);
 

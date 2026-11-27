@@ -117,7 +117,6 @@ class IntegrationTest(unittest.TestCase):
                 run_id=run_id,
                 rerunner_run_id=rerunner_run_id,
                 errors_file=self.errors_to_look_for_file,
-                patterns_dir=None,
                 is_dry_run=False,
                 session=mock_session
             )

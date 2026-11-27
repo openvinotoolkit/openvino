@@ -7,7 +7,7 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-Tensor::DataChannelName CumSumKernelBase::GetCumSumAxis(const cum_sum_params& params) const {
+Tensor::DataChannelName CumSumKernelBase::GetCumSumAxis(const cum_sum_params& params) {
     switch (params.axis) {
     case CumSumAxis::X:
         return Tensor::DataChannelName::X;
@@ -26,11 +26,11 @@ Tensor::DataChannelName CumSumKernelBase::GetCumSumAxis(const cum_sum_params& pa
     }
 }
 
-int32_t CumSumKernelBase::GetCumSumAxisIndex(const cum_sum_params& params) const {
+int32_t CumSumKernelBase::GetCumSumAxisIndex(const cum_sum_params& params) {
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), GetCumSumAxis(params));
 }
 
-size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
+size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) {
     size_t index = params.outputs[0].Dimentions() - GetCumSumAxisIndex(params) - 1;
     if (params.outputs[0].Dimentions() == 6) {
         return index;
@@ -41,7 +41,7 @@ size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
     return (index > 1) ? index + 2 : index;
 }
 
-JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, DispatchData) const {
+JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, DispatchData /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     if (params.exclusive) {
@@ -133,7 +133,7 @@ bool CumSumKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-Datatype CumSumKernelBase::GetActivationType(const cum_sum_params& params) const {
+Datatype CumSumKernelBase::GetActivationType(const cum_sum_params& params) {
     if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
     }

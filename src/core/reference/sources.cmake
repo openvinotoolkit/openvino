@@ -144,6 +144,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/grouped_matmul.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gru_cell.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/hard_sigmoid.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/histc.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/hsigmoid.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/hswish.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/identity.hpp
@@ -177,6 +178,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/multiply.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/mvn.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/negate.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/ngram_hash_function.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/nms_rotated.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/nms_rotated_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/non_max_suppression.hpp

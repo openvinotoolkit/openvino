@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,13 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "driver_dev_id.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_common.hpp"
 
@@ -34,8 +36,6 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <devguid.h>
-#    include <setupapi.h>
 #    include <windows.h>
 
 #    include <cstring>
@@ -84,73 +84,12 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
 }
 #endif
 
-int driver_dev_id() {
-    const std::vector<int> unused_ids = {0x4905, 0x4906, 0x4907, 0x4908};
-    std::vector<int> result;
-
-#ifdef _WIN32
-    {
-        HDEVINFO device_info_set = SetupDiGetClassDevsA(&GUID_DEVCLASS_DISPLAY, NULL, NULL, DIGCF_PRESENT);
-        if (device_info_set == INVALID_HANDLE_VALUE)
-            return 0;
-
-        SP_DEVINFO_DATA devinfo_data;
-        std::memset(&devinfo_data, 0, sizeof(devinfo_data));
-        devinfo_data.cbSize = sizeof(devinfo_data);
-
-        for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t kBufSize = 512;
-            char buf[kBufSize];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
-                continue;
-            }
-
-            char* vendor_pos = std::strstr(buf, "VEN_");
-            if (vendor_pos != NULL && std::stoi(vendor_pos + 4, NULL, 16) == 0x8086) {
-                char* device_pos = strstr(vendor_pos, "DEV_");
-                if (device_pos != NULL) {
-                    result.push_back(std::stoi(device_pos + 4, NULL, 16));
-                }
-            }
-        }
-
-        if (device_info_set) {
-            SetupDiDestroyDeviceInfoList(device_info_set);
-        }
+std::optional<pci_bus_info> get_pci_bus_info(const cl::Device& device) {
+    cl_device_pci_bus_info_khr pci_info{};
+    if (clGetDeviceInfo(device.get(), CL_DEVICE_PCI_BUS_INFO_KHR, sizeof(pci_info), &pci_info, nullptr) != CL_SUCCESS) {
+        return std::nullopt;
     }
-#elif defined(__linux__)
-    {
-        std::string dev_base{"/sys/devices/pci0000:00/0000:00:02.0/"};
-        std::ifstream ifs(dev_base + "vendor");
-        if (ifs.good()) {
-            int ven_id;
-            ifs >> std::hex >> ven_id;
-            ifs.close();
-            if (ven_id == 0x8086) {
-                ifs.open(dev_base + "device");
-                if (ifs.good()) {
-                    int res = 0;
-                    ifs >> std::hex >> res;
-                    result.push_back(res);
-                }
-            }
-        }
-    }
-#endif
-
-    auto id_itr = result.begin();
-    while (id_itr != result.end()) {
-        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end()) {
-            id_itr = result.erase(id_itr);
-        } else {
-            id_itr++;
-        }
-    }
-
-    if (result.empty()) {
-        return 0;
-    }
-    return result.back();
+    return pci_bus_info{pci_info.pci_domain, pci_info.pci_bus, pci_info.pci_device, pci_info.pci_function};
 }
 
 device_type get_device_type(const cl::Device& device) {
@@ -192,7 +131,7 @@ bool get_imad_support(const cl::Device& device) {
 
     if (get_device_type(device) == device_type::integrated_gpu) {
         const std::vector<int> imad_ids = {0x9A40, 0x9A49, 0x9A59, 0x9AD9, 0x9A60, 0x9A68, 0x9A70, 0x9A78, 0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9};
-        int dev_id = driver_dev_id();
+        int dev_id = driver_dev_id(get_pci_bus_info(device));
         if (dev_id == 0) {
             return false;
         }
@@ -240,7 +179,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
     info.max_global_cache_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHE_SIZE>());
 
-    info.supports_image = (static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>()) != 0u);
+    info.supports_image = (static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>()) != 0U);
     info.max_image2d_width = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_WIDTH>());
     info.max_image2d_height = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_HEIGHT>());
 
@@ -312,8 +251,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_threads_per_eu = device.getInfo<CL_DEVICE_NUM_THREADS_PER_EU_INTEL>();
         auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
 
-        info.supports_imad = info.supports_imad || ((features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL) != 0u);
-        info.supports_immad = info.supports_immad || ((features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL) != 0u);
+        info.supports_imad = info.supports_imad || ((features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL) != 0U);
+        info.supports_immad = info.supports_immad || ((features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL) != 0U);
         if (info.dev_type == device_type::discrete_gpu || info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
@@ -323,7 +262,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
                         0};
     } else {
         info.gfx_ver = {0, 0, 0};
-        info.device_id = driver_dev_id();
+        info.device_id = driver_dev_id(get_pci_bus_info(device));
         info.num_slices = 0;
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
@@ -380,6 +319,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 #else   // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
+    info.supports_bf16 = info.supports_immad;
 
     auto arch_to_string = [](gpu_arch arch) -> const char* {
         switch (arch) {
@@ -416,10 +356,11 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
     auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, nullptr);
-    if (err)
+    if (err) {
         throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
+    }
 
-    return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
+    return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0U);
 }
 
 memory_capabilities init_memory_caps(const cl::Device& device, const device_info& info) {
@@ -494,8 +435,7 @@ void ocl_device::initialize() {
         return;
     }
 
-    ocl::ocl_device_detector detector;
-    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);
+    auto device_map = ocl::ocl_device_detector::get_available_devices(nullptr, nullptr, 0, -1, false);
 
     bool found = false;
     for (auto& device : device_map) {

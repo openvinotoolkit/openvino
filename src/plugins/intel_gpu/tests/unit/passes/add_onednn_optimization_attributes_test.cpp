@@ -12,6 +12,7 @@
 #include "eltwise_inst.h"
 #include "activation_inst.h"
 #include "reorder_inst.h"
+#include "reshape_inst.h"
 #include "convolution_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
@@ -21,6 +22,7 @@
 
 #include <memory>
 #include <fully_connected_inst.h>
+#include <gemm_inst.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -100,8 +102,7 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
 
 }
 
-
-TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
+TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_binary) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
@@ -138,7 +139,7 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
     ASSERT_EQ(fused.size(), 1);
 
     auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
-    ASSERT_EQ(fusing_type, add_fusing_type::sum);
+    ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
 
 TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
@@ -181,6 +182,174 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
 
+// The addend is a network input seen through a reshape, as in a decoder's first residual after
+// MoveEltwiseUpThroughDataMovFusableProducer. A sum would accumulate into the input's buffer, which
+// has no memory at build time and belongs to the caller.
+TEST(add_onednn_optimization_attributes, fc_sum_refused_for_reshaped_network_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    auto weights_mem = engine.allocate_memory({ov::PartialShape({16, 16}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(data("weights", weights_mem));
+    topology.add(input_layout("input", layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx}));
+    topology.add(input_layout("residual", layout{ov::PartialShape({1, 32, 16}), data_types::f16, format::bfyx}));
+    topology.add(fully_connected("fc", input_info("input"), "weights"));
+    topology.add(reshape("residual_view", input_info("residual"), false, {32, 16}, ov::PartialShape{32, 16}));
+    topology.add(eltwise("sum", {input_info("fc"), input_info("residual_view")}, eltwise_mode::sum));
+    topology.add(reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto& fc_node = prog->get_node("fc");
+    auto& fused = fc_node.get_fused_primitives();
+    ASSERT_EQ(fused.size(), 1);
+
+    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
+    ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
+}
+
+// Runs the fusion passes and returns how the residual eltwise fused into `node_id` reaches oneDNN.
+static add_fusing_type fused_residual_fusing_type(cldnn::engine& engine, const topology& topology, const primitive_id& node_id) {
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto& node = prog->get_node(node_id);
+    auto& fused = node.get_fused_primitives();
+    EXPECT_EQ(fused.size(), 1u) << "the residual eltwise did not fuse into " << node_id;
+    if (fused.size() != 1)
+        return add_fusing_type::not_supported;
+    return onednn_eltwise_fusing_helpers::get_add_fusing_type(node, fused[0]);
+}
+
+// input -> residual -> fc1 -> fc2 plus eltwise(fc2, residual). The addend is an inner node with the layout of fc2,
+// so only the data type decides between the in-place sum and the binary post-op.
+static topology fc_residual_topology(cldnn::engine& engine, data_types dt) {
+    auto weights1_mem = engine.allocate_memory({ov::PartialShape({16, 16}), dt, format::bfyx});
+    auto weights2_mem = engine.allocate_memory({ov::PartialShape({16, 16}), dt, format::bfyx});
+
+    topology topology;
+    topology.add(data("weights1", weights1_mem));
+    topology.add(data("weights2", weights2_mem));
+    topology.add(input_layout("input", layout{ov::PartialShape({32, 16}), dt, format::bfyx}));
+    topology.add(activation("residual", input_info("input"), activation_func::relu));
+    topology.add(fully_connected("fc1", input_info("residual"), "weights1"));
+    topology.add(fully_connected("fc2", input_info("fc1"), "weights2"));
+    topology.add(eltwise("sum", {input_info("fc2"), input_info("residual")}, eltwise_mode::sum));
+    topology.add(reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+    return topology;
+}
+
+// gemm with f16 inputs and an out_dt output plus eltwise(gemm, residual) with an inner addend of the same layout.
+static topology gemm_residual_topology(cldnn::engine& engine, data_types out_dt) {
+    auto b_mem = engine.allocate_memory({ov::PartialShape({1, 1, 16, 16}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(data("b", b_mem));
+    topology.add(input_layout("a", layout{ov::PartialShape({1, 1, 32, 16}), data_types::f16, format::bfyx}));
+    topology.add(input_layout("hidden", layout{ov::PartialShape({1, 1, 32, 16}), out_dt, format::bfyx}));
+    topology.add(activation("residual", input_info("hidden"), activation_func::relu));
+    topology.add(gemm("gemm", {input_info("a"), input_info("b")}, out_dt, false, false, 1.0f, 0.0f, 4, 4));
+    topology.add(eltwise("sum", {input_info("gemm"), input_info("residual")}, eltwise_mode::sum));
+    topology.add(reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+    return topology;
+}
+
+TEST(add_onednn_optimization_attributes, fc_sum_post_op_for_f16_residual) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    ASSERT_EQ(fused_residual_fusing_type(engine, fc_residual_topology(engine, data_types::f16), "fc2"), add_fusing_type::sum);
+}
+
+// oneDNN turns the sum post-op of a matmul into GEMM beta = 1. With an f32 destination it may then split K between
+// work-groups that add their partial sums to dst with float atomics, so the f32 result changes from run to run. The
+// residual add has to arrive as a binary post-op, which keeps the result of the unfused add.
+TEST(add_onednn_optimization_attributes, fc_sum_post_op_refused_for_f32_residual) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    ASSERT_EQ(fused_residual_fusing_type(engine, fc_residual_topology(engine, data_types::f32), "fc2"),
+              add_fusing_type::binary_per_tensor);
+}
+
+TEST(add_onednn_optimization_attributes, gemm_sum_post_op_for_f16_residual) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    ASSERT_EQ(fused_residual_fusing_type(engine, gemm_residual_topology(engine, data_types::f16), "gemm"), add_fusing_type::sum);
+}
+
+TEST(add_onednn_optimization_attributes, gemm_sum_post_op_refused_for_f32_residual) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    ASSERT_EQ(fused_residual_fusing_type(engine, gemm_residual_topology(engine, data_types::f32), "gemm"),
+              add_fusing_type::binary_per_tensor);
+}
+
+TEST(add_onednn_optimization_attributes, fc_mul_inplace_refused_for_reshaped_network_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn post-ops are only selected on a device with immad";
+
+    auto weights_mem = engine.allocate_memory({ov::PartialShape({16, 16}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(data("weights", weights_mem));
+    topology.add(input_layout("input", layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx}));
+    topology.add(input_layout("mul_in", layout{ov::PartialShape({1, 32, 16}), data_types::f16, format::bfyx}));
+    topology.add(fully_connected("fc", input_info("input"), "weights"));
+    topology.add(reshape("mul_view", input_info("mul_in"), false, {32, 16}, ov::PartialShape{32, 16}));
+    topology.add(eltwise("mul", {input_info("fc"), input_info("mul_view")}, eltwise_mode::prod));
+    topology.add(reorder("out", input_info("mul"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto& fc_node = prog->get_node("fc");
+    auto& fused = fc_node.get_fused_primitives();
+    ASSERT_EQ(fused.size(), 1u);
+    ASSERT_FALSE(onednn_eltwise_fusing_helpers::can_use_mul_inplace(fc_node, fused[0]));
+}
+
 // Builds input -> conv1 -> ... -> conv{depth} plus eltwise(conv1, conv{depth}), which puts conv1
 // exactly depth-1 dependency(0) hops above the node the eltwise fuses into.
 static add_fusing_type residual_chain_fusing_type(cldnn::engine& engine, size_t depth) {
@@ -216,6 +385,19 @@ static add_fusing_type residual_chain_fusing_type(cldnn::engine& engine, size_t 
     // is_direct_ancestor path rather than the single-user shortcut.
     EXPECT_EQ(prog->get_node("conv1").get_users().size(), 2u);
     return onednn_eltwise_fusing_helpers::get_add_fusing_type(last_node, cldnn_post_ops[0]);
+}
+
+// The degenerate end of the same construction. A chain of two puts conv1 one hop up, which makes
+// it conv2's own input, and is_direct_ancestor tests for equality before the first hop so it
+// answers yes here too. An in-place sum would then leave the convolution reading and writing one
+// buffer, so the addend has to arrive as a binary post-op instead.
+TEST(add_onednn_optimization_attributes, sum_post_op_refused_for_own_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    ASSERT_EQ(residual_chain_fusing_type(engine, 2), add_fusing_type::binary_per_tensor);
 }
 
 // An attention residual reaches six hops back -- projection, reshape, attention, reshape, QKV

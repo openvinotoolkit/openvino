@@ -53,7 +53,7 @@ public:
     static layout calc_output_layout(const slice_scatter_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const slice_scatter_node& node);
 
-    typed_primitive_inst(network& network, const slice_scatter_node& desc);
+    typed_primitive_inst(network& network, const slice_scatter_node& node);
     void update_output_memory() override;
 
 private:

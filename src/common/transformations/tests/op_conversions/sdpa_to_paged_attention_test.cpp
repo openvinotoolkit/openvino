@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+
 #include "../common_optimizations/ssm_test_models.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -41,7 +43,9 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -54,6 +58,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/sparse_attention.hpp"
+#include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -62,9 +68,12 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
+#include "transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp"
+#include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -1194,6 +1203,173 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
     // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
     // checking the graph structure and names, other checks are temporarily disabled:
     comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_result_friendly_names_check();
+    disable_rt_info_check();
+}
+
+namespace {
+OutputVector make_granite_rope(const Output<Node>& rotary_positions) {
+    auto converted = std::make_shared<v0::Convert>(rotary_positions, element::f32);
+    auto inv_freq = v0::Constant::create(element::f32, Shape{1, 2, 1}, {1.f, 0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(inv_freq, converted);
+    auto transpose = std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+    auto angles = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, -1);
+    auto cos = std::make_shared<v0::Cos>(angles);
+    auto sin = std::make_shared<v0::Sin>(angles);
+    auto one = v0::Constant::create(element::i64, Shape{}, {1});
+    auto unsq_cos = std::make_shared<v0::Unsqueeze>(cos, one);
+    auto unsq_sin = std::make_shared<v0::Unsqueeze>(sin, one);
+    return {unsq_cos, unsq_sin};
+}
+}  // namespace
+
+class SDPAToPAGranitePositionIDsTest : public TransformationTestsF,
+                                       public ::testing::WithParamInterface<std::tuple<element::Type, bool, bool>> {
+public:
+    SDPAToPAGranitePositionIDsTest() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        disable_result_friendly_names_check();
+        disable_rt_info_check();
+    }
+};
+
+TEST_P(SDPAToPAGranitePositionIDsTest, SDPAToPA_Granite_PositionIDsReplacer_AfterPrevSequenceLength) {
+    const auto& [length_type, vector_index, exec_PrevSequenceLengthPattern] = GetParam();
+    {
+        auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
+        auto processed_input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{3, 1});
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+        auto unsqueezed_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+
+        // The cache-length Gather's type and rank determine which wrappers the earlier pass inserts.
+        auto init = v0::Constant::create(element::f32, Shape{1, 2, 0, 4}, {0.f});
+        auto variable = std::make_shared<op::util::Variable>(
+            op::util::VariableInfo{PartialShape{1, 2, DYN, 4}, element::f32, "cache"});
+        auto cache = std::make_shared<v6::ReadValue>(init, variable);
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+        auto cache_gather =
+            std::make_shared<v8::Gather>(cache, v0::Constant::create(element::i32, Shape{1}, {0}), zero);
+        // length_type selects i32 or i64 for the cache length and current-token offsets.
+        auto cache_shape = std::make_shared<v3::ShapeOf>(cache_gather, length_type);
+        auto cache_length_index = v0::Constant::create(element::i64, vector_index ? Shape{1} : Shape{}, {2});
+        auto cache_length = std::make_shared<v8::Gather>(cache_shape, cache_length_index, zero);
+
+        auto current_shape = std::make_shared<v3::ShapeOf>(hidden_states, length_type);
+        auto current_length = std::make_shared<v8::Gather>(current_shape, one, zero);
+        auto range_start = v0::Constant::create(length_type, Shape{}, {0});
+        auto range_step = v0::Constant::create(length_type, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(range_start, current_length, range_step, length_type);
+        auto positions = std::make_shared<v1::Add>(range, cache_length);
+        auto batch_positions = std::make_shared<v0::Unsqueeze>(positions, zero);
+        auto rotary_positions = std::make_shared<v0::Unsqueeze>(batch_positions, one);
+        model =
+            std::make_shared<Model>(make_granite_rope(rotary_positions),
+                                    ParameterVector{hidden_states, processed_input_ids, position_ids, max_context_len});
+
+        if (exec_PrevSequenceLengthPattern) {
+            manager.register_pass<pass::PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
+        }
+        manager.register_pass<pass::PositionIDsReplacerGranite>(unsqueezed_position_ids);
+    }
+    {
+        // All four input variants produce the same RoPE graph using the supplied position_ids.
+        auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
+        auto processed_input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{3, 1});
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+        auto unsqueezed_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+        auto rotary_positions = std::make_shared<v0::Unsqueeze>(unsqueezed_position_ids, one);
+        model_ref =
+            std::make_shared<Model>(make_granite_rope(rotary_positions),
+                                    ParameterVector{hidden_states, processed_input_ids, position_ids, max_context_len});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPAGranitePositionIDsTest,
+                         ::testing::Combine(::testing::Values(element::i32, element::i64),
+                                            ::testing::Values(false, true),
+                                            ::testing::Values(false, true)),
+                         [](const ::testing::TestParamInfo<SDPAToPAGranitePositionIDsTest::ParamType>& info) {
+                             const auto& length_type = std::get<0>(info.param);
+                             const auto vector_index = std::get<1>(info.param);
+                             const auto exec_PrevSequenceLengthPattern = std::get<2>(info.param);
+                             return length_type.to_string() + (vector_index ? "_Vector" : "_Scalar") +
+                                    (exec_PrevSequenceLengthPattern ? "_PrevSequenceLengthPattern" : "");
+                         });
+
+TEST_F(TransformationTestsF, SDPAToPA_Qwen3_5_PositionIDsReplacer) {
+    auto make_rope = [](const Output<Node>& positions, const Output<Node>& hidden_states) {
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto hidden_shape = std::make_shared<v3::ShapeOf>(hidden_states);
+        auto batch = std::make_shared<v8::Gather>(hidden_shape, zero, zero);
+        auto batch_vector =
+            std::make_shared<v1::Reshape>(batch, v0::Constant::create(element::i64, Shape{1}, {1}), false);
+        auto target_shape =
+            std::make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, Shape{1}, {3}),
+                                                      batch_vector,
+                                                      v0::Constant::create(element::i64, Shape{1}, {1})},
+                                         0);
+        auto broadcast = std::make_shared<v3::Broadcast>(positions, target_shape, op::BroadcastType::BIDIRECTIONAL);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i64, Shape{}, {2}));
+        auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
+        auto inv_freq = v0::Constant::create(element::f32, Shape{1, 1, 32, 1}, {1.f});
+        auto matmul = std::make_shared<v0::MatMul>(inv_freq, convert);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
+        return transpose;
+    };
+
+    {
+        auto hidden_states = ov::test::utils::make_param(element::f32, PartialShape{DYN, 6144, 1}, "hidden_states");
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        auto unsq_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+        auto init = v0::Constant::create(element::f32, Shape{1, 2, 0, 256}, {0.f});
+        auto variable = std::make_shared<op::util::Variable>(
+            op::util::VariableInfo{PartialShape{DYN, 2, DYN, 256}, element::f32, "key_cache"});
+        auto cache = std::make_shared<v6::ReadValue>(init, variable);
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto reordered_cache = std::make_shared<v8::Gather>(cache, beam_idx, zero);
+        auto cache_shape = std::make_shared<v3::ShapeOf>(reordered_cache);
+        auto past_length =
+            std::make_shared<v8::Gather>(cache_shape, v0::Constant::create(element::i64, Shape{}, {2}), zero);
+        auto hidden_shape = std::make_shared<v3::ShapeOf>(hidden_states);
+        auto sequence_length_vector =
+            std::make_shared<v8::Gather>(hidden_shape, v0::Constant::create(element::i64, Shape{1}, {2}), zero);
+        auto sequence_length = std::make_shared<v0::Squeeze>(sequence_length_vector, zero);
+        auto end = std::make_shared<v1::Add>(sequence_length, past_length);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(past_length, end, step, element::i64);
+        auto reshape =
+            std::make_shared<v1::Reshape>(range, v0::Constant::create(element::i64, Shape{3}, {1, 1, -1}), false);
+        auto rope = make_rope(reshape, hidden_states);
+
+        model = std::make_shared<Model>(OutputVector{rope}, ParameterVector{hidden_states, position_ids, beam_idx});
+        manager.register_pass<pass::PositionIDsReplacerQwen3_5>(unsq_position_ids);
+    }
+    {
+        auto hidden_states = ov::test::utils::make_param(element::f32, PartialShape{DYN, 6144, 1}, "hidden_states");
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        // This test runs only the matcher. The full SDPAToPA pipeline removes the unused beam_idx input later.
+        auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+        auto unsq_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto positions =
+            std::make_shared<v0::Unsqueeze>(unsq_position_ids, v0::Constant::create(element::i32, Shape{}, {0}));
+        auto rope = make_rope(positions, hidden_states);
+
+        model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{hidden_states, position_ids, beam_idx});
+    }
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
     disable_result_friendly_names_check();
     disable_rt_info_check();
 }
@@ -7497,6 +7673,640 @@ TEST(SDPAToPA_SelectiveSSM_Unconvertible, StatefulSSMLeftInGraphThrows) {
                     ov::Exception,
                     ::testing::HasSubstr("Stateful SSM nodes cannot be left in the graph"));
 }
+
+// gemma-4-e2b-it-assistant (MTP draft): no K/V projections and no state, K/V arrive as model inputs holding the
+// target model's cache. Layers 0-2 are sliding-window and share one repeat_kv chain, layer 3 is full attention.
+namespace {
+namespace gemma4_mtp {
+constexpr int hidden_size = 16;
+constexpr int num_heads = 4;
+constexpr int num_kv_heads = 1;
+constexpr int sliding_head_size = 256;
+constexpr int full_head_size = 512;
+constexpr int sliding_window = 512;
+
+std::shared_ptr<Node> make_query(const Output<Node>& inputs_embeds, int head_size) {
+    auto weights = makeConst(element::f32, ov::Shape{size_t(num_heads * head_size), size_t(hidden_size)}, MOCK_VALUE);
+    auto proj = makeOP<v0::MatMul>({inputs_embeds, weights}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto heads = makeOP<v1::Reshape>({proj, {0, 0, num_heads, head_size}}, {special_zero_true});
+    return makeOP<v1::Transpose>({heads, {0, 2, 1, 3}});
+}
+
+std::shared_ptr<ov::Model> make_sdpa_model(int full_v_head_size = full_head_size,
+                                           bool include_scale_input = true,
+                                           bool is_scale_rank1 = false) {
+    using ov::test::utils::make_param;
+    auto inputs_embeds = make_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
+    auto attention_mask = make_param(element::i64, PartialShape{DYN, DYN}, "attention_mask");
+    auto full_key =
+        make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, full_head_size}, "full_attention_key");
+    auto full_value =
+        make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, full_v_head_size}, "full_attention_value");
+    auto sliding_key =
+        make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, sliding_head_size}, "sliding_attention_key");
+    auto sliding_value =
+        make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, sliding_head_size}, "sliding_attention_value");
+
+    auto input_shape = makeOP<v3::ShapeOf>({inputs_embeds}, {{"output_type", "i64"}});
+    auto seq_len = makeOP<v8::Gather>({input_shape, 1, 0}, {{"batch_dims", 0}});
+    auto positions = makeOP<v4::Range>({0, seq_len, 1}, {{"output_type", "i64"}});
+    auto q_idx = makeOP<v0::Unsqueeze>({positions, {0, 1, 3}});
+    auto kv_idx = makeOP<v0::Unsqueeze>({positions, {0, 1, 2}});
+    auto causal = makeOP<v1::GreaterEqual>({q_idx, kv_idx}, {numpy_broadcast});
+    auto attention_mask_bool = makeOP<v0::Convert>({attention_mask}, {{"destination_type", "boolean"}});
+    auto padding = makeOP<v1::Reshape>({attention_mask_bool, {0, 1, 1, -1}}, {special_zero_true});
+    auto all_true = makeConst(element::boolean, ov::Shape{}, {1});
+
+    auto distance = makeOP<v0::Abs>({makeOP<v1::Subtract>({q_idx, kv_idx}, {numpy_broadcast})});
+    auto window = makeConst(element::i64, ov::Shape{1, 1, 1, 1}, {sliding_window});
+    auto in_window = makeOP<v1::LessEqual>({distance, window}, {numpy_broadcast});
+    auto and_0 = makeOP<v13::BitwiseAnd>({all_true, in_window}, {numpy_broadcast});
+    auto and_1 = makeOP<v13::BitwiseAnd>({and_0, causal}, {numpy_broadcast});
+    auto and_2 = makeOP<v13::BitwiseAnd>({all_true, and_1}, {numpy_broadcast});
+    auto and_3 = makeOP<v13::BitwiseAnd>({and_2, padding}, {numpy_broadcast});
+    auto sliding_broadcast = makeOP<v3::Broadcast>({and_3, {1, 1, 1, 1}}, {{"mode", "bidirectional"}});
+    auto sliding_mask = makeOP<v8::Slice>({sliding_broadcast, {0}, {std::numeric_limits<int>::max()}, {1}, {3}});
+    auto full_and = makeOP<v13::BitwiseAnd>({causal, padding}, {numpy_broadcast});
+    auto full_mask = makeOP<v3::Broadcast>({full_and, {1, 1, 1, 1}}, {{"mode", "bidirectional"}});
+
+    // [B, 1, L, S] -> [B, num_heads, L, S]
+    auto repeat_kv = [&](const std::shared_ptr<v0::Parameter>& kv, int head_size) {
+        auto unsqueeze = makeOP<v0::Unsqueeze>({kv, 2});
+        auto broadcast = makeOP<v3::Broadcast>({unsqueeze, {1, 1, num_heads, 1, 1}}, {{"mode", "bidirectional"}});
+        return makeOP<v1::Reshape>({broadcast, {0, num_heads, -1, head_size}}, {special_zero_true});
+    };
+    auto sliding_k = repeat_kv(sliding_key, sliding_head_size);
+    auto sliding_v = repeat_kv(sliding_value, sliding_head_size);
+    auto full_k = repeat_kv(full_key, full_head_size);
+    auto full_v = repeat_kv(full_value, full_v_head_size);
+    auto scale =
+        is_scale_rank1 ? makeConst(element::f32, ov::Shape{1}, {1.0f}) : makeConst(element::f32, ov::Shape{}, {1.0f});
+
+    OutputVector outputs;
+    for (int layer = 0; layer < 3; ++layer) {
+        auto query = make_query(inputs_embeds, sliding_head_size);
+        outputs.push_back(
+            include_scale_input
+                ? makeOP<v13::ScaledDotProductAttention>({query, sliding_k, sliding_v, sliding_mask, scale},
+                                                         {{"causal", false}})
+                : makeOP<v13::ScaledDotProductAttention>({query, sliding_k, sliding_v, sliding_mask},
+                                                         {{"causal", false}}));
+    }
+    auto full_query = make_query(inputs_embeds, full_head_size);
+    outputs.push_back(
+        include_scale_input
+            ? makeOP<v13::ScaledDotProductAttention>({full_query, full_k, full_v, full_mask, scale},
+                                                     {{"causal", false}})
+            : makeOP<v13::ScaledDotProductAttention>({full_query, full_k, full_v, full_mask}, {{"causal", false}}));
+    return std::make_shared<ov::Model>(
+        outputs,
+        ParameterVector{inputs_embeds, attention_mask, full_key, full_value, sliding_key, sliding_value});
+}
+
+std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size, bool is_scale_rank1 = false) {
+    auto inputs_embeds = ov::test::utils::make_param(element::f32, PartialShape{DYN, DYN}, "inputs_embeds");
+    auto processed_inputs_embeds = makeOP<v0::Unsqueeze>({inputs_embeds, 1});
+    auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+    auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "past_lens");
+    auto subsequence_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "subsequence_begins");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices");
+    auto make_cache = [](const std::string& name) {
+        auto cache = ov::test::utils::make_param(element::dynamic, PartialShape::dynamic(4), name);
+        enable_keep_const_precision(cache);
+        return cache;
+    };
+    auto key_cache_0 = make_cache("key_cache.0");
+    auto value_cache_0 = make_cache("value_cache.0");
+    auto key_cache_3 = make_cache("key_cache.3");
+    auto value_cache_3 = make_cache("value_cache.3");
+    auto scale = is_scale_rank1 ? makeOP<v15::Squeeze>({makeConst(element::f32, ov::Shape{1}, {1.0f})},
+                                                       {{"allow_axis_skip", false}})
+                                : makeConst(element::f32, ov::Shape{}, {1.0f});
+
+    auto alibi_slopes = makeConst(element::f32, ov::Shape({0}), MOCK_VALUE);
+    auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto rotation_deltas = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), MOCK_VALUE);
+    auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), MOCK_VALUE);
+    auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+    auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+    auto sinks = makeConst(element::f32, ov::Shape({0, 0, 0, 0}), MOCK_VALUE);
+    auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+    auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto token_type_ids = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+    auto qq_bias = makeConst(element::u8, ov::Shape({0}), MOCK_VALUE);
+    auto qq_bias_begins = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+
+    auto make_pa = [&](const Output<Node>& query,
+                       const std::shared_ptr<v0::Parameter>& key_cache,
+                       const std::shared_ptr<v0::Parameter>& value_cache,
+                       int k_head_size,
+                       int v_head_size,
+                       const Output<Node>& window) {
+        auto q_to_pa =
+            makeOP<v1::Reshape>({makeOP<v1::Transpose>({query, {0l, 2l, 1l, 3l}}), {0l, -1l}}, {special_zero_true});
+
+        auto past_lens_minus_one = makeOP<v1::Subtract>({past_lens, 1}, {numpy_broadcast});
+
+        auto total_token_count =
+            makeOP<v8::Gather>({makeOP<v3::ShapeOf>({q_to_pa}, {{"output_type", "i64"}}), 0, 0}, {{"batch_dims", 0}});
+        auto kv_placeholder = [&](int width) {
+            auto shape = makeOP<v0::Concat>(
+                {makeOP<v0::Unsqueeze>({total_token_count, 0}), makeConst(element::i64, ov::Shape{1}, {width})},
+                {{"axis", 0}});
+            return makeOP<v3::Broadcast>({0.0f, shape}, {{"mode", "numpy"}});
+        };
+        // The pass reuses the K placeholder for V when their widths match.
+        auto k_placeholder = kv_placeholder(k_head_size);
+        auto v_placeholder = v_head_size == k_head_size ? k_placeholder : kv_placeholder(v_head_size);
+
+        OutputVector args{q_to_pa,
+                          k_placeholder,
+                          v_placeholder,
+                          key_cache,
+                          value_cache,
+                          past_lens_minus_one,
+                          subsequence_begins,
+                          block_indices,
+                          block_indices_begins,
+                          scale,
+                          window,
+                          alibi_slopes,
+                          max_context_len,
+                          score_aggregation_window,
+                          rotated_block_indices,
+                          rotation_deltas,
+                          rotation_trig_lut,
+                          xattention_threshold,
+                          xattention_block_size,
+                          xattention_stride,
+                          sinks,
+                          adaptive_rkv_start_size,
+                          adaptive_rkv_evictable_sizes,
+                          adaptive_rkv_diversity_block_set_indices,
+                          adaptive_rkv_diversity_block_set_indices_begins,
+                          token_type_ids,
+                          qq_bias,
+                          qq_bias_begins};
+        auto pa = std::make_shared<ov::op::PagedAttentionExtension>(args, /*write_kv_cache=*/false);
+        pa->get_rt_info()["num_k_heads"] = int64_t{num_kv_heads};
+        pa->get_rt_info()["k_head_size"] = int64_t{k_head_size};
+        pa->get_rt_info()["num_v_heads"] = int64_t{num_kv_heads};
+        pa->get_rt_info()["v_head_size"] = int64_t{v_head_size};
+
+        auto pa_reshape =
+            makeOP<v1::Reshape>({pa->output(0), makeConst(element::i64, ov::Shape{4}, {0, 1, -1, v_head_size})},
+                                {special_zero_true});
+        return makeOP<v1::Transpose>({pa_reshape, {0l, 2l, 1l, 3l}});
+    };
+    auto sliding_window_i32 = [&]() {
+        auto window = makeConst(element::i64, ov::Shape{1, 1, 1, 1}, {sliding_window});
+        auto squeeze = makeOP<v15::Squeeze>({window}, {{"allow_axis_skip", false}});
+        auto converted = makeOP<v0::Convert>({squeeze}, {{"destination_type", "i32"}});
+        return makeOP<v1::Add>({converted, 1}, {numpy_broadcast});
+    };
+
+    OutputVector outputs;
+    for (int layer = 0; layer < 3; ++layer) {
+        outputs.push_back(make_pa(make_query(processed_inputs_embeds, sliding_head_size),
+                                  key_cache_0,
+                                  value_cache_0,
+                                  sliding_head_size,
+                                  sliding_head_size,
+                                  sliding_window_i32()));
+    }
+    outputs.push_back(make_pa(make_query(processed_inputs_embeds, full_head_size),
+                              key_cache_3,
+                              value_cache_3,
+                              full_head_size,
+                              full_v_head_size,
+                              makeConst(element::i32, ov::Shape({}), MOCK_VALUE)));
+    return std::make_shared<ov::Model>(outputs,
+                                       ParameterVector{inputs_embeds,
+                                                       position_ids,
+                                                       max_context_len,
+                                                       past_lens,
+                                                       subsequence_begins,
+                                                       block_indices_begins,
+                                                       block_indices,
+                                                       key_cache_0,
+                                                       value_cache_0,
+                                                       key_cache_3,
+                                                       value_cache_3});
+}
+}  // namespace gemma4_mtp
+}  // namespace
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern) {
+    model = gemma4_mtp::make_sdpa_model();
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model*/ true)
+        .run_on_model(model);
+
+    model_ref = gemma4_mtp::make_pa_model();
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_DifferentKVHeadSizes) {
+    constexpr int full_v_head_size = 256;
+    model = gemma4_mtp::make_sdpa_model(full_v_head_size);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model=*/true)
+        .run_on_model(model);
+    model_ref = gemma4_mtp::make_pa_model(full_v_head_size);
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_DefaultScale) {
+    model = gemma4_mtp::make_sdpa_model(gemma4_mtp::full_head_size, /*include_scale_input=*/false);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model=*/true)
+        .run_on_model(model);
+    model_ref = gemma4_mtp::make_pa_model();
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_Rank1Scale) {
+    model = gemma4_mtp::make_sdpa_model(gemma4_mtp::full_head_size,
+                                        /*include_scale_input=*/true,
+                                        /*is_scale_rank1=*/true);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model=*/true)
+        .run_on_model(model);
+    model_ref = gemma4_mtp::make_pa_model(gemma4_mtp::full_head_size, /*is_scale_rank1=*/true);
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+// The subgraph matched by PagedSparseAttentionFusion, with the shapes of tiny-random-qwen38-flash-next layer 3.
+// Q/K/V are projected from inputs_embeds, so SDPAToPagedAttention packs the tokens as in the exported model:
+//   inputs_embeds -> MatMul -> Reshape -> Transpose -> Q, current K/V
+//   ReadValue -> Gather(beam_idx) -> Concat(current K/V, axis 2) -> SparseAttention <- Q, selection, key_length
+// The optional scale and sinks inputs and the selection element type vary between the test cases.
+namespace paged_sparse_attention_pattern {
+constexpr int64_t hidden_size = 16;
+constexpr int64_t num_heads = 4;
+constexpr int64_t num_kv_heads = 2;
+constexpr int64_t head_size = 64;
+constexpr float explicit_scale = 0.1f;
+
+enum class Scale { Absent, Scalar, Vector1 };
+
+struct Case {
+    std::string name;
+    element::Type data_type = element::f32;  // Q/K/V, the K/V states and the scale
+    element::Type selection_type = element::i32;
+    Scale scale = Scale::Absent;
+    element::Type sinks_type = element::dynamic;  // dynamic: no sinks input
+};
+
+void PrintTo(const Case& test_case, std::ostream* os) {
+    *os << test_case.name;
+}
+
+// [B, L, hidden] -> [B, L, heads * S] -> [B, L, heads, S] -> [B, heads, L, S]
+Output<Node> project_heads(const Output<Node>& inputs_embeds, int64_t heads, const element::Type& data_type) {
+    auto weights = v0::Constant::create(data_type,
+                                        Shape{static_cast<size_t>(hidden_size), static_cast<size_t>(heads * head_size)},
+                                        {0.1f});
+    auto projection = std::make_shared<v0::MatMul>(inputs_embeds, weights);
+    auto reshape = std::make_shared<v1::Reshape>(
+        projection,
+        v0::Constant::create(element::i64, Shape{4}, {int64_t{0}, int64_t{0}, heads, head_size}),
+        true);
+    return std::make_shared<v1::Transpose>(reshape, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+}
+
+// The explicit SparseAttention scale: a scalar or a single-element vector of the Q/K/V type.
+std::shared_ptr<Node> make_scale(const Case& test_case) {
+    const auto shape = test_case.scale == Scale::Vector1 ? Shape{1} : Shape{};
+    return v0::Constant::create(test_case.data_type, shape, {explicit_scale});
+}
+
+// One sink logit per query head, possibly of a higher precision than Q/K/V.
+std::shared_ptr<Node> make_sinks(const Case& test_case) {
+    return v0::Constant::create(test_case.sinks_type, Shape{num_heads}, {0.5f, 1.0f, 1.5f, 2.0f});
+}
+
+std::shared_ptr<ov::op::util::Variable> make_kv_variable(const std::string& name, const element::Type& data_type) {
+    return std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape{DYN, num_kv_heads, DYN, head_size}, data_type, name});
+}
+
+std::shared_ptr<ov::Model> make_model(const Case& test_case,
+                                      const PartialShape& inputs_embeds_shape = PartialShape{DYN, DYN, hidden_size}) {
+    OPENVINO_ASSERT(test_case.sinks_type.is_dynamic() || test_case.scale != Scale::Absent,
+                    "SparseAttention inputs are positional: sinks require an explicit scale.");
+    const auto& data_type = test_case.data_type;
+    auto inputs_embeds = ov::test::utils::make_param(data_type, inputs_embeds_shape, "inputs_embeds");
+    auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+    auto block_indices =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
+    auto block_count =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN}, "selected_block_count");
+    auto key_length = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "key_length");
+
+    auto make_cache = [&](const std::string& name, const Output<Node>& current) {
+        auto variable = make_kv_variable(name, data_type);
+        auto read_value = std::make_shared<v6::ReadValue>(variable);
+        auto past =
+            std::make_shared<v8::Gather>(read_value, beam_idx, v0::Constant::create(element::i64, Shape{}, {0}));
+        auto concat = std::make_shared<v0::Concat>(OutputVector{past, current}, 2);
+        return std::make_pair(concat, std::make_shared<v6::Assign>(concat, variable));
+    };
+
+    auto query = project_heads(inputs_embeds, num_heads, data_type);
+    const auto [key_concat, key_assign] = make_cache("key.0", project_heads(inputs_embeds, num_kv_heads, data_type));
+    const auto [value_concat, value_assign] =
+        make_cache("value.0", project_heads(inputs_embeds, num_kv_heads, data_type));
+
+    OutputVector inputs{query, key_concat, value_concat, block_indices, block_count, key_length};
+    if (test_case.scale != Scale::Absent) {
+        inputs.push_back(make_scale(test_case));
+    }
+    if (!test_case.sinks_type.is_dynamic()) {
+        inputs.push_back(make_sinks(test_case));
+    }
+    auto sparse_attention = std::make_shared<ov::op::v17::SparseAttention>(inputs, /*key_block_size=*/4);
+    return std::make_shared<ov::Model>(
+        OutputVector{sparse_attention},
+        SinkVector{key_assign, value_assign},
+        ParameterVector{inputs_embeds, beam_idx, block_indices, block_count, key_length});
+}
+
+// Q/K/V: [B_token, H, 1, S] -> [B_token, 1, H, S] -> [B_token, H * S]
+Output<Node> pack_heads(const Output<Node>& input) {
+    auto transpose = std::make_shared<v1::Transpose>(input, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+    return std::make_shared<v1::Reshape>(transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
+}
+
+// Selection: [B_token, Hs, 1, KB] -> [B_token, Hs, KB] and [B_token, Hs, 1] -> [B_token, Hs], converted to the i32
+// required by PagedSparseAttention when SparseAttention gets i64 selections.
+Output<Node> squeeze_query_axis(const Output<Node>& input) {
+    Output<Node> squeezed = std::make_shared<v15::Squeeze>(input, v0::Constant::create(element::i64, Shape{1}, {2}));
+    if (input.get_element_type() != element::i32) {
+        squeezed = std::make_shared<v0::Convert>(squeezed, element::i32);
+    }
+    return squeezed;
+}
+
+// PagedSparseAttention as created by the fusion, with its output restored to the [B_token, H, 1, Sv] layout.
+// paging holds key_cache, value_cache, past_lens, subsequence_begins, block_indices and block_indices_begins.
+Output<Node> make_paged_sparse_attention(const Case& test_case,
+                                         const Output<Node>& query,
+                                         const Output<Node>& key,
+                                         const Output<Node>& value,
+                                         const OutputVector& paging,
+                                         const Output<Node>& selected_block_indices,
+                                         const Output<Node>& selected_block_count) {
+    // The scale is kept, a single-element constant one is folded to a scalar, and an absent one defaults to
+    // 1 / sqrt(S).
+    Output<Node> scale;
+    switch (test_case.scale) {
+    case Scale::Absent:
+        scale = v0::Constant::create(test_case.data_type, Shape{}, {1.0f / std::sqrt(static_cast<float>(head_size))});
+        break;
+    case Scale::Scalar:
+    case Scale::Vector1:
+        scale = v0::Constant::create(test_case.data_type, Shape{}, {explicit_scale});
+        break;
+    }
+    // The sinks are kept with their own precision; absent sinks become an empty tensor of the Q/K/V type.
+    Output<Node> sinks = test_case.sinks_type.is_dynamic()
+                             ? v0::Constant::create(test_case.data_type, Shape{0}, std::vector<float>{})
+                             : make_sinks(test_case);
+
+    OutputVector inputs{pack_heads(query), pack_heads(key), pack_heads(value)};
+    inputs.insert(inputs.end(), paging.begin(), paging.end());
+    inputs.insert(inputs.end(),
+                  {squeeze_query_axis(selected_block_indices), squeeze_query_axis(selected_block_count), scale, sinks});
+    auto paged_sparse_attention =
+        std::make_shared<ov::op::internal::PagedSparseAttention>(inputs, /*key_block_size=*/4);
+    auto& rt_info = paged_sparse_attention->get_rt_info();
+    rt_info["num_k_heads"] = num_kv_heads;
+    rt_info["k_head_size"] = head_size;
+    rt_info["num_v_heads"] = num_kv_heads;
+    rt_info["v_head_size"] = head_size;
+
+    // [B_token, H * Sv] -> [B_token, 1, H, Sv] -> [B_token, H, 1, Sv]
+    auto reshape = std::make_shared<v1::Reshape>(
+        paged_sparse_attention,
+        v0::Constant::create(element::i64, Shape{4}, {int64_t{0}, int64_t{1}, int64_t{-1}, head_size}),
+        true);
+    return std::make_shared<v1::Transpose>(reshape, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+}
+
+// The model after the whole SDPAToPagedAttention: inputs_embeds is packed to [B_token, hidden], the K/V states and
+// beam_idx are gone, and the inputs created by the pass are added in its order.
+std::shared_ptr<ov::Model> make_model_ref(const Case& test_case) {
+    const auto& data_type = test_case.data_type;
+    auto inputs_embeds = ov::test::utils::make_param(data_type, PartialShape{DYN, DYN}, "inputs_embeds");
+    auto selected_block_indices =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
+    auto selected_block_count =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN}, "selected_block_count");
+    auto key_length = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "key_length");
+
+    auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "past_lens");
+    auto subsequence_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "subsequence_begins");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices");
+    auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+    auto key_cache = ov::test::utils::make_param(element::dynamic, PartialShape::dynamic(4), "key_cache.0");
+    auto value_cache = ov::test::utils::make_param(element::dynamic, PartialShape::dynamic(4), "value_cache.0");
+    ov::enable_keep_const_precision(key_cache);
+    ov::enable_keep_const_precision(value_cache);
+
+    // [B_token, hidden] -> [B_token, 1, hidden]
+    auto tokens = std::make_shared<v0::Unsqueeze>(inputs_embeds, v0::Constant::create(element::i32, Shape{}, {1}));
+
+    auto output = make_paged_sparse_attention(
+        test_case,
+        project_heads(tokens, num_heads, data_type),
+        project_heads(tokens, num_kv_heads, data_type),
+        project_heads(tokens, num_kv_heads, data_type),
+        {key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins},
+        selected_block_indices,
+        selected_block_count);
+
+    return std::make_shared<ov::Model>(OutputVector{output},
+                                       ParameterVector{inputs_embeds,
+                                                       selected_block_indices,
+                                                       selected_block_count,
+                                                       key_length,
+                                                       max_context_len,
+                                                       past_lens,
+                                                       subsequence_begins,
+                                                       block_indices_begins,
+                                                       block_indices,
+                                                       position_ids,
+                                                       key_cache,
+                                                       value_cache});
+}
+
+// The model right after PagedSparseAttentionFusion alone, for the packed make_model([B_token, 1, hidden]):
+// SparseAttention is replaced by PagedSparseAttention, while the K/V states stay in the graph, because removing
+// their Assigns and registering the new inputs are done by SDPAToPagedAttention after its matcher passes.
+std::shared_ptr<ov::Model> make_fusion_model_ref(const Case& test_case) {
+    const auto& data_type = test_case.data_type;
+    auto inputs_embeds = ov::test::utils::make_param(data_type, PartialShape{DYN, 1, hidden_size}, "inputs_embeds");
+    auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+    auto selected_block_indices =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
+    auto selected_block_count =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN}, "selected_block_count");
+    auto key_length = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "key_length");
+
+    // Inputs created by the fusion, in the order it adds them to PaParams.
+    auto key_cache = ov::test::utils::make_param(element::dynamic, PartialShape::dynamic(4), "key_cache.0");
+    auto value_cache = ov::test::utils::make_param(element::dynamic, PartialShape::dynamic(4), "value_cache.0");
+    ov::enable_keep_const_precision(key_cache);
+    ov::enable_keep_const_precision(value_cache);
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "past_lens");
+    auto subsequence_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "subsequence_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+
+    // The current K/V feed both the remaining state chain and PagedSparseAttention.
+    auto query = project_heads(inputs_embeds, num_heads, data_type);
+    auto key = project_heads(inputs_embeds, num_kv_heads, data_type);
+    auto value = project_heads(inputs_embeds, num_kv_heads, data_type);
+    auto make_cache = [&](const std::string& name, const Output<Node>& current) {
+        auto variable = make_kv_variable(name, data_type);
+        auto read_value = std::make_shared<v6::ReadValue>(variable);
+        auto past =
+            std::make_shared<v8::Gather>(read_value, beam_idx, v0::Constant::create(element::i64, Shape{}, {0}));
+        auto concat = std::make_shared<v0::Concat>(OutputVector{past, current}, 2);
+        return std::make_shared<v6::Assign>(concat, variable);
+    };
+    auto key_assign = make_cache("key.0", key);
+    auto value_assign = make_cache("value.0", value);
+
+    auto output = make_paged_sparse_attention(
+        test_case,
+        query,
+        key,
+        value,
+        {key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins},
+        selected_block_indices,
+        selected_block_count);
+
+    return std::make_shared<ov::Model>(OutputVector{output},
+                                       SinkVector{key_assign, value_assign},
+                                       ParameterVector{inputs_embeds,
+                                                       beam_idx,
+                                                       selected_block_indices,
+                                                       selected_block_count,
+                                                       key_length,
+                                                       key_cache,
+                                                       value_cache,
+                                                       past_lens,
+                                                       subsequence_begins,
+                                                       block_indices,
+                                                       block_indices_begins});
+}
+
+const std::vector<Case> cases = {
+    {"default_scale"},
+    {"i64_selection", element::f32, element::i64},
+    {"scalar_scale", element::f32, element::i32, Scale::Scalar},
+    {"vector_scale", element::f32, element::i32, Scale::Vector1},
+    {"sinks", element::f32, element::i32, Scale::Scalar, element::f32},
+    {"f16_with_f32_sinks", element::f16, element::i32, Scale::Scalar, element::f32},
+};
+}  // namespace paged_sparse_attention_pattern
+
+class PagedSparseAttentionFusionTest : public TransformationTestsF,
+                                       public WithParamInterface<paged_sparse_attention_pattern::Case> {
+public:
+    static std::string getTestCaseName(const TestParamInfo<paged_sparse_attention_pattern::Case>& info) {
+        return info.param.name;
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.set_per_pass_validation(false);
+        manager.register_pass<ov::pass::PagedSparseAttentionFusion>(pa_params, options, var_ids_to_remove);
+    }
+
+    // The fusion keeps references to these until the passes run in TearDown.
+    ov::pass::paged_attention::PaParams pa_params;
+    ov::pass::paged_attention::Options options{};
+    std::unordered_set<std::string> var_ids_to_remove;
+};
+
+TEST_P(PagedSparseAttentionFusionTest, SDPAToPA_Qwen38FlashNext_PagedSparseAttentionFusion) {
+    // Packed shapes, as the fusion sees them inside SDPAToPagedAttention.
+    model =
+        paged_sparse_attention_pattern::make_model(GetParam(),
+                                                   PartialShape{DYN, 1, paged_sparse_attention_pattern::hidden_size});
+    model_ref = paged_sparse_attention_pattern::make_fusion_model_ref(GetParam());
+
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+}
+
+class SDPAToPAPagedSparseAttentionTest : public TransformationTestsF,
+                                         public WithParamInterface<paged_sparse_attention_pattern::Case> {};
+
+TEST_P(SDPAToPAPagedSparseAttentionTest, SDPAToPA_Qwen38FlashNext_PagedSparseAttentionFusionPattern) {
+    model = paged_sparse_attention_pattern::make_model(GetParam());
+    model_ref = paged_sparse_attention_pattern::make_model_ref(GetParam());
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         PagedSparseAttentionFusionTest,
+                         ValuesIn(paged_sparse_attention_pattern::cases),
+                         PagedSparseAttentionFusionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPAPagedSparseAttentionTest,
+                         ValuesIn(paged_sparse_attention_pattern::cases),
+                         PagedSparseAttentionFusionTest::getTestCaseName);
 
 /*
 As there's often a need to cover specific model's architecutres in these

@@ -95,8 +95,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
         // Precision not high enough to get exact result for the complex test cases
         // (both tiny values and very high values necessary)
         std::regex(R"(.*ReferenceInverse.*bf16.*[4,4].*)"),
-        // model import is not supported
-        std::regex(R"(.*OVCompiledModelBaseTest.import_from_.*)"),
 #ifdef _WIN32
         // CVS-63989
         std::regex(R"(.*ReferenceSigmoidLayerTest.*u64.*)"),

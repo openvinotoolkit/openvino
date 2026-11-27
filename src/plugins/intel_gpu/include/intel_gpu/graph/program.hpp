@@ -19,6 +19,7 @@
 #include <memory>
 #include <mutex>
 #include <map>
+#include <optional>
 #include <utility>
 #include <set>
 
@@ -146,7 +147,8 @@ public:
             std::set<std::shared_ptr<program_node>> const& nodes,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal);
+            bool is_internal,
+            std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
 
     explicit program(engine& engine,
                 const ExecutionConfig& config = {});
@@ -166,13 +168,15 @@ public:
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
-    uint32_t get_prog_id() { return prog_id; }
+    uint32_t get_prog_id() const {
+        return prog_id;
+    }
     stream& get_stream() { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
     const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
-    bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
+    bool has_node(const primitive_id& prim) const { return nodes_map.contains(prim); }
     program_node& get_node(primitive_id const& id);
     program_node const& get_node(primitive_id const& id) const;
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
@@ -211,7 +215,7 @@ public:
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
 
-    void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1);
+    static void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
@@ -232,9 +236,9 @@ public:
     // returns if 'node' has been removed
     bool remove_if_dangling(program_node& node);
 
-    void mark_if_constant(program_node& node);
+    static void mark_if_constant(program_node& node);
     // mark if the node is in data flow assuming that all dependencies are marked properly
-    void mark_if_data_flow(program_node& node);
+    static void mark_if_data_flow(program_node& node);
     void mark_if_gemm_data_flow();
     // Reverses connection - user becomes dependency.
 
@@ -242,7 +246,7 @@ public:
     void dump_program(const char* stage, bool with_full_info) const;
 
     const primitives_info& get_primitives_info() const;
-    data_types get_inference_precision(const program_node& node) const;
+    static data_types get_inference_precision(const program_node& node);
     std::string get_implementation_info(const primitive_id& id) const;
     const graph_optimizer_info& get_optimizer_passes_info() const;
     void save_pass_info(std::string pass_name);
@@ -276,7 +280,8 @@ public:
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                             bool is_internal);
+                             bool is_internal,
+                             std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
     std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;
@@ -296,7 +301,7 @@ public:
     }
     bool has_static_impl_type(primitive_type_id type) const {
         std::lock_guard<std::mutex> lock(_static_impl_types_mutex);
-        return _static_impl_types.count(type) != 0;
+        return _static_impl_types.contains(type);
     }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const { return _compilation_context; }
@@ -331,6 +336,8 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
+    // Forced oneDNN impls optimization attribute
+    std::optional<std::map<primitive_type_id, bool>> _onednn_impls;
     bool _is_body_program = false;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
@@ -403,16 +410,16 @@ private:
     */
     void add_split_outputs();
     // mark if the node is constant assuming that all dependencies are marked properly
-    void reverse_connection(program_node& dep_node, program_node& user_node);
+    static void reverse_connection(program_node& dep_node, program_node& user_node);
 
-    void remove_connection(program_node& prev, program_node& next);
+    static void remove_connection(program_node& prev, program_node& next);
 
-    void remove_all_connections(program_node& node);
+    static void remove_all_connections(program_node& node);
 
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
-    void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
-    void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
+    static void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
+    static void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

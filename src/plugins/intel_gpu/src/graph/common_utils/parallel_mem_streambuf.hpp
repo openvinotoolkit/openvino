@@ -44,7 +44,7 @@ protected:
     std::streamsize showmanyc() override;
 
 private:
-    void parallel_copy(char* dst, const char* src, size_t size);
+    static void parallel_copy(char* dst, const char* src, size_t size);
 
     const char* m_begin;
     const char* m_end;

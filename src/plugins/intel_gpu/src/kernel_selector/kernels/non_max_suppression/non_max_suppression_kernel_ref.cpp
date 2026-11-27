@@ -4,13 +4,14 @@
 
 #include "non_max_suppression_kernel_ref.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 namespace {
-static inline int GetPartitionStep(int localWorkItemNum) {
+inline int GetPartitionStep(int localWorkItemNum) {
     int step_size = 0;
     for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
         step_size++;
@@ -18,7 +19,7 @@ static inline int GetPartitionStep(int localWorkItemNum) {
     return step_size;
 }
 
-static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
     const size_t optimal_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
     const size_t splitNum = gws[2];
     const size_t globalClassNum = gws[1];
@@ -58,7 +59,7 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
     return dispatchData;
 }
 }  // namespace
-Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppression_params& params) const {
+Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppression_params& params) {
     auto in_dt = params.inputs[0].GetDType();
     auto out_dt = params.outputs[0].GetDType();
 
@@ -134,7 +135,7 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.outputs[0].Batch().v));
 
     if (params.num_select_per_class_type == base_params::ArgType::Input) {
-        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", GetInputTypeStr(params.GetIndexNumSelectPerClass())));
+        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", GetInputTypeStr(non_max_suppression_params::GetIndexNumSelectPerClass())));
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", "convert_int(num_select_per_class[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", params.num_select_per_class));
@@ -164,7 +165,7 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     } else {
         jit.AddConstant(MakeJitConstant("ROTATION", static_cast<int>(params.rotation)));
         // for NMSRotated it is always zero
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", 0.0f));
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", 0.0F));
     }
 
     return jit;
@@ -177,10 +178,10 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
 
     const non_max_suppression_params& params = static_cast<const non_max_suppression_params&>(p);
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -194,7 +195,7 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
  *  INTERNAL_BUFFER[2]: intermidiate_sorted_box_num
  *
  */
-void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx) const {
+void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx) {
     switch (idx) {
     case 0:
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -217,7 +218,7 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
 
         if (params.num_select_per_class_type == base_params::ArgType::Input) {
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass()});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, non_max_suppression_params::GetIndexNumSelectPerClass()});
         }
         if (params.iou_threshold_type == base_params::ArgType::Input) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold()});

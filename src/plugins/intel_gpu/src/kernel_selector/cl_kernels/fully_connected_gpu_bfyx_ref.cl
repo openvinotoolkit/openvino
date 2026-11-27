@@ -5,6 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/int4_utils.cl"
+#include "include/batch_headers/int3_utils.cl"
 #include "include/batch_headers/int2_utils.cl"
 
 KERNEL(fc)(
@@ -44,7 +45,15 @@ KERNEL(fc)(
                         ACCUMULATOR_TYPE zp = DECOMPRESSION_ZP_VALUE;
                     #else
                         const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(oym, y / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                        #if DECOMPRESSION_ZP_PACKED_INT4
+                            const __global DECOMPRESSION_ZP_PACKED_TYPE* packed_zp =
+                                (const __global DECOMPRESSION_ZP_PACKED_TYPE*)decompression_zp;
+                            MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) unpacked_zp =
+                                UNPACK_INT4x2(ACCUMULATOR_TYPE, packed_zp[zp_offset / 2]);
+                            ACCUMULATOR_TYPE zp = unpacked_zp[zp_offset % 2];
+                        #else
                         ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                        #endif
                     #endif
                 #else
                     ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
@@ -70,6 +79,10 @@ KERNEL(fc)(
                 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_UINT2x4(ACCUMULATOR_TYPE, *((UINT2_PACKED_TYPE*)&filter_packed));
 
                 ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
+                ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+            #elif COMPRESSED_WEIGHTS_UINT3
+                ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(get_uint3_weight(weights, filter_idx));
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
             #else
@@ -98,7 +111,15 @@ KERNEL(fc)(
                             ACCUMULATOR_TYPE zp = DECOMPRESSION_ZP_VALUE;
                         #else
                             const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(ofm, ifm / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                            #if DECOMPRESSION_ZP_PACKED_INT4
+                                const __global DECOMPRESSION_ZP_PACKED_TYPE* packed_zp =
+                                    (const __global DECOMPRESSION_ZP_PACKED_TYPE*)decompression_zp;
+                                MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) unpacked_zp =
+                                    UNPACK_INT4x2(ACCUMULATOR_TYPE, packed_zp[zp_offset / 2]);
+                                ACCUMULATOR_TYPE zp = unpacked_zp[zp_offset % 2];
+                            #else
                             ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                            #endif
                         #endif
                     #else
                         ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
@@ -124,6 +145,10 @@ KERNEL(fc)(
                     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_UINT2x4(ACCUMULATOR_TYPE, *((UINT2_PACKED_TYPE*)&filter_packed));
 
                     ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
+                    ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                    dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+                #elif COMPRESSED_WEIGHTS_UINT3
+                    ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(get_uint3_weight(weights, filter_idx));
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #else

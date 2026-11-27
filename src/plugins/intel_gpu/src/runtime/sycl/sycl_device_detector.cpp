@@ -27,6 +27,17 @@ bool does_device_match_config(const ::sycl::device& device) {
         return false;
     }
 
+#if defined(OV_GPU_VENDOR_NVIDIA)
+    // The plugin is built for NVIDIA GPUs through the CUDA backend only, so skip GPUs of other vendors
+    // (e.g. an Intel iGPU next to an NVIDIA dGPU) and NVIDIA GPUs exposed through other backends
+    // (e.g. OpenCL), which cannot run the CUDA device images of this build: otherwise they would be
+    // listed and could even become the default "GPU" device
+    if (device.get_info<::sycl::info::device::vendor_id>() != cldnn::NVIDIA_VENDOR_ID ||
+        device.get_backend() != ::sycl::backend::ext_oneapi_cuda) {
+        return false;
+    }
+#endif
+
     return true;
 }
 }  // namespace

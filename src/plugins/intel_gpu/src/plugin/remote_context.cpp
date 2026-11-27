@@ -92,8 +92,9 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
                 m_external_queue = extract_object(params, ov::intel_gpu::ocl_queue);
             }
 
-            if (params.find(ov::intel_gpu::ocl_context_device_id.name()) != params.end())
+            if (params.find(ov::intel_gpu::ocl_context_device_id.name()) != params.end()) {
                 ctx_device_id = extract_object(params, ov::intel_gpu::ocl_context_device_id);
+            }
         } else if (ctx_type == ov::intel_gpu::ContextType::VA_SHARED) {
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
@@ -246,8 +247,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 }
 
 // For external contexts we try to match underlying handles with default contexts created by plugin to find device name
-std::string RemoteContextImpl::get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts,
-                                               const cldnn::device::ptr current_device) const {
+std::string RemoteContextImpl::get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const cldnn::device::ptr current_device) {
     std::string device_name = "GPU";
     for (const auto& c : known_contexts) {
         if (c.second->m_device->is_same(current_device)) {
@@ -264,12 +264,14 @@ const std::string& RemoteContextImpl::get_device_name() const {
 
 cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
     std::lock_guard<std::mutex> lock(m_cache_mutex);
-    if (!m_memory_cache.has(hash))
+    if (!m_memory_cache.has(hash)) {
         return nullptr;
+    }
 
     auto cached_memory = m_memory_cache.get(hash);
-    if (auto memory = cached_memory.lock())
+    if (auto memory = cached_memory.lock()) {
         return memory;
+    }
 
     // The last tensor which wrapped that memory is gone, so the entry is erased instead of being kept as the most recently used one
     m_memory_cache.erase(hash);

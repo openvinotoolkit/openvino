@@ -82,7 +82,7 @@ macro(ov_gpu_add_backend_target)
     ov_add_target(
         NAME ${ARG_NAME}
         SOURCES ${ARG_SOURCES}
-        TYPE OBJECT
+        TYPE STATIC
         INCLUDES
             PRIVATE
                 ${TARGET_INCLUDES}
@@ -101,10 +101,10 @@ macro(ov_gpu_add_backend_target)
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt${OV_GPU_SUFFIX},INTERFACE_INCLUDE_DIRECTORIES>)
-        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX} onednn_gpu_tgt${OV_GPU_SUFFIX})
+        add_dependencies(${ARG_NAME} onednn_gpu_tgt${OV_GPU_SUFFIX})
     endif()
 
-    # The graph backend implementations are compiled in these per-backend OBJECT
+    # The graph backend implementations are compiled in these per-backend STATIC
     # libraries, which the openvino_intel_gpu_graph STATIC lib links but excludes
     # from its own sources, so clang-tidy must be applied here to cover them too.
     ov_apply_clang_tidy(TARGET ${ARG_NAME})
@@ -130,8 +130,9 @@ foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
         continue()
     endif()
     add_subdirectory(impls/${IMPL_TYPE} impls/${IMPL_TYPE}${OV_GPU_SUFFIX})
-    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX})
-        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX}>)
+    set(BACKEND_TARGET openvino_intel_gpu_${IMPL_TYPE}_backend${OV_GPU_SUFFIX})
+    if (TARGET ${BACKEND_TARGET})
+        list(APPEND BACKEND_LIBS ${BACKEND_TARGET})
     endif()
 endforeach()
 
@@ -141,8 +142,6 @@ ov_add_target(
     NAME ${TARGET_NAME}
     TYPE STATIC
     SOURCES  ${GPU_GRAPH_SOURCES}
-    OBJECT_FILES
-        ${OBJ_FILES}
     INCLUDES
         PUBLIC
             ${COMMON_INCLUDE_DIRS}
@@ -156,6 +155,15 @@ ov_add_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Backends are kept out of the graph archive, so that no single archive grows past MSVC's
+# 4 GB limit when debug information is embedded into objects. Graph and backends reference
+# each other, so both directions are link-only dependencies and form a static library cycle.
+foreach(backend IN LISTS BACKEND_LIBS)
+    target_link_libraries(${TARGET_NAME} INTERFACE $<LINK_ONLY:${backend}>)
+    target_link_libraries(${backend} INTERFACE $<LINK_ONLY:${TARGET_NAME}>)
+    ov_install_static_lib(${backend} ${OV_CPACK_COMP_CORE})
+endforeach()
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 

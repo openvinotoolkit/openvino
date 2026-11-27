@@ -11,8 +11,10 @@ namespace cldnn {
 SyncMethods stream::get_expected_sync_method(const ExecutionConfig& config) {
     auto profiling = config.get_enable_profiling();
     auto queue_type = config.get_queue_type();
-    return profiling ? SyncMethods::events : queue_type == QueueTypes::out_of_order ? SyncMethods::barriers
-                                                                                    : SyncMethods::none;
+    if (profiling) {
+        return SyncMethods::events;
+    }
+    return queue_type == QueueTypes::out_of_order ? SyncMethods::barriers : SyncMethods::none;
 }
 
 event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool group, bool is_output) {
@@ -24,7 +26,10 @@ event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool 
         return group_events(events);
     }
 
-    return events.empty() ? (is_output ? create_user_event(true) : nullptr) : enqueue_marker(events, is_output);
+    if (events.empty()) {
+        return is_output ? create_user_event(true) : nullptr;
+    }
+    return enqueue_marker(events, is_output);
 }
 
 }  // namespace cldnn

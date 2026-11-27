@@ -34,6 +34,7 @@ jobs:
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
@@ -63,7 +64,7 @@ jobs:
 
   Build:
     needs: [ Smart_CI ]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
       runner: 'aks-win-16-cores-32gb-build'
@@ -429,7 +430,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t"]
+        # 3.15t fails with `Windows fatal exception: access violation`
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15"]
     defaults:
       run:
         shell: pwsh
@@ -440,6 +442,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYYAML_FORCE_LIBYAML: ${{ (matrix.python-version == '3.15' || matrix.python-version == '3.15t') && '0' || '' }} # pyYAML does not have Python 3.15 wheels
     steps:
       - name: Download OpenVINO artifacts (tarballs)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -494,6 +497,7 @@ jobs:
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy>=2.0.0
+        if: ${{ matrix.python-version != '3.15' && matrix.python-version != '3.15t' }} # numpy<2.1 has no Python 3.15 wheels
         shell: cmd
         run: |
           python3 -m pip uninstall -y numpy
@@ -560,13 +564,14 @@ jobs:
     if: >-
       ${{
         fromJSON(needs.smart_ci.outputs.affected_components).NPU.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+        fromJSON(needs.smart_ci.outputs.changed_components).TF_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).JAX_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).PyTorch_FE
       }}
     with:
       runner: 'aks-win-4-cores-8gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      changed-components: ${{ needs.smart_ci.outputs.changed_components }}
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -673,9 +678,105 @@ jobs:
             ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
 
+  GPU_Unit_Tests:
+    name: GPU unit tests
+    needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'merge_group' && fromJSON(needs.smart_ci.outputs.affected_components).GPU }}
+    timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
+    defaults:
+      run:
+        shell: powershell
+    runs-on: [ self-hosted, Windows, ptl ]
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      SSL_CERT_FILE: 'C:\certs\IntelProxyRootCA.crt'
+      CURL_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
+      NEO_CACHE_MAX_SIZE: '10737418240' # 10 GB
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache_gpu_unit_ptl.lst"
+      TEST_RESULTS_DIR: "${{ github.workspace }}\\install\\tests\\gpu_unit_tests"
+    steps:
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          Expand-Archive "${{ env.INSTALL_DIR }}\\openvino_package.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
+          Expand-Archive "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install python dependencies for run_parallel.py
+        env:
+          PIP_CERT: ${{ env.REQUESTS_CA_BUNDLE }}
+        run: python -m pip install -r "$env:INSTALL_TEST_DIR\functional_test_utils\layer_tests_summary\requirements.txt"
+
+      - name: Restore tests execution time
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-gpu-unit-ptl-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-tests-gpu-unit-ptl-stamp-
+
+      - name: Run GPU unit tests
+        env:
+          NEO_CACHE_PERSISTENT: '1'
+          GPU_TEST_FILTER: '-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*sdpa_gpu_sink_test.matches_independent_reference*:*permute_f_y_axes_tile.combined/InputShape=(16.32.128.512)*:*fusings_gpu/conv_fp32_multi_eltwise_quantization.basic/1:*cpu_impls/activation_random_test.random/2:*smoke/moe_3gemm_compressed_gpu_random.moe_accuracy_test_random/10'
+        run: |
+          . "$env:INSTALL_DIR\setupvars.ps1"
+          $env:NEO_CACHE_DIR = Join-Path $env:LOCALAPPDATA 'OpenVINO\ptl-compiler-cache'
+          New-Item -ItemType Directory -Force -Path $env:NEO_CACHE_DIR | Out-Null
+          if (Test-Path -LiteralPath $env:TEST_RESULTS_DIR) {
+            Remove-Item -LiteralPath $env:TEST_RESULTS_DIR -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $env:TEST_RESULTS_DIR | Out-Null
+          if (-not (Test-Path -LiteralPath $env:PARALLEL_TEST_CACHE)) {
+            New-Item -ItemType File -Path $env:PARALLEL_TEST_CACHE | Out-Null
+          }
+          python "$env:PARALLEL_TEST_SCRIPT" -e "$env:INSTALL_TEST_DIR\ov_gpu_unit_tests.exe" -c "$env:PARALLEL_TEST_CACHE" -w "$env:TEST_RESULTS_DIR" -j 16 -s suite -rf 1 --process_timeout 5400 -- --gtest_print_time=1 --report_unique_name "--gtest_filter=$env:GPU_TEST_FILTER"
+        timeout-minutes: 500
+
+      - name: Save tests execution time
+        if: github.ref_name == 'master'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-gpu-unit-ptl-stamp-${{ github.sha }}
+
+      - name: Upload GPU unit test results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-unit-gpu
+          path: |
+            ${{ env.TEST_RESULTS_DIR }}/temp/*.log
+            ${{ env.TEST_RESULTS_DIR }}/logs/*.log
+            ${{ env.TEST_RESULTS_DIR }}/logs/*.csv
+            ${{ env.TEST_RESULTS_DIR }}/logs/failed/*.log
+            ${{ env.TEST_RESULTS_DIR }}/logs/crashed/*.log
+            ${{ env.TEST_RESULTS_DIR }}/logs/hanged/*.log
+            ${{ env.TEST_RESULTS_DIR }}/logs/interapted/*.log
+          if-no-files-found: 'ignore'
+
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, Python_API_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

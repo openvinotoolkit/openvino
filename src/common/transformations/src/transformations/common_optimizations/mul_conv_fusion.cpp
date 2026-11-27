@@ -137,10 +137,10 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const =
-                std::make_shared<v1::Reshape>(mul_const,
-                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                                              false);
+            mul_const = ov::op::util::make_try_fold<v1::Reshape>(
+                mul_const,
+                v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                false);
         }
 
         auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
@@ -212,10 +212,10 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const =
-                std::make_shared<v1::Reshape>(mul_const,
-                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                                              false);
+            mul_const = ov::op::util::make_try_fold<v1::Reshape>(
+                mul_const,
+                v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                false);
         }
 
         auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
@@ -289,10 +289,10 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const =
-                std::make_shared<v1::Reshape>(mul_const,
-                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                                              false);
+            mul_const = ov::op::util::make_try_fold<v1::Reshape>(
+                mul_const,
+                v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                false);
         }
 
         auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "graph/impls/ocl/kernel_selector_helper.h"  // check_cm_jit_support
+#include "ocl_v2/primitive_ocl_base.hpp"
 #include "test_utils.h"
 
 using namespace cldnn;
@@ -430,6 +431,126 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence) {
     ASSERT_EQ(key_ptr[key_offset(0, 0, 0, 0, kv_heads, k_head_size, block_size)], key_cache_ref[key_offset(0, 0, 0, 0, kv_heads, k_head_size, block_size)]);
     ASSERT_EQ(value_ptr[value_offset(0, 0, 0, 0, kv_heads, v_head_size, block_size)],
               value_cache_ref[value_offset(0, 0, 0, 0, kv_heads, v_head_size, block_size)]);
+}
+
+// Non-compressed dispatch is gws = {seq, kv_heads, 16}, lws = {1, min(kv_heads, max_wg / 16), 16}.
+// When kv_heads exceeds max_wg / 16 and is not a multiple of it (e.g. 40 heads with max_wg 512),
+// the head axis is dispatched with a non-uniform work-group.
+TEST(pa_kv_reorder_gpu, many_heads_dispatch_is_uniform) {
+    auto& engine = get_test_engine();
+
+    constexpr size_t subgroup_size = 16;
+    const size_t max_heads_per_wg = engine.get_device_info().max_work_group_size / subgroup_size;
+    // 40 heads (Llama-2-13B) for max_wg 512, 80 heads for max_wg 1024.
+    const size_t kv_heads = max_heads_per_wg + max_heads_per_wg / 4;
+
+    constexpr size_t blocks_num = 2;
+    constexpr size_t k_head_size = 16;
+    constexpr size_t v_head_size = 16;
+    constexpr size_t block_size = cldnn::paged_attention::block_size;
+
+    auto key_cache_layout = layout{ov::PartialShape{blocks_num, static_cast<int64_t>(kv_heads), k_head_size, block_size}, data_types::f16, format::bfyx};
+    auto value_cache_layout = layout{ov::PartialShape{blocks_num, static_cast<int64_t>(kv_heads), block_size, v_head_size}, data_types::f16, format::bfyx};
+    auto block_indices_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto block_indices_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto block_update_indices_layout = layout{ov::PartialShape{4}, data_types::i32, format::bfyx};
+    auto block_update_indices_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+
+    auto key_cache_mem = engine.allocate_memory(key_cache_layout);
+    auto value_cache_mem = engine.allocate_memory(value_cache_layout);
+    auto block_indices_mem = engine.allocate_memory(block_indices_layout);
+    auto block_indices_begins_mem = engine.allocate_memory(block_indices_begins_layout);
+    auto block_update_indices_mem = engine.allocate_memory(block_update_indices_layout);
+    auto block_update_indices_begins_mem = engine.allocate_memory(block_update_indices_begins_layout);
+
+    // Block 0 holds per-head distinct values (exact in fp16), block 1 is filled with a -1 sentinel,
+    // so a head the kernel never visits keeps the sentinel in its destination slots.
+    const auto src_value = [](size_t head, size_t token, size_t elem) {
+        return ov::float16(static_cast<float>(1 + head * 16 + (token + elem) % 16));
+    };
+    std::vector<ov::float16> key_cache_ref(key_cache_mem->count(), ov::float16(-1.0f));
+    std::vector<ov::float16> value_cache_ref(value_cache_mem->count(), ov::float16(-1.0f));
+    for (size_t h = 0; h < kv_heads; h++) {
+        for (size_t t = 0; t < block_size; t++) {
+            for (size_t k = 0; k < k_head_size; k++) {
+                key_cache_ref[key_offset(0, h, k, t, kv_heads, k_head_size, block_size)] = src_value(h, t, k);
+            }
+            for (size_t v = 0; v < v_head_size; v++) {
+                value_cache_ref[value_offset(0, h, t, v, kv_heads, v_head_size, block_size)] = src_value(h, t, v);
+            }
+        }
+    }
+    set_values(key_cache_mem, key_cache_ref);
+    set_values(value_cache_mem, value_cache_ref);
+
+    set_values<int32_t>(block_indices_mem, {0, 1});
+    set_values<int32_t>(block_indices_begins_mem, {0, 2});
+    set_values<int32_t>(block_update_indices_mem,
+                        {
+                            0,
+                            17,
+                            15,
+                            16,
+                        });
+    set_values<int32_t>(block_update_indices_begins_mem, {0, 2});
+
+    topology topo;
+    topo.add(mutable_data("key_cache", key_cache_mem));
+    topo.add(mutable_data("value_cache", value_cache_mem));
+    topo.add(input_layout("block_indices", block_indices_layout));
+    topo.add(input_layout("block_indices_begins", block_indices_begins_layout));
+    topo.add(input_layout("block_update_indices", block_update_indices_layout));
+    topo.add(input_layout("block_update_indices_begins", block_update_indices_begins_layout));
+
+    auto pa_reorder = pa_kv_reorder("pa_kv_reorder",
+                                    {input_info("key_cache"),
+                                     input_info("value_cache"),
+                                     input_info("block_indices"),
+                                     input_info("block_indices_begins"),
+                                     input_info("block_update_indices"),
+                                     input_info("block_update_indices_begins")});
+    pa_reorder.kv_heads_num = kv_heads;
+    pa_reorder.adjusted_k_head_size = k_head_size;
+    pa_reorder.adjusted_paged_attention_block_size = block_size;
+    pa_reorder.adjusted_v_head_size = v_head_size;
+    pa_reorder.cache_dt = data_types::f16;
+    pa_reorder.is_kv_compressed = false;
+    topo.add(pa_reorder);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    network->set_input_data("block_indices", block_indices_mem);
+    network->set_input_data("block_indices_begins", block_indices_begins_mem);
+    network->set_input_data("block_update_indices", block_update_indices_mem);
+    network->set_input_data("block_update_indices_begins", block_update_indices_begins_mem);
+    network->execute();
+    network->get_stream().finish();
+
+    auto impl = dynamic_cast<ov::intel_gpu::ocl::PrimitiveImplOCL*>(network->get_primitive("pa_kv_reorder")->get_impl());
+    ASSERT_NE(impl, nullptr);
+    ASSERT_EQ(impl->_stages.size(), 1u);
+    const auto& wgs = impl->_stages[0]->kd.params.workGroups;
+    for (size_t i = 0; i < wgs.global.size(); i++) {
+        ASSERT_NE(wgs.local[i], 0u) << "axis " << i;
+        EXPECT_EQ(wgs.global[i] % wgs.local[i], 0u) << "axis " << i << ": gws=" << wgs.global[i] << " lws=" << wgs.local[i];
+    }
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
+
+    // Updates move src slot 0 -> dst slot 17 (block 1, token 1) and src slot 15 -> dst slot 16 (block 1, token 0).
+    for (size_t h = 0; h < kv_heads; h++) {
+        for (size_t k = 0; k < k_head_size; k++) {
+            ASSERT_EQ(key_ptr[key_offset(1, h, k, 1, kv_heads, k_head_size, block_size)], src_value(h, 0, k)) << "head " << h;
+            ASSERT_EQ(key_ptr[key_offset(1, h, k, 0, kv_heads, k_head_size, block_size)], src_value(h, 15, k)) << "head " << h;
+        }
+        for (size_t v = 0; v < v_head_size; v++) {
+            ASSERT_EQ(value_ptr[value_offset(1, h, 1, v, kv_heads, v_head_size, block_size)], src_value(h, 0, v)) << "head " << h;
+            ASSERT_EQ(value_ptr[value_offset(1, h, 0, v, kv_heads, v_head_size, block_size)], src_value(h, 15, v)) << "head " << h;
+        }
+    }
 }
 
 TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence) {

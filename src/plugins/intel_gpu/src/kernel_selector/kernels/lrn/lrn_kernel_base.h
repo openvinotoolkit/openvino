@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,9 @@ struct lrn_params : public base_params {
 
     LRNMode normMode = LRNMode::ACROSS_CHANNEL;
     KernelDividerMode divMode = KernelDividerMode::DONT_CARE;
-    float alpha = 0.f;
-    float beta = 0.f;
-    float k = 0.f;
+    float alpha = 0.F;
+    float beta = 0.F;
+    float k = 0.F;
     uint32_t localSize = 0;
 
     ParamsKey GetParamsKey() const override {

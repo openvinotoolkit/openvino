@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,9 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
     switch (dt) {
         case Datatype::UINT2:
             key.inputType.val.uint2 = 1;
+            break;
+        case Datatype::UINT3:
+            key.inputType.val.uint3 = 1;
             break;
         case Datatype::INT4:
             key.inputType.val.int4 = 1;
@@ -109,6 +112,9 @@ void ParamsKey::EnableOutputDataType(Datatype dt) {
     switch (dt) {
         case Datatype::UINT2:
             key.outputType.val.uint2 = 1;
+            break;
+        case Datatype::UINT3:
+            key.outputType.val.uint3 = 1;
             break;
         case Datatype::INT4:
             key.outputType.val.int4 = 1;
@@ -185,6 +191,9 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::UINT2:
             key.inputWeightsType.val.uint2 = 1;
             break;
+        case WeightsType::UINT3:
+            key.inputWeightsType.val.uint3 = 1;
+            break;
         case WeightsType::INT32:
             key.inputWeightsType.val.int32 = 1;
             break;
@@ -229,6 +238,9 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::UINT2:
             key.outputWeightsType.val.uint2 = 1;
+            break;
+        case WeightsType::UINT3:
+            key.outputWeightsType.val.uint3 = 1;
             break;
         case WeightsType::INT32:
             key.outputWeightsType.val.int32 = 1;
@@ -640,7 +652,7 @@ std::string base_params::to_string() const {
     }
 
     if (!found_fused_activation) {
-        s << "m" << 0.f << "_n" << 0.f << "_" << toString(ActivationFunction::NONE) << "_";
+        s << "m" << 0.F << "_n" << 0.F << "_" << toString(ActivationFunction::NONE) << "_";
     }
 
     for (auto input : inputs) {

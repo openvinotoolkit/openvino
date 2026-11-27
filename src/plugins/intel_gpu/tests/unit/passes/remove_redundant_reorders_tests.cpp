@@ -23,6 +23,7 @@
 #include "shape_of_inst.h"
 #include "arg_max_min_inst.h"
 #include "gather_inst.h"
+#include "select_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -439,6 +440,72 @@ TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_
     ASSERT_EQ(concat_layout.data_type, data_types::f32);
 }
 
+namespace {
+// producer(f32) -> reorder(u8, truncate) -> reorder(f32, truncate)
+// A Convert from floating point to an integral type truncates toward zero and wraps out-of-range values. A producer other
+// than select would store the u8 result with its own output conversion, so the first Convert must stay. The select
+// kernel converts the same way as the Convert, but once the first Convert is fused into it, fusing the Convert back to
+// f32 as well would make it store the f32 result directly, dropping the truncation.
+void test_truncating_fp_to_int_to_fp_reorders(bool select_producer) {
+    auto& engine = get_test_engine();
+    const auto in_layout = layout{ ov::PartialShape{ 1, 4, 1, 1 }, data_types::f32, format::bfyx };
+    auto input = engine.allocate_memory(in_layout);
+    set_values(input, { -86.5f, -163.5f, 300.5f, 7.5f });
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    if (select_producer) {
+        auto mask = engine.allocate_memory({ ov::PartialShape{ 1, 4, 1, 1 }, data_types::i8, format::bfyx });
+        auto zeros = engine.allocate_memory(in_layout);
+        set_values<int8_t>(mask, { 1, 1, 1, 1 });
+        set_values(zeros, { 0.0f, 0.0f, 0.0f, 0.0f });
+        topology.add(data("mask", mask));
+        topology.add(data("zeros", zeros));
+        topology.add(cldnn::select("producer", input_info("mask"), input_info("input"), input_info("zeros")));
+    } else {
+        auto zero = engine.allocate_memory({ ov::PartialShape{ 1, 1, 1, 1 }, data_types::f32, format::bfyx });
+        set_values(zero, { 0.0f });
+        topology.add(data("zero", zero));
+        topology.add(eltwise("producer", input_info("input"), input_info("zero"), eltwise_mode::sum));
+    }
+    topology.add(reorder("to_u8", input_info("producer"), format::any, data_types::u8,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(reorder("to_f32", input_info("to_u8"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+    // The eltwise keeps storing f32 and the Convert to u8 stays. The select stores the truncated u8 value itself, and
+    // the Convert back to f32 stays.
+    ASSERT_EQ(has_node(*prog, "to_u8"), !select_producer);
+    ASSERT_TRUE(has_node(*prog, "producer"));
+    ASSERT_EQ(prog->get_node("producer").get_output_layout().data_type, select_producer ? data_types::u8 : data_types::f32);
+
+    // -86.5 -> -86 -> 170, -163.5 -> -163 -> 93, 300.5 -> 300 -> 44, 7.5 -> 7
+    const std::vector<float> expected = { 170.0f, 93.0f, 44.0f, 7.0f };
+    auto output = outputs.at("to_f32").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], expected[i]) << "index " << i;
+    }
+}
+}  // namespace
+
+TEST(remove_redundant_reorders, not_to_fuse_truncating_fp_to_int_reorder_to_prev) {
+    test_truncating_fp_to_int_to_fp_reorders(false);
+}
+
+TEST(remove_redundant_reorders, not_to_fuse_reorder_to_select_storing_truncated_int) {
+    test_truncating_fp_to_int_to_fp_reorders(true);
+}
+
 TEST(remove_redundant_reorders, reorder_of_non_default_port) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
@@ -528,4 +595,72 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
     for (int i = 0; i < out_size; i++) {
         ASSERT_EQ(out_buffer[i], ref_result[i]);
     }
+}
+
+TEST(remove_redundant_reorders, removed_mean_reorder_keeps_consumer_format) {
+    // data(bfyx) ------------------------> consumer(format::any, mean = mean_reorder)
+    // mean_src(bfyx) -> mean_reorder(byxf) --^
+    // consumer's format::any follows its data input, so it must stay bfyx after mean_reorder is removed.
+    auto& engine = get_test_engine();
+    layout in_layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("data", in_layout));
+    topology.add(input_layout("mean_src", in_layout));
+    topology.add(reorder("mean_reorder", input_info("mean_src"), format::byxf, data_types::f32));
+    topology.add(reorder("consumer", input_info("data"), format::any, data_types::f32, "mean_reorder"));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_EQ(prog->get_node("consumer").get_output_layout().format, format::bfyx);
+
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, true);
+
+    ASSERT_FALSE(has_node(*prog, "mean_reorder"));
+    auto& consumer = prog->get_node("consumer");
+    consumer.recalc_output_layout(false);
+    ASSERT_EQ(consumer.get_output_layout().format, format::bfyx);
+}
+
+TEST(remove_redundant_reorders, removed_mean_reorder_keeps_consumer_format_accuracy) {
+    // Same graph as above, but the mean is a constant, so reorder_inputs adds no adapter reorders around it.
+    auto& engine = get_test_engine();
+    layout in_layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
+    auto data_mem = engine.allocate_memory(in_layout);
+    auto mean_mem = engine.allocate_memory(in_layout);
+
+    std::vector<float> data_vals(12), mean_vals(12), ref(12);
+    for (size_t i = 0; i < 12; ++i) {
+        data_vals[i] = static_cast<float>(i * 10);
+        mean_vals[i] = static_cast<float>(i);
+        ref[i] = data_vals[i] - mean_vals[i];
+    }
+    set_values(data_mem, data_vals);
+    set_values(mean_mem, mean_vals);
+
+    topology topology;
+    topology.add(input_layout("data", in_layout));
+    topology.add(cldnn::data("mean_src", mean_mem));
+    topology.add(reorder("mean_reorder", input_info("mean_src"), format::byxf, data_types::f32));
+    topology.add(reorder("consumer", input_info("data"), format::any, data_types::f32, "mean_reorder"));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("data", data_mem);
+    auto outputs = network.execute();
+
+    auto out_mem = outputs.at("consumer").get_memory();
+    ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    for (size_t i = 0; i < ref.size(); ++i) {
+        ASSERT_FLOAT_EQ(out_ptr[i], ref[i]) << "i=" << i;
+    }
+
+    ASSERT_FALSE(network.get_program()->has_node("mean_reorder"));
+    // The compiled consumer must still describe a bfyx output, and the caller's topology must stay unchanged.
+    auto& consumer = network.get_program()->get_node("consumer");
+    ASSERT_EQ(consumer.type()->calc_output_layouts(consumer, *consumer.get_kernel_impl_params())[0].format, format::bfyx);
+    ASSERT_EQ(std::static_pointer_cast<const reorder>(topology.at("consumer"))->output_format, format::any);
 }

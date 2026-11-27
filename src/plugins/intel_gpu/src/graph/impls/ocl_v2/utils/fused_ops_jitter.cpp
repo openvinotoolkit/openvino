@@ -359,9 +359,15 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
 
     auto get_input = [&](size_t index) -> JitTerm {
         const auto dep = dep_data[index];
-        auto input_name = (dep.m_type == FusedInputType::ORIGINAL)   ? in_var
-                          : (dep.m_type == FusedInputType::INTERNAL) ? get_output_var_name(in_var, dep.m_idx)
-                                                                     : get_input_var_name(dep.m_idx, is_shuffled, shuffle_var);
+        auto input_name = [&]() -> JitTerm {
+            if (dep.m_type == FusedInputType::ORIGINAL) {
+                return in_var;
+            }
+            if (dep.m_type == FusedInputType::INTERNAL) {
+                return get_output_var_name(in_var, dep.m_idx);
+            }
+            return get_input_var_name(dep.m_idx, is_shuffled, shuffle_var);
+        }();
         auto input_type = (dep.m_type == FusedInputType::ORIGINAL) ? in_type : params.get_input_layout(dep.m_idx).data_type;
         auto acc_t = get_acc_t();
 
@@ -544,7 +550,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
                     nl_m = JitTerm{std::max<float>(activation_p.a, std::numeric_limits<int8_t>::min())};
                     nl_n = JitTerm{std::min<float>(activation_p.b, std::numeric_limits<int8_t>::max())};
                 } else if (out_type == ov::element::u8) {
-                    nl_m = JitTerm{std::max(activation_p.a, 0.0f)};
+                    nl_m = JitTerm{std::max(activation_p.a, 0.0F)};
                     nl_n = JitTerm{std::min<float>(activation_p.b, std::numeric_limits<uint8_t>::max())};
                 }
             }
@@ -555,9 +561,14 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
                 // not by its position in dep_data - otherwise the generated kernel uses
                 // an undeclared variable and fails with CL_BUILD_PROGRAM_FAILURE.
                 const auto& slope_dep = dep_data[1];
-                auto slope_name = (slope_dep.m_type == FusedInputType::ORIGINAL)   ? in_var
-                                  : (slope_dep.m_type == FusedInputType::INTERNAL) ? get_output_var_name(in_var, slope_dep.m_idx)
-                                                                                   : get_input_var_name(slope_dep.m_idx, is_shuffled, shuffle_var);
+                JitTerm slope_name;
+                if (slope_dep.m_type == FusedInputType::ORIGINAL) {
+                    slope_name = in_var;
+                } else if (slope_dep.m_type == FusedInputType::INTERNAL) {
+                    slope_name = get_output_var_name(in_var, slope_dep.m_idx);
+                } else {
+                    slope_name = get_input_var_name(slope_dep.m_idx, is_shuffled, shuffle_var);
+                }
                 if (slope_dep.m_element_type != out_type) {
                     nl_m = convert_to_output_type(slope_name, vec_size);
                 } else {
@@ -635,7 +646,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
 
     bool valid_broadcast_case = true;
     if (input_tensor.is_static() && out_f.is_static()) {
-        if (input_tensor.count() != static_cast<size_t>(out_f.get_length()) && input_tensor.count() != 1ul) {
+        if (input_tensor.count() != static_cast<size_t>(out_f.get_length()) && input_tensor.count() != 1UL) {
             valid_broadcast_case = false;
         }
     }
@@ -753,7 +764,7 @@ JitTerm FusedOpsCodeGenerator::get_input_var_name(size_t input_id, bool is_shuff
     return concat(get_op_type(), op_idx, "_data", input_id);
 }
 
-JitTerm FusedOpsCodeGenerator::get_output_var_name(const JitTerm& input_var, size_t op_id) const {
+JitTerm FusedOpsCodeGenerator::get_output_var_name(const JitTerm& input_var, size_t op_id) {
     auto copy = input_var.str();
     std::replace_if(
         copy.begin(),

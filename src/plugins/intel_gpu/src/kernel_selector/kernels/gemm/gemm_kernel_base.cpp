@@ -4,13 +4,14 @@
 
 #include "gemm_kernel_base.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
-size_t GemmKernelBase::GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor& output, char target_dim) const {
+size_t GemmKernelBase::GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor& output, char target_dim) {
     OPENVINO_ASSERT(target_dim == 'X' || target_dim == 'Y');
 
     auto output_dims_order = GetDimsOrder(output_order);
@@ -33,7 +34,7 @@ size_t GemmKernelBase::GetOuputSize(const std::vector<int64_t>& output_order, co
     }
 }
 
-std::vector<int64_t> GemmKernelBase::ConvTo8dims(const std::vector<int64_t>& order_idx) const {
+std::vector<int64_t> GemmKernelBase::ConvTo8dims(const std::vector<int64_t>& order_idx) {
     std::vector<int64_t> dims_order;
     if (order_idx.size() == 2) {
         dims_order = {0, 1, 2, 3, 4, 5};
@@ -90,7 +91,7 @@ std::vector<int64_t> GemmKernelBase::ConvTo8dims(const std::vector<int64_t>& ord
     return dims_order;
 }
 
-std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int64_t>& order_idx, bool is_tiled_opt) const {
+std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int64_t>& order_idx, bool is_tiled_opt) {
     auto converted_dims = ConvTo8dims(order_idx);
     std::vector<std::string> dim_ids;
     for (auto dim : converted_dims) {
@@ -134,7 +135,7 @@ std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int
     return dim_ids;
 }
 
-std::string GemmKernelBase::GetDimsOrder(const std::vector<int64_t>& order_idx) const {
+std::string GemmKernelBase::GetDimsOrder(const std::vector<int64_t>& order_idx) {
     auto get_order_idx = [](std::vector<int64_t> order_idx, int64_t dim_idx) {
         int loc = 0;
         for (auto idx : order_idx) {
@@ -186,7 +187,7 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("BEAM_TABLE_TERM", params.indirect_input0 || params.indirect_input1),
     });
 
-    auto get_output_size = [this](const std::vector<int64_t>& output_order_idx, const int target_idx) {
+    auto get_output_size = [](const std::vector<int64_t>& output_order_idx, const int target_idx) {
         auto output_dims_order = GetDimsOrder(output_order_idx);
 
         switch (output_dims_order.at(target_idx)) {
@@ -318,7 +319,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params) const {
     return {k_data};
 }
 
-JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params&, const DispatchData&) const {
+JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params& /*unused*/, const DispatchData& /*unused*/) const {
     return {};
 }
 
@@ -329,10 +330,10 @@ bool GemmKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

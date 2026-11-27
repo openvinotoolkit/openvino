@@ -43,7 +43,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
                                 data_type_traits::is_i4_u4(key_cache_dt);
-    auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+    auto expected_block_size = desc->get_block_size();
     // Both INT4 and INT8 BY_CHANNEL use dim order {0,1,3,2} with block_size at dim[3].
     const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
@@ -143,7 +143,7 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("has_sink_input", desc->has_sink_input);
     paged_attention_info.add("has_adaptive_rkv", desc->has_adaptive_rkv);
     paged_attention_info.add("has_qq_bias", desc->has_qq_bias);
-    paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
+    paged_attention_info.add("scale", desc->scale_val.value_or(1.0F));
     paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
     paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);
     paged_attention_info.add("value_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::VALUE_CACHE).data_type);

@@ -5,6 +5,7 @@
 #include "node/include/node_output.hpp"
 
 #include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/partial_shape_wrap.hpp"
 
@@ -38,15 +39,30 @@ Napi::Object Output<ov::Node>::wrap(Napi::Env env, ov::Output<ov::Node> output) 
 }
 
 Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
-    return cpp_to_js<ov::Shape, Napi::Array>(info, _output.get_shape());
+    try {
+        return cpp_to_js<ov::Shape, Napi::Array>(info, _output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value Output<ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
-    return PartialShapeWrap::wrap(info.Env(), _output.get_partial_shape());
+    try {
+        return PartialShapeWrap::wrap(info.Env(), _output.get_partial_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
-    return Napi::String::New(info.Env(), _output.get_any_name());
+    try {
+        return Napi::String::New(info.Env(), _output.get_any_name());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
@@ -81,13 +97,28 @@ Napi::Object Output<const ov::Node>::wrap(Napi::Env env, ov::Output<const ov::No
 }
 
 Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
-    return cpp_to_js<ov::Shape, Napi::Array>(info, _output.get_shape());
+    try {
+        return cpp_to_js<ov::Shape, Napi::Array>(info, _output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value Output<const ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
-    return PartialShapeWrap::wrap(info.Env(), _output.get_partial_shape());
+    try {
+        return PartialShapeWrap::wrap(info.Env(), _output.get_partial_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
-    return Napi::String::New(info.Env(), _output.get_any_name());
+    try {
+        return Napi::String::New(info.Env(), _output.get_any_name());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }

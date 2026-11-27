@@ -24,6 +24,7 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::intel_npu_vm_runtime,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${TARGET_NAME} PUBLIC
@@ -40,4 +41,7 @@ endif()
 # headers are copied into the build directory by prepare_ze_headers; without
 # this explicit dependency a parallel build may compile ${TARGET_NAME} before
 # the headers are copied, causing a missing-header error
-add_dependencies(${TARGET_NAME} prepare_ze_headers)
+# If ENABLE_SYSTEM_LEVEL_ZERO enabled, prepare_ze_headers is not defined
+if (TARGET prepare_ze_headers)
+    add_dependencies(${TARGET_NAME} prepare_ze_headers)
+endif()

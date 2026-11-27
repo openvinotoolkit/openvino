@@ -96,7 +96,7 @@ JitConstants DeformableConvolutionKernel_bfyx_opt::GetJitConstants(const convolu
     return jit;
 }
 
-void DeformableConvolutionKernel_bfyx_opt::SetKernelArguments(const convolution_params& params, clKernelData& kernel, size_t idx) const {
+void DeformableConvolutionKernel_bfyx_opt::SetKernelArguments(const convolution_params& params, clKernelData& kernel, size_t idx) {
     switch (idx) {
     case 0:
         for (size_t i = 0; i < params.inputs.size(); i++) {

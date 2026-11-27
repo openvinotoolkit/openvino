@@ -32,15 +32,15 @@ public:
     /// \param up_add_val Value added to up (default : 0.0f)
     /// \param output_type Output element type
     SwiGluWithClamp(const ov::Output<Node>& data,
-        int64_t axis,
-        int64_t glu_stride,
-        const GluType glu_type,
-        const size_t gate_idx,
-        const float clamp_min,
-        const float clamp_max,
-        const float swiglu_beta = 1.0f,
-        const float up_add_val = 0.0f,
-        const ov::element::Type output_type = ov::element::dynamic);
+                    int64_t axis,
+                    int64_t glu_stride,
+                    GluType glu_type,
+                    size_t gate_idx,
+                    float clamp_min,
+                    float clamp_max,
+                    float swiglu_beta = 1.0F,
+                    float up_add_val = 0.0F,
+                    ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 
@@ -102,8 +102,8 @@ private:
     size_t m_gate_idx = 0;
     float m_clamp_min = std::numeric_limits<float>::lowest();
     float m_clamp_max = std::numeric_limits<float>::max();
-    float m_swiglu_beta = 1.0f;
-    float m_up_add_val = 0.0f;
+    float m_swiglu_beta = 1.0F;
+    float m_up_add_val = 0.0F;
     ov::element::Type m_output_type;
 };
 

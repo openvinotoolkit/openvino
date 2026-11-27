@@ -342,7 +342,7 @@ KERNEL(pa_sdpa_opt)(
             const uint key_block_offset = block_offset;
             const uint hidden_stride = SUBGROUP_SIZE;
             const uint key_comp_offset = key_block_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+            INPUT0_TYPE* key_comp_ptr = (INPUT0_TYPE*)(key_cache + key_comp_offset);
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = key_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
     #endif
@@ -654,20 +654,24 @@ KERNEL(pa_sdpa_opt)(
         barrier(CLK_LOCAL_MEM_FENCE);
 
         {
-            // Save temporary exm_sums and max_logits values for each partition_num
+            // Save temporary exm_sums and max_logits values for each partition_num.
+            // Subgroups stride over heads: with small head sizes SUBGROUPS_PER_WG may be smaller than HEADS_PER_WI.
 #if HEADS_PER_WI > 1 && HEADS_LEFTOVERS_NUM > 0
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid < HEADS_PER_WI && sgid < iter_heads_num) {
+            const uint stats_heads_num = iter_heads_num;
 #else
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid < HEADS_PER_WI) {
+            const uint stats_heads_num = HEADS_PER_WI;
 #endif
-                const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(sgid, 0);
-                const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
-                                             (head_num_idx + head_idx) * total_partitions_num +
-                                             partition_idx;
-                exp_sums[exp_sums_offset] = GET_VECTOR_ELEMENT(exp_sum, head_idx);
+            if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+                for (uint q_idx = sgid; q_idx < stats_heads_num; q_idx += SUBGROUPS_PER_WG) {
+                    const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(q_idx, 0);
+                    const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
+                                                 (head_num_idx + head_idx) * total_partitions_num +
+                                                 partition_idx;
+                    exp_sums[exp_sums_offset] = GET_VECTOR_ELEMENT(exp_sum, head_idx);
 
-                const uint max_logits_offset = exp_sums_offset;
-                max_logits[max_logits_offset] = GET_VECTOR_ELEMENT(qk_max, head_idx);
+                    const uint max_logits_offset = exp_sums_offset;
+                    max_logits[max_logits_offset] = GET_VECTOR_ELEMENT(qk_max, head_idx);
+                }
             }
 
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -770,7 +774,7 @@ KERNEL(pa_sdpa_opt)(
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #else
             const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            INPUT0_TYPE* value_comp_ptr = (INPUT0_TYPE*)(value_cache + value_comp_offset);
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 #endif
@@ -905,7 +909,7 @@ KERNEL(pa_sdpa_opt)(
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #elif IS_KV_COMPRESSED && !IS_INT4_COMPRESSED
             const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            INPUT0_TYPE* value_comp_ptr = (INPUT0_TYPE*)(value_cache + value_comp_offset);
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 #endif

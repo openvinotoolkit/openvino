@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,9 @@ public:
     virtual DeviceFeaturesKey get_required_device_features_key(const Params& params) const {
         return DeviceFeaturesKey();
     }
-    virtual const std::string GetName() const { return kernelName; }
+    virtual std::string GetName() const {
+        return kernelName;
+    }
     virtual void GetUpdateDispatchDataFunc(KernelData& kd) const { }
 
     static const primitive_db& get_db() { return db; }
@@ -67,7 +69,7 @@ protected:
     virtual Datatype GetUnitType(const base_params& params) const;
 
     bool IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const;
-    bool IsSIMDSizeSupported(const EngineInfo& info, size_t simd_size) const;
+    static bool IsSIMDSizeSupported(const EngineInfo& info, size_t simd_size);
     JitConstants MakeBaseParamsJitConstants(const base_params& params, bool add_tensor_definitions = true) const;
     virtual std::vector<FusedOpType> GetSupportedFusedOps() const;
     virtual JitConstants MakeFusedOpsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
@@ -77,6 +79,6 @@ protected:
     // If params has at least 1 tensor of fp32/fp16/(u)int8 type, then it sets corresponding subgroup extension as required
     // Should be used carefully, as in some cases tensor types may not correspond to actually used extension
     // e.g. int8 kernel may use intel_sub_group_block_read to load packed int8 data
-    DeviceFeaturesKey get_common_subgroups_device_features_key(const Params& params) const;
+    static DeviceFeaturesKey get_common_subgroups_device_features_key(const Params& params);
 };
 }  // namespace kernel_selector

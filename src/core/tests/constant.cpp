@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <tuple>
 #include <variant>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -880,7 +881,8 @@ TEST(constant, uint2_string) {
 
     EXPECT_EQ(c.convert_value_to_string(1), "1");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("2", "1", "0", "3"));
-    EXPECT_THROW(c.get_strides(), Exception);
+    // 4 u2 elements == 1 byte, byte-aligned, so strides are now representable
+    EXPECT_EQ(c.get_strides(), Strides({1}));
 }
 
 TEST(constant, uint2_string_broadcast) {
@@ -1092,7 +1094,8 @@ TEST(constant, uint4_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
-    EXPECT_THROW(c.get_strides(), Exception);
+    // 4 u4 elements == 2 bytes, byte-aligned, so strides are now representable
+    EXPECT_EQ(c.get_strides(), Strides({1}));
 }
 
 TEST(constant, uint4_string_broadcast) {
@@ -2585,6 +2588,30 @@ TEST(constant, hold_tensor_custom_strides_revalidate) {
     EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
 }
 
+TEST(constant, strides_dense_sub_byte) {
+    // u4: 100 elements per row, byte-aligned (100 * 4 bits == 50 bytes).
+    ov::op::v0::Constant c(element::u4, Shape{2, 100});
+    EXPECT_EQ(c.get_strides(), Strides({50, 1}));
+}
+
+TEST(constant, hold_tensor_custom_strides_sub_byte) {
+    // u4: 100 real elements (50 bytes) per row, padded to 64 bytes per row.
+    const auto shape = Shape{2, 100};
+    const auto strides = Strides{64, 1};
+    void* shared_data_ptr = nullptr;
+    std::shared_ptr<op::v0::Constant> const_op;
+    auto storage = std::vector<uint8_t>(2 * 64);
+    {
+        auto strided_view = Tensor(element::u4, shape, storage.data(), strides);
+        shared_data_ptr = strided_view.data();
+        const_op = std::make_shared<op::v0::Constant>(strided_view);
+    }
+
+    ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
+    EXPECT_EQ(const_op->get_strides(), strides);
+    EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
+}
+
 TEST(constant, hold_shared_memory_same_size) {
     auto storage =
         std::make_shared<std::vector<int32_t>>(std::initializer_list<int32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
@@ -2845,6 +2872,30 @@ TEST(constant, create_with_zero_dim_shape) {
     auto c = ov::op::v0::Constant(element::u8, Shape{10, 0});
 
     EXPECT_EQ(c.get_byte_size(), 0);
+}
+
+TEST(constant, shape_size_cache_and_reshape) {
+    std::vector<int32_t> values{1, 2, 3, 4, 5, 6};
+    ov::op::v0::Constant c1(element::i32, Shape{2, 3}, values);
+    EXPECT_EQ(c1.get_byte_size(), 6 * sizeof(int32_t));
+
+    // Reshape with identical total element count should succeed
+    ov::op::v0::Constant c2(c1, Shape{3, 2});
+    EXPECT_EQ(c2.get_byte_size(), 6 * sizeof(int32_t));
+    EXPECT_EQ(c2.get_shape(), (Shape{3, 2}));
+
+    // Reshape with mismatching element count should throw
+    EXPECT_THROW(std::ignore = ov::op::v0::Constant(c1, Shape{2, 2}), ov::Exception);
+
+    // Copy constructor should preserve byte size and cached shape size
+    ov::op::v0::Constant c3(c1);
+    EXPECT_EQ(c3.get_byte_size(), 6 * sizeof(int32_t));
+    EXPECT_EQ(c3.get_shape(), (Shape{2, 3}));
+}
+
+TEST(constant, construct_with_overflowing_shape_throws) {
+    const auto max_size = std::numeric_limits<size_t>::max();
+    EXPECT_THROW(std::ignore = ov::op::v0::Constant(element::u8, Shape{max_size, 2}), ov::Exception);
 }
 
 using ConstantInputValue = std::variant<bool,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
@@ -12,6 +13,7 @@
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
@@ -19,6 +21,7 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/core.hpp"
 #include "projector.hpp"
 
 using namespace ov::frontend::gguf;
@@ -26,10 +29,9 @@ using namespace ov::frontend::gguf;
 namespace {
 struct Environment {
     std::unordered_map<std::string, GGUFMetaData> metadata;
-    std::unordered_map<std::string, ov::Tensor> weights;
-    std::unordered_map<std::string, GgufTensorType> qtypes;
+    GgufWeightTable weights;
     detail::MetadataStore store{metadata};
-    detail::WeightStore tensors{weights, qtypes};
+    detail::WeightStore tensors{weights};
     BuildContext context{GgufMetadata(store), "test", &tensors};
 
     Environment() {
@@ -44,6 +46,9 @@ struct Environment {
         ov::Tensor t(ov::element::f32, {});
         *t.data<float>() = value;
         metadata[key] = t;
+    }
+    DecoderParameters parameters(RopeMode rope = RopeMode::Normal, const DecoderOptions& options = {}) const {
+        return resolve_decoder_parameters(context.metadata, rope, options);
     }
     void architecture(const std::string& name) {
         std::unordered_map<std::string, GGUFMetaData> renamed;
@@ -76,6 +81,40 @@ ArchitectureDefinition handler(const std::string& id, ArchitectureDefinition::Ma
             std::move(match)};
 }
 }  // namespace
+
+TEST(GGUFBuilderAPI, ArchitectureExtensionOverridesPersistedGenAIContract) {
+    Environment env;
+    env.architecture("eagle3");
+    struct ContractBuilder : ModelBuilder {
+        GgufGraphContext graph;
+        explicit ContractBuilder(const BuildContext& context) : graph(context) {}
+        std::shared_ptr<GgufGraph> build() override {
+            auto input = graph.add_input("opaque_input", ov::element::f32, {1, 1, 2, 3});
+            graph.set_output(input, "opaque_features");
+            ModelContract contract;
+            contract.genai.emplace();
+            contract.genai->enabled = false;
+            contract.genai->position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+            contract.genai->auxiliary_outputs = {{"opaque_features", "features", 1}};
+            graph.configure_model_contract(contract);
+            return graph.finish();
+        }
+    };
+    ArchitectureDefinition replacement{"eagle3", "eagle3", [](const BuildContext& context) {
+                                           return std::make_shared<ContractBuilder>(context);
+                                       }};
+    ArchRegistry registry;
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    const auto selected = registry.find(env.context.metadata);
+    ASSERT_TRUE(selected);
+    const auto model = convert(selected->factory(env.context)->build());
+    const auto contract = read_model_contract(model);
+    ASSERT_TRUE(contract.genai);
+    EXPECT_FALSE(contract.genai->enabled);
+    EXPECT_EQ(contract.genai->position_layout, ModelContract::GenAIContract::PositionLayout::THREE_AXIS);
+    ASSERT_EQ(contract.genai->auxiliary_outputs.size(), 1);
+    EXPECT_EQ(contract.genai->auxiliary_outputs[0].source_tensor, model->output().get_any_name());
+}
 
 TEST(GGUFBuilderAPI, MetadataReadsReuseNumericConversionAcrossWidths) {
     Environment env;
@@ -285,11 +324,12 @@ TEST(GGUFBuilderAPI, DecoderOptionsAreResolvedBeforeRopePlans) {
 TEST(GGUFBuilderAPI, RopeScalingDefaultsAndPositiveFactors) {
     Environment env;
     env.decoder();
-    EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")), 1.0f);
-    for (const float factor : {0.0f, 1.0f, 4.0f}) {
+    EXPECT_FLOAT_EQ(env.parameters().attention.rope.freq_scale, 1.0f);
+    for (const float factor :
+         {0.0f, -0.0f, 1.0f, 4.0f, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()}) {
+        SCOPED_TRACE(factor);
         env.real("test.rope.scaling.factor", factor);
-        EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")),
-                        factor == 0.0f ? 1.0f : 1.0f / factor);
+        EXPECT_FLOAT_EQ(env.parameters().attention.rope.freq_scale, factor == 0.0f ? 1.0f : 1.0f / factor);
     }
 }
 
@@ -302,7 +342,168 @@ TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
         Environment env;
         env.decoder();
         env.real("test.rope.scaling.factor", factor);
-        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+        EXPECT_THROW(env.parameters(), ov::Exception);
+    }
+}
+
+TEST(GGUFBuilderAPI, RetainedFamilyDefaultsAndTypedOverrides) {
+    Environment cohere;
+    cohere.decoder();
+    cohere.real("test.attention.layer_norm_epsilon", 1e-5f);
+    cohere.integer("test.attention.sliding_window", 128);
+    cohere.architecture("cohere2");
+    auto parameters = cohere.parameters();
+    DecoderConfig config(parameters, cohere.weights);
+    EXPECT_TRUE(config.layer_norm);
+    EXPECT_TRUE(config.parallel_ffn);
+    EXPECT_TRUE(config.rope_on_swa_only);
+    EXPECT_EQ(config.swa_layer_pattern, 4);
+    parameters.parallel_ffn = false;
+    EXPECT_FALSE(DecoderConfig(parameters, cohere.weights).parallel_ffn);
+
+    Environment gemma;
+    gemma.decoder();
+    gemma.integer("test.block_count", 30);
+    gemma.integer("test.attention.sliding_window", 128);
+    gemma.real("test.rope.scaling.factor", 4.f);
+    gemma.architecture("gemma3n");
+    parameters = gemma.parameters();
+    DecoderConfig gemma_config(parameters, gemma.weights);
+    EXPECT_FLOAT_EQ(parameters.scales.attention, 1.0f);
+    EXPECT_FLOAT_EQ(gemma_config.layer_kq_scale(0), 1.0f);
+    EXPECT_TRUE(gemma_config.is_geglu);
+    EXPECT_TRUE(gemma_config.has_v_norm);
+    EXPECT_TRUE(gemma_config.embedding_scale_tokens_only);
+    EXPECT_EQ(gemma_config.n_embd_per_layer, 256);
+    EXPECT_EQ(gemma_config.shared_kv_layers, 10);
+    EXPECT_EQ(gemma_config.swa_layer_pattern, 5);
+    EXPECT_FLOAT_EQ(gemma_config.final_logit_soft_cap, 30.f);
+    EXPECT_FLOAT_EQ(gemma_config.layer_rope_config(0).freq_scale, 0.25f);
+    parameters.dimensions.per_layer_embedding = 128;
+    parameters.dimensions.shared_kv_layers = 0;
+    parameters.normalization.value_norm = false;
+    parameters.scales.attention = 0.25f;
+    DecoderConfig overridden(parameters, gemma.weights);
+    EXPECT_EQ(overridden.n_embd_per_layer, 128);
+    EXPECT_EQ(overridden.shared_kv_layers, 0);
+    EXPECT_FALSE(overridden.has_v_norm);
+    EXPECT_FLOAT_EQ(overridden.layer_kq_scale(0), 0.25f);
+}
+
+TEST(GGUFBuilderAPI, DraftFeaturesAndDeepStackUseTypedMetadata) {
+    Environment env;
+    env.decoder();
+    env.architecture("eagle3");
+    env.metadata["eagle3.target_layers"] = std::vector<int32_t>{0, 1, 2};
+    env.integer("eagle3.norm_before_fc", 1);
+    env.integer("eagle3.norm_before_residual", 1);
+    auto parameters = env.parameters();
+    EXPECT_EQ(parameters.draft.target_layers, (std::vector<int32_t>{0, 1, 2}));
+    EXPECT_TRUE(parameters.draft.norm_before_fc);
+    EXPECT_TRUE(parameters.draft.norm_before_residual);
+    parameters.draft.norm_before_fc = false;
+    EXPECT_FALSE(DecoderConfig(parameters, env.weights).draft_norm_before_fc);
+    env.metadata["eagle3.norm_before_fc"] = 0.5f;
+    EXPECT_THROW(env.parameters(), ov::Exception);
+
+    Environment visual;
+    visual.decoder();
+    visual.architecture("qwen3vl");
+    visual.integer("qwen3vl.n_deepstack_layers", 1);
+    DecoderConfig config(visual.parameters(RopeMode::Interleaved), visual.weights);
+    EXPECT_EQ(config.deepstack_layers, 1);
+    visual.integer("qwen3vl.n_deepstack_layers", std::numeric_limits<int>::max());
+    EXPECT_THROW(DecoderConfig(visual.parameters(RopeMode::Interleaved), visual.weights), ov::Exception);
+    visual.integer("qwen3vl.n_deepstack_layers", std::numeric_limits<uint32_t>::max());
+    EXPECT_THROW(visual.parameters(), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, ExpertProbeDoesNotOverflowAtMaximumDenseLead) {
+    Environment env;
+    env.decoder();
+    auto parameters = env.parameters();
+    parameters.experts.dense_lead = std::numeric_limits<int>::max();
+    parameters.experts.layer_step = 1;
+    EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+    parameters.experts.layer_step = std::numeric_limits<int>::max();
+    EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+}
+
+TEST(GGUFBuilderAPI, RejectsUnsupportedDFlashAuxiliaryTensors) {
+    for (const auto* name : {"markov_w1.weight",
+                             "conf_proj.weight",
+                             "selector_hidden.weight",
+                             "lilicorr.token_proj.weight",
+                             "blk.0.attn_conv_proj.weight",
+                             "blk.0.ffn_conv_base.weight"}) {
+        SCOPED_TRACE(name);
+        Environment env;
+        env.decoder();
+        env.architecture("dflash");
+        env.weights[name] = ov::Tensor(ov::element::f32, {1});
+        try {
+            (void)DecoderConfig(env.parameters(), env.weights);
+            FAIL() << "Expected unsupported DFlash auxiliary tensor";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("unsupported DFlash auxiliary tensor"), std::string::npos);
+            EXPECT_NE(std::string(error.what()).find(name), std::string::npos);
+        }
+        auto parameters = env.parameters();
+        parameters.architecture = "dspark";
+        EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+    }
+}
+
+TEST(GGUFBuilderAPI, RejectsUnsupportedDFlashAuxiliaryMetadata) {
+    for (const auto* name : {"dflash.conv_kernel_size",
+                             "dflash.conv_group_size",
+                             "dflash.selector_rank",
+                             "dflash.selector_top_k",
+                             "lilicorr.hidden_size",
+                             "dflash.markov_rank"}) {
+        SCOPED_TRACE(name);
+        Environment env;
+        env.decoder();
+        env.architecture("dflash");
+        env.integer(name, 1);
+        try {
+            (void)env.parameters();
+            FAIL() << "Expected unsupported DFlash auxiliary metadata";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("unsupported DFlash auxiliary metadata"), std::string::npos);
+            EXPECT_NE(std::string(error.what()).find(name), std::string::npos);
+        }
+    }
+}
+
+TEST(GGUFBuilderAPI, BaseDFlashMetadataDoesNotSelectAuxiliaryVariants) {
+    Environment env;
+    env.decoder();
+    env.architecture("dflash");
+    env.integer("dflash.block_size", 16);
+    env.integer("dflash.sample_from_anchor", 1);
+    for (const auto* name :
+         {"dflash.conv_kernel_size", "dflash.conv_group_size", "dflash.selector_rank", "dflash.selector_top_k"})
+        env.integer(name, 0);
+    env.metadata["dflash.target_layers"] = std::vector<int32_t>{2, 7, 12};
+    env.real("dflash.attention.value_scale", 0.5f);
+    const auto parameters = env.parameters(RopeMode::Neox);
+    EXPECT_FALSE(parameters.causal_attention);
+    EXPECT_EQ(parameters.draft.target_layers, (std::vector<int32_t>{2, 7, 12}));
+    EXPECT_FLOAT_EQ(DecoderConfig(parameters, env.weights).attention_value_scale, 0.5f);
+}
+
+TEST(GGUFBuilderAPI, RopeScalingPreservesTypedDefaultsWithoutAnOverride) {
+    Environment env;
+    env.decoder();
+    DecoderParameters defaults;
+    defaults.attention.rope.freq_scale = 0.125f;
+    EXPECT_FLOAT_EQ(read_decoder_parameters(env.context.metadata, defaults).attention.rope.freq_scale, 0.125f);
+    for (const float factor : {0.0f, -0.0f, 1.0f, 4.0f}) {
+        SCOPED_TRACE(factor);
+        env.real("test.rope.scaling.factor", factor);
+        EXPECT_FLOAT_EQ(read_decoder_parameters(env.context.metadata, defaults).attention.rope.freq_scale,
+                        factor == 0.0f ? 0.125f : 1.0f / factor);
     }
 }
 
@@ -494,7 +695,7 @@ TEST(GGUFBuilderAPI, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
     env.integer("test.attention.head_count", 32);
     env.integer("test.attention.key_length", 128);
     env.architecture("gemma2");
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    DecoderConfig config(env.parameters(), env.weights);
     EXPECT_EQ(config.swa_window_size, 4096);
     EXPECT_TRUE(config.layer_is_swa(0));
     EXPECT_FALSE(config.layer_is_swa(1));
@@ -512,7 +713,63 @@ TEST(GGUFBuilderAPI, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
             env.integer("test.attention.key_length", 128);
         }
         env.architecture("gemma2");
-        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+        EXPECT_THROW(env.parameters(), ov::Exception);
+    }
+}
+
+TEST(GGUFBuilderAPI, SlidingPolicyIsResolvedBeforeInferringNormalizationWidth) {
+    for (const bool sinks : {false, true}) {
+        for (const bool full_width : {false, true}) {
+            SCOPED_TRACE(sinks);
+            SCOPED_TRACE(full_width);
+            Environment env;
+            env.decoder();
+            auto parameters = read_decoder_parameters(env.context.metadata);
+            parameters.dimensions.head_size = 128;
+            parameters.attention.sliding_head_size = 64;
+            parameters.attention.sliding_period = 2;
+            parameters.attention.window_size = sinks ? 0 : 16;
+            if (sinks) {
+                env.weights["blk.0.attn_sinks.weight"] = ov::Tensor(ov::element::f32, {4});
+            }
+            env.weights["blk.0.attn_q_norm.weight"] = ov::Tensor(ov::element::f32, {full_width ? 256u : 64u});
+            DecoderConfig config(parameters, env.weights);
+            EXPECT_TRUE(config.layer_is_swa(0));
+            EXPECT_EQ(config.layer_head_size(0), 64);
+            EXPECT_EQ(config.layer_head_size(1), 128);
+            EXPECT_TRUE(config.has_qk_norm);
+            EXPECT_EQ(config.qk_norm_full, full_width);
+            parameters.normalization.qk_full_width = !full_width;
+            EXPECT_EQ(DecoderConfig(parameters, env.weights).qk_norm_full, !full_width);
+        }
+    }
+}
+
+TEST(GGUFBuilderAPI, OneLayerBooleanSlidingPatternRemainsALayerFlag) {
+    for (const bool sliding : {false, true}) {
+        SCOPED_TRACE(sliding);
+        Environment env;
+        env.decoder();
+        env.integer("test.block_count", 1);
+        env.integer("test.attention.key_length", 128);
+        env.integer("test.attention.key_length_swa", 64);
+        env.integer("test.rope.dimension_count", 64);
+        env.real("test.rope.freq_base", 32000.f);
+        env.real("test.rope.freq_base_swa", 10000.f);
+        ov::Tensor pattern(ov::element::boolean, {1});
+        *pattern.data<char>() = sliding;
+        env.metadata["test.attention.sliding_window_pattern"] = pattern;
+        const auto parameters = read_decoder_parameters(env.context.metadata);
+        EXPECT_EQ(parameters.attention.sliding_layers, (std::vector<int32_t>{sliding ? 1 : 0}));
+        EXPECT_EQ(parameters.attention.sliding_period, 0);
+        DecoderConfig config(parameters, env.weights);
+        EXPECT_EQ(config.layer_is_swa(0), sliding);
+        EXPECT_EQ(config.layer_head_size(0), sliding ? 64 : 128);
+        EXPECT_FLOAT_EQ(config.layer_rope_config(0).freq_base, sliding ? 10000.f : 32000.f);
+        env.integer("test.attention.sliding_window_pattern", 2);
+        const auto periodic = read_decoder_parameters(env.context.metadata);
+        EXPECT_TRUE(periodic.attention.sliding_layers.empty());
+        EXPECT_EQ(periodic.attention.sliding_period, 2);
     }
 }
 
@@ -525,7 +782,7 @@ TEST(GGUFBuilderAPI, SlidingWindowDefaultsMatchExaoneMoeAndPlamo3) {
         env.integer("test.attention.sliding_window", 128);
         env.real("test.rope.freq_base", 1000000.f);
         env.architecture(family);
-        DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+        DecoderConfig config(env.parameters(), env.weights);
         const bool exaone = std::string(family) == "exaone-moe";
         EXPECT_EQ(config.swa_layer_pattern, exaone ? 4 : 8);
         EXPECT_TRUE(config.layer_is_swa(0));
@@ -539,11 +796,11 @@ TEST(GGUFBuilderAPI, Glm4MoeDefaultsToSigmoidRouting) {
     Environment env;
     env.decoder();
     env.architecture("glm4moe");
-    EXPECT_TRUE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    EXPECT_TRUE(DecoderConfig(env.parameters(), env.weights).moe_sigmoid_gating);
     env.integer("glm4moe.expert_gating_func", 0);
-    EXPECT_TRUE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    EXPECT_TRUE(DecoderConfig(env.parameters(), env.weights).moe_sigmoid_gating);
     env.integer("glm4moe.expert_gating_func", 1);
-    EXPECT_FALSE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    EXPECT_FALSE(DecoderConfig(env.parameters(), env.weights).moe_sigmoid_gating);
 }
 
 TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
@@ -570,7 +827,7 @@ TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
     for (uint32_t dense_lead : {0u, 1u}) {
         SCOPED_TRACE(dense_lead);
         env.integer("ernie4_5-moe.leading_dense_block_count", dense_lead);
-        DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+        DecoderConfig config(env.parameters(), env.weights);
         EXPECT_FALSE(config.layer_is_moe(0));
         EXPECT_TRUE(config.layer_is_moe(1));
         EXPECT_FALSE(config.layer_is_moe(2));
@@ -588,12 +845,107 @@ TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
     }
 }
 
+TEST(GGUFBuilderAPI, GptOssExpertMixUsesSoftmaxOverSelectedExperts) {
+    constexpr size_t D = 8, F = 6, E = 4, K = 2, T = 3;
+    constexpr float alpha = 1.702f, limit = 7.f, weight_scale = 2.5f;
+    Environment env;
+    env.decoder();
+    env.integer("test.block_count", 1);
+    env.integer("test.embedding_length", D);
+    env.integer("test.expert_count", E);
+    env.integer("test.expert_used_count", K);
+    env.real("test.expert_weights_scale", weight_scale);
+    size_t seed = 0;
+    const auto filled = [&](const ov::Shape& shape) {
+        ov::Tensor t(ov::element::f32, shape);
+        for (size_t i = 0; i < t.get_size(); ++i)
+            t.data<float>()[i] = 0.4f * std::sin(0.37f * static_cast<float>(i) + 1.3f * static_cast<float>(++seed));
+        return t;
+    };
+    const std::string p = "blk.0.";
+    env.weights[p + "ffn_gate_inp.weight"] = filled({E, D});
+    env.weights[p + "ffn_gate_inp.bias"] = filled({E});
+    env.weights[p + "ffn_gate_exps.weight"] = filled({E, F, D});
+    env.weights[p + "ffn_gate_exps.bias"] = filled({E, F});
+    env.weights[p + "ffn_up_exps.weight"] = filled({E, F, D});
+    env.weights[p + "ffn_up_exps.bias"] = filled({E, F});
+    env.weights[p + "ffn_down_exps.weight"] = filled({E, D, F});
+    env.weights[p + "ffn_down_exps.bias"] = filled({E, D});
+    env.architecture("gpt-oss");
+    DecoderConfig config(env.parameters(RopeMode::Neox), env.weights);
+    ASSERT_TRUE(config.layer_is_moe(0));
+    ASSERT_TRUE(config.moe_softmax_weight);
+    ASSERT_TRUE(config.moe_swiglu_oai);
+    ASSERT_FLOAT_EQ(config.expert_weights_scale, weight_scale);
+
+    GgufGraphContext graph(env.context);
+    graph.configure_decoder(RopeMode::Neox);
+    graph.set_output(graph.decoder_ffn(0, graph.add_input("x", ov::element::f32, {1, 1, -1, D})));
+    auto model = convert(graph.finish());
+
+    const auto x = filled({1, 1, T, D});
+    ov::Core core;
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    request.set_input_tensor(x);
+    request.infer();
+    const auto result = request.get_output_tensor();
+
+    const auto w = [&](const std::string& name) {
+        return env.weights.at(p + name).data.data<const float>();
+    };
+    const float* xs = x.data<const float>();
+    for (size_t t = 0; t < T; ++t) {
+        const float* xt = xs + t * D;
+        std::vector<float> logits(E);
+        for (size_t e = 0; e < E; ++e) {
+            logits[e] = w("ffn_gate_inp.bias")[e];
+            for (size_t d = 0; d < D; ++d)
+                logits[e] += w("ffn_gate_inp.weight")[e * D + d] * xt[d];
+        }
+        std::vector<size_t> order(E);
+        std::iota(order.begin(), order.end(), size_t{0});
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            return logits[a] > logits[b];
+        });
+        float denom = 0.f;
+        for (size_t k = 0; k < K; ++k)
+            denom += std::exp(logits[order[k]] - logits[order[0]]);
+
+        std::vector<float> expected(D, 0.f);
+        for (size_t k = 0; k < K; ++k) {
+            const size_t e = order[k];
+            const float gate_weight = weight_scale * std::exp(logits[e] - logits[order[0]]) / denom;
+            std::vector<float> act(F);
+            for (size_t f = 0; f < F; ++f) {
+                float gate = w("ffn_gate_exps.bias")[e * F + f];
+                float up = w("ffn_up_exps.bias")[e * F + f];
+                for (size_t d = 0; d < D; ++d) {
+                    gate += w("ffn_gate_exps.weight")[(e * F + f) * D + d] * xt[d];
+                    up += w("ffn_up_exps.weight")[(e * F + f) * D + d] * xt[d];
+                }
+                gate = std::min(gate, limit);
+                up = std::clamp(up, -limit, limit);
+                act[f] = gate / (1.f + std::exp(-alpha * gate)) * (up + 1.f);
+            }
+            for (size_t d = 0; d < D; ++d) {
+                float down = w("ffn_down_exps.bias")[e * D + d];
+                for (size_t f = 0; f < F; ++f)
+                    down += w("ffn_down_exps.weight")[(e * D + d) * F + f] * act[f];
+                expected[d] += gate_weight * down;
+            }
+        }
+        for (size_t d = 0; d < D; ++d)
+            EXPECT_NEAR(result.data<const float>()[t * D + d], expected[d], 1e-5f) << "token " << t << " dim " << d;
+    }
+}
+
 TEST(GGUFBuilderAPI, Exaone64LayerDefaultsIncludeLocalRopeAndSlidingWindow) {
     Environment env;
     env.decoder();
     env.integer("test.block_count", 64);
     env.architecture("exaone4");
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    DecoderConfig config(env.parameters(), env.weights);
     EXPECT_TRUE(config.post_norm_only);
     EXPECT_TRUE(config.rope_on_swa_only);
     EXPECT_EQ(config.swa_window_size, 4096);
@@ -611,14 +963,13 @@ TEST(GGUFBuilderAPI, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
     options.post_norm_only = true;
     options.normalize_expert_weights = true;
     options.rope_skip_period = 4;
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options);
+    DecoderConfig config(env.parameters(RopeMode::Neox, options), env.weights);
     EXPECT_TRUE(config.qk_norm_after_rope);
     EXPECT_TRUE(config.post_norm_only);
     EXPECT_TRUE(config.expert_weights_norm);
     EXPECT_EQ(config.rope_skip_period, 4);
     options.rope_skip_period = -1;
-    EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options),
-                 ov::Exception);
+    EXPECT_THROW(DecoderConfig(env.parameters(RopeMode::Neox, options), env.weights), ov::Exception);
 }
 
 TEST(GGUFBuilderAPI, DevstralReadsYarnAndAttentionTemperatureMetadata) {
@@ -632,13 +983,13 @@ TEST(GGUFBuilderAPI, DevstralReadsYarnAndAttentionTemperatureMetadata) {
     env.integer("test.rope.scaling.original_context_length", 8192);
     env.real("test.attention.temperature_scale", 0.1f);
     env.architecture("mistral3");
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    DecoderConfig config(env.parameters(), env.weights);
     EXPECT_FLOAT_EQ(config.rope_config.beta_fast, 4.0f);
     EXPECT_FLOAT_EQ(config.rope_config.beta_slow, 1.0f);
     EXPECT_FLOAT_EQ(config.rope_config.attn_factor, 1.0f / (1.0f + 0.1f * std::log(48.0f)));
     EXPECT_FLOAT_EQ(config.attention_temperature_scale, 0.1f);
     env.integer("mistral3.rope.scaling.original_context_length", 0);
-    EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights), ov::Exception);
+    EXPECT_THROW(DecoderConfig(env.parameters(), env.weights), ov::Exception);
 }
 
 TEST(GGUFBuilderAPI, BroadcastAndConcatShapesComeFromOpenVINO) {
@@ -883,4 +1234,275 @@ TEST(GGUFBuilderAPI, CastAndIm2colRequireExplicitDestinationType) {
         auto output = graph.node(op, inputs, 0, attrs);
         EXPECT_EQ(output.type(), ov::element::f16);
     }
+}
+
+TEST(GGUFBuilderAPI, MiniCpmLogitScaleUsesDivisorWithAndWithoutMetadata) {
+    Environment env;
+    env.decoder();
+    env.integer("test.embedding_length", 2304);
+    env.architecture("minicpm");
+    EXPECT_FLOAT_EQ(env.parameters().scales.logits, 1.0f / 9.0f);
+    env.real("minicpm.logit_scale", 9.0f);
+    EXPECT_FLOAT_EQ(env.parameters().scales.logits, 1.0f / 9.0f);
+    env.real("minicpm.logit_scale", 4.0f);
+    EXPECT_FLOAT_EQ(env.parameters().scales.logits, 0.25f);
+    DecoderOptions options;
+    options.logit_scale = 0.75f;
+    EXPECT_FLOAT_EQ(env.parameters(RopeMode::Normal, options).scales.logits, 0.75f);
+}
+
+TEST(GGUFBuilderAPI, ExpertNormalizationMetadataOverridesBuilderDefaults) {
+    for (const bool normalize_by_default : {false, true}) {
+        SCOPED_TRACE(normalize_by_default);
+        Environment env;
+        env.decoder();
+        DecoderParameters defaults;
+        defaults.experts.normalize_weights = normalize_by_default;
+        EXPECT_EQ(read_decoder_parameters(env.context.metadata, defaults).experts.normalize_weights,
+                  normalize_by_default);
+        for (const bool normalize : {false, true}) {
+            SCOPED_TRACE(normalize);
+            ov::Tensor normalization(ov::element::boolean, {});
+            *normalization.data<char>() = normalize;
+            env.metadata["test.expert_weights_norm"] = normalization;
+            EXPECT_EQ(read_decoder_parameters(env.context.metadata, defaults).experts.normalize_weights, normalize);
+        }
+    }
+}
+
+TEST(GGUFBuilderAPI, BuiltinExpertNormalizationPreservesLlamaPolicyAndOptions) {
+    for (const auto* architecture : {"hunyuan-moe",
+                                     "minimax-m2",
+                                     "qwen3moe",
+                                     "qwen3next",
+                                     "qwen3vlmoe",
+                                     "qwen35moe",
+                                     "ernie4_5-moe",
+                                     "mellum",
+                                     "gemma4"}) {
+        SCOPED_TRACE(architecture);
+        Environment env;
+        env.decoder();
+        env.architecture(architecture);
+        EXPECT_TRUE(env.parameters().experts.normalize_weights);
+        ov::Tensor normalization(ov::element::boolean, {});
+        *normalization.data<char>() = false;
+        env.metadata[std::string(architecture) + ".expert_weights_norm"] = normalization;
+        EXPECT_TRUE(env.parameters().experts.normalize_weights);
+        DecoderOptions options;
+        options.normalize_expert_weights = false;
+        EXPECT_FALSE(env.parameters(RopeMode::Normal, options).experts.normalize_weights);
+    }
+}
+
+TEST(GGUFBuilderAPI, ZeroMetadataScalesDisableMultiplication) {
+    Environment env;
+    env.decoder();
+    DecoderParameters defaults;
+    defaults.scales.embedding = 12.0f;
+    defaults.scales.residual = 1.4f;
+    auto parameters = read_decoder_parameters(env.context.metadata, defaults);
+    EXPECT_FLOAT_EQ(parameters.scales.embedding, 12.0f);
+    EXPECT_FLOAT_EQ(parameters.scales.residual, 1.4f);
+    defaults.scales.embedding = 0.0f;
+    defaults.scales.residual = 0.0f;
+    parameters = read_decoder_parameters(env.context.metadata, defaults);
+    EXPECT_FLOAT_EQ(parameters.scales.embedding, 0.0f);
+    EXPECT_FLOAT_EQ(parameters.scales.residual, 0.0f);
+    for (float scale : {0.0f, 0.5f, 2.0f}) {
+        env.real("test.embedding_scale", scale);
+        env.real("test.residual_scale", scale);
+        parameters = read_decoder_parameters(env.context.metadata, defaults);
+        EXPECT_FLOAT_EQ(parameters.scales.embedding, scale == 0.0f ? 1.0f : scale);
+        EXPECT_FLOAT_EQ(parameters.scales.residual, scale == 0.0f ? 1.0f : scale);
+    }
+}
+
+TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogether) {
+    Environment env;
+    env.decoder();
+    env.metadata.erase("test.attention.layer_norm_rms_epsilon");
+    env.real("test.attention.layer_norm_epsilon", 3e-4f);
+    env.real("test.rope.scaling.factor", 4.0f);
+    env.architecture("custom-layernorm");
+    DecoderParameters defaults;
+    defaults.normalization.kind = NormalizationKind::Layer;
+    auto parameters = read_decoder_parameters(env.context.metadata, defaults);
+    parameters.scales.embedding = 2.5f;
+    parameters.scales.residual = 0.375f;
+    parameters.scales.logits = 0.75f;
+    parameters.scales.attention = 0.25f;
+    parameters.attention.window_size = 17;
+    parameters.layers.resize(2);
+    parameters.layers[0].sliding_window = false;
+    parameters.layers[1].sliding_window = true;
+    parameters.layers[1].query_heads = 8;
+    parameters.layers[1].kv_heads = 2;
+    parameters.layers[1].head_size = 4;
+    parameters.layers[1].attention_scale = 0.625f;
+    auto local_rope = parameters.attention.rope;
+    local_rope.n_dims = 4;
+    local_rope.freq_base = 32000.f;
+    local_rope.freq_scale = 0.5f;
+    parameters.layers[1].rope = local_rope;
+    parameters.model_contract.batchable_recurrent = true;
+    parameters.model_contract.image_attention = ModelContract::ImageAttentionMode::SLIDING_ONLY;
+    parameters.model_contract.genai.emplace();
+    parameters.model_contract.genai->position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+    parameters.model_contract.genai->causal_attention = false;
+    parameters.model_contract.genai->attention_context_input = "custom_context";
+    DecoderConfig resolved(parameters, env.weights);
+    EXPECT_TRUE(resolved.layer_norm);
+    EXPECT_FLOAT_EQ(resolved.rms_eps, 3e-4f);
+    EXPECT_FLOAT_EQ(resolved.embedding_scale, 2.5f);
+    EXPECT_FLOAT_EQ(resolved.residual_scale, 0.375f);
+    EXPECT_FLOAT_EQ(resolved.logit_scale, 0.75f);
+    EXPECT_FLOAT_EQ(resolved.layer_kq_scale(0), 0.25f);
+    EXPECT_FLOAT_EQ(resolved.layer_kq_scale(1), 0.625f);
+    GgufGraphContext graph(env.context);
+    const auto dimensions = graph.configure_decoder(parameters);
+    EXPECT_EQ(dimensions.layers, 2);
+    EXPECT_FLOAT_EQ(dimensions.norm_epsilon, resolved.rms_eps);
+    const auto global = graph.decoder_layer_parameters(0);
+    const auto local = graph.decoder_layer_parameters(1);
+    EXPECT_FALSE(global.sliding_window);
+    EXPECT_TRUE(local.sliding_window);
+    EXPECT_EQ(local.query_heads, 8);
+    EXPECT_EQ(local.kv_heads, 2);
+    EXPECT_EQ(local.head_size, 4);
+    EXPECT_FLOAT_EQ(local.attention_scale, resolved.layer_kq_scale(1));
+    EXPECT_FLOAT_EQ(global.rope.freq_scale, 0.25f);
+    EXPECT_FLOAT_EQ(local.rope.freq_base, 32000.f);
+    EXPECT_FLOAT_EQ(local.rope.freq_scale, 0.5f);
+    auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 32});
+    graph.set_output(input);
+    const auto built = graph.finish();
+    EXPECT_TRUE(built->use_per_op_rope);
+    EXPECT_EQ(built->swa_window_size, 17);
+    EXPECT_TRUE(built->model_contract.batchable_recurrent);
+    EXPECT_EQ(built->model_contract.image_attention, ModelContract::ImageAttentionMode::SLIDING_ONLY);
+    ASSERT_TRUE(built->model_contract.genai);
+    EXPECT_EQ(built->model_contract.genai->position_layout, ModelContract::GenAIContract::PositionLayout::THREE_AXIS);
+    EXPECT_FALSE(built->model_contract.genai->causal_attention);
+    EXPECT_EQ(built->model_contract.genai->attention_context_input, "custom_context");
+}
+
+TEST(GGUFBuilderAPI, TypedSettingsRejectPartialLayersAndIncompatiblePresentMetadata) {
+    Environment env;
+    env.decoder();
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    parameters.layers.resize(1);
+    EXPECT_THROW(DecoderConfig(parameters, env.weights), ov::Exception);
+    parameters.layers.resize(2);
+    parameters.layers[1].head_size = 0;
+    EXPECT_THROW(DecoderConfig(parameters, env.weights), ov::Exception);
+    env.metadata["test.embedding_scale"] = std::string("invalid");
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, ConvenienceOptionsSelectUnknownLayerNormBeforeMetadataReading) {
+    Environment env;
+    env.decoder();
+    env.metadata.erase("test.attention.layer_norm_rms_epsilon");
+    env.real("test.attention.layer_norm_epsilon", 2e-4f);
+    DecoderOptions options;
+    options.normalization = NormalizationKind::Layer;
+    options.embedding_scale = 3.0f;
+    GgufGraphContext graph(env.context);
+    EXPECT_FLOAT_EQ(graph.configure_decoder(RopeMode::Normal, options).norm_epsilon, 2e-4f);
+}
+
+TEST(GGUFBuilderAPI, LayerRopeOriginalContextUsesItsOwnTable) {
+    Environment env;
+    env.decoder();
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    EXPECT_FALSE(DecoderConfig(parameters, env.weights).use_per_op_rope);
+    parameters.layers.resize(2);
+    auto rope = parameters.attention.rope;
+    rope.n_ctx_orig += 128;
+    parameters.layers[1].rope = rope;
+    DecoderConfig config(parameters, env.weights);
+    EXPECT_TRUE(config.use_per_op_rope);
+    EXPECT_EQ(config.layer_rope_config(1).n_ctx_orig, rope.n_ctx_orig);
+}
+
+TEST(GGUFBuilderAPI, UnsignedMetadataOverflowCannotWrapToSignedValues) {
+    Environment env;
+    env.decoder();
+    ov::Tensor scalar(ov::element::u64, {});
+    scalar.data<uint64_t>()[0] = uint64_t{1} << 63;
+    env.metadata["test.embedding_length"] = scalar;
+    EXPECT_FALSE(env.context.metadata.get_int("test.embedding_length"));
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+    ov::Tensor values(ov::element::u64, {2});
+    values.data<uint64_t>()[0] = 1;
+    values.data<uint64_t>()[1] = (uint64_t{1} << 63) + 1;
+    env.metadata["test.attention.head_count_kv"] = values;
+    EXPECT_TRUE(env.context.metadata.get_int_array("test.attention.head_count_kv").empty());
+}
+
+TEST(GGUFBuilderAPI, UnsetPoolingSentinelIsPreservedWithoutRelaxingDimensionChecks) {
+    Environment env;
+    env.decoder();
+    ov::Tensor sentinel(ov::element::u32, {});
+    sentinel.data<uint32_t>()[0] = std::numeric_limits<uint32_t>::max();
+    env.metadata["test.pooling_type"] = sentinel;
+    EXPECT_EQ(read_decoder_parameters(env.context.metadata).pooling_type, -1);
+    env.metadata["test.embedding_length"] = sentinel;
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, LayerRopeCannotChangeTheSharedPositionLayout) {
+    Environment env;
+    env.decoder();
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    parameters.layers.resize(2);
+    auto rope = parameters.attention.rope;
+    rope.is_imrope = true;
+    parameters.layers[1].rope = rope;
+    EXPECT_THROW(DecoderConfig(parameters, env.weights), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, ScalarRecurrentMetadataAppliesToEveryLayer) {
+    Environment env;
+    env.decoder();
+    for (const int value : {0, 1}) {
+        env.integer("test.attention.recurrent_layers", value);
+        auto parameters = read_decoder_parameters(env.context.metadata);
+        EXPECT_EQ(parameters.hybrid.recurrent_layers, (std::vector<int32_t>{value, value}));
+        EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+    }
+}
+
+TEST(GGUFBuilderAPI, QueryHeadArraysDescribeHybridAndVariableWidthLayers) {
+    Environment env;
+    env.decoder();
+    ov::Tensor heads(ov::element::u32, {2});
+    heads.data<uint32_t>()[0] = 2;
+    heads.data<uint32_t>()[1] = 1;
+    env.metadata["test.attention.head_count"] = heads;
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    EXPECT_EQ(parameters.dimensions.query_heads, 2);
+    EXPECT_EQ(DecoderConfig(parameters, env.weights).layer_n_head(1), 1);
+    heads.data<uint32_t>()[1] = 0;
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+    env.integer("test.attention.recurrent_layers", 1);
+    parameters = read_decoder_parameters(env.context.metadata);
+    EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+}
+
+TEST(GGUFBuilderAPI, ZeroQueryAndKvHeadsDescribeLayersWithoutAttention) {
+    Environment env;
+    env.decoder();
+    ov::Tensor query_heads(ov::element::u32, {2});
+    query_heads.data<uint32_t>()[0] = 2;
+    query_heads.data<uint32_t>()[1] = 0;
+    ov::Tensor kv_heads(ov::element::u32, {2});
+    kv_heads.data<uint32_t>()[0] = 1;
+    kv_heads.data<uint32_t>()[1] = 0;
+    env.metadata["test.attention.head_count"] = query_heads;
+    env.metadata["test.attention.head_count_kv"] = kv_heads;
+    EXPECT_NO_THROW(DecoderConfig(read_decoder_parameters(env.context.metadata), env.weights));
+    kv_heads.data<uint32_t>()[1] = 1;
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
 }

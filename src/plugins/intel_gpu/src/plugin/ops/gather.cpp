@@ -113,7 +113,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
         };
 
         // Get indices info to calculate offset
-        float result = 0.f;
+        float result = 0.F;
         OPENVINO_ASSERT(ov::op::util::get_single_value(indices_constant, result),
                         "Unsupported indices node in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
@@ -146,7 +146,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
                                             support_neg_ind);
             p.add_primitive(*op, gatherPrim);
         } else {
-            float zp_value = 0.0f;
+            float zp_value = 0.0F;
             bool has_scalar_zp = false;
             if (op->get_input_size() == 5) {
                 std::shared_ptr<ov::op::v0::Constant> zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));

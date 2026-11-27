@@ -8,17 +8,17 @@
 # define NOMINMAX
 #endif
 
-#include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
-
-#include <vector>
+#include <condition_variable>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-#include <condition_variable>
+
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov::intel_gpu {
 struct HostTimeProfilingEntry {
@@ -77,6 +77,9 @@ public:
     std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
+    [[nodiscard]] std::optional<size_t> getPagedAttentionBlockSize() const {
+        return m_paged_attention_block_size;
+    }
 
     std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
         return m_weight_sharing_source_buffers;
@@ -101,10 +104,11 @@ private:
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<size_t, cldnn::layout> m_input_layouts;
+    std::optional<size_t> m_paged_attention_block_size;
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 
     void build(std::shared_ptr<cldnn::program> program);
-    std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);
+    std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives = true);
 };
 
 }  // namespace ov::intel_gpu

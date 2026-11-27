@@ -4,9 +4,12 @@
 
 #include "test_utils.h"
 
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/random_uniform.hpp>
 #include <string>
+
+#include "openvino/reference/random_uniform.hpp"
 
 #include <cstddef>
 
@@ -252,3 +255,92 @@ TEST_P(random_uniform_gpu_test_f16, random_f16_cached) {
 TEST_P(random_uniform_gpu_test_bf16, random_bf16_cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
+
+// RandomUniform must produce a new sequence on every execution, even when all its inputs are constants
+// (it must not be folded by propagate_constants). The Philox state advances like in the CPU plugin.
+namespace {
+std::vector<std::vector<float>> run_random_uniform_with_constant_inputs(uint64_t global_seed,
+                                                                        uint64_t op_seed,
+                                                                        const ov::Shape& out_shape,
+                                                                        size_t iterations,
+                                                                        bool is_caching_test) {
+    auto& engine = get_test_engine();
+    auto shape = engine.allocate_memory({{1, 1, 1, static_cast<long int>(out_shape.size())}, ov::element::i32, format::bfyx});
+    auto min_val = engine.allocate_memory(layout(ov::element::f32, format::bfyx, {1, 1, 1, 1}));
+    auto max_val = engine.allocate_memory(layout(ov::element::f32, format::bfyx, {1, 1, 1, 1}));
+    std::vector<int32_t> out_shape_i32;
+    for (auto d : out_shape) {
+        out_shape_i32.push_back(static_cast<int32_t>(d));
+    }
+    set_values(shape, out_shape_i32);
+    set_values(min_val, {0.0f});
+    set_values(max_val, {1.0f});
+
+    topology topology(data("shape", shape),
+                      data("min_val", min_val),
+                      data("max_val", max_val),
+                      random_uniform("random_uniform",
+                                     {input_info("shape"), input_info("min_val"), input_info("max_val")},
+                                     ov::element::f32, global_seed, op_seed, out_shape));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    std::vector<std::vector<float>> results;
+    for (size_t i = 0; i < iterations; ++i) {
+        auto outputs = net->execute();
+        auto out_mem = outputs.at("random_uniform").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+        results.emplace_back(out_ptr.begin(), out_ptr.end());
+    }
+    return results;
+}
+}  // namespace
+
+class random_uniform_gpu_state_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(random_uniform_gpu_state_test, fixed_seed_advances_like_cpu_plugin) {
+    const bool is_caching_test = GetParam();
+    const ov::Shape out_shape{1, 50, 32};
+    const uint64_t global_seed = 80, op_seed = 100;
+    const size_t iterations = 3;
+    auto results = run_random_uniform_with_constant_inputs(global_seed, op_seed, out_shape, iterations, is_caching_test);
+
+    std::vector<uint64_t> out_shape_u64(out_shape.begin(), out_shape.end());
+    const float min_v = 0.0f, max_v = 1.0f;
+    std::pair<uint64_t, uint64_t> state{0, 0};
+    for (size_t it = 0; it < iterations; ++it) {
+        std::vector<float> expected(ov::shape_size(out_shape));
+        ov::reference::random_uniform(out_shape_u64.data(),
+                                      reinterpret_cast<const char*>(&min_v),
+                                      reinterpret_cast<const char*>(&max_v),
+                                      reinterpret_cast<char*>(expected.data()),
+                                      ov::Shape{out_shape.size()},
+                                      ov::element::f32,
+                                      global_seed,
+                                      op_seed,
+                                      state);
+        // The GPU plugin advances the Philox state like the CPU plugin: n += 256 * <number of output elements>.
+        const uint64_t skip_count = ov::shape_size(out_shape) * 256;
+        state.first += skip_count;
+        if (state.first < skip_count) {
+            state.second++;
+        }
+        ASSERT_EQ(expected.size(), results[it].size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(expected[i], results[it][i], 1e-6f) << "iteration " << it << ", i = " << i;
+        }
+    }
+    ASSERT_NE(results[0], results[1]);
+    ASSERT_NE(results[1], results[2]);
+}
+
+TEST_P(random_uniform_gpu_state_test, zero_seeds_new_sequence_every_execution) {
+    const bool is_caching_test = GetParam();
+    auto results = run_random_uniform_with_constant_inputs(0, 0, ov::Shape{1, 50, 32}, 3, is_caching_test);
+    ASSERT_NE(results[0], results[1]);
+    ASSERT_NE(results[1], results[2]);
+    ASSERT_NE(results[0], results[2]);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_state, random_uniform_gpu_state_test, ::testing::Values(false, true));

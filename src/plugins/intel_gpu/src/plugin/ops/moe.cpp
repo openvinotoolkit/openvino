@@ -21,16 +21,17 @@
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "moe_offload_constant.hpp"
 
 namespace ov::intel_gpu {
 using namespace cldnn;
 
 // Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
 // OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
-// The number of GPU-resident LRU slots = num_expert * (100 - ratio) / 100.
-// ratio=0 means all resident (no OTD); ratio=100 means all on disk (invalid, disabled).
+// For ratios 1-100, GPU-resident LRU slots = max(1, num_expert * (100 - ratio) / 100); ratio=0 means all resident (no OTD).
+// Only the routed weights are streamed, and only if the graph consumes them exactly as stored in the weights file;
+// otherwise the layer stays fully resident. Scales and zero points are always resident.
 // Returns true when OTD is enabled (lru_expert_num > 0).
 static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    const std::shared_ptr<ov::op::internal::MOECompressed>& op,
@@ -38,79 +39,32 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    std::filesystem::path& weights_path,
                                    size_t& lru_expert_num) {
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
-    const auto& config = op->get_config();
-    const size_t otd_ratio = p.get_config().get_offload_ratio();
-    // ratio=0  → all resident, no offload
-    // ratio=100 → all on disk, cannot run → treat as disabled
-    // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
-    if (otd_ratio > 0 && otd_ratio < 100) {
-        lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
-    } else {
-        lru_expert_num = 0;
-    }
-    const bool otd_enabled = lru_expert_num > 0;
-    if (otd_enabled) {
-        weights_path = std::filesystem::path(p.get_config().get_weights_path());
-        OPENVINO_ASSERT(!weights_path.empty(),
-                        "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "
-                        "Please set ov::weights_path when compiling the model.");
-        OPENVINO_ASSERT(std::filesystem::exists(weights_path),
-                        "OTD weights file does not exist: ", weights_path);
+    std::string resident_reason;
+    lru_expert_num = get_moe_offload_slot_count(*op, p.get_config().get_offload_ratio(), &resident_reason);
+    if (lru_expert_num == 0) {
+        GPU_DEBUG_IF(p.get_config().get_offload_ratio() > 0) {
+            GPU_DEBUG_INFO << "MOE OTD disabled for " << op->get_friendly_name() << ": " << resident_reason << std::endl;
+        }
+        return false;
     }
 
-    auto get_const_offset = [&](size_t index, size_t /*offset_slot*/) -> size_t {
-        auto node = op->input_value(index).get_node_shared_ptr();
-        auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-        OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed, got: ",
-                        node->get_type_name(), " name: ", node->get_friendly_name());
+    OPENVINO_ASSERT(p.get_config().get_num_streams() == 1,
+                    "[GPU] OFFLOAD_RATIO=",
+                    p.get_config().get_offload_ratio(),
+                    " supports a single stream only, but the model is compiled with ",
+                    p.get_config().get_num_streams(),
+                    " streams. Set NUM_STREAMS=1 and do not use the THROUGHPUT performance hint.");
 
-        // 1. Direct WeightlessCacheAttribute lookup
-        const auto& rt_info = const_op->get_rt_info();
-        auto attr_it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-        if (attr_it != rt_info.end()) {
-            return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-        }
-
-        // 2. Buffer descriptor offset (mmap path)
-        auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
-        if (source_buf) {
-            return ov::weight_sharing::Extension::get_constant_id(*const_op);
-        }
-
-        // 3. Plain "otd_bin_offset" rt_info entry (survives copy_runtime_info)
-        auto otd_it = rt_info.find("otd_bin_offset");
-        if (otd_it != rt_info.end()) {
-            return static_cast<size_t>(otd_it->second.as<int64_t>());
-        }
-
-        OPENVINO_THROW("OTD: Cannot determine bin offset for MOE weight constant. "
-                       "Constant name: ", const_op->get_friendly_name(),
-                       ", input_index: ", index,
-                       ", shape: ", const_op->get_shape(),
-                       ", type: ", const_op->get_element_type(),
-                       ", byte_size: ", const_op->get_byte_size());
-    };
-
-    const std::array<size_t, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> const_input_idx_by_offset = {
-        static_cast<size_t>(input_idx::weight_0),
-        static_cast<size_t>(input_idx::weight_1),
-        static_cast<size_t>(input_idx::weight_2),
-        static_cast<size_t>(input_idx::scale_0),
-        static_cast<size_t>(input_idx::scale_1),
-        static_cast<size_t>(input_idx::scale_2),
-        static_cast<size_t>(input_idx::zp_0),
-        static_cast<size_t>(input_idx::zp_1),
-        static_cast<size_t>(input_idx::zp_2)
-    };
-
-    weight_bin_offsets.assign(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, 0);
-    // Serialized offsets are only needed for OTD path (weight-on-demand loading).
-    if (otd_enabled) {
-        for (size_t i = 0; i < const_input_idx_by_offset.size(); i++) {
-            weight_bin_offsets[i] = get_const_offset(const_input_idx_by_offset[i], i);
-        }
+    weights_path = std::filesystem::path(p.get_config().get_weights_path());
+    OPENVINO_ASSERT(!weights_path.empty(),
+                    "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "
+                    "Please set ov::weights_path when compiling the model.");
+    // Without mmap the file offsets are in the IR attributes of the constants
+    for (const auto index : {input_idx::weight_0, input_idx::weight_1, input_idx::weight_2}) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(static_cast<size_t>(index)));
+        weight_bin_offsets.push_back(get_weights_file_offset(*constant, weights_path));
     }
-    return otd_enabled;
+    return true;
 }
 
 static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
@@ -212,9 +166,9 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                                              -config.expert_alpha,  // clamp_min
                                              config.expert_alpha,   // clamp_max
                                              config.expert_beta,    // swish beta
-                                             1.0f,                  // up_add_val
+                                             1.0F,                  // up_add_val
                                              cldnn::tensor(),
-                                             config.scale_factor.value_or(-1.0f));   // activations scaling
+                                             config.scale_factor.value_or(-1.0F));  // activations scaling
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
             input_info(moe_swiglu_name),

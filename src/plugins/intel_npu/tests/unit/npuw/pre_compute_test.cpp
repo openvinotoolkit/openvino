@@ -11,9 +11,12 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "orc.hpp"
 
@@ -23,9 +26,11 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
                                                   const std::vector<float>& long_factor_values,
                                                   const std::vector<float>& multiply_values,
                                                   const std::vector<float>& power_values,
-                                                  int32_t cond_offset = 1) {
+                                                  int32_t cond_offset = 1,
+                                                  bool with_broadcast = true) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 2});
-    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 1});
+    auto position_ids =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, with_broadcast ? ov::Shape{2, 1} : ov::Shape{1, 4});
 
     auto short_factor =
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{short_factor_values.size()}, short_factor_values);
@@ -47,26 +52,33 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
     auto power = std::make_shared<ov::op::v1::Power>(multiply, power_const);
 
     auto unsqueeze_axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto unsqueeze_axis1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze_axis2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
     auto unsq0 = std::make_shared<ov::op::v0::Unsqueeze>(power, unsqueeze_axis0);
-    auto unsq1 = std::make_shared<ov::op::v0::Unsqueeze>(unsq0, unsqueeze_axis0);
+    auto unsq1 = std::make_shared<ov::op::v0::Unsqueeze>(unsq0, with_broadcast ? unsqueeze_axis0 : unsqueeze_axis2);
 
-    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
-    auto gather_idx0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx0, axis0);
-    auto seq_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {4});
-    auto rotary_dims = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, seq_len, rotary_dims}, 0);
+    ov::Output<ov::Node> frequency_input = unsq1;
+    if (with_broadcast) {
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+        auto gather_idx0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx0, axis0);
+        auto seq_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {4});
+        auto rotary_dims = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, seq_len, rotary_dims}, 0);
+        frequency_input = std::make_shared<ov::op::v3::Broadcast>(unsq1, concat_1);
+    }
 
-    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsq1, concat_1);
-    auto pos_unsq = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsqueeze_axis0);
+    auto pos_unsq =
+        std::make_shared<ov::op::v0::Unsqueeze>(position_ids, with_broadcast ? unsqueeze_axis0 : unsqueeze_axis1);
     auto pos_fp32 = std::make_shared<ov::op::v0::Convert>(pos_unsq, ov::element::f32);
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, pos_fp32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(frequency_input, pos_fp32);
 
     auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, transpose_order);
     auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 4}, {0.0f, 0.0f, 0.0f, 0.0f});
-    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, 1);
+    auto concat_2 = with_broadcast ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, 1)
+                                   : std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1);
 
     auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
     auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
@@ -76,9 +88,10 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
 
     auto sin_res = std::make_shared<ov::op::v0::Result>(sin);
     auto cos_res = std::make_shared<ov::op::v0::Result>(cos);
-    return std::make_shared<ov::Model>(ov::ResultVector{sin_res, cos_res},
-                                       ov::ParameterVector{data, position_ids},
-                                       "longrope_v5_test_model");
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{sin_res, cos_res},
+        with_broadcast ? ov::ParameterVector{data, position_ids} : ov::ParameterVector{position_ids},
+        "longrope_v5_test_model");
 }
 
 // Builds a minimal model matching the older LongRopePatternPhi: the Select picks
@@ -87,9 +100,11 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
 std::shared_ptr<ov::Model> make_longrope_phi_model(const std::vector<float>& inv_freq_short_values,
                                                    const std::vector<float>& inv_freq_long_values,
                                                    int32_t context_limit,
-                                                   int32_t cond_offset = 1) {
+                                                   int32_t cond_offset = 1,
+                                                   bool with_broadcast = true) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 2});
-    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 1});
+    auto position_ids =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, with_broadcast ? ov::Shape{2, 1} : ov::Shape{1, 4});
 
     auto inv_freq_short =
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{inv_freq_short_values.size()}, inv_freq_short_values);
@@ -106,33 +121,40 @@ std::shared_ptr<ov::Model> make_longrope_phi_model(const std::vector<float>& inv
     auto select = std::make_shared<ov::op::v1::Select>(leq, inv_freq_short, inv_freq_long);
 
     auto unsqueeze_axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto unsqueeze_axis1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze_axis2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
     auto unsq0 = std::make_shared<ov::op::v0::Unsqueeze>(select, unsqueeze_axis0);
-    auto unsq1 = std::make_shared<ov::op::v0::Unsqueeze>(unsq0, unsqueeze_axis0);
+    auto unsq1 = std::make_shared<ov::op::v0::Unsqueeze>(unsq0, with_broadcast ? unsqueeze_axis0 : unsqueeze_axis2);
 
-    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
-    auto gather_idx0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx0, axis0);
-    auto seq_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {4});
-    auto rotary_dims = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, seq_len, rotary_dims}, 0);
+    ov::Output<ov::Node> frequency_input = unsq1;
+    if (with_broadcast) {
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+        auto gather_idx0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx0, axis0);
+        auto seq_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {4});
+        auto rotary_dims = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, seq_len, rotary_dims}, 0);
+        frequency_input = std::make_shared<ov::op::v3::Broadcast>(unsq1, concat_1);
+    }
 
-    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsq1, concat_1);
-    auto pos_unsq = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsqueeze_axis0);
+    auto pos_unsq =
+        std::make_shared<ov::op::v0::Unsqueeze>(position_ids, with_broadcast ? unsqueeze_axis0 : unsqueeze_axis1);
     auto pos_fp32 = std::make_shared<ov::op::v0::Convert>(pos_unsq, ov::element::f32);
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, pos_fp32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(frequency_input, pos_fp32);
 
     auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, transpose_order);
     auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 4}, {0.0f, 0.0f, 0.0f, 0.0f});
-    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, 1);
+    auto concat_2 = with_broadcast ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, 1)
+                                   : std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1);
 
     auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
     auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
 
     return std::make_shared<ov::Model>(
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
-        ov::ParameterVector{data, position_ids},
+        with_broadcast ? ov::ParameterVector{data, position_ids} : ov::ParameterVector{position_ids},
         "longrope_phi_test_model");
 }
 
@@ -412,6 +434,284 @@ TEST(PreComputeTest, RopeCacheTransformsLongRopePhiPattern) {
     EXPECT_EQ(tables.inv_freq_short, (std::vector<float>{0.5f, 0.25f}));
     EXPECT_EQ(tables.inv_freq_long, (std::vector<float>{0.1f, 0.05f}));
 }
+
+namespace pc = ov::npuw::patterns::pre_compute;
+
+std::shared_ptr<ov::Model> make_longrope_no_broadcast_model(bool v5) {
+    return v5 ? make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {0.5f, 1.0f}, {2.0f}, 1, false)
+              : make_longrope_phi_model({0.5f, 0.25f}, {0.1f, 0.05f}, 4096, 1, false);
+}
+
+std::shared_ptr<ov::op::v0::Concat> get_longrope_frequency_concat(const std::shared_ptr<ov::Model>& model) {
+    return ov::as_type_ptr<ov::op::v0::Concat>(
+        model->get_results()[0]->input_value(0).get_node()->input_value(0).get_node_shared_ptr());
+}
+
+void set_longrope_transpose_order(const std::shared_ptr<ov::Model>& model,
+                                  const ov::element::Type& type,
+                                  const std::vector<int64_t>& order) {
+    auto concat = get_longrope_frequency_concat(model);
+    ASSERT_TRUE(concat);
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(concat->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(transpose);
+    transpose->input(1).replace_source_output(ov::op::v0::Constant::create(type, ov::Shape{3}, order));
+    model->validate_nodes_and_infer_types();
+}
+
+std::shared_ptr<ov::Model> make_longrope_cache_reference(const std::shared_ptr<ov::Model>& original,
+                                                         size_t max_prompt_len,
+                                                         size_t rotary_ndims) {
+    auto position_ids =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, original->get_parameters()[0]->get_partial_shape());
+    position_ids->output(0).set_names(original->get_parameters()[0]->output(0).get_names());
+    const ov::Shape lut_shape{1, max_prompt_len, rotary_ndims};
+    auto cos = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, lut_shape);
+    auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, lut_shape);
+    cos->set_friendly_name(pc::longrope_cos_input);
+    sin->set_friendly_name(pc::longrope_sin_input);
+    cos->output(0).set_names({pc::longrope_cos_input});
+    sin->output(0).set_names({pc::longrope_sin_input});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto gather_cos = std::make_shared<ov::op::v8::Gather>(cos, position_ids, axis);
+    auto gather_sin = std::make_shared<ov::op::v8::Gather>(sin, position_ids, axis);
+    auto convert_cos = std::make_shared<ov::op::v0::Convert>(gather_cos, ov::element::f32);
+    auto convert_sin = std::make_shared<ov::op::v0::Convert>(gather_sin, ov::element::f32);
+    auto squeeze_cos = std::make_shared<ov::op::v0::Squeeze>(convert_cos, axis);
+    auto squeeze_sin = std::make_shared<ov::op::v0::Squeeze>(convert_sin, axis);
+    auto sin_result = std::make_shared<ov::op::v0::Result>(squeeze_sin);
+    auto cos_result = std::make_shared<ov::op::v0::Result>(squeeze_cos);
+    sin_result->set_friendly_name(original->get_results()[0]->get_friendly_name());
+    cos_result->set_friendly_name(original->get_results()[1]->get_friendly_name());
+    return std::make_shared<ov::Model>(ov::ResultVector{sin_result, cos_result},
+                                       ov::ParameterVector{position_ids, cos, sin});
+}
+
+class LongRopeCacheTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        pass = manager.register_pass<pc::RopeCache>(16);
+        // The cache rewrite does not copy runtime info to the new Gather/Convert/Squeeze nodes.
+        disable_rt_info_check();
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        const auto& tables = pass->host_tables();
+        EXPECT_EQ(tables.max_len, expected_tables.max_len);
+        EXPECT_EQ(tables.rotary_ndims, expected_tables.rotary_ndims);
+        EXPECT_EQ(tables.inv_freq_short, expected_tables.inv_freq_short);
+        EXPECT_EQ(tables.inv_freq_long, expected_tables.inv_freq_long);
+        if (expected_tables.rotary_ndims != 0) {
+            EXPECT_TRUE(has_input_name(model, pc::longrope_cos_input));
+            EXPECT_TRUE(has_input_name(model, pc::longrope_sin_input));
+            EXPECT_FALSE(has_input_name(model, "npuw_longrope_input"));
+        }
+    }
+
+    void expect_cache(const std::vector<float>& short_freq, const std::vector<float>& long_freq) {
+        expected_tables.max_len = 16;
+        expected_tables.rotary_ndims = 2 * short_freq.size();
+        expected_tables.inv_freq_short = short_freq;
+        expected_tables.inv_freq_long = long_freq;
+        model->get_parameters()[0]->output(0).set_names({"position_ids"});
+        model_ref = make_longrope_cache_reference(model, expected_tables.max_len, expected_tables.rotary_ndims);
+        comparator.enable(FunctionsComparator::TENSOR_NAMES);
+        // The existing rewrite replaces Sin/Cos names with new Squeeze names.
+        disable_result_friendly_names_check();
+    }
+
+    std::shared_ptr<pc::RopeCache> pass;
+    pc::LongRopeCosSin expected_tables;
+};
+
+TEST_F(LongRopeCacheTest, RopeCacheTransformsLongRopeV5PatternWithoutBroadcastChain) {
+    model = make_longrope_v5_model(std::vector<float>(48, 1.0f),
+                                   std::vector<float>(48, 4.0f),
+                                   std::vector<float>(48, 0.5f),
+                                   {2.0f},
+                                   /*cond_offset=*/1,
+                                   /*with_broadcast=*/false);
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 4, 96}));
+    expect_cache(std::vector<float>(48, 0.25f), std::vector<float>(48, 4.0f));
+}
+
+TEST_F(LongRopeCacheTest, RopeCacheTransformsLongRopePhiPatternWithoutBroadcastChain) {
+    model = make_longrope_no_broadcast_model(false);
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 4, 4}));
+    expect_cache({0.5f, 0.25f}, {0.1f, 0.05f});
+}
+
+class LongRopeCacheVariantTest : public LongRopeCacheTest, public testing::WithParamInterface<bool> {};
+
+TEST_P(LongRopeCacheVariantTest, RopeCacheLeavesLongRopeNonDuplicatingConcatUntouched) {
+    model = make_longrope_no_broadcast_model(GetParam());
+    auto concat = get_longrope_frequency_concat(model);
+    ASSERT_TRUE(concat);
+    ASSERT_EQ(concat->input_value(0).get_shape(), (ov::Shape{1, 4, 2}));
+    auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.0f));
+    concat->input(1).replace_source_output(zeros);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+}
+
+TEST_P(LongRopeCacheVariantTest, RopeCacheLeavesLongRopeTransposedAWithoutBroadcastUntouched) {
+    model = make_longrope_no_broadcast_model(GetParam());
+    auto concat = get_longrope_frequency_concat(model);
+    ASSERT_TRUE(concat);
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(concat->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(transpose);
+    auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(transpose->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(matmul);
+    auto pos_unsqueeze =
+        ov::as_type_ptr<ov::op::v0::Unsqueeze>(matmul->input_value(1).get_node()->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(pos_unsqueeze);
+    model->get_parameters()[0]->set_partial_shape(ov::Shape{1, 2});
+    pos_unsqueeze->input(1).replace_source_output(ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    matmul->set_transpose_a(true);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(matmul->get_input_shape(0), (ov::Shape{1, 2, 1}));
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 2}));
+    EXPECT_EQ(model->get_output_shape(1), (ov::Shape{1, 1, 2}));
+    EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+}
+
+INSTANTIATE_TEST_SUITE_P(LongRope,
+                         LongRopeCacheVariantTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "V5" : "Phi";
+                         });
+
+using LongRopeAxisParams = std::tuple<bool, int64_t>;
+class LongRopeCacheConcatAxisTest : public LongRopeCacheTest, public testing::WithParamInterface<LongRopeAxisParams> {};
+
+TEST_P(LongRopeCacheConcatAxisTest, RopeCacheLeavesLongRopeWrongConcatAxisUntouched) {
+    const auto [v5, axis] = GetParam();
+    model = make_longrope_no_broadcast_model(v5);
+    auto concat = get_longrope_frequency_concat(model);
+    ASSERT_TRUE(concat);
+    ASSERT_EQ(concat->input_value(0), concat->input_value(1));
+    concat->set_axis(axis);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    const auto output_shape = axis == 0 ? ov::Shape{2, 4, 2} : ov::Shape{1, 8, 2};
+    EXPECT_EQ(model->get_output_shape(0), output_shape);
+    EXPECT_EQ(model->get_output_shape(1), output_shape);
+    EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+}
+
+INSTANTIATE_TEST_SUITE_P(LongRope,
+                         LongRopeCacheConcatAxisTest,
+                         testing::Combine(testing::Bool(), testing::Values(0, 1)),
+                         [](const testing::TestParamInfo<LongRopeAxisParams>& info) {
+                             return std::string(std::get<0>(info.param) ? "V5" : "Phi") + "_Axis" +
+                                    std::to_string(std::get<1>(info.param));
+                         });
+
+TEST_F(LongRopeCacheTest, RopeCacheTransformsLongRopeV5PositiveLastConcatAxisWithoutBroadcastChain) {
+    model = make_longrope_no_broadcast_model(true);
+    auto concat = get_longrope_frequency_concat(model);
+    ASSERT_TRUE(concat);
+    concat->set_axis(2);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(pc::extract_longrope_context_limit(model), std::optional<uint64_t>{4u});
+    expect_cache({0.25f, 4.0f}, {4.0f, 25.0f});
+}
+
+TEST_F(LongRopeCacheTest, RopeCacheTransformsLongRopeV5SingleFrequencyAndQueryWithoutBroadcastChain) {
+    model = make_longrope_v5_model({1.0f}, {4.0f}, {0.5f}, {2.0f}, 1, false);
+    model->get_parameters()[0]->set_partial_shape(ov::Shape{1, 1});
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 2}));
+    EXPECT_EQ(pc::extract_longrope_context_limit(model), std::optional<uint64_t>{4u});
+    expect_cache({0.25f}, {4.0f});
+}
+
+TEST_F(LongRopeCacheTest, RopeCacheTransformsLongRopeV5I32TransposeOrderWithoutBroadcastChain) {
+    model = make_longrope_no_broadcast_model(true);
+    ASSERT_NO_THROW(set_longrope_transpose_order(model, ov::element::i32, {0, 2, 1}));
+    EXPECT_EQ(pc::extract_longrope_context_limit(model), std::optional<uint64_t>{4u});
+    expect_cache({0.25f, 4.0f}, {4.0f, 25.0f});
+}
+
+using LongRopeSizeParams = std::tuple<bool, size_t>;
+class LongRopeCacheTransposeTest : public LongRopeCacheTest, public testing::WithParamInterface<LongRopeSizeParams> {};
+
+TEST_P(LongRopeCacheTransposeTest, RopeCacheLeavesLongRopeIdentityTransposeUntouched) {
+    const auto [v5, sequence_length] = GetParam();
+    model = make_longrope_no_broadcast_model(v5);
+    model->get_parameters()[0]->set_partial_shape(ov::Shape{1, sequence_length});
+    ASSERT_NO_THROW(set_longrope_transpose_order(model, ov::element::i64, {0, 1, 2}));
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 2, 2 * sequence_length}));
+    EXPECT_EQ(model->get_output_shape(1), (ov::Shape{1, 2, 2 * sequence_length}));
+    EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+}
+
+INSTANTIATE_TEST_SUITE_P(LongRope,
+                         LongRopeCacheTransposeTest,
+                         testing::Combine(testing::Bool(), testing::Values(4u, 2u)),
+                         [](const testing::TestParamInfo<LongRopeSizeParams>& info) {
+                             return std::string(std::get<0>(info.param) ? "V5" : "Phi") + "_Sequence" +
+                                    std::to_string(std::get<1>(info.param));
+                         });
+
+TEST(PreComputeTest, ExtractLongRopeContextLimitWithoutBroadcastChain) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    auto v5 = make_longrope_v5_model({1.0f, 2.0f},
+                                     {4.0f, 5.0f},
+                                     {0.5f, 1.0f},
+                                     {2.0f},
+                                     /*cond_offset=*/1,
+                                     /*with_broadcast=*/false);
+    EXPECT_EQ(pc::extract_longrope_context_limit(v5), std::optional<uint64_t>{4u});
+
+    auto phi = make_longrope_phi_model({0.5f, 0.25f},
+                                       {0.1f, 0.05f},
+                                       /*context_limit=*/4096,
+                                       /*cond_offset=*/1,
+                                       /*with_broadcast=*/false);
+    EXPECT_EQ(pc::extract_longrope_context_limit(phi), std::optional<uint64_t>{4096u});
+}
+
+class LongRopeCacheBatchTest : public LongRopeCacheTest, public testing::WithParamInterface<LongRopeSizeParams> {};
+
+TEST_P(LongRopeCacheBatchTest, RopeCacheLeavesLongRopeNonSingletonBatchUntouched) {
+    const auto [v5, frequency_count] = GetParam();
+    const std::vector<float> short_values(2 * frequency_count, 0.5f);
+    const std::vector<float> long_values(2 * frequency_count, 0.1f);
+    model = v5 ? make_longrope_v5_model(short_values, long_values, short_values, {-1.0f}, 1, false)
+               : make_longrope_phi_model(short_values, long_values, 4096, 1, false);
+    const auto ops = model->get_ops();
+    for (const auto& op : ops) {
+        if (ov::is_type<ov::op::v0::MatMul>(op)) {
+            // Bypass both optional Unsqueezes; the constants below already have [2, N, 1] shape.
+            auto frequencies = op->input_value(0).get_node()->input_value(0).get_node()->input_value(0);
+            op->input(0).replace_source_output(frequencies);
+        }
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+            if (constant->get_element_type() == ov::element::f32 &&
+                constant->get_shape() == ov::Shape{2 * frequency_count}) {
+                ov::replace_node(constant,
+                                 ov::op::v0::Constant::create(ov::element::f32,
+                                                              ov::Shape{2, frequency_count, 1},
+                                                              constant->cast_vector<float>()));
+            }
+        }
+    }
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+}
+
+INSTANTIATE_TEST_SUITE_P(LongRope,
+                         LongRopeCacheBatchTest,
+                         testing::Combine(testing::Bool(), testing::Values(1u, 2u)),
+                         [](const testing::TestParamInfo<LongRopeSizeParams>& info) {
+                             return std::string(std::get<0>(info.param) ? "V5" : "Phi") + "_Frequencies" +
+                                    std::to_string(std::get<1>(info.param));
+                         });
 
 TEST(PreComputeTest, ExtractLongRopeContextLimitFromBothPatterns) {
     namespace pc = ov::npuw::patterns::pre_compute;

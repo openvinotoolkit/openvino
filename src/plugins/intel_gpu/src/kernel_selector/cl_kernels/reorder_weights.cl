@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_weights.cl"
 #include "include/image_data.cl"
 
 #define DECLARE_SAMPLER const sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST
@@ -588,6 +587,12 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
     uint input_idx = FUNC_CALL(get_input_index)(ir.s0,ir.s1,ir.s2,ir.s4,ir.s5,ir.s6);
 #ifdef BF16_INPUT
     output[output_idx] = TO_OUTPUT_TYPE(_convert_as_bfloat16_float(input[input_idx]));
+#elif F8E4M3_INPUT
+    output[output_idx] = TO_OUTPUT_TYPE(_intel_convert_hf8_to_f16(input[input_idx]));
+#elif F8E5M2_INPUT
+    output[output_idx] = TO_OUTPUT_TYPE(_intel_convert_bf8_to_f16(input[input_idx]));
+#elif F8E8M0_INPUT
+    output[output_idx] = TO_OUTPUT_TYPE(_intel_convert_e8m0_to_f32(input[input_idx]));
 #else
     output[output_idx] = TO_OUTPUT_TYPE(input[input_idx]);
 #endif

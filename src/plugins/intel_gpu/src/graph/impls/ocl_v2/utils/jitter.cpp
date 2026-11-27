@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,6 +170,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
     std::string decode_compute_vector_type;
     bool is_fp = false;
     bool is_bf16 = false;
+    bool is_f8 = false;
     switch (value) {
     case ov::element::i8:
         type = "char";
@@ -301,6 +302,12 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "0.5f";
         is_fp = false;
         break;
+    case ov::element::u3:
+        // tightly packed, 3 bits per element
+        type = "uchar";
+        type_size = "0.375f";
+        is_fp = false;
+        break;
     case ov::element::bf16:
         type = "ushort";
         max_val = "FLT_MAX";
@@ -348,40 +355,51 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         is_fp = true;
         break;
     case ov::element::f8e4m3:
-        type = "fp8e4m3_t";
-        max_val = "(fp8e4m3_t){as_char((char)0x7E)}";  // 448.0
-        min_val = "(fp8e4m3_t){as_char((char)0xFE)}";  // -448.0
-        val_one = "(fp8e4m3_t){as_char((char)0x38)}";
-        val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
-        to_type = "_convert_fp8e4m3_t(v)";
-        to_type_sat = "_convert_fp8e4m3_t_sat(v)";
-        as_type = "as_fp8e4m3_t(v)";
+        type = "uchar";
+        max_val = "_intel_convert_hf8_to_f16((uchar)0x7E)";  // 448.0
+        min_val = "_intel_convert_hf8_to_f16((uchar)0xFE)";  // -448.0
+        val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
+        val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
+        to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
+        to_type_sat = "_intel_convert_f16_to_hf8_sat(_f8_f32_to_f16_sat(convert_float(v)))";
+        compute_type = "half";
+        to_compute_type = "convert_half(v)";
+        decode_compute_type = "_intel_convert_hf8_to_f16(v)";
+        decode_compute_vector_type = "CONVERT_AS_F8E4M3_HALF(v, size)";
         type_size = "1";
         is_fp = true;
+        is_f8 = true;
         break;
     case ov::element::f8e5m2:
-        type = "fp8e5m2_t";
-        max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}";  // 57344.0
-        min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}";  // -57344.0
-        val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
-        val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
-        to_type = "_convert_fp8e5m2_t(v)";
-        to_type_sat = "_convert_fp8e5m2_t_sat(v)";
-        as_type = "as_fp8e5m2_t(v)";
+        type = "uchar";
+        max_val = "_intel_convert_bf8_to_f16((uchar)0x7B)";  // 57344.0
+        min_val = "_intel_convert_bf8_to_f16((uchar)0xFB)";  // -57344.0
+        val_one = "_intel_convert_bf8_to_f16((uchar)0x3C)";
+        val_zero = "_intel_convert_bf8_to_f16((uchar)0x0)";
+        to_type = "_intel_convert_f16_to_bf8(convert_half(v))";
+        to_type_sat = "_intel_convert_f16_to_bf8_sat(_f8_f32_to_f16_sat(convert_float(v)))";
+        compute_type = "half";
+        to_compute_type = "convert_half(v)";
+        decode_compute_type = "_intel_convert_bf8_to_f16(v)";
+        decode_compute_vector_type = "CONVERT_AS_F8E5M2_HALF(v, size)";
         type_size = "1";
         is_fp = true;
+        is_f8 = true;
         break;
     case ov::element::f8e8m0:
-        type = "fp8e8m0_t";
-        max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}";  // 2^127
-        min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}";  // 2^(-127)
-        val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
-        val_zero = "";  // There is no representation of zero in FP8E8M0
-        to_type = "_convert_fp8e8m0_t(v)";
-        to_type_sat = "_convert_fp8e8m0_t_sat(v)";
-        as_type = "as_fp8e8m0_t(v)";
+        type = "uchar";
+        max_val = "_intel_convert_e8m0_to_f32((uchar)0xFE)";  // 2^127
+        min_val = "_intel_convert_e8m0_to_f32((uchar)0x00)";  // 2^(-127)
+        val_one = "_intel_convert_e8m0_to_f32((uchar)0x7F)";
+        to_type = "_intel_convert_f32_to_e8m0(convert_float(v))";
+        to_type_sat = "_intel_convert_f32_to_e8m0_sat(convert_float(v))";
+        compute_type = "float";
+        to_compute_type = "convert_float(v)";
+        decode_compute_type = "_intel_convert_e8m0_to_f32(v)";
+        decode_compute_vector_type = "CONVERT_AS_F8E8M0_FLOAT(v, size)";
         type_size = "1";
         is_fp = true;
+        is_f8 = true;
         break;
     case ov::element::dynamic:
         type = "uchar";
@@ -402,14 +420,18 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);
     }
 
-    if (compute_type.empty())
+    if (compute_type.empty()) {
         compute_type = type;
-    if (to_compute_type.empty())
+    }
+    if (to_compute_type.empty()) {
         to_compute_type = to_type;
-    if (decode_compute_type.empty())
+    }
+    if (decode_compute_type.empty()) {
         decode_compute_type = "(v)";
-    if (decode_compute_vector_type.empty())
+    }
+    if (decode_compute_vector_type.empty()) {
         decode_compute_vector_type = "(v)";
+    }
 
     return {
         make_jit_constant(name + "_TYPE", type),
@@ -426,6 +448,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         make_jit_constant(name + "_TYPE_SIZE", type_size),
         make_jit_constant(name + "_IS_FP", is_fp),
         make_jit_constant(name + "_IS_BF16", is_bf16),
+        make_jit_constant(name + "_IS_F8", is_f8),
         make_jit_constant(name + "_COMPUTE_TYPE", compute_type),
         make_jit_constant("TO_" + name + "_COMPUTE_TYPE(v)", to_compute_type),
         make_jit_constant("DECODE_" + name + "_COMPUTE_TYPE(v)", decode_compute_type),
@@ -494,7 +517,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
             const JitTerm f_size{to_code_string(l.feature())};
             const JitTerm f{"(f)"};
             if (l.data_padding && simple_format) {
-                const JitTerm f_pitch{to_code_string(0 /* _tensor.Feature().pitch */)};
+                const JitTerm f_pitch{name + "_FEATURE_PITCH"};
                 safe_index_func_val = offset + (f % f_size) * f_pitch;
                 index_func_val = offset + (f * f_pitch);
             } else if (!l.data_padding && !format::is_multi_blocked(fmt)) {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
@@ -99,8 +99,28 @@ static inline int alignment_for_ld(int ld) {
     return  gemmstone::microkernel::alignmentForLD(ld);
 }
 
+// The shim prototypes use oneDNN custom type names for sub-byte / non-native element types (e.g. `const global s4* a`),
+// which oneDNN defines in its own custom_types.h. Only the pointer address reaches the microkernel, so they are
+// defined here as the storage types the plugin kernels pass (and the shim used before these names were introduced).
+inline std::string generate_shim(const Package& package, HostLanguage language, const ShimOptions& options) {
+    static constexpr const char* shim_types = R"(
+#ifndef OV_MICROKERNEL_SHIM_TYPES
+#define OV_MICROKERNEL_SHIM_TYPES
+typedef uchar u4;
+typedef uchar s4;
+typedef uchar u3;
+typedef ushort bf16;
+typedef uchar f8_e5m2;
+typedef uchar f8_e4m3;
+typedef uchar e8m0;
+typedef uchar f4_e2m1;
+#endif
+)";
+    return shim_types + gemmstone::microkernel::generateShim(package, language, options);
+}
+
 }  // namespace micro
 
 #undef UNUSED
 
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS

@@ -10,7 +10,6 @@
 #include "assign_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
-#include "gated_mlp_inst.h"
 #include "mvn_inst.h"
 #include "pass_manager.h"
 #include "program_node.h"
@@ -286,7 +285,7 @@ void add_required_reorders::run(program& p) {
         }
 
         bool correct_layout_selected = false;
-        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>() || usr->is_type<gated_mlp>());
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
 
         layout original_layout = usr->get_output_layout();
 

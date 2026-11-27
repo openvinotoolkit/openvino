@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include "profiling.hpp"
-
+#include <functional>
 #include <list>
 #include <mutex>
 #include <utility>
-#include <utility>
-#include <functional>
+
+#include "profiling.hpp"
 
 namespace cldnn {
 struct user_event;
@@ -45,10 +44,6 @@ public:
 
     // returns true if handler has been successfully added
     bool add_event_handler(event_handler handler, void* data);
-#ifdef ENABLE_MLIR_FOR_GPU
-    // return a handle to an underlying event implementation (i.e. cl_event for OpenCL)
-    virtual void* get_native_handle() { return nullptr; }
-#endif
 
     std::vector<instrumentation::profiling_interval> get_profiling_info();
 
@@ -66,11 +61,15 @@ protected:
     virtual void wait_impl() = 0;
     virtual void set_impl() = 0;
     virtual bool is_set_impl() = 0;
-    virtual bool add_event_handler_impl(event_handler, void*) { return true; }
+    virtual bool add_event_handler_impl(event_handler /*unused*/, void* /*unused*/) {
+        return true;
+    }
 
     // returns whether profiling info has been captures successfully and there's no need to call this impl a second time
     // when user requests to get profling info
-    virtual bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>&) { return true; }
+    virtual bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& /*unused*/) {
+        return true;
+    }
 };
 
 }  // namespace cldnn

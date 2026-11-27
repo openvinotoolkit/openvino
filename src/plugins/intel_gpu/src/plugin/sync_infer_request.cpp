@@ -65,8 +65,9 @@ std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor
 }
 
 bool byte_ranges_overlap(const void* lhs_ptr, size_t lhs_size, const void* rhs_ptr, size_t rhs_size) {
-    if (lhs_ptr == nullptr || rhs_ptr == nullptr || lhs_size == 0 || rhs_size == 0)
+    if (lhs_ptr == nullptr || rhs_ptr == nullptr || lhs_size == 0 || rhs_size == 0) {
         return false;
+    }
 
     const auto lhs_begin = reinterpret_cast<uintptr_t>(lhs_ptr);
     const auto rhs_begin = reinterpret_cast<uintptr_t>(rhs_ptr);
@@ -76,20 +77,24 @@ bool byte_ranges_overlap(const void* lhs_ptr, size_t lhs_size, const void* rhs_p
 // Byte range backing a tensor for aliasing checks: host tensor -> data()/byte_size; RemoteTensorImpl
 // -> cldnn memory, but only if usm_host (device pointers aren't comparable to host ones). Else {nullptr, 0}.
 std::pair<const void*, size_t> tensor_alias_range(const std::shared_ptr<ov::ITensor>& tensor) {
-    if (!tensor)
+    if (!tensor) {
         return {nullptr, 0};
+    }
     if (auto remote = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor)) {
         // get_memory() builds a reinterpreted memory object, so filter by allocation type first.
         const auto original = remote->get_original_memory();
-        if (!original || original->get_allocation_type() != cldnn::allocation_type::usm_host)
+        if (!original || original->get_allocation_type() != cldnn::allocation_type::usm_host) {
             return {nullptr, 0};
+        }
         auto memory = remote->get_memory();
-        if (memory && memory->get_allocation_type() == cldnn::allocation_type::usm_host)
+        if (memory && memory->get_allocation_type() == cldnn::allocation_type::usm_host) {
             return {memory->buffer_ptr(), memory->size()};
+        }
         return {nullptr, 0};
     }
-    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor))
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
         return {nullptr, 0};
+    }
     return {tensor->data(), tensor->get_byte_size()};
 }
 
@@ -258,7 +263,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
         // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
-            if ((plugin_tensors.count(port_index) != 0u) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared()) {
+            if ((plugin_tensors.count(port_index) != 0U) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared()) {
                 plugin_tensors.erase(plugin_tensors.find(port_index));
             }
         }
@@ -278,7 +283,8 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
 void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     if (tensors.size() == 1) {
-        return set_tensor(port, tensors[0]);
+        set_tensor(port, tensors[0]);
+        return;
     }
     const auto& port_info = find_port(port);
     bool is_input = port_info.type == ov::ISyncInferRequest::FoundPort::Type::INPUT;
@@ -347,8 +353,9 @@ void SyncInferRequest::check_tensors() const {
     for (size_t i = 0; i < outputs.size(); i++) {
         auto user_outputs = m_user_outputs.read();
         const auto it = user_outputs->find(i);
-        if (it != user_outputs->end() && !it->second.ptr)
+        if (it != user_outputs->end() && !it->second.ptr) {
             continue;
+        }
 
         check_tensor(outputs[i], get_tensor_ptr(outputs[i]));
     }
@@ -448,7 +455,7 @@ void SyncInferRequest::enqueue() {
     if (!m_output_memory_blocks.empty() && !input_host_ptrs.empty()) {
         auto network = m_graph->get_network();
         for (auto& [idx, block] : m_output_memory_blocks) {
-            if ((block->rawPtr() != nullptr) && (input_host_ptrs.count(block->rawPtr()) != 0u)) {
+            if ((block->rawPtr() != nullptr) && (input_host_ptrs.count(block->rawPtr()) != 0U)) {
                 block->nextMemory();
                 network->invalidate_ext_block_compute_nodes(m_output_names_map.at(idx));
                 GPU_DEBUG_TRACE_DETAIL << "Output block [" << idx << "]: input aliases output - switching to alternate buffer" << std::endl;
@@ -915,7 +922,7 @@ void SyncInferRequest::allocate_inputs() {
                       << std::endl;
 
         bool is_nv12_input = false;
-        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
+        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0U) {
             std::string mem_type =
                 port.get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static()).as<ov::preprocess::TensorInfoMemoryType>().value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
@@ -1390,8 +1397,9 @@ bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) 
 bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::ITensor>& output_tensor,
                                                     size_t output_capacity_bytes) {
     const auto [output_ptr, output_logical_size] = tensor_alias_range(output_tensor);
-    if (output_ptr == nullptr)
+    if (output_ptr == nullptr) {
         return true;
+    }
     // wait() can shrink the output tensor's logical shape while the caller keeps the larger allocation,
     // so use the recorded capacity: a later growth would write the full span and could hit an input in the tail.
     const size_t output_size = std::max(output_logical_size, output_capacity_bytes);
@@ -1402,8 +1410,9 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
         for (const auto& entry : *inputs) {
             const auto& wrapper = entry.second;
             const auto [input_ptr, input_logical_size] = tensor_alias_range(wrapper.ptr);
-            if (input_ptr == nullptr)
+            if (input_ptr == nullptr) {
                 continue;
+            }
             // Like the output span, use recorded capacity to catch outputs starting in an input's unused tail.
             m_input_alias_ranges.push_back({input_ptr, std::max(input_logical_size, wrapper.actual_size), entry.first});
         }
@@ -1412,25 +1421,30 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
 
     size_t overlapping_inputs = 0;
     for (const auto& input : m_input_alias_ranges) {
-        if (!byte_ranges_overlap(output_ptr, output_size, input.ptr, input.size))
+        if (!byte_ranges_overlap(output_ptr, output_size, input.ptr, input.size)) {
             continue;
+        }
         // A partial/offset overlap is never safe; an exact-address overlap is left to may_bind_caller_output().
-        if (input.ptr != output_ptr)
+        if (input.ptr != output_ptr) {
             return false;
-        if (++overlapping_inputs > 1)
+        }
+        if (++overlapping_inputs > 1) {
             return false;
+        }
     }
     return true;
 }
 
 bool SyncInferRequest::may_bind_caller_output(const std::string& output_id, const void* output_ptr) const {
     for (const auto& input : m_input_alias_ranges) {
-        if (input.ptr != output_ptr)
+        if (input.ptr != output_ptr) {
             continue;
+        }
         // An input copied into plugin memory isn't the graph's buffer, so the output can't clobber it.
         const auto plugin_input = m_plugin_inputs.find(input.port_idx);
-        if (plugin_input != m_plugin_inputs.end() && tensor_alias_range(plugin_input->second.ptr).first != output_ptr)
+        if (plugin_input != m_plugin_inputs.end() && tensor_alias_range(plugin_input->second.ptr).first != output_ptr) {
             continue;
+        }
         return m_graph->get_network()->may_alias(output_id, m_graph->input_port_index_to_internal(input.port_idx)[0]);
     }
     return true;

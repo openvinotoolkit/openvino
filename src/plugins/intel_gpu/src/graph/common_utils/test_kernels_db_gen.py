@@ -192,5 +192,27 @@ int result1=GET_VECTOR_ELEMENT(vec,0);
         os.remove(self.header_path)
         os.remove(self.no_opt_header_path)
 
+    def test_indented_includes(self):
+        os.makedirs(self.headers_folder, exist_ok=True)
+        with open(self.header_path, "w") as f:
+            f.write("#define REGULAR_HEADER_MACRO 1\n")
+
+        processor = Code2CHeaders(self.kernels_folder, self.headers_folder, "cm")
+        for directive in ("#include", "#    include"):
+            with self.subTest(directive=directive):
+                content = f"""
+#if defined(SOME_EMU)
+{directive} "emu/missing_header.h"
+#endif
+{directive} "include/header.cl"
+"""
+                result = processor.process_includes(content, [self.kernels_folder])
+
+                self.assertNotIn("include", result)
+                self.assertIn("#define REGULAR_HEADER_MACRO 1", result)
+
+        os.remove(self.header_path)
+
+
 if __name__ == '__main__':
     unittest.main()

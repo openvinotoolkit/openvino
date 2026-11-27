@@ -51,15 +51,13 @@ void DynamicGraph::create_execution_engine(const Config& config) {
     if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get VM runtime API version");
     }
+    _logger.debug("DynamicGraph: using VM runtime API %u.%u",
+                  ZE_MAJOR_VERSION(_apiVersion),
+                  ZE_MINOR_VERSION(_apiVersion));
 
-    const auto result = [&]() {
-        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
-            NpuVMRuntimeConfigChain runtimeConfig;
-            populateRuntimeConfigChain(runtimeConfig, config);
-            return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
-        }
-        return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
-    }();
+    NpuVMRuntimeConfigChain runtimeConfig;
+    populateRuntimeConfigChain(runtimeConfig, config);
+    const auto result = npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
 
     if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
@@ -300,7 +298,7 @@ void DynamicGraph::initialize_impl(const Config& runtimeConfig) {
                                              this,
                                              sharedCommonQueue};
 
-        if (!use_npu_vm_runtime_v2_api(_apiVersion) && sharedCommonQueue == false) {
+        if (!sharedCommonQueue) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }

@@ -5,6 +5,9 @@
 #include "include/fetch_utils.cl"
 #include "include/batch_headers/bf16_utils.cl"
 
+// gamma may have a different data type than the input
+#define TO_GAMMA_ACC_TYPE(v) CAT(convert_, ACCUMULATOR_TYPE)(DECODE_INPUT1_COMPUTE_TYPE(v))
+
 #if NORMALIZE_BATCH
     #define NORM_SIZE INPUT0_BATCH_NUM
     #define NORM_INDEX b
@@ -67,7 +70,7 @@ KERNEL(rms_gpu_ref)(
                 const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
 #if ELEMENTWISE_AFFINE
                 const uint gamma_idx = INPUT1_OFFSET + (INPUT1_LENGTH == 1 ? 0 : n);
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(gamma[gamma_idx]));
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_GAMMA_ACC_TYPE(gamma[gamma_idx]));
 #else
                 OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]));
 #endif
@@ -84,3 +87,4 @@ KERNEL(rms_gpu_ref)(
 
 #undef NORM_SIZE
 #undef NORM_INDEX
+#undef TO_GAMMA_ACC_TYPE

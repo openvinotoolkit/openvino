@@ -6,43 +6,12 @@
 
 #include <algorithm>
 #include <functional>
-#include <openvino/op/abs.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/ceiling.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/divide.hpp>
-#include <openvino/op/exp.hpp>
-#include <openvino/op/floor.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/grouped_matmul.hpp>
-#include <openvino/op/log.hpp>
-#include <openvino/op/matmul.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/negative.hpp>
-#include <openvino/op/power.hpp>
-#include <openvino/op/reduce_max.hpp>
-#include <openvino/op/reduce_mean.hpp>
-#include <openvino/op/reduce_min.hpp>
-#include <openvino/op/reduce_prod.hpp>
-#include <openvino/op/reduce_sum.hpp>
-#include <openvino/op/relu.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/scaled_dot_product_attention.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/sqrt.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/subtract.hpp>
-#include <openvino/op/tanh.hpp>
-#include <openvino/op/transpose.hpp>
-#include <openvino/op/unsqueeze.hpp>
-#include <ov_ops/rms.hpp>
 
 #include "../common/converters/binary_eltwise.hpp"
 #include "../common/converters/concat.hpp"
 #include "../common/converters/floor.hpp"
 #include "../common/converters/gather.hpp"
+#include "../common/converters/gelu.hpp"
 #include "../common/converters/grouped_matmul.hpp"
 #include "../common/converters/matmul.hpp"
 #include "../common/converters/reduce.hpp"
@@ -56,7 +25,40 @@
 #include "../common/converters/transpose.hpp"
 #include "../common/converters/unary_eltwise.hpp"
 #include "../common/converters/unsqueeze.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/grouped_matmul.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu::mlir {
 
@@ -64,6 +66,8 @@ using namespace ov::pass::pattern;
 using namespace ov::op;
 
 ReluPattern::ReluPattern() : MarkPattern(wrap_type<v0::Relu>({any_input()}, elementwise_no_broadcast_predicate), ConvertRelu()) {}
+
+GeluPattern::GeluPattern() : MarkPattern(wrap_type<v0::Gelu, v7::Gelu>({any_input()}, elementwise_no_broadcast_predicate), ConvertGelu()) {}
 
 ConcatPattern::ConcatPattern() : MarkPattern(wrap_type<v0::Concat>(), ConvertConcat()) {}
 

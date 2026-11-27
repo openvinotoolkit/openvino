@@ -102,6 +102,9 @@ jobs:
       # - name: Update Models
       #   run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
 
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
+
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:
@@ -114,7 +117,7 @@ jobs:
       - name: Install Python tests dependencies
         run: |
           # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil] pytest-forked
+          python3 -m pip install -c ${INSTALL_TEST_DIR}/bindings/python/constraints.txt pytest-xdist[psutil] pytest-forked
 
       - name: Find ONNX models
         run: |

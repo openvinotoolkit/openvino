@@ -10,6 +10,7 @@
 #include <random>
 
 #include "common_test_utils/float_util.hpp"
+#include "openvino/core/type/float_util.hpp"
 
 namespace ov::test {
 
@@ -98,6 +99,15 @@ TEST(float16, values) {
     EXPECT_EQ(static_cast<float16>(65536.0).to_bits(), 0x7c00);
     EXPECT_EQ(static_cast<float16>(65519.0).to_bits(), 0x7bff);
     EXPECT_EQ(static_cast<float16>(65520.0).to_bits(), 0x7c00);
+}
+
+TEST(float16, f32_subnormal_rounding) {
+    // values just below a power of two in f16 subnormal range, carry of the mantissa rounding must not be lost
+    EXPECT_EQ(float16(ov::util::u32_bits_to_f32(0x337FFFFF)).to_bits(), 0x0001);
+    EXPECT_EQ(float16(ov::util::u32_bits_to_f32(0x33FFFFFF)).to_bits(), 0x0002);
+    EXPECT_EQ(float16(ov::util::u32_bits_to_f32(0x377FFFFF)).to_bits(), 0x0100);
+    // rounded up from the largest subnormal to the smallest normal
+    EXPECT_EQ(float16(ov::util::u32_bits_to_f32(0x387FFFFF)).to_bits(), 0x0400);
 }
 
 TEST(float16, to_string) {
