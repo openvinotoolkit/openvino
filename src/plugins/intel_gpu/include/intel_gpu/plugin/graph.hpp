@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "intel_gpu/graph/les_context.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -96,6 +97,7 @@ private:
     std::mutex m_infer_mutex;
 
     std::shared_ptr<cldnn::network> m_network;
+    std::shared_ptr<ocl::moe::LookaheadContext> m_les_context;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<size_t, std::vector<cldnn::primitive_id>> inputPrimitiveIDs;
     std::map<size_t, cldnn::primitive_id> prevPrimitiveIDs;

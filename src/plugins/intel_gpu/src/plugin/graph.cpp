@@ -247,6 +247,10 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
+    if (m_config.get_les_predictor() && !program->get_les_moe_links().empty()) {
+        m_les_context = ocl::moe::LookaheadRegistry::acquire(*m_network);
+    }
+
     std::vector<cldnn::tensor_conversion_key> conversion_keys;
     for (const auto& variable : m_network->get_variables_info()) {
         const auto& info = variable.second;
