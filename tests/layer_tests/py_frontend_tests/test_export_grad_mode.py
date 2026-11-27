@@ -20,6 +20,11 @@ pytestmark = [
 ]
 
 
+def _bf16_to_f32(raw):
+    # bf16 results are returned as raw 16-bit data.
+    return (raw.view(np.uint16).astype(np.uint32) << 16).view(np.float32)
+
+
 def convert_without_decompositions(exported):
     original_graphs = {
         name: str(module.graph)
@@ -171,10 +176,31 @@ def test_export_enabled_autocast_output_types():
     expected = model(*data)
     assert [output.get_element_type() for output in ov_model.outputs] == [Type.bf16, Type.f32]
     actual = Core().compile_model(ov_model, "CPU")([value.numpy() for value in data])
-    # bf16 results are returned as raw 16-bit data.
-    y = (actual[0].view(np.uint16).astype(np.uint32) << 16).view(np.float32)
+    y = _bf16_to_f32(actual[0])
     np.testing.assert_allclose(y, expected[0].float().numpy(), atol=0.05, rtol=0.02)
     np.testing.assert_allclose(actual[1], expected[1].numpy(), atol=0.05, rtol=0.02)
+
+
+def test_export_autocast_mlp():
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.gate = torch.nn.Linear(8, 16, bias=False)
+            self.up = torch.nn.Linear(8, 16, bias=False)
+            self.down = torch.nn.Linear(16, 8, bias=False)
+
+        def forward(self, x):
+            with torch.autocast("cpu", dtype=torch.bfloat16):
+                return self.down(torch.nn.functional.silu(self.gate(x)) * self.up(x))
+
+    model = Model().eval()
+    data = torch.arange(24, dtype=torch.float32).reshape(3, 8) / 24
+    program = torch.export.export(model, (data,))
+    converted = convert_model(program)
+    assert converted.output(0).get_element_type() == Type.bf16
+    result = Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})([data.numpy()])[0]
+    result = _bf16_to_f32(result)
+    np.testing.assert_allclose(result, model(data).detach().float().numpy(), atol=0.05, rtol=0.05)
 
 
 def test_export_grad_mode_returns_view_and_clone():

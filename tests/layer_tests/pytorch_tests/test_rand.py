@@ -101,6 +101,227 @@ class TestStatistics():
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand_like", "randn_like"])
+    @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
+    @pytest.mark.parametrize("shape", [(), (65536,)])
+    def test_export_random_like_dynamic_dtype(self, operation, dtype, shape, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return getattr(torch, operation)(x)
+
+        program = torch.export.export(Model(), (torch.ones(shape),))
+        graph = program.module()
+        for node in graph.graph.nodes:
+            node.meta.pop("val", None)
+            node.meta.pop("tensor_meta", None)
+        decoder = TorchFXPythonDecoder(graph)
+        frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+        converted = frontend.convert(frontend.load(decoder))
+        parameter = converted.get_parameters()[0]
+        assert parameter.get_element_type() == ov.Type.dynamic
+        ov_dtype = {torch.float16: ov.Type.f16, torch.bfloat16: ov.Type.bf16, torch.float32: ov.Type.f32}[dtype]
+        parameter.set_element_type(ov_dtype)
+        parameter.set_partial_shape(ov.PartialShape(shape))
+        converted.validate_nodes_and_infer_types()
+        assert converted.output(0).get_element_type() == ov_dtype
+        if dtype == torch.bfloat16:
+            output = converted.get_results()[0].input_value(0)
+            converted = ov.Model([ov.opset13.convert(output, ov.Type.f32)], converted.get_parameters())
+            sample = ov.Tensor(ov.Type.bf16, list(shape))
+            sample.data[...] = 0
+        else:
+            sample = torch.ones(shape, dtype=dtype).numpy()
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        result = ov.Core().compile_model(converted, ie_device, config)([sample])[0]
+        assert result.shape == shape
+        assert result.dtype == (np.float32 if dtype == torch.bfloat16 else sample.dtype)
+        assert np.isfinite(result).all()
+        if operation == "rand_like":
+            assert np.all((result >= 0) & (result < 1))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand", "randn"])
+    @pytest.mark.parametrize("stripped_meta,expected", [(("val",), "f64"), (("val", "tensor_meta"), "f32")])
+    def test_export_random_omitted_dtype(self, operation, stripped_meta, expected, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+        class Model(torch.nn.Module):
+            def forward(self):
+                return getattr(torch, operation)(2, 3)
+
+        default_dtype = torch.get_default_dtype()
+        torch.set_default_dtype(torch.float64)
+        try:
+            graph = torch.export.export(Model(), ()).module()
+        finally:
+            torch.set_default_dtype(default_dtype)
+        for node in graph.graph.nodes:
+            assert "dtype" not in node.kwargs
+            for key in stripped_meta:
+                node.meta.pop(key, None)
+        decoder = TorchFXPythonDecoder(graph)
+        frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+        converted = frontend.convert(frontend.load(decoder))
+        assert converted.output(0).get_element_type() == getattr(ov.Type, expected)
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        result = ov.Core().compile_model(converted, ie_device, config)()[0]
+        assert result.shape == (2, 3)
+        assert np.isfinite(result).all()
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand", "randn", "rand_like", "randn_like"])
+    def test_export_random_scalar(self, operation, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                if operation.endswith("_like"):
+                    return getattr(torch, operation)(x)
+                return getattr(torch, operation)(x.shape)
+
+        example = torch.tensor(1.0)
+        program = torch.export.export(Model(), (example,))
+        converted = ov.convert_model(program)
+        assert converted.output(0).get_partial_shape() == ov.PartialShape([])
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        compiled = ov.Core().compile_model(converted, ie_device, config)
+        result = compiled([example.numpy()])[0] if converted.inputs else compiled()[0]
+        assert result.shape == ()
+        assert np.isfinite(result)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand", "randn"])
+    @pytest.mark.parametrize("dtype", [torch.float16, torch.float64])
+    def test_export_random_out(self, operation, dtype, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                before = x + 1
+                result = getattr(torch, operation)(x.shape, out=x)
+                return result, x + result, before
+
+        example = torch.zeros(3, 256, dtype=dtype)
+        dynamic = ({0: torch.export.Dim("batch")},) if operation == "rand" else None
+        program = torch.export.export(Model(), (example,), dynamic_shapes=dynamic)
+        converted = ov.convert_model(program)
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        compiled = ov.Core().compile_model(converted, ie_device, config)
+        sample = torch.zeros(5 if dynamic else 3, 256, dtype=dtype)
+        outputs = compiled([sample.numpy()])
+        first, second = outputs[0], outputs[1]
+        assert first.shape == tuple(sample.shape)
+        assert first.dtype == sample.numpy().dtype
+        assert np.isfinite(first).all()
+        np.testing.assert_allclose(second, first * 2, rtol=1e-3, atol=1e-3)
+        np.testing.assert_array_equal(outputs[2], np.ones_like(sample.numpy()))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand_like", "randn_like"])
+    def test_export_random_like_out(self, operation, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                out = torch.empty_like(x)
+                getattr(torch.ops.aten, operation).out(x, out=out)
+                return out, x + out
+
+        example = torch.zeros(3, 256)
+        program = torch.export.export(Model(), (example,))
+        converted = ov.convert_model(program)
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        outputs = ov.Core().compile_model(converted, ie_device, config)([example.numpy()])
+        first, second = outputs[0], outputs[1]
+        assert first.shape == tuple(example.shape)
+        assert np.isfinite(first).all()
+        np.testing.assert_array_equal(second, first)
+        if operation == "rand_like":
+            assert np.all((first >= 0) & (first < 1))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand", "randn"])
+    def test_export_random_default_dtype(self, operation, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return getattr(torch, operation)(x.shape)
+
+        previous_dtype = torch.get_default_dtype()
+        try:
+            torch.set_default_dtype(torch.float64)
+            program = torch.export.export(Model(), (torch.ones(3, 5, dtype=torch.float32),))
+        finally:
+            torch.set_default_dtype(previous_dtype)
+        converted = ov.convert_model(program)
+        assert converted.output(0).get_element_type() == ov.Type.f64
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        result = ov.Core().compile_model(converted, ie_device, config)()[0]
+        assert result.dtype == np.float64
+        assert np.isfinite(result).all()
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand", "randn", "rand_like", "randn_like"])
+    @pytest.mark.parametrize("dtype", [None, torch.float16, torch.bfloat16, torch.float64])
+    def test_export_random(self, operation, dtype, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                if operation.endswith("_like"):
+                    return getattr(torch, operation)(x, dtype=dtype)
+                return getattr(torch, operation)(x.shape, dtype=dtype)
+
+        model = Model().eval()
+        example = torch.ones(5, 4096, dtype=torch.float64)
+        program = torch.export.export(model, (example,), dynamic_shapes=({0: torch.export.Dim("batch")},))
+        assert any(str(node.target) == f"aten.{operation}.default" for node in program.graph.nodes)
+        converted = ov.convert_model(program)
+        reference_dtype = model(example).dtype
+        if reference_dtype == torch.bfloat16:
+            assert converted.output(0).get_element_type() == ov.Type.bf16
+            output = converted.get_results()[0].input_value(0)
+            converted = ov.Model([ov.opset13.convert(output, ov.Type.f32)], converted.get_parameters())
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        compiled = ov.Core().compile_model(converted, ie_device, config)
+
+        for batch in (2, 9):
+            sample = torch.ones(batch, 4096, dtype=torch.float64)
+            result = compiled([sample.numpy()])[0]
+            assert result.shape == tuple(sample.shape)
+            assert result.dtype == (np.float32 if reference_dtype == torch.bfloat16 else model(sample).numpy().dtype)
+            assert np.isfinite(result).all()
+            assert np.ptp(result) > 0
+            if operation in ("rand", "rand_like"):
+                assert np.all((result >= 0) & (result < 1))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("shape", [(257,), (16, 32)])
     @pytest.mark.parametrize("use_out", [False, True])
     def test_normal_scalar_mean(self, shape, use_out, ie_device, precision):

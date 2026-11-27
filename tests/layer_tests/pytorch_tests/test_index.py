@@ -222,7 +222,7 @@ class TestIndexTrailingDimensions(PytorchLayerTest):
 
         model = Model().eval()
         data = torch.arange(1, np.prod((*prefix, 4, 5)) + 1, dtype=torch.float32).reshape(*prefix, 4, 5)
-        example = (data, torch.tensor([0, -1]), torch.tensor([-1, 0]))
+        example = (data, torch.tensor([0, -1, 0]), torch.tensor([-1, 0, -1]))
         captured = torch.export.export(model, example) if self.use_torch_export() else torch.jit.trace(model, example)
         converted = ov.convert_model(captured)
         converted.reshape({converted.input(0): [-1] * data.ndim})

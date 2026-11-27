@@ -1,18 +1,24 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cmath>
 #include <random>
 
 #include "openvino/frontend/common/random_normal_helper.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/log.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "pt_framework_node.hpp"
@@ -38,7 +44,109 @@ OutputVector make_random_normal(const NodeContext& context,
     context.mark_nodes(registry.get());
     return res;
 }
+
+// Largest value below 1 representable in the type, so that rounding never produces 1.
+float max_below_one(element::Type type) {
+    if (type == element::f16)
+        return 1.0f - 0x1p-11f;
+    if (type == element::bf16)
+        return 1.0f - 0x1p-8f;
+    return std::nextafter(1.0f, 0.0f);
+}
+
+OutputVector translate_random_fx(const NodeContext& context, bool like, bool normal) {
+    num_inputs_check(context, 1, 1);
+    auto input = context.get_input(0);
+    auto sizes = input;
+    if (like) {
+        sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+    } else {
+        if (context.get_input_type(0).is<type::List>()) {
+            sizes = concat_list_construct(sizes);
+        }
+        sizes = context.mark_node(std::make_shared<v0::Convert>(sizes, element::i32));
+    }
+    const auto sizes_shape = sizes.get_partial_shape();
+    const bool may_be_scalar =
+        sizes_shape.rank().is_dynamic() || sizes_shape.rank().get_length() != 1 || sizes_shape[0].get_min_length() == 0;
+    auto generation_sizes = sizes;
+    if (may_be_scalar) {
+        // Generate scalar samples as one-element tensors, then restore the requested shape.
+        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+        generation_sizes = context.mark_node(std::make_shared<v0::Concat>(OutputVector{sizes, one}, 0));
+    }
+
+    auto dtype = element::dynamic;
+    const auto dtype_attr = context.get_attribute_as_any("dtype");
+    const auto output_dtype_attr = context.get_attribute_as_any("__openvino_fx_output_dtype");
+    if (!dtype_attr.empty() && !dtype_attr.is<type::PyNone>()) {
+        dtype = dtype_attr.as<element::Type>();
+    } else if (!output_dtype_attr.empty()) {
+        dtype = output_dtype_attr.as<element::Type>();
+    } else if (like) {
+        dtype = input.get_element_type();
+    } else {
+        dtype = element::f32;
+    }
+    const bool convert_like = like && dtype.is_dynamic();
+    PYTORCH_OP_CONVERSION_CHECK(convert_like || (dtype.is_static() && dtype.is_real()),
+                                "Unable to determine a floating-point random dtype");
+
+    const auto generation_type = convert_like || dtype == element::f16 || dtype == element::bf16 ? element::f32 : dtype;
+    Output<Node> result;
+    if (normal) {
+        auto scale = context.mark_node(v0::Constant::create(generation_type, Shape{1}, {1}));
+        auto mean = context.mark_node(v0::Constant::create(generation_type, Shape{1}, {0}));
+        result = make_random_normal(context, generation_sizes, generation_type, scale, mean)[0];
+    } else {
+        auto low = context.mark_node(v0::Constant::create(generation_type, Shape{1}, {0}));
+        // Avoid rounding a value below 1 to 1 when converting to a narrower type.
+        const float max_value = dtype == element::f16 || dtype == element::bf16 ? max_below_one(dtype) : 1.0f;
+        auto high = context.mark_node(v0::Constant::create(generation_type, Shape{1}, {max_value}));
+        result = context.mark_node(std::make_shared<v8::RandomUniform>(generation_sizes, low, high, generation_type));
+    }
+    if (convert_like) {
+        result = context.mark_node(std::make_shared<v1::ConvertLike>(result, input));
+        if (!normal) {
+            auto limit_like = [&](float value) {
+                auto constant = context.mark_node(v0::Constant::create(element::f32, Shape{}, {value}));
+                return context.mark_node(std::make_shared<v1::ConvertLike>(constant, input));
+            };
+            const auto one = limit_like(1.0f);
+            const auto half_max = limit_like(max_below_one(element::f16));
+            const auto bfloat_max = limit_like(max_below_one(element::bf16));
+            const auto float_max = limit_like(max_below_one(element::f32));
+            const auto is_bfloat = context.mark_node(std::make_shared<v1::Equal>(half_max, one));
+            const auto is_narrow = context.mark_node(std::make_shared<v1::Equal>(float_max, one));
+            const auto narrow_max = context.mark_node(std::make_shared<v1::Select>(is_bfloat, bfloat_max, half_max));
+            const auto max_value = context.mark_node(std::make_shared<v1::Select>(is_narrow, narrow_max, one));
+            result = context.mark_node(std::make_shared<v1::Minimum>(result, max_value));
+        }
+    } else if (generation_type != dtype) {
+        result = context.mark_node(std::make_shared<v0::Convert>(result, dtype));
+    }
+    if (may_be_scalar) {
+        result = context.mark_node(std::make_shared<v1::Reshape>(result, sizes, false));
+    }
+    return {result};
+}
 };  // namespace
+
+OutputVector translate_rand_fx(const NodeContext& context) {
+    return translate_random_fx(context, false, false);
+}
+
+OutputVector translate_rand_like_fx(const NodeContext& context) {
+    return translate_random_fx(context, true, false);
+}
+
+OutputVector translate_randn_fx(const NodeContext& context) {
+    return translate_random_fx(context, false, true);
+}
+
+OutputVector translate_randn_like_fx(const NodeContext& context) {
+    return translate_random_fx(context, true, true);
+}
 
 OutputVector translate_rand(const NodeContext& context) {
     num_inputs_check(context, 1, 6);

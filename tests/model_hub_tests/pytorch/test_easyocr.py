@@ -4,7 +4,7 @@
 import platform
 import pytest
 import torch
-from openvino import PartialShape
+from openvino import Dimension, PartialShape
 
 from torch_utils import TestTorchConvertModel
 
@@ -20,7 +20,7 @@ class TestEasyOCRConvertModel(TestTorchConvertModel):
             model = easyocr.Reader(["en"], quantize=False).detector
             self.example = (torch.rand(1, 3, 608, 800),)
             if is_export:
-                self.dynamo_input = (PartialShape([1, 3, -1, -1]),)
+                self.dynamo_input = (PartialShape([1, 3, Dimension(16, -1), Dimension(16, -1)]),)
                 self.inputs = (torch.rand(1, 3, 480, 640),)
             else:
                 self.inputs = (torch.rand(1, 3, 608, 800),)
