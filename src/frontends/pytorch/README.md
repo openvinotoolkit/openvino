@@ -20,12 +20,13 @@ directories:
 
 ## Architecture
 
-OpenVINO PyTorch Frontend is a C++ component that uses [TorchScriptPythonDecoder](../../bindings/python/src/openvino/frontend/pytorch/ts_decoder.py)
-in Python code to parse a PyTorch model from a Python object. Usually, the frontend is
-used inside [openvino.convert_model](../../../tools/ovc) in Python code or inside
-openvino backend in `torch.compile_model`, in which case `TorchFXPythonDecoder`
-is used to decode `torch.fx.graph`. The entire model conversion workflow can be
-represented by the following diagram.
+OpenVINO PyTorch Frontend is a C++ component used by
+[openvino.convert_model](../../../tools/ovc) and by the OpenVINO `torch.compile` backend.
+`convert_model` uses [TorchFXPythonDecoder](../../bindings/python/src/openvino/frontend/pytorch/fx_decoder.py)
+with `torch.export` by default for `torch.nn.Module` objects, and
+[TorchScriptPythonDecoder](../../bindings/python/src/openvino/frontend/pytorch/ts_decoder.py)
+when TorchScript is explicitly selected or a TorchScript file or decoder is supplied. The
+conversion workflow is represented by the following diagram.
 
 ```mermaid
 flowchart TD
@@ -40,9 +41,13 @@ flowchart TD
     end
     A[(torch.nn.Module)] --> openvino.convert_model
     subgraph openvino.convert_model
+        subgraph TorchFXPythonDecoder
+            torch.export
+        end
         subgraph TorchScriptPythonDecoder
             torch.jit.trace ~~~ torch.jit.script
         end
+        TorchFXPythonDecoder --> B
         TorchScriptPythonDecoder --> B("pytorch::FrontEnd::load()")
         B -->|ov::InputModel| C("pytorch::FrontEnd::convert()")
     end
@@ -67,6 +72,26 @@ to return tensors that do not alias their inputs. Returning an input or a view
 of one is unsupported: aliasing is not preserved, and in-place mutations
 involving aliased outputs may silently produce incorrect results.
 
+### Exported-model inputs
+
+Conversion of a `torch.export.ExportedProgram` retains its static dimensions and
+per-dimension bounds. An explicitly requested input shape must not widen them;
+export again with the desired dynamic dimensions instead. OpenVINO does not
+enforce all export guards, including cross-input equality and divisibility
+constraints, so inference inputs must also satisfy the original program's guards.
+
+For `dynamo=True`, dynamic dimensions requested through `input` are exported
+with `Dim.AUTO`. If `torch.export` infers tighter bounds, for example a minimum
+spatial size, request a shape within them, such as `Dimension(16, -1)`. Pass a
+single list argument as `(list_of_tensors,)` and use distinct tensor objects for
+separate example inputs. Repeated tensor objects are rejected because
+`torch.export` can specialize their aliasing.
+
+Numeric input aliases are FX decoder node IDs, not flattened tensor positions.
+When dynamic shapes are requested using numeric aliases for a PyTorch module,
+conversion may export the model twice to resolve and verify the IDs. Use input
+names to avoid the extra export.
+
 ### Context-manager scopes in exported models
 
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
@@ -88,6 +113,15 @@ Operations inside the region, including `flat_apply` calls, are traced as well.
 This region trace runs after export for both models and supplied exported graphs.
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
+
+### Exported symbolic shape arithmetic
+
+Exported symbolic shape minima and maxima (`torch.sym_min` and `torch.sym_max`)
+are converted to runtime `Minimum` and `Maximum` operations. They can drive
+dynamic sizes such as TopK's K input without specializing to the example shape.
+`torch.sym_float` and `math.trunc` on symbolic sizes, as produced by
+`Upsample(recompute_scale_factor=True)`, are converted to `f32` and to `i64`
+truncation toward zero.
 
 ### Operation names in exported models
 

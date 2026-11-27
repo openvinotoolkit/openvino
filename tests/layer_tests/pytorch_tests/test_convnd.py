@@ -218,6 +218,7 @@ def test_conv2d_same_dynamic_kernel_after_pad(capture, groups, kernel_parity, di
         converted = ov.convert_model(
             traced,
             input=[ov.PartialShape(x.shape), ov.PartialShape([4, 4 // groups, -1, -1])],
+            dynamo=False,
         )
     else:
         if kernel_parity == "odd":

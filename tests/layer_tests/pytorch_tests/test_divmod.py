@@ -80,3 +80,24 @@ class TestBuiltinDivmod():
         ov_div, ov_rem = ov_res[0], ov_res[1]
         npt.assert_allclose(fw_div.numpy(), ov_div)
         npt.assert_allclose(fw_rem.numpy(), ov_rem)
+
+
+@pytest.mark.nightly
+@pytest.mark.precommit
+@pytest.mark.precommit_torch_export
+@pytest.mark.parametrize("divisor", [5, -5])
+def test_export_symbolic_remainder(divisor, ie_device, precision):
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            return torch.tensor(x.shape[0] % divisor, dtype=torch.int64)
+
+    model = Model().eval()
+    example = torch.ones(6, 3)
+    program = torch.export.export(model, (example,), dynamic_shapes=({0: torch.export.Dim("batch")},))
+    assert any(str(node.target) == "<built-in function mod>" for node in program.graph.nodes)
+    converted = ov.convert_model(program)
+    config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+    compiled = ov.Core().compile_model(converted, ie_device, config)
+    for batch in (2, 6, 9):
+        sample = torch.ones(batch, 3)
+        npt.assert_array_equal(compiled([sample.numpy()])[0], model(sample).numpy())

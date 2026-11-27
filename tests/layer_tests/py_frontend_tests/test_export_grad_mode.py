@@ -177,6 +177,28 @@ def test_export_enabled_autocast_output_types():
     np.testing.assert_allclose(actual[1], expected[1].numpy(), atol=0.05, rtol=0.02)
 
 
+def test_export_autocast_mlp():
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.gate = torch.nn.Linear(8, 16, bias=False)
+            self.up = torch.nn.Linear(8, 16, bias=False)
+            self.down = torch.nn.Linear(16, 8, bias=False)
+
+        def forward(self, x):
+            with torch.autocast("cpu", dtype=torch.bfloat16):
+                return self.down(torch.nn.functional.silu(self.gate(x)) * self.up(x))
+
+    model = Model().eval()
+    data = torch.arange(24, dtype=torch.float32).reshape(3, 8) / 24
+    program = torch.export.export(model, (data,))
+    converted = convert_model(program)
+    assert converted.output(0).get_element_type() == Type.bf16
+    result = Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})([data.numpy()])[0]
+    result = (result.view(np.uint16).astype(np.uint32) << 16).view(np.float32)
+    np.testing.assert_allclose(result, model(data).detach().float().numpy(), atol=0.05, rtol=0.05)
+
+
 def test_export_grad_mode_returns_view_and_clone():
     class Model(torch.nn.Module):
         def forward(self, x):
