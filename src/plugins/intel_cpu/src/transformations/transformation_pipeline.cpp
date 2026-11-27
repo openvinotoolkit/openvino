@@ -1003,6 +1003,10 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     lowPrecPass->add_markup<AlignUnsupportedLPConvFQPrecision>();
 #endif
+    // Gathers that GatherTransformation can't handle (e.g. a per-row scale with non-constant indices) are converted to
+    // GatherCompressed here, otherwise the final ConstantFolding of LPT would decompress the u8/i8 weights.
+    lowPrecPass->add_main<ov::pass::ConvertGatherToGatherCompressed>(
+        std::vector<ov::element::Type>{ov::element::u8, ov::element::i8});
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, ConvertFullyConnectedBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
