@@ -59,6 +59,9 @@
 #    include "openvino/core/shape.hpp"
 #    include "utils/arm_isa_support.h"
 #endif
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/common/common_utils.hpp"
+#endif
 
 using namespace dnnl;
 using namespace ov::element;
@@ -510,6 +513,14 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
             DEBUG_LOG("Invalid dynamic_cast FakeQuantize pointer");
             return false;
         }
+#if defined(OV_CPU_WITH_ACL)
+        // ACL int8 FullyConnected applies a fused FakeQuantize only through the destination scale and zero point,
+        // so only a FakeQuantize whose output scale/shift folds into them can be fused
+        // (see ACLLowpFullyConnectedExecutor).
+        if (!canFoldFakeQuantizeOutputShift(fq->getOutputScale(), fq->getOutputShift())) {
+            return false;
+        }
+#endif
         if (fq->getBroadcastingPolicy() != FakeQuantize::BroadcastingPolicy::PerTensor) {
             const auto& dstShape = getOutputShapeAtPort(0);
             auto dataRanks = dstShape.getRank();
