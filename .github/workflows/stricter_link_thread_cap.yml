@@ -1,4 +1,4 @@
-name: set_jobs_for_ut_target
+name: stricter_link_thread_cap
 # Collect Mode uses the Ninja Multi-Config generator: what the maxnick_pr configuration gets from MSBuild MultiToolTask
 # is done there with --parallel (ninja -j) = NUMBER_OF_PROCESSORS - 1.
 # Link concurrency is capped at 2 by the Ninja link_jobs pool: the memory sampler showed that each link.exe takes ~7-9.5 GB
@@ -8,12 +8,22 @@ name: set_jobs_for_ut_target
 # Run Mode stays on the Visual Studio generator with MultiToolTask (as in maxnick_pr): onecoreuap.toolchain.cmake
 # relies on MSBuild macros that Ninja doesn't expand.
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+concurrency:
+  group: ${{ github.ref }}-windows-cc-stricter_link_thread_cap
+  cancel-in-progress: true
 
 permissions: read-all
 
@@ -22,36 +32,9 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
-  Smart_CI:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false || github.run_attempt > 1
-    outputs:
-      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
-      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
-    steps:
-      - name: checkout action
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: .github/actions/smart-ci
-
-      - name: Get affected components
-        id: smart_ci
-        uses: ./.github/actions/smart-ci
-        with:
-          repository: ${{ github.repository }}
-          pr: ${{ github.event.number }}
-          commit_sha: ${{ github.sha }}
-          ref_name: ${{ github.ref_name }}
-          component_pattern: "category: (.*)"
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-
   # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
 
   Build_And_Run_Collect_Mode:
-    needs: Smart_CI
     timeout-minutes: 600 # 10 hours, no compiler cache (worst-case duration experiment)
     defaults:
       run:
@@ -79,7 +62,6 @@ jobs:
       # which nested cmake --build calls (e.g. intel_gpu onednn_gpu ExternalProject) pick up as well
 
       # TODO: specify version of compiler here
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
@@ -271,7 +253,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_package_set_jobs_for_ut_target
+          name: openvino_package_stricter_link_thread_cap
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
@@ -279,7 +261,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_pdb_set_jobs_for_ut_target
+          name: openvino_pdb_stricter_link_thread_cap
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
           if-no-files-found: 'error'
 
@@ -287,7 +269,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_selective_build_stat_set_jobs_for_ut_target
+          name: openvino_selective_build_stat_stricter_link_thread_cap
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
           if-no-files-found: 'error'
 
@@ -295,7 +277,7 @@ jobs:
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
-          name: compile_commands_windows_cc_collect_set_jobs_for_ut_target
+          name: compile_commands_windows_cc_collect_stricter_link_thread_cap
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
@@ -333,14 +315,14 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: mem_sampler_collect_set_jobs_for_ut_target
+          name: mem_sampler_collect_stricter_link_thread_cap
           path: ${{ runner.temp }}\mem_sampler
           if-no-files-found: 'warn'
 
   Build_And_Run_On_Mode:
     name: Conditional Compilation
     timeout-minutes: 600 # 10 hours (worst-case duration experiment)
-    needs: [Build_And_Run_Collect_Mode, Smart_CI]
+    needs: Build_And_Run_Collect_Mode
     defaults:
       run:
         shell: pwsh
@@ -355,7 +337,6 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # CMAKE_BUILD_PARALLEL_LEVEL is not hard-coded: the 'Set build parallelism' step exports NUMBER_OF_PROCESSORS - 1,
       # which nested cmake --build calls (e.g. intel_gpu onednn_gpu ExternalProject) pick up as well
-    if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Clone OpenVINO
@@ -377,7 +358,7 @@ jobs:
       - name: Download selective build statistics package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
-          name: openvino_selective_build_stat_set_jobs_for_ut_target
+          name: openvino_selective_build_stat_stricter_link_thread_cap
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
       - name: Extract selective build statistics package

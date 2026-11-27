@@ -3,12 +3,22 @@ name: msbuild
 # (UseMultiToolTask, EnforceProcessCountAcrossBuilds, MultiProcMaxCount) at NUMBER_OF_PROCESSORS - 1,
 # instead of /MP, /cgthreads and Ninja link job pools.
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+concurrency:
+  group: ${{ github.ref }}-windows-cc-msbuild
+  cancel-in-progress: true
 
 permissions: read-all
 
@@ -17,36 +27,9 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
-  Smart_CI:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false || github.run_attempt > 1
-    outputs:
-      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
-      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
-    steps:
-      - name: checkout action
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: .github/actions/smart-ci
-
-      - name: Get affected components
-        id: smart_ci
-        uses: ./.github/actions/smart-ci
-        with:
-          repository: ${{ github.repository }}
-          pr: ${{ github.event.number }}
-          commit_sha: ${{ github.sha }}
-          ref_name: ${{ github.ref_name }}
-          component_pattern: "category: (.*)"
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-
   # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
 
   Build_And_Run_Collect_Mode:
-    needs: Smart_CI
     timeout-minutes: 600 # 10 hours, no compiler cache (worst-case duration experiment)
     defaults:
       run:
@@ -74,7 +57,8 @@ jobs:
       # which nested cmake --build calls (e.g. intel_gpu onednn_gpu ExternalProject) pick up as well
 
       # TODO: specify version of compiler here
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
+    # skipped on the first attempt of a run (the On Mode jobs depend on this job and are skipped too); runs only on re-runs (run_attempt > 1)
+    if: ${{ github.run_attempt > 1 }}
 
     steps:
       - name: Clone OpenVINO
@@ -337,7 +321,7 @@ jobs:
   Build_And_Run_On_Mode:
     name: Conditional Compilation
     timeout-minutes: 600 # 10 hours (worst-case duration experiment)
-    needs: [Build_And_Run_Collect_Mode, Smart_CI]
+    needs: Build_And_Run_Collect_Mode
     defaults:
       run:
         shell: pwsh
@@ -352,7 +336,6 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # CMAKE_BUILD_PARALLEL_LEVEL is not hard-coded: the 'Set build parallelism' step exports NUMBER_OF_PROCESSORS - 1,
       # which nested cmake --build calls (e.g. intel_gpu onednn_gpu ExternalProject) pick up as well
-    if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Clone OpenVINO
