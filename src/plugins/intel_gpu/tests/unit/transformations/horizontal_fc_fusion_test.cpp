@@ -721,9 +721,16 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_mixed_q5_q6_groups) 
     comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
-TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_matching_i8_group32) {
+class FullyConnectedHorizontalFusionMatchingI8Group32 : public testing::WithParamInterface<bool>, public TransformationTestsF {
+public:
+    static std::string get_test_case_name(const testing::TestParamInfo<bool>& info) {
+        return info.param ? "evict_folded_weights" : "keep_folded_weights";
+    }
+};
+
+TEST_P(FullyConnectedHorizontalFusionMatchingI8Group32, Fuse) {
     model = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
-    manager.register_pass<FullyConnectedHorizontalFusion>();
+    manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*evict_folded_weights=*/GetParam());
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 256});
@@ -748,13 +755,7 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_matching_i8_group32)
     model_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{input});
 }
 
-TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_evict_folded_weights_same_result) {
-    model = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
-    model_ref = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
-    ov::pass::Manager ref_manager;
-    ref_manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*evict_folded_weights=*/false);
-    ref_manager.run_passes(model_ref);
-    manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*evict_folded_weights=*/true);
-    comparator.enable(FunctionsComparator::ATTRIBUTES);
-    comparator.enable(FunctionsComparator::CONST_VALUES);
-}
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         FullyConnectedHorizontalFusionMatchingI8Group32,
+                         ::testing::Bool(),
+                         FullyConnectedHorizontalFusionMatchingI8Group32::get_test_case_name);
