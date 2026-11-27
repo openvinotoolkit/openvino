@@ -313,7 +313,7 @@ TEST(PACompiledModelEndToEnd, RejectsAPADeviceOtherThanCPUOrGPU) {
     ov::Core core;
     OV_EXPECT_THROW(core.compile_model(make_pipeline_pa_model(), "NPU", npuw),
                     ov::Exception,
-                    testing::HasSubstr("CPU or GPU"));
+                    testing::HasSubstr("CPU or a GPU"));
 }
 
 }  // namespace
