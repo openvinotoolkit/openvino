@@ -46,13 +46,28 @@ protected:
     std::string m_device_name;
 };
 
-TEST_F(VulkanRuntimeSmoke, AdvertisesOnlySupportedModelProperties) {
+TEST_F(VulkanRuntimeSmoke, AdvertisesOnlyAvailableProperties) {
     EXPECT_TRUE(m_core.get_property(m_device_name, ov::device::capabilities).empty());
     const auto properties = m_core.get_property(m_device_name, ov::supported_properties);
-    for (const auto* name : {ov::optimal_batch_size.name(), ov::max_batch_size.name(), ov::range_for_async_infer_requests.name(), "CONFIG_FILE"}) {
+    for (const auto* name : {ov::optimal_batch_size.name(),
+                             ov::max_batch_size.name(),
+                             ov::range_for_async_infer_requests.name(),
+                             ov::range_for_streams.name(),
+                             ov::device::gops.name(),
+                             ov::device::luid.name(),
+                             ov::intel_gpu::cacheline_size.name(),
+                             ov::intel_gpu::execution_units_count.name(),
+                             ov::intel_gpu::uarch_version.name(),
+                             ov::enable_profiling.name(),
+                             ov::num_streams.name(),
+                             "CONFIG_FILE"}) {
+        SCOPED_TRACE(name);
         EXPECT_EQ(std::find(properties.begin(), properties.end(), name), properties.end()) << name;
+        EXPECT_THROW(m_core.get_property(m_device_name, name), ov::Exception);
     }
-    EXPECT_THROW(m_core.get_property(m_device_name, ov::range_for_async_infer_requests), ov::Exception);
+    EXPECT_EQ(std::find(properties.begin(), properties.end(), ov::cache_dir.name()), properties.end());
+    EXPECT_THROW(m_core.set_property(m_device_name, ov::enable_profiling(true)), ov::Exception);
+    EXPECT_GT(m_core.get_property(m_device_name, ov::intel_gpu::device_max_alloc_mem_size), 0U);
     EXPECT_EQ(m_core.get_property(m_device_name, ov::compatibility_check), ov::CompatibilityCheck::UNSUPPORTED);
 }
 

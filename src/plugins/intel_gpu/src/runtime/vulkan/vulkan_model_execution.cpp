@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <array>
+
 #include "intel_gpu/plugin/plugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_gpu {
@@ -13,8 +17,26 @@ bool Plugin::supports_model_execution() {
 }
 
 bool Plugin::supports_runtime_property(const std::string& name) {
-    // PCI information is unavailable, and device allocation limits are mandatory.
-    return name != ov::device::pci_info.name() && name != ov::intel_gpu::hint::enable_large_allocations.name();
+    static const std::array supported_names{
+        ov::supported_properties.name(),
+        ov::available_devices.name(),
+        ov::device::architecture.name(),
+        ov::device::full_name.name(),
+        ov::device::uuid.name(),
+        ov::device::type.name(),
+        ov::device::capabilities.name(),
+        ov::device::id.name(),
+        ov::compatibility_check.name(),
+        ov::intel_gpu::runtime_type.name(),
+        ov::intel_gpu::device_id.name(),
+        ov::intel_gpu::device_total_mem_size.name(),
+        ov::intel_gpu::device_max_alloc_mem_size.name(),
+        ov::intel_gpu::memory_statistics.name(),
+        ov::internal::supported_properties.name(),
+        ov::internal::config_device_id.name(),
+        ov::internal::device_id_map.name(),
+    };
+    return std::find(supported_names.begin(), supported_names.end(), name) != supported_names.end();
 }
 
 void Plugin::register_primitives() {}

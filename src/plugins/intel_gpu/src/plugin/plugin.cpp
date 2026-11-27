@@ -159,9 +159,6 @@ void Plugin::set_property(const ov::AnyMap &config) {
         OPENVINO_ASSERT(supports_runtime_property(name), "[GPU] Property ", name, " is not in a list of supported properties");
     }
 
-    if (!supports_model_execution()) {
-        OPENVINO_ASSERT(config.find(ov::intel_gpu::config_file.name()) == config.end(), "[GPU] Custom layer configuration is unavailable");
-    }
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config, OptionVisibility::RELEASE);
         validate_custom_layer_config(user_config);
@@ -196,6 +193,7 @@ void Plugin::set_property(const ov::AnyMap &config) {
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_property");
+    OPENVINO_ASSERT(supports_runtime_property(name), "[GPU] Property ", name, " is not in a list of supported properties");
 
     // The metrics below don't depend on the device ID, so we should handle those
     // earler than querying actual ID to avoid exceptions when no devices are found
@@ -427,8 +425,16 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     OPENVINO_THROW("Unsupported metric key ", name);
 }
 
+std::vector<ov::PropertyName> Plugin::filter_runtime_properties(std::vector<ov::PropertyName> properties) {
+    const auto unsupported = [](const ov::PropertyName& property) {
+        return !supports_runtime_property(property);
+    };
+    properties.erase(std::remove_if(properties.begin(), properties.end(), unsupported), properties.end());
+    return properties;
+}
+
 std::vector<ov::PropertyName> Plugin::get_caching_properties() {
-    static const std::vector<ov::PropertyName> caching_properties = {
+    static const auto caching_properties = filter_runtime_properties({
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
@@ -438,13 +444,13 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() {
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
-    };
+    });
 
     return caching_properties;
 }
 
 std::vector<ov::PropertyName> Plugin::get_supported_properties() {
-    static const std::vector<ov::PropertyName> supported_properties = {
+    static const auto supported_properties = filter_runtime_properties({
         // Metrics
         ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
         ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
@@ -499,21 +505,12 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
-    };
-
-    auto properties = supported_properties;
-    const auto model_execution = supports_model_execution();
-    const auto unsupported_property = [model_execution](const auto& property) {
-        return !supports_runtime_property(property) ||
-               (!model_execution && (property == ov::range_for_async_infer_requests.name() || property == ov::optimal_batch_size.name() ||
-                                     property == ov::max_batch_size.name() || property == ov::intel_gpu::config_file.name()));
-    };
-    properties.erase(std::remove_if(properties.begin(), properties.end(), unsupported_property), properties.end());
-    return properties;
+    });
+    return supported_properties;
 }
 
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
-    static const std::vector<ov::PropertyName> supported_internal_properties = {
+    static const auto supported_internal_properties = filter_runtime_properties({
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
@@ -522,7 +519,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
         ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
         ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO}};
+        ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO},
+    });
     return supported_internal_properties;
 }
 
