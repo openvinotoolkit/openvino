@@ -2799,6 +2799,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_axes_not_larger_round_half_up
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_axes_not_larger_non_exact_scale) {
+    const auto model = convert_model("resize18_sizes_axes_not_larger_non_exact_scale.onnx");
+
+    // Input [1,1,12,54], sizes=[7,54] on axes [2,3]: scale = min(7/12, 54/54) = 7/12
+    // => output [1,1,7,round(31.5)] = [1,1,7,32]. 7/12 is not exact in floating point, where 54 * 7/12 gives
+    // 31.499998 and would be rounded down to 31.
+    const Shape expected_output_shape{1, 1, 7, 32};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>(12 * 54, 1.0f));
+    test_case.add_expected_output<float>(expected_output_shape, std::vector<float>(7 * 32, 1.0f));
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape) {
     auto model = convert_model("shape.onnx");
 
