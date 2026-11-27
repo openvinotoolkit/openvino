@@ -11,7 +11,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 
@@ -29,7 +28,7 @@ struct DynamicQuantizeFCParams {
     ov::element::Type zp_type;  // ov::element::dynamic means no zero point
     bool expect_precomputed_reduction;
     ov::element::Type scale_type = ov::element::f16;
-    ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::PERFORMANCE;
+    bool use_fp4_activations = false;  // true corresponds to ov::hint::inference_precision(f4e2m1)
     ov::element::Type expected_act_type = ov::element::i8;
 };
 
@@ -39,7 +38,7 @@ public:
         const auto& p = obj.param;
         std::ostringstream result;
         result << "weights=" << p.weights_type << "_zp=" << p.zp_type << "_precomputed_reduction=" << p.expect_precomputed_reduction;
-        result << "_scale=" << p.scale_type << "_mode=" << p.execution_mode << "_expected_act=" << p.expected_act_type;
+        result << "_scale=" << p.scale_type << "_fp4_act=" << p.use_fp4_activations << "_expected_act=" << p.expected_act_type;
         return result.str();
     }
 
@@ -71,7 +70,7 @@ protected:
                     ? std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, w[0], w[1], w[2])
                     : std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, w[0], w[1], w[2], w[3]);
             model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-            manager.register_pass<DynamicQuantizeFullyConnected>(dyn_quan_group_size, false, true, false, false, p.execution_mode);
+            manager.register_pass<DynamicQuantizeFullyConnected>(dyn_quan_group_size, false, true, false, false, p.use_fp4_activations);
         }
         {
             auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, K});
@@ -113,18 +112,32 @@ const std::vector<DynamicQuantizeFCParams> dynamic_quantize_fc_params = {
     {ov::element::i4, ov::element::u4, false},
     {ov::element::u3, ov::element::u8, false},
     {ov::element::u2, ov::element::u8, false},
-    {ov::element::f8e4m3, ov::element::dynamic, false, ov::element::f16, ov::hint::ExecutionMode::PERFORMANCE, ov::element::f8e4m3},
-    {ov::element::f8e5m2, ov::element::dynamic, false, ov::element::f16, ov::hint::ExecutionMode::PERFORMANCE, ov::element::f8e5m2},
-    {ov::element::f8e4m3, ov::element::dynamic, false, ov::element::f8e8m0, ov::hint::ExecutionMode::PERFORMANCE, ov::element::f8e4m3},
-    {ov::element::f8e5m2, ov::element::dynamic, false, ov::element::f8e8m0, ov::hint::ExecutionMode::PERFORMANCE, ov::element::f8e5m2},
-    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f16, ov::hint::ExecutionMode::PERFORMANCE, ov::element::f4e2m1},
-    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f8e8m0, ov::hint::ExecutionMode::PERFORMANCE, ov::element::f4e2m1},
-    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f8e8m0, ov::hint::ExecutionMode::ACCURACY, ov::element::f8e4m3},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_TransformationTests_PrecomputedReduction,
                          DynamicQuantizeFullyConnectedTests,
                          ::testing::ValuesIn(dynamic_quantize_fc_params),
+                         DynamicQuantizeFullyConnectedTests::get_test_case_name);
+
+// fp8 and fp4 weights: no precomputed reduction, activation type depends on weights and use_fp4_activations
+const std::vector<DynamicQuantizeFCParams> dynamic_quantize_fc_fp_params = {
+    {ov::element::f8e4m3, ov::element::dynamic, false, ov::element::f16, false, ov::element::f8e4m3},
+    {ov::element::f8e4m3, ov::element::dynamic, false, ov::element::f16, true, ov::element::f8e4m3},
+    {ov::element::f8e5m2, ov::element::dynamic, false, ov::element::f16, false, ov::element::f8e5m2},
+    {ov::element::f8e5m2, ov::element::dynamic, false, ov::element::f16, true, ov::element::f8e5m2},
+    {ov::element::f8e4m3, ov::element::dynamic, false, ov::element::f8e8m0, false, ov::element::f8e4m3},
+    {ov::element::f8e4m3, ov::element::dynamic, false, ov::element::f8e8m0, true, ov::element::f8e4m3},
+    {ov::element::f8e5m2, ov::element::dynamic, false, ov::element::f8e8m0, false, ov::element::f8e5m2},
+    {ov::element::f8e5m2, ov::element::dynamic, false, ov::element::f8e8m0, true, ov::element::f8e5m2},
+    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f16, false, ov::element::f8e4m3},
+    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f16, true, ov::element::f4e2m1},
+    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f8e8m0, false, ov::element::f8e4m3},
+    {ov::element::f4e2m1, ov::element::dynamic, false, ov::element::f8e8m0, true, ov::element::f4e2m1},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_TransformationTests_FP4FP8Weights,
+                         DynamicQuantizeFullyConnectedTests,
+                         ::testing::ValuesIn(dynamic_quantize_fc_fp_params),
                          DynamicQuantizeFullyConnectedTests::get_test_case_name);
 
 constexpr uint64_t per_token_group_size = std::numeric_limits<uint64_t>::max();

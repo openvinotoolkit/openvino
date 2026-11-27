@@ -49,6 +49,14 @@ TEST(InferencePrecisionTests, CantSetInvalidInferencePrecision) {
     ASSERT_ANY_THROW(core.set_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::bf16)));
 }
 
+TEST(InferencePrecisionTests, CanSetFp4InferencePrecision) {
+    ov::Core core;
+
+    // f4e2m1 is a request for fp4 dynamic quantization of activations and must be accepted
+    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f4e2m1)));
+    ASSERT_EQ(ov::element::f4e2m1, core.get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision));
+}
+
 TEST(ExecutionModeTest, SetCompileGetInferPrecisionAndExecMode) {
     ov::Core core;
 

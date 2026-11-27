@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_gpu {
 
@@ -17,7 +16,7 @@ public:
                                   bool precomputed_reduction = true,
                                   bool use_gs128_for_int8_per_token = false,
                                   bool use_gs128_for_linear_attention = false,
-                                  ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::PERFORMANCE);
+                                  bool use_fp4_activations = false);
     static bool ShouldUseGs128(bool is_wei_i8u8, bool use_gs128_for_int8_per_token, uint64_t group_size, bool use_gs128_for_linear_attention) {
         return group_size == UINT64_MAX && (use_gs128_for_linear_attention || (is_wei_i8u8 && use_gs128_for_int8_per_token));
     }
