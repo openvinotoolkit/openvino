@@ -4,6 +4,7 @@
 
 #include "openvino/op/qsa_indexer.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <initializer_list>
 #include <limits>
@@ -11,6 +12,7 @@
 #include <utility>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov::op::internal {
 
@@ -210,8 +212,29 @@ void QSAIndexer::validate_and_infer_types() {
     set_output_size(OutputIdx::COUNT);
     set_output_type(OutputIdx::SELECTED_BLOCK_INDICES, element::i32, selected_block_indices_ps);
     set_output_type(OutputIdx::SELECTED_BLOCK_COUNT, element::i32, selected_block_count_ps);
-    for (auto [out, in] : {std::pair{OutputIdx::BLOCK_INDEX_KEYS_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE},
-                           std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
+    // The block-key cache holds the complete blocks of the longest row after the call, max(key_length) / r, as
+    // QSAPrepare defines: exact for a constant key_length, else only bounded by the shapes.
+    {
+        const auto& cache_ps = get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE);
+        ov::PartialShape grown = cache_ps;
+        if (cache_ps.rank().is_static() && cache_ps.size() == 4) {
+            if (const auto key_length = ov::util::get_constant_from_source(input_value(InputIdx::KEY_LENGTH))) {
+                const auto lengths = key_length->cast_vector<int64_t>();
+                const auto longest = lengths.empty() ? int64_t{0} : *std::max_element(lengths.begin(), lengths.end());
+                grown[2] = ov::Dimension(std::max<int64_t>(longest, 0) / static_cast<int64_t>(m_config.key_block_size));
+            } else if (cache_ps[2].is_static() && length.is_static()) {
+                // As QSAPrepare: only a static Bp + ceil(L / r) bounds the rows, else they stay dynamic.
+                const auto r = static_cast<int64_t>(m_config.key_block_size);
+                grown[2] = ov::Dimension(0, cache_ps[2].get_length() + (length.get_length() + r - 1) / r);
+            } else {
+                grown[2] = ov::Dimension::dynamic();
+            }
+        }
+        set_output_type(OutputIdx::BLOCK_INDEX_KEYS_CACHE,
+                        get_input_element_type(InputIdx::BLOCK_INDEX_KEYS_CACHE),
+                        grown);
+    }
+    for (auto [out, in] : {std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
                            std::pair{OutputIdx::PAST_INCOMPLETE_ROPE, InputIdx::PAST_INCOMPLETE_ROPE}}) {
         set_output_type(out, get_input_element_type(in), get_input_partial_shape(in));
     }

@@ -89,7 +89,7 @@ int64_t I(size_t v) {
 }
 
 struct split_dims {
-    size_t Hiq = 2;  // index-query heads (H_ik == 1 fixed in v1)
+    size_t Hiq = 2;  // index-query heads (H_ik == 1 is fixed)
     size_t Di = 16;  // indexer head dim
     size_t rotary = 8;
     size_t r = 4;  // key_block_size
@@ -797,7 +797,7 @@ struct dense_inputs {
     size_t batch = 0;
     size_t q_len = 0;        // L, shared by every row
     size_t kv_len = 0;       // S, the longest row; shorter rows are left-padded
-    size_t summary_cap = 1;  // floor(S_cap / r) summary entries, uniform across rows
+    size_t summary_cap = 1;  // Bp: input cache rows, uniform across rows, covering the complete past blocks
 
     std::vector<int32_t> key_length;  // [B], valid tokens after the call
     std::vector<float> index_query, raw_index_keys, rope_cos, rope_sin, q_norm, k_norm;
@@ -883,7 +883,8 @@ dense_inputs dense_inputs_from_references(const std::vector<split_reference>& re
     for (const auto& ref : refs) {
         in.q_len = std::max(in.q_len, ref.q_len);
         in.kv_len = std::max(in.kv_len, ref.total_len());
-        blocks = std::max(blocks, ref.total_len() / in.d.r);
+        // The input cache only covers the complete blocks of the past tokens; the output holds those after the call.
+        blocks = std::max(blocks, ref.past_len / in.d.r);
     }
     in.summary_cap = std::max<size_t>(1, blocks);
     in.q_norm = refs.front().q_norm;
@@ -906,7 +907,7 @@ dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, siz
     in.batch = 1;
     in.q_len = q_len;
     in.kv_len = total;
-    in.summary_cap = std::max<size_t>(1, total / d.r);
+    in.summary_cap = std::max<size_t>(1, past_len / d.r);
     in.key_length = {static_cast<int32_t>(total)};
     const auto rotary = make_rotary_table(total, d.rotary);
     std::vector<int32_t> positions(q_len);
@@ -1312,10 +1313,15 @@ void validate_dense_state(network& net, const dense_inputs& in, const std::vecto
     using Out = ov::op::internal::QSAIndexer::OutputIdx;
     const auto& d = in.d;
     auto indexer = net.get_primitive("indexer");
-    const auto summary = read_f16(indexer->output_memory_ptr(Out::BLOCK_INDEX_KEYS_CACHE));
+    // A cache output without complete blocks has 0 rows; a 0-byte buffer cannot be locked (no host staging copy).
+    const auto summary = indexer->get_output_layout(Out::BLOCK_INDEX_KEYS_CACHE).count() == 0
+                             ? std::vector<float>{}
+                             : read_f16(indexer->output_memory_ptr(Out::BLOCK_INDEX_KEYS_CACHE));
     const auto raw = read_f16(indexer->output_memory_ptr(Out::PAST_INCOMPLETE_RAW_K));
     const auto rope = read_f16(indexer->output_memory_ptr(Out::PAST_INCOMPLETE_ROPE));
-    ASSERT_EQ(indexer->get_output_layout(Out::BLOCK_INDEX_KEYS_CACHE).count(), in.batch * in.summary_cap * d.Di);
+    // The cache holds the complete blocks of the longest row after the call, as QSAPrepare defines.
+    const size_t out_cap = static_cast<size_t>(*std::max_element(in.key_length.begin(), in.key_length.end())) / d.r;
+    ASSERT_EQ(indexer->get_output_layout(Out::BLOCK_INDEX_KEYS_CACHE).count(), in.batch * out_cap * d.Di);
     ASSERT_EQ(indexer->get_output_layout(Out::PAST_INCOMPLETE_RAW_K).count(), in.batch * (d.r - 1) * d.Di);
     ASSERT_EQ(indexer->get_output_layout(Out::PAST_INCOMPLETE_ROPE).count(), in.batch * 2 * d.rotary);
     for (size_t b = 0; b < refs.size(); b++) {
@@ -1326,9 +1332,18 @@ void validate_dense_state(network& net, const dense_inputs& in, const std::vecto
         for (size_t blk = 0; blk < total / d.r; blk++) {
             const auto expected = ref.summary(blk);
             for (size_t j = 0; j < d.Di; j++) {
-                const float got = summary[(b * in.summary_cap + blk) * d.Di + j];
+                const float got = summary[(b * out_cap + blk) * d.Di + j];
                 if (!(std::fabs(got - expected[j]) <= 1e-2f + 1e-2f * std::fabs(expected[j])) && mismatches++ < 8) {
                     ADD_FAILURE() << "summary[" << blk << "][" << j << "] gpu=" << got << " ref=" << expected[j];
+                }
+            }
+        }
+        // Rows past this row's last block that the input did not cover are zero (rows below Bp keep the input).
+        for (size_t blk = std::max(total / d.r, in.summary_cap); blk < out_cap; blk++) {
+            for (size_t j = 0; j < d.Di; j++) {
+                const float got = summary[(b * out_cap + blk) * d.Di + j];
+                if (got != 0.0f && mismatches++ < 8) {
+                    ADD_FAILURE() << "tail summary[" << blk << "][" << j << "] gpu=" << got << ", expected 0";
                 }
             }
         }
@@ -1575,47 +1590,148 @@ split_reference slice_reference(const split_reference& full, size_t past_len, si
 /// Functional state across calls: ONE dynamic dense network runs a sequence chunk by chunk,
 /// and every call after the first consumes the state outputs (block_index_keys_cache, staged raw keys,
 /// RoPE row) the previous call returned, as ReadValue/Assign would carry them.
-void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
+///
+/// The batch has one row per entry of `first_lens`: the first call takes `first_lens[b]` tokens of row b (left-padded to
+/// the longest), every later call appends `q_lens[k]` tokens to every row (the dense contract: all rows advance by L).
+enum class CacheFeedback {
+    Trimmed,  // the next input cache holds exactly the complete past blocks of the longest row (Bp = max(past) / r)
+    Whole,    // the previous block_index_keys_cache output is fed back unchanged, as ReadValue/Assign carry it
+};
+
+struct dense_chain_options {
+    CacheFeedback feedback = CacheFeedback::Trimmed;
+    bool empty_first_cache = false;  // the first call gets an empty [B, 1, 0, Di] cache (no earlier blocks)
+};
+
+void run_dense_state_chain_test(const split_dims& d,
+                                const std::vector<size_t>& first_lens,
+                                const std::vector<size_t>& q_lens,
+                                float rtol,
+                                float atol = 2e-3f,
+                                const dense_chain_options& opt = {}) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     using Out = ov::op::internal::QSAIndexer::OutputIdx;
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
-    const auto full = make_split_reference(rg, d, 0, std::accumulate(q_lens.begin(), q_lens.end(), size_t{0}), Positions::MRoPELike);
+    const size_t batch = first_lens.size();
+    const size_t later = std::accumulate(q_lens.begin(), q_lens.end(), size_t{0});
+    std::vector<split_reference> full;
+    for (size_t b = 0; b < batch; b++) {
+        full.push_back(make_split_reference(rg, d, 0, first_lens[b] + later, Positions::MRoPELike));
+        // One network: the norm weights are shared by every row.
+        full.back().q_norm = full.front().q_norm;
+        full.back().k_norm = full.front().k_norm;
+    }
+
     std::unique_ptr<network> net;
     std::vector<float> summary, raw, rope;
-    size_t summary_cap = 0;
-    size_t past_len = 0;
-    for (size_t q_len : q_lens) {
-        SCOPED_TRACE("past_len=" + std::to_string(past_len) + " q_len=" + std::to_string(q_len));
-        const auto ref = slice_reference(full, past_len, q_len);
-        auto in = dense_inputs_from_reference(ref);
-        if (net) {
-            // Previous state, summary grown to this call's capacity (zero-filled tail).
-            in.block_index_keys_cache.assign(in.summary_cap * d.Di, 0.0f);
-            std::copy_n(summary.begin(), summary_cap * d.Di, in.block_index_keys_cache.begin());
+    size_t summary_rows = 0;  // rows per batch element of the previous block_index_keys_cache output
+    std::vector<size_t> past(batch, 0);
+    for (size_t call = 0; call <= q_lens.size(); call++) {
+        std::vector<split_reference> refs;
+        for (size_t b = 0; b < batch; b++) {
+            refs.push_back(slice_reference(full[b], past[b], call == 0 ? first_lens[b] : q_lens[call - 1]));
+        }
+        SCOPED_TRACE("call " + std::to_string(call) + " past_len[0]=" + std::to_string(past[0]) + " q_len=" + std::to_string(refs[0].q_len));
+        auto in = dense_inputs_from_references(refs);
+        if (call == 0) {
+            if (opt.empty_first_cache) {
+                in.summary_cap = 0;
+                in.block_index_keys_cache.clear();
+            }
+            net = build_dense_network(engine, in, Stage::Pair, true);
+        } else {
+            if (opt.feedback == CacheFeedback::Whole) {
+                in.summary_cap = summary_rows;
+                in.block_index_keys_cache = summary;
+            } else {
+                // Row b keeps its first summary_cap rows of the previous output (zero-filled if shorter).
+                in.block_index_keys_cache.assign(batch * in.summary_cap * d.Di, 0.0f);
+                const size_t rows = std::min(summary_rows, in.summary_cap);
+                for (size_t b = 0; b < batch; b++) {
+                    std::copy_n(summary.begin() + b * summary_rows * d.Di, rows * d.Di, in.block_index_keys_cache.begin() + b * in.summary_cap * d.Di);
+                }
+            }
             in.raw_state = raw;
             in.rope_state = rope;
             set_dense_inputs(engine, *net, in, Stage::Pair, true);
-        } else {
-            net = build_dense_network(engine, in, Stage::Pair, true);
         }
         net->execute();
-        validate_dense_outputs(*net, in, {ref}, nullptr, atol, rtol);
+        validate_dense_outputs(*net, in, refs, nullptr, atol, rtol);
 
         auto indexer = net->get_primitive("indexer");
         auto read_state = [&](size_t out) {
+            const size_t count = indexer->get_output_layout(out).count();
+            if (count == 0) {
+                return std::vector<float>{};  // a 0-byte buffer cannot be locked
+            }
             auto values = read_f16(indexer->output_memory_ptr(out));
-            values.resize(indexer->get_output_layout(out).count());
+            values.resize(count);
             return values;
         };
         summary = read_state(Out::BLOCK_INDEX_KEYS_CACHE);
+        summary_rows = indexer->get_output_layout(Out::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
         raw = read_state(Out::PAST_INCOMPLETE_RAW_K);
         rope = read_state(Out::PAST_INCOMPLETE_ROPE);
-        summary_cap = in.summary_cap;
-        past_len += q_len;
+        for (size_t b = 0; b < batch; b++) {
+            past[b] += refs[b].q_len;
+        }
     }
+}
+
+/// Single-row chain: the first entry of `q_lens` is the first call.
+void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
+    run_dense_state_chain_test(d, {q_lens.front()}, std::vector<size_t>(q_lens.begin() + 1, q_lens.end()), rtol, atol);
+}
+
+/// One call with an empty [B, 1, 0, Di] past cache (Bp == 0, the natural first prefill); `dynamic` selects the
+/// shape-agnostic network or a static one.
+void run_dense_empty_cache_test(const split_dims& d, const std::vector<size_t>& lens, bool dynamic, float rtol, float atol = 2e-3f) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<split_reference> refs;
+    for (size_t len : lens) {
+        refs.push_back(make_split_reference(rg, d, 0, len, Positions::MRoPELike));
+        // One network: the norm weights are shared by every row.
+        refs.back().q_norm = refs.front().q_norm;
+        refs.back().k_norm = refs.front().k_norm;
+    }
+    auto in = dense_inputs_from_references(refs);
+    in.summary_cap = 0;
+    in.block_index_keys_cache.clear();
+    auto net = build_dense_network(engine, in, Stage::Pair, dynamic);
+    net->execute();
+    validate_dense_outputs(*net, in, refs, nullptr, atol, rtol);
+}
+
+/// One call whose input cache has `extra_rows` zero rows past the complete past blocks of the longest row, so Bp can
+/// exceed the max(key_length) / r output rows: each row keeps its first min(Bp, out) rows.
+void run_dense_oversized_cache_test(const split_dims& d,
+                                    const std::vector<std::pair<size_t, size_t>>& rows,
+                                    size_t extra_rows,
+                                    bool dynamic,
+                                    float rtol,
+                                    float atol = 2e-3f) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    const auto refs = make_batch_references(d, rows);
+    auto in = dense_inputs_from_references(refs);
+    const size_t cap = in.summary_cap + extra_rows;
+    std::vector<float> cache(in.batch * cap * d.Di, 0.0f);
+    for (size_t b = 0; b < in.batch; b++) {
+        std::copy_n(in.block_index_keys_cache.begin() + b * in.summary_cap * d.Di, in.summary_cap * d.Di, cache.begin() + b * cap * d.Di);
+    }
+    in.summary_cap = cap;
+    in.block_index_keys_cache = std::move(cache);
+    auto net = build_dense_network(get_test_engine(), in, Stage::Pair, dynamic);
+    net->execute();
+    validate_dense_outputs(*net, in, refs, nullptr, atol, rtol);
 }
 
 // setenv/unsetenv are POSIX-only; MSVC provides _putenv_s, where an empty value removes the variable.
@@ -1635,7 +1751,7 @@ void unset_env_var(const char* name) {
 #endif
 }
 
-/// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
+/// Caps the decode BLOCK_SCORES scratch so the scoring chunk loop runs several times.
 struct scoped_score_budget {
     explicit scoped_score_budget(const char* bytes) {
         set_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes);
@@ -1652,7 +1768,7 @@ const route decode_scalar{IndexerPath::Decode, AttnPath::Scalar};
 const route decode_split{IndexerPath::Decode, AttnPath::Split};
 const route fused_scalar{IndexerPath::Fused, AttnPath::Scalar};
 
-// Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (GQA dims).
+// Decode batches: score_partition + top-k indexer kernels, GQA-DPAS attention (GQA dims).
 TEST(qsa_ops_gpu_test, gqa_paged_batch_decode_matches_reference) {
     run_paged_batch_test(gqa_dims(), {{2051, 1}, {2100, 1}, {2300, 1}}, decode_gqa, 3e-3f);
 }
@@ -1675,8 +1791,8 @@ TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_partial_last_chunk_matches_referen
     run_dense_batch_test(gqa_dims(), 3, 2051, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
-// Mixed batches (decode + prefill sequences in one call): dpas Q2 with GQA dims, the
-// fused non-dpas Q2 with the toy dims (Di = 16 fails the dpas score gate).
+// Mixed batches (decode + prefill sequences in one call): DPAS scoring with GQA dims, the
+// fused non-DPAS scoring with the toy dims (Di = 16 fails the DPAS score gate).
 TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_matches_reference) {
     run_paged_batch_test(gqa_dims(), {{2100, 1}, {1990, 64}, {2060, 1}}, dpas_gqa, 3e-3f);
 }
@@ -1734,7 +1850,50 @@ TEST(qsa_ops_gpu_test, gqa_dense_state_carries_across_calls) {
     run_dense_state_chain_test(gqa_dims(), {2050, 1, 1, 17, 1}, 3e-3f);
 }
 
-// Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar Q3 kernel.
+// Batch > 1 with ragged first lengths: copy_state moves every row's Bp rows into the wider output rows.
+TEST(qsa_ops_gpu_test, dense_batch_state_carries_across_calls) {
+    run_dense_state_chain_test(split_dims{}, {37, 30, 22}, {1, 1, 6, 1, 3, 2}, 2e-2f);
+}
+
+// The whole block_index_keys_cache output is fed back unchanged as the next input, as a
+// ReadValue/Assign loop carries it, starting from an empty cache.
+TEST(qsa_ops_gpu_test, dense_batch_state_feeds_back_whole_output) {
+    run_dense_state_chain_test(split_dims{}, {37, 30, 22}, {1, 1, 6, 1, 3, 2}, 2e-2f, 2e-3f, {CacheFeedback::Whole, true});
+}
+
+// The first call completes no block (0-row cache output), which the next call consumes as an empty cache.
+TEST(qsa_ops_gpu_test, dense_batch_state_starts_without_blocks) {
+    run_dense_state_chain_test(split_dims{}, {3, 2}, {1, 1, 4, 1, 6}, 2e-2f, 2e-3f, {CacheFeedback::Whole, true});
+}
+
+TEST(qsa_ops_gpu_test, gqa_dense_batch_state_feeds_back_whole_output) {
+    run_dense_state_chain_test(gqa_dims(), {2050, 1990}, {1, 1, 17, 1}, 3e-3f, 2e-3f, {CacheFeedback::Whole, true});
+}
+
+// Bp == 0: the first prefill has no earlier blocks.
+TEST(qsa_ops_gpu_test, dense_empty_past_cache_matches_reference) {
+    run_dense_empty_cache_test(split_dims{}, {37, 22}, false, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, dense_empty_past_cache_dynamic_matches_reference) {
+    run_dense_empty_cache_test(split_dims{}, {37, 22}, true, 2e-2f);
+}
+
+// Bp larger than the output rows (decode, the input cache has spare rows): the copy keeps min(Bp, out) rows.
+TEST(qsa_ops_gpu_test, dense_oversized_past_cache_matches_reference) {
+    run_dense_oversized_cache_test(split_dims{}, {{20, 1}, {13, 1}, {37, 1}}, 5, false, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, dense_oversized_past_cache_dynamic_matches_reference) {
+    run_dense_oversized_cache_test(split_dims{}, {{20, 1}, {13, 1}, {37, 1}}, 5, true, 2e-2f);
+}
+
+// key_length < r with an empty cache: no block completes, the cache output has 0 rows.
+TEST(qsa_ops_gpu_test, dense_empty_past_cache_short_prefill_matches_reference) {
+    run_dense_empty_cache_test(split_dims{}, {3, 2}, true, 2e-2f);
+}
+
+// Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar attention kernel.
 TEST(qsa_ops_gpu_test, paged_pair_mrope_positions_match_reference) {
     run_pair_test(true, split_dims{}, 22, 42, Positions::MRoPELike, fused_scalar, 2e-2f);
 }
@@ -1900,9 +2059,7 @@ TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
     validate_and_run_pair(false, engine, ref, dpas_gqa, /*atol=*/4e-3f, /*rtol=*/5e-3f);
 }
 
-// Many more blocks than the prefill cases above: checks that per-block summary error and
-// online-softmax accumulation error do not grow with the number of terms summed.
-// More than 2048 complete blocks: the prefill top-k uses its widest work-group (16 subgroups), and
+// Many more blocks than the prefill cases above (more than 2048 complete blocks): the prefill top-k uses its widest work-group (16 subgroups), and
 // per-block summary / online-softmax accumulation error must not grow with the number of terms.
 TEST(qsa_ops_gpu_test, gqa_paged_long_context_accumulation_matches_reference) {
     run_pair_test(true, gqa_dims(), 8192, 17, Positions::Sequential, dpas_gqa, 3e-3f);
@@ -2578,15 +2735,43 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
     using Out = ov::op::internal::QSAIndexer::OutputIdx;
     std::shared_ptr<ov::op::internal::QSAIndexer> node;
     ASSERT_NO_THROW(node = std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
-    // Outputs: selection plus the updated state, shaped and typed like the state inputs.
+    // Outputs: selection plus the updated state. The incomplete-block states keep their input shape; the block-key
+    // cache follows key_length (checked below).
     ASSERT_EQ(node->get_output_size(), Out::COUNT);
     EXPECT_EQ(node->get_output_partial_shape(Out::SELECTED_BLOCK_INDICES), (ov::PartialShape{1, 1, -1, I(d.block_topk)}));
-    for (auto [out, in] : {std::pair{Out::BLOCK_INDEX_KEYS_CACHE, In::BLOCK_INDEX_KEYS_CACHE},
-                           std::pair{Out::PAST_INCOMPLETE_RAW_K, In::PAST_INCOMPLETE_RAW_K},
-                           std::pair{Out::PAST_INCOMPLETE_ROPE, In::PAST_INCOMPLETE_ROPE}}) {
+    EXPECT_EQ(node->get_output_partial_shape(Out::BLOCK_INDEX_KEYS_CACHE), (ov::PartialShape{1, 1, -1, I(d.Di)}));
+    EXPECT_EQ(node->get_output_element_type(Out::BLOCK_INDEX_KEYS_CACHE), ov::element::f16);
+    for (auto [out, in] : {std::pair{Out::PAST_INCOMPLETE_RAW_K, In::PAST_INCOMPLETE_RAW_K}, std::pair{Out::PAST_INCOMPLETE_ROPE, In::PAST_INCOMPLETE_ROPE}}) {
         EXPECT_EQ(node->get_output_partial_shape(out), node->get_input_partial_shape(in));
         EXPECT_EQ(node->get_output_element_type(out), ov::element::f16);
     }
+
+    // block_index_keys_cache output rows, as QSAPrepare infers them: max(key_length) / r for a constant key_length,
+    // else [0, Bp + ceil(L / r)] when that bound is static, else dynamic.
+    const auto cache_rows = [&](const ov::Dimension& L, const ov::Dimension& Bp, const std::vector<int32_t>& key_length = {}) {
+        auto a = make_dense_indexer_args(d);
+        a[In::INDEX_QUERY] = make_param({1, L, I(d.Hiq), I(d.Di)});
+        a[In::RAW_INDEX_KEYS] = make_param({1, L, 1, I(d.Di)});
+        a[In::ROPE_COS] = make_param({1, L, I(d.rotary)});
+        a[In::ROPE_SIN] = make_param({1, L, I(d.rotary)});
+        a[In::BLOCK_INDEX_KEYS_CACHE] = make_param({1, 1, Bp, I(d.Di)});
+        if (!key_length.empty()) {
+            a[In::KEY_LENGTH] = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{key_length.size()}, key_length);
+        }
+        auto n = std::make_shared<ov::op::internal::QSAIndexer>(a, make_dense_indexer_config(d));
+        return n->get_output_partial_shape(Out::BLOCK_INDEX_KEYS_CACHE)[2];
+    };
+    const auto r = static_cast<int64_t>(d.r);
+    // Shapes only.
+    EXPECT_EQ(cache_rows(1, 0), ov::Dimension(0, 1));                       // decode, empty past cache
+    EXPECT_EQ(cache_rows(r, 3), ov::Dimension(0, 4));                       // L == r: at most one more block
+    EXPECT_EQ(cache_rows(r + 1, 3), ov::Dimension(0, 5));                   // L == r + 1: at most two more blocks
+    EXPECT_EQ(cache_rows(ov::Dimension(1, 2 * r + 1), 5), ov::Dimension::dynamic());  // non-static L
+    EXPECT_EQ(cache_rows(7, ov::Dimension::dynamic()), ov::Dimension::dynamic());     // dynamic Bp
+    // Constant key_length: exact, whatever the bound.
+    EXPECT_EQ(cache_rows(7, 3, {static_cast<int32_t>(3 * r + 2)}), ov::Dimension(3));
+    EXPECT_EQ(cache_rows(-1, -1, {static_cast<int32_t>(r - 1)}), ov::Dimension(0));   // no complete block yet
+    EXPECT_EQ(cache_rows(-1, -1, {static_cast<int32_t>(5 * r)}), ov::Dimension(5));
 
     auto args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary)}, ov::element::f32);
@@ -2733,7 +2918,7 @@ TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
 }
 
 // ---------------------------------------------------------------------------
-// Plugin-level rejection of configurations outside the v1 GPU scope
+// Plugin-level rejection of configurations outside the supported GPU scope
 // (H_ik == 1, num_selection_heads == 1, f16 data). Goes through ov::Core so the ProgramBuilder
 // factories are exercised; no device support is needed since lowering fails first.
 // ---------------------------------------------------------------------------
@@ -2838,7 +3023,7 @@ struct perf_case {
     bool paged;
     size_t past_len;
     size_t q_len;
-    bool no_dpas_score = false;  // Di=16 fails the Q2 dpas gate, forcing the non-dpas Q2 path
+    bool no_dpas_score = false;  // Di=16 fails the DPAS score gate, forcing the non-DPAS scoring path
 };
 
 struct perf_timing {
@@ -3032,6 +3217,203 @@ TEST(qsa_ops_perf_sweep, DISABLED_pair) {
         std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
                   << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << " stage=" << stage_name << std::endl;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Stateful dense QSAIndexer through ov::Core (ReadValue/Assign). The suite above feeds the block-key cache back by hand
+// through input_layout, so it never reaches the read_value/assign graph passes.
+// The device is the one selected by --device_suffix (get_engine_gpu_device_name() from test_utils).
+// ---------------------------------------------------------------------------
+// Fails the test (instead of silently running elsewhere) when the model did not land on the --device_suffix device.
+// A single GPU is listed as "GPU" but reported as "GPU.0", so compare by uuid rather than by name.
+void expect_executes_on_test_engine(ov::Core& core, const ov::CompiledModel& compiled) {
+    const auto execution_devices = compiled.get_property(ov::execution_devices);
+    ASSERT_FALSE(execution_devices.empty());
+    ASSERT_EQ(core.get_property(execution_devices.front(), ov::device::uuid).uuid, get_test_engine().get_device_info().uuid.uuid)
+        << "test must run on the get_test_engine() device (--device_suffix)";
+}
+
+ov::Tensor qsa_filled_tensor(ov::element::Type et, const ov::Shape& shape, float v) {
+    ov::Tensor t(et, shape);
+    if (et == ov::element::i32) {
+        std::fill_n(t.data<int32_t>(), t.get_size(), static_cast<int32_t>(v));
+    } else {
+        std::fill_n(t.data<ov::float16>(), t.get_size(), ov::float16(v));
+    }
+    return t;
+}
+
+struct stateful_indexer_model {
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::op::v0::Parameter> index_query, raw_index_keys, rope_cos, rope_sin, key_length, q_norm, k_norm;
+    std::shared_ptr<ov::op::v0::Parameter> cache_next, raw_state, rope_state;  // only when !assign_indexer_state
+};
+
+/// assign_indexer_state == true : all three state outputs of the indexer feed an Assign (production wiring);
+///                                the three states come from uninitialized ReadValues.
+/// assign_indexer_state == false: only the block-key cache is stateful (ReadValue -> indexer); its Assign takes a
+///                                Parameter, so nothing consumes the indexer's state outputs but Results.
+stateful_indexer_model make_stateful_indexer_model(const split_dims& d, bool assign_indexer_state) {
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
+    const auto f16 = ov::element::f16;
+    stateful_indexer_model m;
+    const auto di = I(d.Di);
+    m.index_query = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, -1, I(d.Hiq), di});
+    m.raw_index_keys = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, -1, 1, di});
+    m.rope_cos = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, -1, I(d.rotary)});
+    m.rope_sin = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, -1, I(d.rotary)});
+    m.key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+    m.q_norm = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{di});
+    m.k_norm = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{di});
+    ov::ParameterVector params{m.index_query, m.raw_index_keys, m.rope_cos, m.rope_sin, m.key_length, m.q_norm, m.k_norm};
+
+    const auto make_var = [&](const ov::PartialShape& ps, const char* name) {
+        return std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, f16, name});
+    };
+    auto var_cache = make_var(ov::PartialShape{1, 1, -1, di}, "qsa_block_index_keys_cache");
+    auto read_cache = std::make_shared<ov::op::v6::ReadValue>(var_cache);
+    ov::Output<ov::Node> raw_in, rope_in;
+    std::shared_ptr<ov::op::util::Variable> var_raw, var_rope;
+    if (assign_indexer_state) {
+        var_raw = make_var(ov::PartialShape{1, 1, I(d.r - 1), di}, "qsa_past_incomplete_raw_k");
+        var_rope = make_var(ov::PartialShape{1, I(2 * d.rotary)}, "qsa_past_incomplete_rope");
+        raw_in = std::make_shared<ov::op::v6::ReadValue>(var_raw);
+        rope_in = std::make_shared<ov::op::v6::ReadValue>(var_rope);
+    } else {
+        m.raw_state = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, 1, I(d.r - 1), di});
+        m.rope_state = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, I(2 * d.rotary)});
+        raw_in = m.raw_state;
+        rope_in = m.rope_state;
+        params.push_back(m.raw_state);
+        params.push_back(m.rope_state);
+    }
+
+    ov::OutputVector args = {m.index_query, m.raw_index_keys, m.rope_cos, m.rope_sin, m.key_length, m.q_norm, m.k_norm, read_cache, raw_in, rope_in};
+    auto indexer = std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d));
+
+    ov::ResultVector results;
+    ov::SinkVector sinks;
+    if (assign_indexer_state) {
+        sinks.push_back(std::make_shared<ov::op::v6::Assign>(indexer->output(Out::BLOCK_INDEX_KEYS_CACHE), var_cache));
+        sinks.push_back(std::make_shared<ov::op::v6::Assign>(indexer->output(Out::PAST_INCOMPLETE_RAW_K), var_raw));
+        sinks.push_back(std::make_shared<ov::op::v6::Assign>(indexer->output(Out::PAST_INCOMPLETE_ROPE), var_rope));
+    } else {
+        m.cache_next = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, 1, -1, di});
+        params.push_back(m.cache_next);
+        sinks.push_back(std::make_shared<ov::op::v6::Assign>(m.cache_next, var_cache));
+        for (size_t out : {Out::BLOCK_INDEX_KEYS_CACHE, Out::PAST_INCOMPLETE_RAW_K, Out::PAST_INCOMPLETE_ROPE}) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(indexer->output(out)));
+        }
+    }
+    results.push_back(std::make_shared<ov::op::v0::Result>(indexer->output(Out::SELECTED_BLOCK_INDICES)));
+    results.push_back(std::make_shared<ov::op::v0::Result>(indexer->output(Out::SELECTED_BLOCK_COUNT)));
+    m.model = std::make_shared<ov::Model>(results, sinks, params, "qsa_stateful_dense_indexer");
+    return m;
+}
+
+/// One call of `lq` new tokens; key_length is the total token count after the call.
+void set_stateful_indexer_call(ov::InferRequest& req, const stateful_indexer_model& m, const split_dims& d, size_t lq, int32_t key_length) {
+    const auto f16 = ov::element::f16;
+    const size_t di = d.Di;
+    req.set_tensor(m.index_query, qsa_filled_tensor(f16, {1, lq, d.Hiq, di}, 0.5f));
+    req.set_tensor(m.raw_index_keys, qsa_filled_tensor(f16, {1, lq, 1, di}, 0.5f));
+    req.set_tensor(m.rope_cos, qsa_filled_tensor(f16, {1, lq, d.rotary}, 0.25f));
+    req.set_tensor(m.rope_sin, qsa_filled_tensor(f16, {1, lq, d.rotary}, 0.5f));
+    req.set_tensor(m.key_length, qsa_filled_tensor(ov::element::i32, {1}, static_cast<float>(key_length)));
+    req.set_tensor(m.q_norm, qsa_filled_tensor(f16, {di}, 1.0f));
+    req.set_tensor(m.k_norm, qsa_filled_tensor(f16, {di}, 1.0f));
+}
+
+void expect_finite_f16(const ov::Tensor& t, const std::string& what) {
+    const auto* p = t.data<const ov::float16>();
+    size_t bad = 0;
+    for (size_t i = 0; i < t.get_size(); i++) {
+        bad += static_cast<size_t>(!std::isfinite(static_cast<float>(p[i])));
+    }
+    EXPECT_EQ(bad, 0u) << what << " has non-finite values";
+}
+
+// Stateful, cache only: the first call starts from an uninitialized ReadValue, so the block-key cache input has 0 rows (Bp == 0) and
+// read_value has no buffer. copy_state must treat that input as empty instead of dereferencing a null memory.
+// Only the cache is stateful here and its Assign takes a Parameter, so the Assign wiring is not involved.
+TEST(qsa_ops_gpu_test, stateful_dense_indexer_starts_from_empty_cache) {
+    ov::Core core;
+    if (!gpu_in_core(core)) {
+        GTEST_SKIP() << "GPU plugin is not available in ov::Core";
+    }
+    split_dims d;  // r == 4
+    const auto m = make_stateful_indexer_model(d, false);
+    auto compiled = core.compile_model(m.model, get_engine_gpu_device_name(), ov::hint::inference_precision(ov::element::f16));
+    ASSERT_NO_FATAL_FAILURE(expect_executes_on_test_engine(core, compiled));
+    auto req = compiled.create_infer_request();
+
+    const size_t di = d.Di;
+    const auto run_call = [&](size_t lq, int32_t key_length, size_t expected_rows, size_t cache_next_rows) {
+        SCOPED_TRACE("L=" + std::to_string(lq) + " key_length=" + std::to_string(key_length));
+        set_stateful_indexer_call(req, m, d, lq, key_length);
+        req.set_tensor(m.raw_state, qsa_filled_tensor(ov::element::f16, {1, 1, d.r - 1, di}, 0.125f));
+        req.set_tensor(m.rope_state, qsa_filled_tensor(ov::element::f16, {1, 2 * d.rotary}, 0.125f));
+        req.set_tensor(m.cache_next, qsa_filled_tensor(ov::element::f16, {1, 1, cache_next_rows, di}, 0.25f));
+        ASSERT_NO_THROW(req.infer());
+        const auto out = req.get_output_tensor(0);  // BLOCK_INDEX_KEYS_CACHE
+        EXPECT_EQ(out.get_shape(), (ov::Shape{1, 1, expected_rows, di}));
+        expect_finite_f16(out, "block_index_keys_cache");
+    };
+    // Call 0: Bp == 0, key_length 5 -> 5 / 4 == 1 complete block.
+    run_call(5, 5, 1, 1);
+    // Call 1: the state now holds the Assign'ed 1-row cache; key_length 12 -> 3 blocks.
+    run_call(7, 12, 3, 3);
+}
+
+// Stateful, all state outputs: every state output of the indexer feeds an Assign. QSAIndexer outputs 2..4 are f16 while output 0 (selection) is
+// i32, so a dtype-fixing reorder in front of each Assign must read the Assign's own port, not port 0.
+// The states are seeded so the first call has a non-empty cache (the empty-cache case above is not involved).
+//
+// Skipped for now: the failure is in the generic add_required_reorders pass (its Assign branch reads the dependency's
+// port 0 layout and builds the reorder without a port), not in the indexer, which is functional and knows nothing about
+// Assign. Remove the skip once add_required_reorders handles the Assign port correctly.
+TEST(qsa_ops_gpu_test, stateful_dense_indexer_assigns_state_outputs) {
+    GTEST_SKIP() << "add_required_reorders builds the Assign dtype reorder from port 0 (i32 selection output) instead of the "
+                    "state port";
+    ov::Core core;
+    if (!gpu_in_core(core)) {
+        GTEST_SKIP() << "GPU plugin is not available in ov::Core";
+    }
+    split_dims d;  // r == 4
+    const auto m = make_stateful_indexer_model(d, true);
+    auto compiled = core.compile_model(m.model, get_engine_gpu_device_name(), ov::hint::inference_precision(ov::element::f16));
+    ASSERT_NO_FATAL_FAILURE(expect_executes_on_test_engine(core, compiled));
+    auto req = compiled.create_infer_request();
+    const size_t di = d.Di;
+
+    const auto states = req.query_state();
+    ASSERT_EQ(states.size(), 3u);
+    std::map<std::string, ov::VariableState> by_name;
+    for (const auto& s : states) {
+        by_name.emplace(s.get_name(), s);
+    }
+    by_name.at("qsa_block_index_keys_cache").set_state(qsa_filled_tensor(ov::element::f16, {1, 1, 1, di}, 0.25f));
+    by_name.at("qsa_past_incomplete_raw_k").set_state(qsa_filled_tensor(ov::element::f16, {1, 1, d.r - 1, di}, 0.125f));
+    by_name.at("qsa_past_incomplete_rope").set_state(qsa_filled_tensor(ov::element::f16, {1, 2 * d.rotary}, 0.125f));
+
+    const auto expect_states = [&](size_t cache_rows) {
+        const auto cache = by_name.at("qsa_block_index_keys_cache").get_state();
+        const auto raw = by_name.at("qsa_past_incomplete_raw_k").get_state();
+        const auto rope = by_name.at("qsa_past_incomplete_rope").get_state();
+        EXPECT_EQ(cache.get_shape(), (ov::Shape{1, 1, cache_rows, di}));
+        EXPECT_EQ(raw.get_shape(), (ov::Shape{1, 1, d.r - 1, di}));
+        EXPECT_EQ(rope.get_shape(), (ov::Shape{1, 2 * d.rotary}));
+        expect_finite_f16(cache, "block_index_keys_cache state");
+        expect_finite_f16(raw, "past_incomplete_raw_k state");
+        expect_finite_f16(rope, "past_incomplete_rope state");
+    };
+
+    set_stateful_indexer_call(req, m, d, 5, 5);  // 5 / 4 == 1 block
+    ASSERT_NO_THROW(req.infer());
+    expect_states(1);
+    set_stateful_indexer_call(req, m, d, 7, 12);  // 12 / 4 == 3 blocks
+    ASSERT_NO_THROW(req.infer());
+    expect_states(3);
 }
 
 }  // namespace

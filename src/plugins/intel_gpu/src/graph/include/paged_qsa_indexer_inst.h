@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "intel_gpu/primitives/paged_qsa_indexer.hpp"
 #include "primitive_inst.h"
@@ -20,6 +21,13 @@ public:
 
     program_node& input(size_t index = 0) const {
         return get_dependency(index);
+    }
+
+    // The output shapes follow the index_query shape only, and the impl reads no input on the host (past_lens,
+    // subsequence_begins and the page table are resolved by the kernels). The default would make every input a shape
+    // infer dependency, so each execution would wait on the host for its producers, a per-layer synchronization.
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
     }
 };
 using paged_qsa_indexer_node = typed_program_node<paged_qsa_indexer>;

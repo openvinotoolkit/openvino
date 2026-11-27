@@ -25,16 +25,17 @@ public:
 
     /// @brief Fixed input order of the QSAIndexer op.
     struct InputIdx {
-        static constexpr size_t INDEX_QUERY = 0;             ///< [B, L, H_iq, D_idx]
-        static constexpr size_t RAW_INDEX_KEYS = 1;          ///< [B, L, H_ik, D_idx]
-        static constexpr size_t ROPE_COS = 2;                ///< [B, L, indexer_rotary_dim]
-        static constexpr size_t ROPE_SIN = 3;                ///< [B, L, indexer_rotary_dim]
-        static constexpr size_t KEY_LENGTH = 4;              ///< [B], valid tokens after the call
-        static constexpr size_t Q_NORM_WEIGHT = 5;           ///< [D_idx]
-        static constexpr size_t K_NORM_WEIGHT = 6;           ///< [D_idx]
-        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 7;  ///< [B, H_ik, floor(S_cap/r), D_idx]
-        static constexpr size_t PAST_INCOMPLETE_RAW_K = 8;   ///< [B, H_ik, r-1, D_idx], slot p % r
-        static constexpr size_t PAST_INCOMPLETE_ROPE = 9;    ///< [B, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved
+        static constexpr size_t INDEX_QUERY = 0;     ///< [B, L, H_iq, D_idx]
+        static constexpr size_t RAW_INDEX_KEYS = 1;  ///< [B, L, H_ik, D_idx]
+        static constexpr size_t ROPE_COS = 2;        ///< [B, L, indexer_rotary_dim]
+        static constexpr size_t ROPE_SIN = 3;        ///< [B, L, indexer_rotary_dim]
+        static constexpr size_t KEY_LENGTH = 4;      ///< [B], valid tokens after the call
+        static constexpr size_t Q_NORM_WEIGHT = 5;   ///< [D_idx]
+        static constexpr size_t K_NORM_WEIGHT = 6;   ///< [D_idx]
+        static constexpr size_t BLOCK_INDEX_KEYS_CACHE =
+            7;  ///< [B, H_ik, Bp, D_idx], Bp must cover the complete past blocks
+        static constexpr size_t PAST_INCOMPLETE_RAW_K = 8;  ///< [B, H_ik, r-1, D_idx], slot p % r
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 9;   ///< [B, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved
 
         static constexpr size_t COUNT = 10;
     };
@@ -43,9 +44,10 @@ public:
     struct OutputIdx {
         static constexpr size_t SELECTED_BLOCK_INDICES = 0;  ///< [B, num_selection_heads, L, block_topk]
         static constexpr size_t SELECTED_BLOCK_COUNT = 1;    ///< [B, num_selection_heads, L]
-        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 2;  ///< same shape as input BLOCK_INDEX_KEYS_CACHE
-        static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;   ///< same shape as input PAST_INCOMPLETE_RAW_K
-        static constexpr size_t PAST_INCOMPLETE_ROPE = 4;    ///< same shape as input PAST_INCOMPLETE_ROPE
+        static constexpr size_t BLOCK_INDEX_KEYS_CACHE =
+            2;  ///< [B, H_ik, max(key_length)/r, D_idx], rows past a row's last block are zero
+        static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;  ///< same shape as input PAST_INCOMPLETE_RAW_K
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 4;   ///< same shape as input PAST_INCOMPLETE_ROPE
 
         static constexpr size_t COUNT = 5;
     };
