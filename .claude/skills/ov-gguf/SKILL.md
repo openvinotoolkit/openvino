@@ -75,6 +75,14 @@ converters; builders and validation differ. Registration or conversion alone nev
   Inspect tensor-type inventory rather than checkpoint names. Identical quantized weights do
   not rule out CPU arithmetic differences; exact expansions isolate them but do not waive the
   original parity gate. Shared exported-model layout does not imply identical media geometry.
+- **Device precision.** CPU F32 parity does not cover GPU F16. Run one GPU case past every window
+  boundary; masks combined with extra biases must stay finite in F16. Omit epsilons that cannot
+  change the result, as they can pin a chain to F32, but keep the reference's numeric floors.
+- **New state.** Reuse KV and recurrent-state paths where possible. A state outside them, such as an
+  integer position cache, can break `SDPAToPagedAttention` or plugin cache fusion; check GenAI
+  adaptation and PA conversion before numerical parity work, not after.
+- **Adapted graph.** Inspect the graph after `AdaptToGenAI`, not only the builder output: generic
+  shape passes can fold a layout a builder relies on.
 - **Shared changes.** Translator, VIEW/`op_case` or shared block changes rerun
   `GGUFArchitectureAccuracy`, `GGUFArchConversion` and the mmproj suites, not just the target model.
 - **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large quantized
