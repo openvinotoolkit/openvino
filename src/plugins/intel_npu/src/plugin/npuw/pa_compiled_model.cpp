@@ -30,13 +30,18 @@
 
 namespace {
 
+// GPU, or one of several GPUs such as GPU.1.
+bool is_gpu(const std::string& device) {
+    return ov::npuw::util::starts_with(device, "GPU");
+}
+
 // The block size the CB pipeline addresses the cache with. A GPU value cache
 // block is [block_size, head_size], 16 or 256 rows with XAttention, and never
 // holds scales, so it is read off the port as the pipeline does. A CPU block
 // may hold by-channel scales (a u8 key cache block has 40 rows), so the CPU's
 // fixed size is used, as the pipeline does too.
 std::size_t pa_block_size(const std::string& device, const ov::SoPtr<ov::ICompiledModel>& compiled) {
-    if (device != "GPU") {
+    if (!is_gpu(device)) {
         return 32u;
     }
     for (const auto& input : compiled->inputs()) {
@@ -172,7 +177,7 @@ ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& prop
     // The tail picks a dynamic number of logits rows, which the NPU compiler
     // cannot take, so it goes to the PA device.
     config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU," + pa_device;
-    if (pa_device == "GPU") {
+    if (is_gpu(pa_device)) {
         // At f16 the GPU drops the convert F16IC puts on an f16 input and adds
         // the residual of the tail's first FC in place into the input buffer,
         // which crashes. With f32 links there is no such input.
@@ -209,8 +214,8 @@ ov::npuw::PACompiledModel::DynamicModel ov::npuw::PACompiledModel::compile_dynam
     // An env var, not an option, so it stays out of user configs.
     const char* device_env = std::getenv("OPENVINO_NPUW_PA_DEVICE");
     const std::string device = (device_env != nullptr && device_env[0] != '\0') ? device_env : "CPU";
-    OPENVINO_ASSERT(device == "CPU" || device == "GPU",
-                    "The PagedAttention device is CPU or GPU, got OPENVINO_NPUW_PA_DEVICE=",
+    OPENVINO_ASSERT(device == "CPU" || is_gpu(device),
+                    "The PagedAttention device is CPU or a GPU, got OPENVINO_NPUW_PA_DEVICE=",
                     device);
 
     bool has_past_lens = false, has_cache = false;
@@ -254,7 +259,7 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     : ov::npuw::ICompiledModel(
           nullptr,
           plugin,
-          dynamic.device == "GPU" ? dynamic.compiled->get_context() : ov::SoPtr<ov::IRemoteContext>{}),
+          is_gpu(dynamic.device) ? dynamic.compiled->get_context() : ov::SoPtr<ov::IRemoteContext>{}),
       m_compiled_model(std::move(dynamic.compiled)),
       m_block_size(pa_block_size(dynamic.device, m_compiled_model)) {
     const auto& device = dynamic.device;
@@ -270,11 +275,11 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
         // without the 4-bit weights the GPU picks a u4 cache for. Both read the
         // same cache pools, so the variants take the dynamic model's effective
         // settings.
-        const auto cache_keys = device == "GPU" ? std::vector<std::string>{ov::hint::kv_cache_precision.name()}
-                                                : std::vector<std::string>{ov::key_cache_precision.name(),
-                                                                           ov::value_cache_precision.name(),
-                                                                           ov::key_cache_group_size.name(),
-                                                                           ov::value_cache_group_size.name()};
+        const auto cache_keys = is_gpu(device) ? std::vector<std::string>{ov::hint::kv_cache_precision.name()}
+                                               : std::vector<std::string>{ov::key_cache_precision.name(),
+                                                                          ov::value_cache_precision.name(),
+                                                                          ov::key_cache_group_size.name(),
+                                                                          ov::value_cache_group_size.name()};
         for (const auto& key : cache_keys) {
             variant_config[key] = m_compiled_model->get_property(key);
         }

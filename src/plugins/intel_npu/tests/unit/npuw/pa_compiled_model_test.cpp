@@ -66,6 +66,14 @@ TEST(PAVariantConfig, SendsThePAOpsAndTheTailToTheGPUWithF32Links) {
     EXPECT_EQ(str(config, "NPUW_F16IC"), "NO");
 }
 
+TEST(PAVariantConfig, TreatsAnIndexedGPUAsAGPU) {
+    const auto config = PACompiledModel::make_variant_config({}, "GPU.1", "bank0", std::nullopt);
+
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,GPU.1");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:GPU.1");
+    EXPECT_EQ(str(config, "NPUW_F16IC"), "NO");
+}
+
 TEST(PAVariantConfig, StartsFromTheLLMPathNPUDefaults) {
     for (const auto& npudesc : {std::optional<ov::npuw::util::NPUDesc>{}, std::make_optional(npu_with_compiler_dq())}) {
         const auto defaults = ov::npuw::util::get_default_common_config(npudesc);
