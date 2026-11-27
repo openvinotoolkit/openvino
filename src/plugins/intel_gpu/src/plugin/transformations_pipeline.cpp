@@ -1202,6 +1202,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         // Last-axis GPU RMS kernels use the same gamma for every normalization row.
         manager.register_pass<ov::pass::RMSFusion>(false, true, true, /*restrict_last_axis_gamma=*/true);
+        // Before ConvertPrecision, so the fused RMS and its neighbors can run in f16. The pass marks the RMS of a
+        // residual-fed norm to stay in FP32, so ConvertPrecision keeps the residual stream in FP32.
+        manager.register_pass<ov::intel_gpu::L2NormToRMS>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         const bool fp16_activation_scaling_enabled =
@@ -1892,7 +1895,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.set_per_pass_validation(false);
 
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
-        manager.register_pass<ov::intel_gpu::L2NormToRMS>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
