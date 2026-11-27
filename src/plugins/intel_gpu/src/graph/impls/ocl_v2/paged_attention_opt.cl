@@ -342,7 +342,7 @@ KERNEL(pa_sdpa_opt)(
             const uint key_block_offset = block_offset;
             const uint hidden_stride = SUBGROUP_SIZE;
             const uint key_comp_offset = key_block_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+            INPUT0_TYPE* key_comp_ptr = (INPUT0_TYPE*)(key_cache + key_comp_offset);
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = key_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
     #endif
@@ -774,7 +774,7 @@ KERNEL(pa_sdpa_opt)(
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #else
             const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            INPUT0_TYPE* value_comp_ptr = (INPUT0_TYPE*)(value_cache + value_comp_offset);
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 #endif
@@ -786,6 +786,7 @@ KERNEL(pa_sdpa_opt)(
             #define VALUE_BLOCK MAKE_VECTOR_TYPE(INPUT2_TYPE, VALUE_VEC_SIZE)
             #define VALUE_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, VALUE_VEC_SIZE)
             #define TO_VALUE_UNCOMPRESSED_TYPE(val) CAT(convert_, VALUE_UNCOMPRESSED)(val)
+            #define TO_VALUE_BLOCK_UNCOMPRESSED_TYPE(v) CAT(convert_, VALUE_BLOCK_UNCOMPRESSED)(v)
 
 
 #ifdef USE_DUAL_NIBBLE_V_OPT
@@ -849,7 +850,7 @@ KERNEL(pa_sdpa_opt)(
                 value_vals[i] = (TO_VALUE_UNCOMPRESSED_TYPE(v_vals_packed[i]) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
             }
 #else
-            VALUE_BLOCK value_vals = v_vals_packed;
+            VALUE_BLOCK_UNCOMPRESSED value_vals = TO_VALUE_BLOCK_UNCOMPRESSED_TYPE(v_vals_packed);
 #endif
 
             unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
@@ -909,7 +910,7 @@ KERNEL(pa_sdpa_opt)(
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #elif IS_KV_COMPRESSED && !IS_INT4_COMPRESSED
             const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            INPUT0_TYPE* value_comp_ptr = (INPUT0_TYPE*)(value_cache + value_comp_offset);
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 #endif

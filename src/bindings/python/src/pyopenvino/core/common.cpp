@@ -319,20 +319,28 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
         return string_helpers::bytes_array_from_tensor(std::move(t));
     }
     // Get actual dtype from OpenVINO type:
-    auto ov_type = t.get_element_type();
-    auto dtype = Common::type_helpers::get_dtype(ov_type);
-    // Return the array as a view:
-    if (is_shared) {
-        if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-            return py::array(dtype, t.get_byte_size(), t.data(), py::cast(t));
+    const auto ov_type = t.get_element_type();
+    const auto dtype = Common::type_helpers::get_dtype(ov_type);
+    const auto is_sub_byte = ov_type.bitwidth() < Common::values::min_bitwidth;
+
+    ov::Shape shape;
+    ov::Strides strides;
+    if (is_sub_byte && t.is_continuous()) {
+        shape = {t.get_byte_size()};
+        strides = {1};
+    } else {
+        // get_strides() throws unless has_byte_strides is true - safe here: either not
+        // sub-byte, or sub-byte with a representable (non-continuous) layout
+        shape = t.get_shape();
+        strides = t.get_strides();
+        if (is_sub_byte) {
+            // numpy has no sub-byte itemsize - last dim becomes its packed byte count
+            shape.back() = shape.back() * ov_type.bitwidth() / Common::values::min_bitwidth;
         }
-        return py::array(dtype, t.get_shape(), t.get_strides(), t.data(), py::cast(t));
     }
-    // Return the array as a copy:
-    if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-        return py::array(dtype, t.get_byte_size(), t.data());
-    }
-    return py::array(dtype, t.get_shape(), t.get_strides(), t.data());
+
+    return is_shared ? py::array(dtype, shape, strides, t.data(), py::cast(t))
+                     : py::array(dtype, shape, strides, t.data());
 }
 
 py::array array_from_constant_copy(ov::op::v0::Constant&& c) {

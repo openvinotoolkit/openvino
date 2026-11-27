@@ -37,7 +37,7 @@ function(ov_generate_frontends_hpp)
     # add frontends to libraries including ov_frontends.hpp
     ov_target_link_frontends(openvino)
 
-    set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
+    set(ov_frontends_hpp "${OpenVINO_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
     set(frontends_hpp_in "${OpenVINODeveloperScripts_DIR}/frontends/ov_frontends.hpp.in")
 
     add_custom_command(OUTPUT "${ov_frontends_hpp}"

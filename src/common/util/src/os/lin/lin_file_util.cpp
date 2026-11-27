@@ -40,4 +40,17 @@ void close_file(FileHandle handle) {
     }
 }
 
+std::optional<uint64_t> get_file_position(FileHandle handle) {
+    if (handle == invalid_handle) {
+        return std::nullopt;
+    }
+    // SEEK_CUR with a zero delta is the standard "tell": it reports the offset without moving it.
+    // Fails with ESPIPE on pipes/sockets/FIFOs, which have no position at all.
+    const auto pos = ::lseek(handle, 0, SEEK_CUR);
+    if (pos < 0) {
+        return std::nullopt;
+    }
+    return static_cast<uint64_t>(pos);
+}
+
 }  // namespace ov::util

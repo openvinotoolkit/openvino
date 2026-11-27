@@ -32,8 +32,7 @@ public:
     static layout calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_elements_node const& node);
 
-public:
-    typed_primitive_inst(network& network, gather_elements_node const& desc);
+    typed_primitive_inst(network& network, const gather_elements_node& node);
 };
 
 using gather_elements_inst = typed_primitive_inst<gather_elements>;

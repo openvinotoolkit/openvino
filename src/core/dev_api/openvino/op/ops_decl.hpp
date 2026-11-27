@@ -294,6 +294,7 @@ class SparseFillEmptyRows;
 namespace ov::op::v17 {
 class ErfInv;
 class GroupedMatMul;
+class Histc;
 class QSAPrepare;
 class SparseAttention;
 class SparseAttentionIndexer;

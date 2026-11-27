@@ -14,8 +14,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
-/* c++11 requires to have a definition in cpp file */
-constexpr padding::DynamicDimsMask padding::EMPTY_MASK;
 
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
@@ -29,7 +27,7 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
         }
 
         auto in_idx = in_order.find(channel);
-        if (in_idx != in_order.npos) {
+        if (in_idx != std::string::npos) {
             if (in_idx < sizes.size()) {
                 new_sizes[out_idx] = sizes[in_idx];
             }

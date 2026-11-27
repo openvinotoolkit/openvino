@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ bool FullyConnectedKernelMMAD::Validate(const Params& params) const {
     return true;
 }
 
-FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::GetTuningParams(const fully_connected_params& params) const {
+FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::GetTuningParams(const fully_connected_params& params) {
     FullyConnectedTuningData tuning_data;
 
     const auto& input = params.inputs[0];
@@ -95,11 +95,13 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 
-    tuning_data.feature_blocks_count = input.GetLayout() == DataLayout::bfyx && input_feature % sub_group_pack_size != 0 ?
-                                       input_feature / sub_group_pack_size :
-                                       input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 ?
-                                       CeilDiv(input_feature, 32) % 2 == 0 ? CeilDiv(input_feature, 64) : CeilDiv(input_feature, 64) - 1 :
-                                       CeilDiv(input_feature, sub_group_pack_size);
+    if (input.GetLayout() == DataLayout::bfyx && input_feature % sub_group_pack_size != 0) {
+        tuning_data.feature_blocks_count = input_feature / sub_group_pack_size;
+    } else if (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16) {
+        tuning_data.feature_blocks_count = CeilDiv(input_feature, 32) % 2 == 0 ? CeilDiv(input_feature, 64) : CeilDiv(input_feature, 64) - 1;
+    } else {
+        tuning_data.feature_blocks_count = CeilDiv(input_feature, sub_group_pack_size);
+    }
 
     bool slm_div_factor_exception = input_batch == 300 && input_feature == 2048 &&
                                     output_batch == 300 && (output_feature == 324 || output_feature == 81);
@@ -142,7 +144,8 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 }
 
 FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params,
-                                                                            int, int /*kernel_number*/) const {
+                                                                            int /*autoTuneIndex*/,
+                                                                            int /*kernel_number*/) const {
     FullyConnectedTuningData tuning_data = GetTuningParams(params);
     auto dispatchData = Parent::SetDefault(params);
     const auto& output = params.outputs[0];
@@ -211,11 +214,11 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", input.Feature().pitch * sub_group_pack_size));
     }
 
-    bool has_feature_leftovers = (input.GetLayout() == DataLayout::bfyx && ((input.Feature().v % sub_group_pack_size) != 0u)) ||
-                                 (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 && ((CeilDiv(input.Feature().v, 32) % 2) != 0u));
+    bool has_feature_leftovers = (input.GetLayout() == DataLayout::bfyx && ((input.Feature().v % sub_group_pack_size) != 0U)) ||
+                                 (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 && ((CeilDiv(input.Feature().v, 32) % 2) != 0U));
 
     if (output.GetLayout() == DataLayout::bfyx) {
-        has_feature_leftovers = ((input.Y().v % sub_group_pack_size) != 0u);
+        has_feature_leftovers = ((input.Y().v % sub_group_pack_size) != 0U);
     }
 
     jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", has_feature_leftovers));
@@ -279,9 +282,12 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params) const
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
 
-    auto w_layout = GetTuningParams(fc_params).sub_group_size == 16 ?
-                    input.GetDims().size() == 4 ? WeightsLayout::os_is_yx_isa8_osv16_isv4 : WeightsLayout::os_is_zyx_isa8_osv16_isv4 :
-                    input.GetDims().size() == 4 ? WeightsLayout::os_is_yx_isa8_osv8_isv4 : WeightsLayout::os_is_zyx_isa8_osv8_isv4;
+    WeightsLayout w_layout;
+    if (GetTuningParams(fc_params).sub_group_size == 16) {
+        w_layout = input.GetDims().size() == 4 ? WeightsLayout::os_is_yx_isa8_osv16_isv4 : WeightsLayout::os_is_zyx_isa8_osv16_isv4;
+    } else {
+        w_layout = input.GetDims().size() == 4 ? WeightsLayout::os_is_yx_isa8_osv8_isv4 : WeightsLayout::os_is_zyx_isa8_osv8_isv4;
+    }
 
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {

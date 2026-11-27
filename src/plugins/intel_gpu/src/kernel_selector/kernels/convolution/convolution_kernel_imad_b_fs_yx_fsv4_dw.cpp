@@ -111,7 +111,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::Validate(const Params& params) cons
     return true;
 }
 
-bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
+bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) {
     // Checks that tune_params can be used for specified convolution_params
     const auto& weights = params.weights;
 

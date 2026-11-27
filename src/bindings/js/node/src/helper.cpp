@@ -5,6 +5,7 @@
 #include "node/include/helper.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <sstream>
 
 #include "node/include/compiled_model.hpp"
@@ -173,6 +174,22 @@ std::filesystem::path js_to_cpp<std::filesystem::path>(const Napi::CallbackInfo&
     const auto& path = info[idx];
     OPENVINO_ASSERT(path.IsString(), "Passed argument must be of type String.");
     return std::filesystem::path(path.ToString().Utf8Value());
+}
+
+template <>
+size_t js_to_cpp<size_t>(const Napi::Env& env, const Napi::Value& value) {
+    OPENVINO_ASSERT(value.IsNumber() || value.IsBigInt(), "Passed argument must be of type Number or BigInt.");
+    if (value.IsNumber()) {
+        OPENVINO_ASSERT(is_napi_value_int(env, value), "Passed argument must be an integer.");
+        const auto int_value = value.As<Napi::Number>().Int64Value();
+        OPENVINO_ASSERT(int_value >= 0, "Passed argument must be non-negative for size_t.");
+        OPENVINO_ASSERT(static_cast<uint64_t>(int_value) <= SIZE_MAX, "Number value is too large for size_t.");
+        return static_cast<size_t>(int_value);
+    }
+    bool lossless = false;
+    const uint64_t uint_value = value.As<Napi::BigInt>().Uint64Value(&lossless);
+    OPENVINO_ASSERT(lossless && uint_value <= SIZE_MAX, "BigInt value is too large for size_t.");
+    return static_cast<size_t>(uint_value);
 }
 
 template <>

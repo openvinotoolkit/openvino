@@ -91,7 +91,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
                     next_axis = static_cast<int>(axis);
 
                     int ones_count = std::max(next_axis - prev_axis - 1, 0);
-                    tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
+                    tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1UL);
                     tmp_shape.push_back(input_pshape[axe_idx].get_length()); // Consider the Broadcast kernel 'broadcast' input to output shape
 
                     currentRank += ones_count + 1;

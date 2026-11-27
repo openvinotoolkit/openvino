@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::os_iyx_osv32;
     }
 
@@ -37,7 +37,7 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p) const override;
     bool NeedPaddedInput() const override { return true; }
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const convolution_params& cp, int autoTuneIndex = -1) const override;
 
 private:
     struct AutoTuneOption {
@@ -46,7 +46,7 @@ private:
         std::string exeMode;
     };
 
-    AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
+    AutoTuneOption GetAutoTuneOptions(const Params& p, int autoTuneIndex) const;
 
     std::vector<AutoTuneOption> autoTuneOptions;
 };

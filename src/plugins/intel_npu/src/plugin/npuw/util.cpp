@@ -62,7 +62,7 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     }
 
     std::vector<std::size_t> sub_inds{};
-    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
+    sub_inds = ::intel_npu::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
     }
@@ -911,10 +911,36 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::u2 ||
+                    t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
+        case ov::element::u2: {
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            if (shape[2] % 4 == 0) {
+                ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                    std::copy_n(&src[(p * shape[1] + r) * shape[2] / 4],
+                                shape[2] / 4,
+                                &dst[(r * shape[0] + p) * shape[2] / 4]);
+                });
+            } else {
+                // Rows are not byte-aligned, so move the elements one by one (LSB-first packing)
+                std::fill_n(dst, tnew.get_byte_size(), uint8_t{0});
+                for (size_t p = 0; p < shape[0]; ++p) {
+                    for (size_t r = 0; r < shape[1]; ++r) {
+                        for (size_t k = 0; k < shape[2]; ++k) {
+                            const size_t src_idx = (p * shape[1] + r) * shape[2] + k;
+                            const size_t dst_idx = (r * shape[0] + p) * shape[2] + k;
+                            const uint8_t value = (src[src_idx / 4] >> (2 * (src_idx % 4))) & 0x3;
+                            dst[dst_idx / 4] |= static_cast<uint8_t>(value << (2 * (dst_idx % 4)));
+                        }
+                    }
+                }
+            }
+            break;
+        }
         case ov::element::i4: {
             NPUW_ASSERT(shape[2] % 2 == 0);
             const uint8_t* src = static_cast<const uint8_t*>(t.data());
@@ -1161,17 +1187,56 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 }
 
 bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
+    // conv/ssm: the linear-attention states of hybrid models
     static const std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
     static const std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
     const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
     return std::regex_match(input, regex_pattern);
 }
 
+const std::vector<std::string>& ov::npuw::util::get_qsa_state_kinds() {
+    static const std::vector<std::string> kinds = {"block_index_key", "incomplete_index_key", "incomplete_index_rope"};
+    return kinds;
+}
+
+const std::string& ov::npuw::util::qsa_state_kinds_alternation() {
+    static const std::string alternation = [] {
+        std::string result;
+        for (const auto& kind : get_qsa_state_kinds()) {
+            result += (result.empty() ? "" : "|") + kind;
+        }
+        return result;
+    }();
+    return alternation;
+}
+
+bool ov::npuw::util::matchQSAStateString(const std::string& input, const std::string& past_or_present) {
+    // the QSA states renamed by ConvertSparseAttentionToDense (see get_qsa_state_kinds)
+    static const std::regex past_regex_pattern("^cache_params\\.past\\.(" + qsa_state_kinds_alternation() +
+                                               ")\\.(\\d+)$");
+    static const std::regex present_regex_pattern("^cache_params\\.present\\.(" + qsa_state_kinds_alternation() +
+                                                  ")\\.(\\d+)$");
+    const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
+    return std::regex_match(input, regex_pattern);
+}
+
 bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
-    static constexpr const char* past_lin_conv_cache = "cache_params.past.conv";
-    static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
-    return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
-           ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
+    static constexpr const char* past_lin_caches[] = {"cache_params.past.conv", "cache_params.past.ssm"};
+    for (const auto* prefix : past_lin_caches) {
+        if (ov::npuw::util::starts_with(input_name, prefix)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ov::npuw::util::starts_with_past_qsa_state(const std::string& input_name) {
+    for (const auto& kind : get_qsa_state_kinds()) {
+        if (ov::npuw::util::starts_with(input_name, "cache_params.past." + kind)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ov::npuw::util::is_swa_kv_cache_name(const std::string& input_name) {

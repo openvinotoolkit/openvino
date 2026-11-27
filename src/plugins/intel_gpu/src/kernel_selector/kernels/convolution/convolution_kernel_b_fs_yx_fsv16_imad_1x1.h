@@ -28,7 +28,7 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*params*/) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
@@ -47,7 +47,7 @@ protected:
     bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const;
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
 
-    float EstimateOccupancy(const convolution_params& params, const AutoTuneParams& tune) const;
-    float EstimateSLMUsage(const convolution_params& params, const AutoTuneParams& tune) const;
+    static float EstimateOccupancy(const convolution_params& params, const AutoTuneParams& tparams);
+    static float EstimateSLMUsage(const convolution_params& params, const AutoTuneParams& tparams);
 };
 }  // namespace kernel_selector

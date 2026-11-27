@@ -207,11 +207,13 @@ const std::map<std::string, Fingerprint>& fingerprints() {
         {"qwen2-dense.gguf.hdr", {373, 10}},
         {"qwen3-dense.gguf.hdr", {421, 10}},
         {"qwen3moe-moe.gguf.hdr", {572, 10}},
-        {"qwen35-dense.gguf.hdr", {399, 10}},
-        {"qwen35moe-moe.gguf.hdr", {571, 10}},
+        {"qwen35-dense.gguf.hdr", {392, 10}},
+        {"qwen35moe-moe.gguf.hdr", {564, 10}},
         {"smollm3-dense.gguf.hdr", {389, 10}},
         {"jais2-dense.gguf.hdr", {334, 10}},
         {"lfm3.gguf.hdr", {702, 12}},
+        {"qwen3vl-dense.gguf.hdr", {469, 10}},
+        {"qwen3vlmoe-moe.gguf.hdr", {620, 10}},
     };
     return fp;
 }

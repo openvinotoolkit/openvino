@@ -42,6 +42,8 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
+ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
+
 # Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
 # opt-in only; the default is never flipped.
 set(OV_GPU_DEFAULT_RT "OCL")
@@ -55,9 +57,22 @@ if (ENABLE_INTEL_GPU)
         message(FATAL_ERROR "GPU_RT_TYPE=COMBINED requires BUILD_SHARED_LIBS=ON. "
                             "Static/monolithic builds support a single GPU runtime only.")
     endif()
+    ov_option_enum (GPU_VENDOR "Target GPU vendor. Supported values: INTEL (default) and NVIDIA (SYCL runtime only)" INTEL
+                    ALLOWED_VALUES INTEL NVIDIA)
+    # NVIDIA builds rely on the SYCL runtime and oneDNN, and do not support static builds yet.
+    if(GPU_VENDOR STREQUAL "NVIDIA")
+        if(NOT GPU_RT_TYPE STREQUAL "SYCL")
+            message(FATAL_ERROR "GPU_VENDOR=NVIDIA requires GPU_RT_TYPE=SYCL")
+        endif()
+        if(NOT ENABLE_ONEDNN_FOR_GPU)
+            message(FATAL_ERROR "GPU_VENDOR=NVIDIA requires ENABLE_ONEDNN_FOR_GPU=ON")
+        endif()
+        if(NOT BUILD_SHARED_LIBS)
+            message(FATAL_ERROR "GPU_VENDOR=NVIDIA does not support static builds (BUILD_SHARED_LIBS=OFF) yet")
+        endif()
+    endif()
 endif()
 
-ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 if(APPLE)
     set(ENABLE_CM_FOR_GPU_DEFAULT OFF)
 else()
@@ -72,7 +87,7 @@ ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components f
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
 ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_GPU" OFF)
-ov_dependent_option (ENABLE_MLIR_FOR_GPU "Enable MLIR / Graph Compiler based execution in GPU plugin [EXPERIMENTAL, NOT PRODUCTION-READY]" OFF "ENABLE_INTEL_GPU;ENABLE_GPU_DEBUG_CAPS;NOT GPU_RT_TYPE STREQUAL SYCL" OFF)
+ov_dependent_option (ENABLE_MLIR_FOR_GPU "Enable MLIR / Graph Compiler based execution in GPU plugin [EXPERIMENTAL, NOT PRODUCTION-READY]" OFF "ENABLE_INTEL_GPU;NOT GPU_RT_TYPE STREQUAL SYCL" OFF)
 ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
@@ -230,9 +245,6 @@ ov_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 # the option is turned off by default, because we don't want to have a dependency on libsnappy.so
 ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
-# the option is turned off by default, because we are not sure that system version of ZE loader is fresh enough
-ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of Level Zero" OFF
-    "ENABLE_INTEL_NPU OR ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
@@ -254,6 +266,8 @@ if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_R
 else()
     set(ENABLE_OV_ZERO_LOADER OFF)
 endif()
+
+set(OV_ZE_INCLUDE_DIR "" CACHE PATH "Include directory with custom Level Zero headers. If not provided then defaults to submodule in thirdparty/level_zero")
 
 #
 # Process featues

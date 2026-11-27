@@ -32,6 +32,11 @@ on:
         description: 'Whether the runner can reach the internal pip caching proxy (true for cloud AKS runners, false for iGPU/dGPU self-hosted runners)'
         type: boolean
         required: true
+      use-hf-proxy:
+        description: 'Whether to download Hugging Face models through the internal caching proxy'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -73,14 +78,13 @@ jobs:
           sparse-checkout: |
             .github/actions
             tests/llm
-            tests/constraints.txt
           sparse-checkout-cone-mode: false
           submodules: 'false'
 
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
-          pattern: 'openvino_{wheels,tokenizers_wheel}'
+          pattern: 'openvino_{wheels,tokenizers_wheel,genai_wheel,whowhatbench_wheel}'
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
@@ -93,14 +97,16 @@ jobs:
           self-hosted-runner: true
           use-pip-proxy: ${{ inputs.use-pip-proxy }}
 
-      - name: Install OpenVINO Python wheels
-        uses: ./.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers'
+      - name: Setup Hugging Face proxy
+        if: ${{ inputs.use-hf-proxy }}
+        uses: ./.github/actions/setup_hf_proxy
 
-      - name: Install LLM accuracy test requirements
-        run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
+      - name: Install OpenVINO wheels and LLM accuracy test requirements
+        uses: ./.github/actions/install_wheel
+        with:
+          local_wheel_dir: ${{ env.INSTALL_DIR }}
+          packages: 'openvino;openvino_tokenizers;openvino_genai;whowhatbench[llm-test-openvino]'
+          requirements_files: ${{ env.LLM_TEST_DIR }}/requirements.txt
 
       - name: LLM accuracy ${{ inputs.device }} tests
         env:

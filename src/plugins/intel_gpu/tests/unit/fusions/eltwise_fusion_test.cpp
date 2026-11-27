@@ -678,40 +678,18 @@ public:
     layout get_input_layout3(eltwise_test_params& p) {
         return layout{ {1, 1, 1, p.input_size[3]}, p.input_type, p.input_format };
     }
-
-    // Generate integer-valued f16 memory so the f16→i32→f16 ref-path reorders
-    // are lossless (i32 truncation of an integer is a no-op).
-    cldnn::memory::ptr get_int_f16_mem(cldnn::layout l) {
-        auto prim = engine.allocate_memory(l);
-        auto rnd_vec = rg.generate_random_1d<ov::float16>(l.get_tensor().count(), -4, 4, 1);
-        set_values(prim, rnd_vec);
-        return prim;
-    }
-
-    void execute(eltwise_test_params& p, bool count_reorder = false) {
-        auto input_prim = get_int_f16_mem(get_input_layout(p));
-
-        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-        network network_fused(this->engine, this->topology_fused, cfg_fused);
-
-        auto inputs = network_fused.get_input_ids();
-        if (std::find(inputs.begin(), inputs.end(), "input") != inputs.end()) {
-            network_fused.set_input_data("input", input_prim);
-            network_not_fused.set_input_data("input", input_prim);
-        }
-
-        compare(network_not_fused, network_fused, p, count_reorder);
-    }
 };
 TEST_P(eltwise_fusing_reorders, reorders_for_data_type) {
     auto p = GetParam();
+    // A Convert from floating point to an integral type truncates toward zero, so neither reorder may be fused into the
+    // eltwise: fusing both of them made the eltwise store its floating-point result directly, dropping the truncation.
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("data", get_int_f16_mem(get_input_layout3(p))),
+        data("data", get_mem(get_input_layout3(p))),
         eltwise("eltwise", { input_info("input"), input_info("data") }, p.mode, p.default_type),
         reorder("reorder1", input_info("eltwise"), format::bfyx, data_types::i32, {}, reorder_mean_mode::subtract, padding(), true),
         reorder("reorder2", input_info("reorder1"), format::bfyx, data_types::f16, {}, reorder_mean_mode::subtract, padding(), true),
-        data("data2", get_int_f16_mem(get_input_layout3(p))),
+        data("data2", get_mem(get_input_layout3(p))),
         eltwise("eltwise_min", { input_info("reorder2"), input_info("data2") }, eltwise_mode::min, p.default_type),
         reorder("out", input_info("eltwise_min"), p.default_format, data_types::f32)
     );
@@ -721,7 +699,7 @@ TEST_P(eltwise_fusing_reorders, reorders_for_data_type) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fusing_reorders, ::testing::ValuesIn(std::vector<eltwise_test_params>{
-    eltwise_test_params{ { 1, 16, 16, 2 }, data_types::f16, data_types::f16, format::bfyx,  data_types::f16,  format::bfyx, eltwise_mode::max, 4, 6 },
+    eltwise_test_params{ { 1, 16, 16, 2 }, data_types::f16, data_types::f16, format::bfyx,  data_types::f16,  format::bfyx, eltwise_mode::max, 6, 6 },
 }));
 
 class eltwise_bf16_fusing_reorders : public EltwiseFusingTest {
@@ -729,40 +707,18 @@ public:
     layout get_input_layout3(eltwise_test_params& p) {
         return layout{ {1, 1, 1, p.input_size[3]}, p.input_type, p.input_format };
     }
-
-    // Generate integer-valued bf16 memory so the bf16→i32→bf16 ref-path reorders
-    // are lossless (i32 truncation of an integer is a no-op).
-    cldnn::memory::ptr get_int_bf16_mem(cldnn::layout l) {
-        auto prim = engine.allocate_memory(l);
-        auto rnd_vec = rg.generate_random_1d<ov::bfloat16>(l.get_tensor().count(), -4, 4, 1);
-        set_values(prim, rnd_vec);
-        return prim;
-    }
-
-    void execute(eltwise_test_params& p, bool count_reorder = false) {
-        auto input_prim = get_int_bf16_mem(get_input_layout(p));
-
-        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-        network network_fused(this->engine, this->topology_fused, cfg_fused);
-
-        auto inputs = network_fused.get_input_ids();
-        if (std::find(inputs.begin(), inputs.end(), "input") != inputs.end()) {
-            network_fused.set_input_data("input", input_prim);
-            network_not_fused.set_input_data("input", input_prim);
-        }
-
-        compare(network_not_fused, network_fused, p, count_reorder);
-    }
 };
 TEST_P(eltwise_bf16_fusing_reorders, reorders_for_data_type) {
     auto p = GetParam();
+    // A Convert from floating point to an integral type truncates toward zero, so neither reorder may be fused into the
+    // eltwise: fusing both of them made the eltwise store its floating-point result directly, dropping the truncation.
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("data", get_int_bf16_mem(get_input_layout3(p))),
+        data("data", get_mem(get_input_layout3(p))),
         eltwise("eltwise", { input_info("input"), input_info("data") }, p.mode, p.default_type),
         reorder("reorder1", input_info("eltwise"), format::bfyx, data_types::i32, {}, reorder_mean_mode::subtract, padding(), true),
         reorder("reorder2", input_info("reorder1"), format::bfyx, data_types::bf16, {}, reorder_mean_mode::subtract, padding(), true),
-        data("data2", get_int_bf16_mem(get_input_layout3(p))),
+        data("data2", get_mem(get_input_layout3(p))),
         eltwise("eltwise_min", { input_info("reorder2"), input_info("data2") }, eltwise_mode::min, p.default_type),
         reorder("out", input_info("eltwise_min"), p.default_format, data_types::f32)
     );
@@ -772,7 +728,7 @@ TEST_P(eltwise_bf16_fusing_reorders, reorders_for_data_type) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_bf16_fusing_reorders, ::testing::ValuesIn(std::vector<eltwise_test_params>{
-    eltwise_test_params{ { 1, 16, 16, 2 }, data_types::bf16, data_types::bf16, format::bfyx,  data_types::bf16,  format::bfyx, eltwise_mode::max, 4, 6 },
+    eltwise_test_params{ { 1, 16, 16, 2 }, data_types::bf16, data_types::bf16, format::bfyx,  data_types::bf16,  format::bfyx, eltwise_mode::max, 6, 6 },
 }));
 
 class eltwise_with_constant_input : public EltwiseFusingTest {};

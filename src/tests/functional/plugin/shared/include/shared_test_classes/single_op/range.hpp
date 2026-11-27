@@ -28,6 +28,7 @@ public:
 
 protected:
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 }  // namespace test
 }  // namespace ov

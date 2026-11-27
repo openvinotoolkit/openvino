@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <list>
 #include <utility>
 #include <vector>
 
 #include "broadcast_inst.h"
 #include "concatenation_inst.h"
+#include "condition_inst.h"
 #include "convert_color_inst.h"
 #include "depth_to_space_inst.h"
 #include "eltwise_inst.h"
@@ -34,13 +36,16 @@ using namespace cldnn;
 namespace {
 
 bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
-    for (const auto& user : node.get_users()) {
-        if (user->get_preferred_impl_type() == impl) {
-            return true;
-        }
-    }
+    const auto& users = node.get_users();
+    return std::any_of(users.begin(), users.end(), [impl](const auto& user) {
+        return user->get_preferred_impl_type() == impl;
+    });
+}
 
-    return false;
+// Weights reorder for a convolution that replaces a stride-1 deconvolution, which rotates the weights by 180 degrees
+bool rotates_weights(const program_node& reorder_node) {
+    const auto& weights_params = reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    return weights_params != nullptr && weights_params->should_be_transposed();
 }
 
 }  // namespace
@@ -150,6 +155,21 @@ void remove_redundant_reorders::run(program& p) {
 
             node.can_be_optimized(true);
             LOG_NODE_REMOVAL(node.id());
+
+            // A reorder user with format::any follows its input format, so pin the output format this
+            // reorder produced before removal. Skip users connected through other inputs.
+            if (input.get_output_layout().format != output_layout.format) {
+                for (auto* usr : node.get_users()) {
+                    if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node) {
+                        continue;
+                    }
+                    auto usr_prim = std::const_pointer_cast<reorder>(usr->as<reorder>().get_primitive());
+                    if (usr_prim->output_format == format::any) {
+                        usr_prim->output_format = output_layout.format;
+                    }
+                }
+            }
+
             p.extract_and_remove(node);
 
             for (auto* rl : recalc_list) {
@@ -330,10 +350,11 @@ void remove_redundant_reorders::run(program& p) {
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
+        // condition is excluded because it passes the buffer to a branch parameter, which does not accept padding.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() && i_layout.spatial(0) == 1 &&
             i_layout.spatial(1) == 1 && i_layout.data_padding._upper_size[2] == 0 && i_layout.data_padding._lower_size[2] == 0 &&
             i_layout.data_padding._upper_size[3] == 0 && i_layout.data_padding._lower_size[3] == 0 && !o_layout.data_padding &&
-            i_layout.data_type == o_layout.data_type && !does_any_user_have_impl_type(r_node, impl_types::onednn)) {
+            i_layout.data_type == o_layout.data_type && !does_any_user_have_impl_type(r_node, impl_types::onednn) && !r_node.have_user_with_type<condition>()) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 && !i_layout.data_padding && !o_layout.data_padding) || i_layout.batch() == 1) {
@@ -413,7 +434,8 @@ void remove_redundant_reorders::run(program& p) {
                 auto l1_port_idx = node->get_dependency_with_port(0).second;
                 auto l2_port_idx = user->get_dependency_with_port(0).second;
 
-                if (l1.identical(l2) && (l1_port_idx == l2_port_idx)) {
+                // A reorder that rotates the weights gives other data than one that doesn't, even with the same output layout
+                if (l1.identical(l2) && (l1_port_idx == l2_port_idx) && rotates_weights(*node) == rotates_weights(*user)) {
                     r_nodes_to_remove.push_back(user);
                 }
             }
@@ -437,9 +459,9 @@ void remove_redundant_reorders::run(program& p) {
             }
 
             LOG_NODE_REMOVAL(remove_reorder_node->id());
-            p.replace_all_usages(*remove_reorder_node, *node);
+            program::replace_all_usages(*remove_reorder_node, *node);
             p.add_optimized_primitive_info(remove_reorder_node->id());
-            p.remove_all_connections(*remove_reorder_node);
+            program::remove_all_connections(*remove_reorder_node);
             p.remove_if_dangling(*remove_reorder_node);
         }
     }
@@ -548,9 +570,9 @@ void remove_redundant_reorders::run(program& p) {
         dep.merge_output_padding(node.get_output_layout().data_padding);
 
         LOG_NODE_REMOVAL(node.id());
-        p.replace_all_usages(node, dep);
+        program::replace_all_usages(node, dep);
         p.add_optimized_primitive_info(node.id());
-        p.remove_all_connections(node);
+        program::remove_all_connections(node);
         p.remove_if_dangling(node);
     }
 
@@ -608,10 +630,10 @@ void remove_redundant_reorders::run(program& p) {
 
         dep.merge_output_padding(node->get_output_layout().data_padding);
         LOG_NODE_REMOVAL(node->id());
-        p.replace_all_usages(*node, dep);
+        program::replace_all_usages(*node, dep);
         p.get_processing_order().erase(node);
         p.add_optimized_primitive_info(node->id());
-        p.remove_all_connections(*node);
+        program::remove_all_connections(*node);
         p.remove_if_dangling(*node);
         return true;
     };
@@ -777,9 +799,9 @@ void remove_redundant_reorders::run(program& p) {
         auto& dep = node->get_dependency(0);
 
         LOG_NODE_REMOVAL(node->id());
-        p.replace_all_usages(*node, dep);
+        program::replace_all_usages(*node, dep);
         p.add_optimized_primitive_info(node->id());
-        p.remove_all_connections(*node);
+        program::remove_all_connections(*node);
         p.remove_if_dangling(*node);
     }
 

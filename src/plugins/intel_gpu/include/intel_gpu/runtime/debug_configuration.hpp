@@ -111,3 +111,8 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_LOG               GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::LOG)
 #define GPU_DEBUG_TRACE             GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::TRACE)
 #define GPU_DEBUG_TRACE_DETAIL      GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::TRACE_DETAIL)
+
+// Tagged log that prints "[tag] " after the regular prefix so that logs of a feature family can be collected with grep.
+// level: COUT/INFO/LOG/TRACE/TRACE_DETAIL. tag: string literal of lowercase letters/digits only (e.g. "dynquan").
+// Known tags are listed in src/plugins/intel_gpu/docs/gpu_debug_utils.md.
+#define GPU_DEBUG_TAGGED(level, tag) GPU_DEBUG_##level << "[" tag "] "

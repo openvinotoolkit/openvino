@@ -7,14 +7,10 @@
 #include <array>
 #include <cstddef>
 
-#include "intel_npu/utils/vm/npu_vm_runtime.hpp"
+#include "vm_runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
-
-inline bool use_npu_vm_runtime_v2_api(npu_vm_runtime_version_t apiVersion) {
-    return apiVersion >= NPU_VM_RUNTIME_VERSION_2_0;
-}
 
 class NpuVMRuntimeConfigChain final {
 public:

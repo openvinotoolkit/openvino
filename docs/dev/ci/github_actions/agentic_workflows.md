@@ -517,8 +517,12 @@ changes through reviewed PRs to `master`. It never reads the CI Doctor memory br
 
 Pattern records in `mq/patterns/` still carry a `rerun_search_string`, but it is only a **candidate**:
 for **transient** categories (`Flaky Test`, `Infrastructure`, `Network`, `External Service`) the agent
-stores a short, stable substring taken verbatim from a real failure log line, verified against the exact
-`log_analyzer.py` matcher; for deterministic categories it stores `null`. The rerunner does not read this
+stores a short, stable substring taken verbatim from a log line in a **failed step within a failed
+job**, with both conclusions verified as `failure` and the line mapped to that step. Full failed-job
+logs also contain successful steps, and the downloaded job list includes cancelled jobs; neither is
+eligible evidence. If either failure conclusion or the line's step provenance cannot be verified, the
+candidate is `null`. Eligible candidates are verified against the exact `log_analyzer.py` matcher;
+for deterministic categories it also stores `null`. The rerunner does not read this
 field. Instead the agent calls `propose_rerun_pattern`, and the
 [`propose-rerun-pattern`](#shared-jobs-and-steps) job opens a PR against `master` appending the candidate to
 `errors_to_look_for.json` with ticket `9999999` (the reviewer may replace it with a real ticket). A maintainer reviews the string for specificity (it must not match unrelated

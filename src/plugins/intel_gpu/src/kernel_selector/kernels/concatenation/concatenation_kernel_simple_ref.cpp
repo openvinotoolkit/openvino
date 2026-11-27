@@ -3,8 +3,11 @@
 //
 
 #include "concatenation_kernel_simple_ref.h"
-#include "kernel_selector_utils.h"
+
+#include <algorithm>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -76,18 +79,17 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
 
     // all inputs have to have same layout (exept 3D: bfzyx, b_fs_zyx_fsv16, and bs_fs_zyx_bsv16_fsv16)
     auto same_layout = params.inputs[0].GetLayout();
-    for (const auto& lt : params.inputs) {
-        auto cur_layout = lt.GetLayout();
-        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 ||
-             cur_layout == DataLayout::b_fs_zyx_fsv32 || cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
-            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 ||
-             same_layout == DataLayout::b_fs_zyx_fsv32 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
-            || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
-            continue;
-        }
-        if (cur_layout != same_layout) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (!std::all_of(params.inputs.begin(), params.inputs.end(), [same_layout](const auto& lt) {
+            auto cur_layout = lt.GetLayout();
+            if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 || cur_layout == DataLayout::b_fs_zyx_fsv32 ||
+                 cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
+                (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 || same_layout == DataLayout::b_fs_zyx_fsv32 ||
+                 same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16 || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
+                return true;
+            }
+            return cur_layout == same_layout;
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

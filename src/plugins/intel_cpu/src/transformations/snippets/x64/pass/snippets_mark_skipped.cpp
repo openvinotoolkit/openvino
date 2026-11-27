@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -510,6 +512,18 @@ bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
+std::vector<size_t> gatedResidualWeightPorts(const std::shared_ptr<Node>& node) {
+    const auto gated_residual = ov::as_type_ptr<ov::op::internal::GatedResidual>(node);
+    const auto layout = gated_residual ? gated_residual->get_read_layout() : std::nullopt;
+    if (!layout || layout->compressed) {
+        return {};
+    }
+    std::vector<size_t> ports{layout->w_down, layout->w_up};
+    if (layout->write_gate) {
+        ports.push_back(layout->w_inject);
+    }
+    return ports;
+}
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
 void PropagateIfHasOnlyChild(const std::shared_ptr<Node>& node, NodeFusingType nodeType) {
@@ -589,6 +603,16 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             };
             std::unordered_set<Node*> visited;
             ov::op::util::visit_constant_path(node->get_input_node_ptr(1), visited, markup_func);
+        }
+        for (const auto port : gatedResidualWeightPorts(node)) {
+            if (!ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(port)) &&
+                ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(port))) {
+                auto markup_func = [](Node* node) {
+                    SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
+                };
+                std::unordered_set<Node*> visited;
+                ov::op::util::visit_constant_path(node->get_input_node_ptr(port), visited, markup_func);
+            }
         }
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain

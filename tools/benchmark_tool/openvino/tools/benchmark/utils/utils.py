@@ -155,12 +155,8 @@ def parse_input_output_precision(arg_map: str):
 
     parsed_map = {}
     for pair in pairs:
-        key_value = [x.strip() for x in pair.split(':')]
-        name, precision = key_value[0], key_value[1]
-        # input's name can contain ':'
-        if len(key_value) == 3:
-            name = key_value[0] + ':' + key_value[1]
-            precision = key_value[2]
+        # Tensor names can contain ':', so the final component is the precision.
+        name, precision = (x.strip() for x in pair.rsplit(':', 1))
         parsed_map.update({name:precision})
 
     return parsed_map
@@ -470,15 +466,15 @@ def get_command_line_arguments(argv):
     arg_name = ''
     arg_value = ''
     for arg in argv[1:]:
-        if '=' in arg:
+        if arg.startswith('-') and '=' in arg:
             if arg_name != '':
                 parameters.append((arg_name, arg_value))
-            arg_name, arg_value = arg.split('=')
+            arg_name, arg_value = arg.split('=', 1)
             parameters.append((arg_name, arg_value))
             arg_name = ''
             arg_value = ''
         else:
-          if arg[0] == '-':
+          if arg.startswith('-'):
               if arg_name != '':
                 parameters.append((arg_name, arg_value))
                 arg_value = ''

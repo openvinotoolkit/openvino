@@ -48,6 +48,9 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "sparse_sdpa.h"
+#endif
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "utils/general_utils.h"
 
@@ -1088,7 +1091,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     const auto sdpa_inputs = node->getOriginalInputsNumber();
     const bool is_key = static_cast<size_t>(m_child_port_idx) == sdpa_inputs - 2;
     auto kv_precision = is_key ? node->getKeyCachePrecision() : node->getValueCachePrecision();
-    ov::Extensions::Cpu::CacheSpec quant_param;
+    ov::intel_cpu::CacheSpec quant_param;
     if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4) {
         quant_param = is_key ? node->getKeySpec() : node->getValueSpec();
     }
@@ -1158,7 +1161,7 @@ void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
 }
 
 void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
-    if (getParentEdgeAt(0)) {
+    if (!getParentEdges().empty()) {
         ov::intel_cpu::node::Input::resolveInPlaceEdges(look);
     } else {
         auto memDesc = getBaseMemDescAtOutputPort(0);
@@ -1172,6 +1175,75 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
         }
     }
 }
+
+#if defined(OPENVINO_ARCH_X86_64)
+MemoryInputSparseSDPA::MemoryInputSparseSDPA(const std::string& id,
+                                             const std::string& name,
+                                             const std::string& type,
+                                             const Shape& output_shape,
+                                             const ov::element::Type& output_prc,
+                                             const GraphContext::CPtr& context,
+                                             const std::optional<std::vector<Shape>>& input_shape,
+                                             const std::optional<std::vector<ov::element::Type>>& input_prc,
+                                             const std::shared_ptr<SparseSDPA>& sparseNode)
+    : MemoryInputSDPA(id, name, type, output_shape, output_prc, context, input_shape, input_prc, nullptr),
+      m_sparseNode(sparseNode) {}
+
+void MemoryInputSparseSDPA::createPrimitive() {
+    // MemoryInputSDPA::createPrimitive() looks for the (absent) SDPA node
+    MemoryInputBase::createPrimitive();  // NOLINT(bugprone-parent-virtual-call): skips MemoryInputSDPA on purpose
+    auto sparseNode = m_sparseNode.lock();
+    for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
+        if (edge->getChild() == sparseNode) {
+            m_sparse_port_idx = edge->getOutputNum();
+            break;
+        }
+    }
+    CPU_NODE_ASSERT(m_sparse_port_idx != -1, getName(), " should be connected to SparseSDPA node.");
+}
+
+void MemoryInputSparseSDPA::assignStateHook() {
+    auto currentState = getAssignedState();
+    auto sparseNode = m_sparseNode.lock();
+    CPU_NODE_ASSERT(sparseNode, "SparseSDPA node is not available");
+    auto kvState = std::dynamic_pointer_cast<VariableStateKVcache>(currentState);
+    CPU_NODE_ASSERT(kvState, "Unexpected state type: ", currentState->get_name());
+    sparseNode->assignState(kvState, m_sparse_port_idx);
+}
+
+MemStatePtr MemoryInputSparseSDPA::makeState() const {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
+    auto state_name = getId();
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    auto node = m_sparseNode.lock();
+    CPU_NODE_ASSERT(node, "SparseSDPA node is not available");
+    const auto sparse_inputs = node->getOriginalInputsNumber();
+    // port convention: K = inputNumber - 2, V = inputNumber - 1, both cached in the same precision
+    CPU_NODE_ASSERT(any_of(static_cast<size_t>(m_sparse_port_idx), sparse_inputs - 2, sparse_inputs - 1),
+                    getName(),
+                    " is connected to an unexpected port of SparseSDPA: ",
+                    m_sparse_port_idx);
+    const bool is_key = m_sparse_port_idx == static_cast<int>(sparse_inputs - 2);
+    const auto& spec = is_key ? node->getKeySpec() : node->getValueSpec();
+    auto internal_desc =
+        ArbitraryOrderDescCreator(SparseSDPA::getKVCacheOrder()).createSharedDesc(spec.precision, outputShapes.at(0));
+
+    // the quantization parameters matter for a compressed cache only
+    ov::intel_cpu::CacheSpec quant_param;
+    if (SparseSDPA::isQuantizedCache(spec)) {
+        quant_param = spec;
+    }
+    return std::make_shared<VariableStateKVcacheBHLS>(state_name, original_desc, internal_desc, quant_param);
+}
+#endif
 
 MemoryInputSingle::MemoryInputSingle(const std::string& id,
                                      const std::string& name,

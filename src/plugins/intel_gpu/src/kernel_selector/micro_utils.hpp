@@ -4,7 +4,7 @@
 
 #pragma once
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
@@ -17,10 +17,10 @@
 # define NOMINMAX
 #endif
 
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/package.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/kernel_selector.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel_selector.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/shim.hpp"
+#include "gemmstone/microkernel/package.hpp"
+#include "gemmstone/kernel_selector.hpp"
+#include "gemmstone/microkernel_selector.hpp"
+#include "gemmstone/microkernel/shim.hpp"
 #include "common/utils.hpp"
 
 namespace micro {
@@ -123,4 +123,4 @@ typedef uchar f4_e2m1;
 
 #undef UNUSED
 
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS

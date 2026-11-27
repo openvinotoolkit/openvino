@@ -7,6 +7,8 @@ set(GPU_RUNTIME_MAIN_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/device.cpp
     ${CMAKE_CURRENT_LIST_DIR}/device_query.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dispatch_probe.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/driver_dev_id.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/driver_dev_id.hpp
     ${CMAKE_CURRENT_LIST_DIR}/engine.cpp
     ${CMAKE_CURRENT_LIST_DIR}/engine_configuration.cpp
     ${CMAKE_CURRENT_LIST_DIR}/event.cpp
@@ -135,6 +137,9 @@ set(GPU_RUNTIME_SYCL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_user_event.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_user_event.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_wrapper.hpp
+)
+
+set(GPU_RUNTIME_SYCL_INTEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.hpp
 )

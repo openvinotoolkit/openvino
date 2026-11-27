@@ -65,7 +65,7 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
     return dispatchData;
 }
 
-GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gemm_params& params) const {
+GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gemm_params& params) {
     const auto& output = params.outputs[0];
 
     GemmKernelTiledOpt::GemmTuningData tuning_data;
@@ -87,7 +87,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
 
-        bool leftovers = ((m_size % tuning_data.tile_m_size) != 0u) || ((k_size % tuning_data.tile_k_size) != 0u) || ((n_size % tuning_data.tile_n_size) != 0u);
+        bool leftovers = ((m_size % tuning_data.tile_m_size) != 0U) || ((k_size % tuning_data.tile_k_size) != 0U) || ((n_size % tuning_data.tile_n_size) != 0U);
 
         if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1 || !IsSIMDSizeSupported(params.engineInfo, 8)) {
             tuning_data.simd_size = 16;
@@ -220,13 +220,13 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                           const std::vector<int64_t>& dims_order, const std::string dim) {
             int64_t target_dim_idx;
             const size_t rank = data_tensor.GetDims().size();
-            if (dims_order.size() > 1 && dim.compare("Y") == 0) {
+            if (dims_order.size() > 1 && dim == "Y") {
                 target_dim_idx = dims_order.at(dims_order.size() - 2);
-            } else if (!dims_order.empty() && dim.compare("X") == 0) {
+            } else if (!dims_order.empty() && dim == "X") {
                 target_dim_idx = dims_order.back();
-            } else if (dims_order.empty() && dim.compare("Y") == 0) {
+            } else if (dims_order.empty() && dim == "Y") {
                 target_dim_idx = rank - 2;
-            } else if (dims_order.empty() && dim.compare("X") == 0) {
+            } else if (dims_order.empty() && dim == "X") {
                 target_dim_idx = rank - 1;
             } else {
                 OPENVINO_THROW("Unsupported dimension: ", dim);

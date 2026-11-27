@@ -10,8 +10,11 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <memory>
+#include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace ov::test {
 
@@ -55,8 +58,7 @@ static_assert(ov::util::MemoryView{}.data() == nullptr);
 static_assert(ov::util::MemoryView{}.size() == 0);
 
 constexpr std::byte memory_view_bytes[4]{};
-static_assert(ov::util::MemoryView{nullptr, 0}.empty());
-static_assert(ov::util::MemoryView{nullptr, sizeof(memory_view_bytes)}.empty());
+static_assert(ov::util::MemoryView{static_cast<const std::byte*>(nullptr), 0}.empty());
 static_assert(ov::util::MemoryView{memory_view_bytes, 0}.empty());
 static_assert(!ov::util::MemoryView{memory_view_bytes, sizeof(memory_view_bytes)}.empty());
 
@@ -202,19 +204,14 @@ TEST_F(MemoryViewTest, zero_size_with_valid_pointer_is_empty) {
     EXPECT_TRUE(view.empty());
 }
 
-TEST_F(MemoryViewTest, non_zero_size_with_nullptr_is_empty) {
-    const util::MemoryView view{nullptr, 4};
-    EXPECT_TRUE(view.empty());
-}
-
 TEST_F(MemoryViewTest, non_zero_size_with_valid_pointer_is_not_empty) {
     const std::array<std::byte, 4> bytes{};
     const util::MemoryView view{bytes.data(), 4};
     EXPECT_FALSE(view.empty());
     EXPECT_EQ(bytes.data(), view.data());
     EXPECT_EQ(4u, view.size());
-    EXPECT_EQ(view.data(), view.begin());
-    EXPECT_EQ(view.data() + view.size(), view.end());
+    EXPECT_EQ(view.data(), std::to_address(view.begin()));
+    EXPECT_EQ(view.data() + view.size(), std::to_address(view.end()));
 }
 
 TEST_F(MemoryViewTest, as_memory_view_spans_object) {
@@ -252,6 +249,25 @@ TEST_F(MemoryViewTest, as_memory_view_of_array_covers_all_elements) {
     const auto view = util::as_memory_view(arr);
     EXPECT_EQ(sizeof(arr), view.size());
     EXPECT_EQ(reinterpret_cast<const std::byte*>(arr.data()), view.data());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_string_spans_characters) {
+    const std::string text = "hetero";
+    const auto view = util::as_memory_view(text);
+    EXPECT_EQ(reinterpret_cast<const std::byte*>(text.data()), view.data());
+    EXPECT_EQ(text.size(), view.size());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_vector_covers_all_elements) {
+    const std::vector<uint32_t> vec{1, 2, 3};
+    const auto view = util::as_memory_view(vec);
+    EXPECT_EQ(reinterpret_cast<const std::byte*>(vec.data()), view.data());
+    EXPECT_EQ(vec.size() * sizeof(uint32_t), view.size());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_empty_container_is_empty) {
+    const std::string empty_text;
+    EXPECT_TRUE(util::as_memory_view(empty_text).empty());
 }
 
 template <typename T, typename = void>

@@ -32,10 +32,12 @@ public:
     // execute() only aggregates input events and enqueues no GPU commands
     bool supports_replay() const override { return true; }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*impl_params*/) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     void set_arguments(primitive_inst& /*instance*/, kernel_arguments_data& /*args*/) override {}
-    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override { return {}; }
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& /*impl_params*/) const override {
+        return {};
+    }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
@@ -43,11 +45,11 @@ public:
         return stream.aggregate_events(events);
     }
 
-    static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params& /*unused*/) {
         return std::make_unique<wait_for_events_impl>(data);
     }
 
-    static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node& input, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node& input, const kernel_impl_params& /*unused*/) {
         return std::make_unique<wait_for_events_impl>(input);
     }
 

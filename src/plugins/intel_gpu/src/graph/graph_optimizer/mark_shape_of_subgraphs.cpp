@@ -15,6 +15,7 @@
 #include "pass_manager.h"
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
+#include "random_uniform_inst.h"
 
 #include "intel_gpu/graph/program.hpp"
 
@@ -84,6 +85,11 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     // read_value, convolution, fully_connected, and gemm may have initializers that are part of a shape_of sub-graph,
     // but these nodes themselves are not considered part of such sub-graph
     if (node.is_type<read_value>() || node.is_type<convolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+        return false;
+    }
+
+    // RandomUniform output changes on every inference, while shape_of subgraphs are skipped when input shapes do not change
+    if (node.is_type<random_uniform>()) {
         return false;
     }
 

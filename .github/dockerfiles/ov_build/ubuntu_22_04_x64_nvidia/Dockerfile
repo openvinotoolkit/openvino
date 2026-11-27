@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu22.04
+FROM ${REGISTRY}/nvidia/cuda:12.2.2-runtime-ubuntu22.04
 
 USER root
 
@@ -21,20 +21,20 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        curl \
-        wget \
-        git \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Python
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        # For Java API
-        default-jdk \
-        && \
+    curl \
+    wget \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Python
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
+    # For Java API
+    default-jdk \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -44,7 +44,7 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
@@ -56,10 +56,12 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Install CUDA
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb
-RUN apt-get update && apt-get install -y cuda-runtime-11-8 cuda-11-8 && apt-get install -y \
-    libcudnn8=8.9.4.*-1+cuda11.8 \
-    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
-    libcudnn8-samples=8.9.4.*-1+cuda11.8 \
+# nvidia_plugin requires CUDAToolkit >= 12.0 (NVCC below 12.0 cannot compile C++20 device code);
+# contrib CI validates CUDA 12.2 with cuDNN 8.9.x and cuTENSOR 1.7 (see modules/nvidia_plugin/README.md)
+RUN apt-get update && apt-get install -y cuda-runtime-12-2 cuda-12-2 && apt-get install -y \
+    libcudnn8=8.9.7.*-1+cuda12.2 \
+    libcudnn8-dev=8.9.7.*-1+cuda12.2 \
+    libcudnn8-samples=8.9.7.*-1+cuda12.2 \
     libcutensor1=1.7.0.1-1 \
     libcutensor-dev=1.7.0.1-1 \
     cuda-drivers

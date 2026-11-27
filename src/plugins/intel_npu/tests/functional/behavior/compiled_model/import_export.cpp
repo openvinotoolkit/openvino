@@ -112,6 +112,18 @@ inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false
     return model;
 }
 
+// The tensors of the model intentionally have no names: the plugin batching must not depend on them
+inline std::shared_ptr<ov::Model> createPluginBatchedModel(const ov::Dimension& batch) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{batch, 2, 2, 2});
+    input->set_friendly_name("tensor_input");
+    input->set_layout("N...");
+    auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 2, 2, 2}, {1.f});
+    auto add = std::make_shared<ov::op::v1::Add>(input, bias);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("tensor_output");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+}
+
 using OVCompiledGraphImportExportTestNPU = OVCompiledGraphImportExportTest;
 
 TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAndTensorAPI) {
@@ -250,6 +262,49 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameBlobAfterImportExport) {
     ov::Tensor blob_tensor(ov::element::u8, ov::Shape{blob_str.size()}, blob_str.c_str());
     core.import_model(blob_tensor, target_device, configuration).export_model(test_blob_stream_2);
     ASSERT_EQ(blob_stream.str(), test_blob_stream_2.str());
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, BatchHandledByPluginIsKeptAfterImportExport) {
+    ov::Core core;
+
+    try {
+        (void)core.get_property(target_device, ov::intel_npu::batch_mode);
+    } catch (...) {
+        GTEST_SKIP() << "The batch mode is not supported by the compiler";
+    }
+    configuration[ov::intel_npu::batch_mode.name()] = ov::intel_npu::BatchMode::PLUGIN;
+
+    // A static batch is stored in the blob as it is, while a dynamic one is stored as "-1". Both of them must be
+    // restored at import, which is checked through the shapes of the imported model.
+    // The tensors of the model intentionally have no names: the plugin batching must not depend on them.
+    for (const ov::Dimension& batch : {ov::Dimension(4), ov::Dimension(1, 10)}) {
+        SCOPED_TRACE("batch: " + batch.to_string());
+
+        auto model = createPluginBatchedModel(batch);
+
+        std::stringstream blob_stream;
+        ov::CompiledModel compiled_model, imported_model;
+        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, target_device, configuration));
+        OV_ASSERT_NO_THROW(compiled_model.export_model(blob_stream));
+        OV_ASSERT_NO_THROW(imported_model = core.import_model(blob_stream, target_device, configuration));
+
+        // The blob keeps only "-1" for a dynamic batch, so its upper bound is not restored at import: both shapes must
+        // have a dynamic batch dimension, while the rest of the dimensions must be the same
+        const auto check_shapes = [&batch](const ov::PartialShape& expected, const ov::PartialShape& actual) {
+            if (batch.is_static()) {
+                ASSERT_EQ(expected, actual);
+                return;
+            }
+            ASSERT_EQ(expected.size(), actual.size());
+            ASSERT_TRUE(expected[0].is_dynamic());
+            ASSERT_TRUE(actual[0].is_dynamic());
+            for (size_t i = 1; i < expected.size(); ++i) {
+                ASSERT_EQ(expected[i], actual[i]);
+            }
+        };
+        check_shapes(compiled_model.input(0).get_partial_shape(), imported_model.input(0).get_partial_shape());
+        check_shapes(compiled_model.output(0).get_partial_shape(), imported_model.output(0).get_partial_shape());
+    }
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {

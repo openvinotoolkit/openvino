@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::util {
@@ -65,4 +66,39 @@ constexpr size_t align_padding_size(size_t alignment, size_t pos) {
         return 0;
     }
 }
+
+/**
+ * @brief Checks if byte strides can be computed for a shape of given element type.
+ *
+ * @param type  Element type.
+ * @param shape Shape to check.
+ * @return True if get_dense_byte_strides(type, shape) can be computed for this type/shape.
+ */
+OPENVINO_API bool can_compute_byte_strides(const element::Type& type, const Shape& shape);
+
+/**
+ * @brief Gets the default, densely packed, row-major byte strides for a shape of given element type -
+ *        the byte-granular counterpart of row_major_strides().
+ *
+ * @pre can_compute_byte_strides(type, shape) is true.
+ * @param type  Element type.
+ * @param shape Shape to get strides for.
+ * @return Byte strides, one per dimension of shape. The last entry is not used for addressing when
+ *         the element type is sub-byte.
+ */
+OPENVINO_API Strides get_dense_byte_strides(const element::Type& type, const Shape& shape);
+
+/**
+ * @brief Gets the shape, in bytes, to pair with get_dense_byte_strides() for the same type/shape.
+ *
+ * Only the last dimension changes (its packed byte count instead of element count); other dimensions
+ * and byte-granular types are unchanged.
+ *
+ * Example: get_byte_memory_shape(u4, Shape{1, 2, 4095, 1, 512}) -> Shape{1, 2, 4095, 1, 256}.
+ *
+ * @param type  Element type.
+ * @param shape Shape in element units to convert.
+ * @return Shape in byte units (same rank; only the last dimension may differ).
+ */
+OPENVINO_API Shape get_byte_memory_shape(const element::Type& type, const Shape& shape);
 }  // namespace ov::util

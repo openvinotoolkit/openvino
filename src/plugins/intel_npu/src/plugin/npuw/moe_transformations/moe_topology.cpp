@@ -318,6 +318,9 @@ std::optional<BatchedMoE> BatchedMoEPattern::match(const std::shared_ptr<ov::Nod
 }
 
 std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& scatter) {
+    if (!scatter) {
+        return std::nullopt;
+    }
     if (!ov::is_type<ov::op::v3::ScatterElementsUpdate>(scatter) &&
         !ov::is_type<ov::op::v12::ScatterElementsUpdate>(scatter))
         return std::nullopt;

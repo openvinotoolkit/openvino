@@ -30,12 +30,12 @@ public:
     ~ReduceKernelBase() override = default;
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const reduce_params& params) const;
     virtual CommonDispatchData SetDefault(const reduce_params& params) const = 0;
-    Datatype GetAccumulatorType(const reduce_params& p) const;
-    Datatype GetFinalAccumulatorType(const reduce_params& p) const;
-    Datatype GetActivationType(const reduce_params& params) const;
+    static Datatype GetAccumulatorType(const reduce_params& p);
+    static Datatype GetFinalAccumulatorType(const reduce_params& p);
+    static Datatype GetActivationType(const reduce_params& params);
     KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

@@ -157,7 +157,12 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
         to_array<size_t>({1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352, 320, 288, 256, 227, 224, 192, 160,
                               128,  96,  64,  32,  16,  15,  14,  13,  12,  11,  10,  9,   8,   7,   6,   5,   4,   3,   2,   1});
 
-    size_t first_lws_idx = lws_max == 1024 ? 0 : lws_max == 512 ? 8 : 16;
+    size_t first_lws_idx = 16;
+    if (lws_max == 1024) {
+        first_lws_idx = 0;
+    } else if (lws_max == 512) {
+        first_lws_idx = 8;
+    }
     // Reduces max local wgs for some cases on Gen12+ devices
     if (lws_max >= 512) {
         auto two_dims_are_odd_and_equal =

@@ -4,9 +4,11 @@
 
 set(TARGET_NAME ov_op_conformance_tests)
 
+include(sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        SOURCES ${OV_OP_CONFORMANCE_TEST_SOURCES}
         INCLUDES
             PRIVATE
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"

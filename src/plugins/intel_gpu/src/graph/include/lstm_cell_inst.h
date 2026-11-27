@@ -30,8 +30,7 @@ public:
     static layout calc_output_layout(lstm_cell_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_cell_node const& node);
 
-public:
-    typed_primitive_inst(network& network, lstm_cell_node const& node);
+    typed_primitive_inst(network& network, const lstm_cell_node& node);
 };
 
 using lstm_cell_inst = typed_primitive_inst<lstm_cell>;

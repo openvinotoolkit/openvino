@@ -14,9 +14,11 @@
 
 #include "runtime/sycl/sycl_base_event.hpp"
 #include "runtime/sycl/sycl_event.hpp"
+#include "runtime/sycl/sycl_stream.hpp"
 #include "runtime/sycl/sycl_user_event.hpp"
 
 #include <chrono>
+#include <future>
 #include <memory>
 #include <string>
 #include <thread>
@@ -220,6 +222,14 @@ std::string sync_method_name(const testing::TestParamInfo<SyncMethods>& info) {
     }
 }
 
+std::string queue_type_name(const testing::TestParamInfo<QueueTypes>& info) {
+    switch (info.param) {
+        case QueueTypes::in_order:     return "in_order";
+        case QueueTypes::out_of_order: return "out_of_order";
+        default:                       return "unknown";
+    }
+}
+
 }  // namespace
 
 // A user event which is not set yet can't be ordered against by the device. In the events sync mode
@@ -277,5 +287,43 @@ INSTANTIATE_TEST_SUITE_P(sycl_event,
                          sycl_user_event_deps,
                          ::testing::Values(SyncMethods::events),
                          sync_method_name);
+
+class sycl_empty_marker : public ::testing::TestWithParam<QueueTypes> {};
+
+TEST_P(sycl_empty_marker, waits_for_previously_enqueued_commands) {
+    auto ctx = create_sycl_test_context();
+    auto config = ::tests::get_test_default_config(*ctx.sycl_test_engine);
+    config.set_property(ov::intel_gpu::queue_type(GetParam()));
+    auto stream = ctx.sycl_test_engine->create_stream(config);
+    auto& queue = downcast<cldnn::sycl::sycl_stream>(*stream).get_sycl_queue();
+
+    std::promise<void> release_command;
+    auto command_gate = release_command.get_future().share();
+    auto previous = queue.submit([&](::sycl::handler& cgh) {
+        cgh.host_task([command_gate]() {
+            command_gate.wait_for(std::chrono::seconds(5));
+        });
+    });
+
+    // is_output is not used when the deps list is empty.
+    auto marker = stream->enqueue_marker({}, false);
+    auto marker_wait = std::async(std::launch::async, [marker]() {
+        marker->wait();
+    });
+    const auto pending_status = marker_wait.wait_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(pending_status, std::future_status::timeout);
+    release_command.set_value();
+    marker_wait.get();
+
+    EXPECT_TRUE(marker->is_set());
+    EXPECT_EQ(previous.get_info<::sycl::info::event::command_execution_status>(),
+              ::sycl::info::event_command_status::complete);
+    previous.wait_and_throw();
+}
+
+INSTANTIATE_TEST_SUITE_P(sycl_event,
+                         sycl_empty_marker,
+                         ::testing::Values(QueueTypes::in_order, QueueTypes::out_of_order),
+                         queue_type_name);
 
 #endif  // OV_GPU_WITH_SYCL_RT

@@ -33,18 +33,16 @@ protected:
         {
             int i = 0;
             auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset);
+            auto offset = onednn::get_offset(instance.get_input_layout(i), _pd.dnnl::primitive_desc_base::src_desc(i));
+            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
             args.insert({DNNL_ARG_SRC_LAYER, mem});
         }
 
         {
             int i = 1;
             auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset);
+            auto offset = onednn::get_offset(instance.get_input_layout(i), _pd.dnnl::primitive_desc_base::src_desc(i));
+            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
             args.insert({DNNL_ARG_SRC_ITER, mem});
         }
 

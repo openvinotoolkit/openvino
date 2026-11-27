@@ -38,7 +38,7 @@ public:
         return desc->shape_constant != 0;
     }
 
-    typed_primitive_inst(network& network, batch_to_space_node const& desc);
+    typed_primitive_inst(network& network, const batch_to_space_node& node);
 };
 
 using batch_to_space_inst = typed_primitive_inst<batch_to_space>;
