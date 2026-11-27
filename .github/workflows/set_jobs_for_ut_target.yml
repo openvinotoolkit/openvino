@@ -1,9 +1,10 @@
 name: set_jobs_for_ut_target
 # Collect Mode uses the Ninja Multi-Config generator: what the maxnick_pr configuration gets from MSBuild MultiToolTask
 # is done there with --parallel (ninja -j) = NUMBER_OF_PROCESSORS - 1.
-# On top of that, compile jobs of the ov_core_unit_tests target only (very heavy gtest translation units that ran
-# the compiler out of heap space when ~15 of them were compiled at once) are limited to 1 by a Ninja job pool
-# (ut_jobs); all other targets keep the full --parallel value.
+# On top of that, compile jobs of all targets that build tests (source dir under a tests/ folder or name ending with
+# _test(s)/Tests: ov_core_unit_tests, funcSharedTests, ...) share one Ninja job pool (tests_jobs, a quarter of the
+# cores). Heavy gtest translation units ran the compiler out of heap space when ~15 of them were compiled at once
+# (ov_core_unit_tests in the first run, funcSharedTests in the second). Other targets keep the full --parallel value.
 # Run Mode stays on the Visual Studio generator with MultiToolTask (as in maxnick_pr): onecoreuap.toolchain.cmake
 # relies on MSBuild macros that Ninja doesn't expand.
 on:
@@ -152,13 +153,32 @@ jobs:
           Write-Output "NUMBER_OF_PROCESSORS=$env:NUMBER_OF_PROCESSORS, build parallelism=$parallel"
           "CMAKE_BUILD_PARALLEL_LEVEL=$parallel" >> $env:GITHUB_ENV
 
-      # CMake file included at the end of the top-level project: assigns the ut_jobs pool to compile jobs of ov_core_unit_tests only
-      - name: Create job pool hook for ov_core_unit_tests
+      # CMake file included at the end of the top-level project: assigns the tests_jobs pool to compile jobs of every target that builds tests
+      - name: Create job pool hook for test targets
         run: |
           @'
-          cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL set_property TARGET ov_core_unit_tests PROPERTY JOB_POOL_COMPILE ut_jobs)
-          '@ | Set-Content -Path "$env:RUNNER_TEMP\ut_job_pool.cmake"
-          Get-Content "$env:RUNNER_TEMP\ut_job_pool.cmake"
+          function(ov_assign_tests_pool dir)
+            get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+            foreach(tgt IN LISTS targets)
+              get_target_property(type ${tgt} TYPE)
+              if(NOT type MATCHES "^(EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY)$")
+                continue()
+              endif()
+              get_target_property(src_dir ${tgt} SOURCE_DIR)
+              file(RELATIVE_PATH rel "${CMAKE_SOURCE_DIR}" "${src_dir}")
+              if(NOT rel MATCHES "^[.][.]" AND (rel MATCHES "(^|/)tests?(/|$)" OR tgt MATCHES "([_-]tests?|Tests?)$"))
+                set_property(TARGET ${tgt} PROPERTY JOB_POOL_COMPILE tests_jobs)
+                message(STATUS "tests_jobs pool: ${tgt} (${rel})")
+              endif()
+            endforeach()
+            get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+            foreach(subdir IN LISTS subdirs)
+              ov_assign_tests_pool("${subdir}")
+            endforeach()
+          endfunction()
+          cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL ov_assign_tests_pool "${CMAKE_SOURCE_DIR}")
+          '@ | Set-Content -Path "$env:RUNNER_TEMP\tests_job_pool.cmake"
+          Get-Content "$env:RUNNER_TEMP\tests_job_pool.cmake"
 
       # If the build fails due to running out of RAM, lower the number of link jobs
       - name: CMake configure - CC COLLECT
@@ -172,8 +192,8 @@ jobs:
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
-            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)));ut_jobs=1" `
-            "-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=$env:RUNNER_TEMP\ut_job_pool.cmake" `
+            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)));tests_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)))" `
+            "-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=$env:RUNNER_TEMP\tests_job_pool.cmake" `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `

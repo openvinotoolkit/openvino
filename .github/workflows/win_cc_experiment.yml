@@ -21,11 +21,15 @@ permissions: read-all
 
 jobs:
   old_baseline:
+    # skipped on the first attempt of a run; runs only on re-runs (run_attempt > 1)
+    if: ${{ github.run_attempt > 1 }}
     uses: ./.github/workflows/old_baseline.yml
     with:
       target-branch: ${{ inputs.target-branch }}
 
   msbuild:
+    # skipped on the first attempt of a run; runs only on re-runs (run_attempt > 1)
+    if: ${{ github.run_attempt > 1 }}
     uses: ./.github/workflows/msbuild.yml
     with:
       target-branch: ${{ inputs.target-branch }}
