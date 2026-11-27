@@ -14,13 +14,10 @@ namespace cldnn {
 namespace vulkan {
 
 vulkan_instance::ptr vulkan_instance::create() {
-    uint32_t extension_count = 0;
-    check_vk_result(vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr), "vkEnumerateInstanceExtensionProperties(count)");
-
-    std::vector<VkExtensionProperties> extensions(extension_count);
-    if (extension_count > 0) {
-        check_vk_result(vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions.data()), "vkEnumerateInstanceExtensionProperties(list)");
-    }
+    const auto extensions =
+        enumerate_vulkan<VkExtensionProperties>("vkEnumerateInstanceExtensionProperties", [](uint32_t* count, VkExtensionProperties* entries) {
+            return vkEnumerateInstanceExtensionProperties(nullptr, count, entries);
+        });
 
     const auto has_portability_enumeration = std::any_of(extensions.begin(), extensions.end(), [](const auto& extension) {
         return std::string(extension.extensionName) == VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;

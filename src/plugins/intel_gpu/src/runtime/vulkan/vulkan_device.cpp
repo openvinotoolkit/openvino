@@ -181,13 +181,10 @@ void vulkan_device::initialize() {
         return;
     }
 
-    uint32_t extension_count = 0;
-    check_vk_result(vkEnumerateDeviceExtensionProperties(_physical_device, nullptr, &extension_count, nullptr), "vkEnumerateDeviceExtensionProperties(count)");
-    std::vector<VkExtensionProperties> extensions(extension_count);
-    if (extension_count > 0) {
-        check_vk_result(vkEnumerateDeviceExtensionProperties(_physical_device, nullptr, &extension_count, extensions.data()),
-                        "vkEnumerateDeviceExtensionProperties(list)");
-    }
+    const auto extensions =
+        enumerate_vulkan<VkExtensionProperties>("vkEnumerateDeviceExtensionProperties", [this](uint32_t* count, VkExtensionProperties* entries) {
+            return vkEnumerateDeviceExtensionProperties(_physical_device, nullptr, count, entries);
+        });
 
     std::vector<const char*> enabled_extensions;
     if (has_extension(extensions, portability_subset_extension_name)) {

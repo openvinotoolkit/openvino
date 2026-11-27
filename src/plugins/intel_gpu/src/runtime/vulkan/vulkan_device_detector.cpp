@@ -74,13 +74,9 @@ std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices
         return {};
     }
 
-    uint32_t physical_device_count = 0;
-    check_vk_result(vkEnumeratePhysicalDevices(instance->get(), &physical_device_count, nullptr), "vkEnumeratePhysicalDevices(count)");
-
-    std::vector<VkPhysicalDevice> physical_devices(physical_device_count);
-    if (physical_device_count > 0) {
-        check_vk_result(vkEnumeratePhysicalDevices(instance->get(), &physical_device_count, physical_devices.data()), "vkEnumeratePhysicalDevices(list)");
-    }
+    const auto physical_devices = enumerate_vulkan<VkPhysicalDevice>("vkEnumeratePhysicalDevices", [&instance](uint32_t* count, VkPhysicalDevice* entries) {
+        return vkEnumeratePhysicalDevices(instance->get(), count, entries);
+    });
 
     std::vector<device::ptr> devices;
     for (const VkPhysicalDevice physical_device : physical_devices) {

@@ -12,6 +12,7 @@
 
 #include "gtest/gtest.h"
 #include "intel_gpu/runtime/device_query.hpp"
+#include "vulkan/vulkan_api.hpp"
 #include "vulkan/vulkan_device.hpp"
 #include "vulkan/vulkan_engine.hpp"
 #include "vulkan/vulkan_memory.hpp"
@@ -174,6 +175,26 @@ void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
         destination->copy_to(stream, result.data(), 0, 0, result.size(), true);
         EXPECT_EQ(result, expected) << "Device copy changed the payload or adjacent bytes";
     }
+}
+
+TEST(VulkanDeviceSmoke, RetriesEnumerationAndReturnsWrittenEntries) {
+    uint32_t count_queries = 0;
+    const auto enumerate = [&](uint32_t* count, uint32_t* entries) {
+        if (entries == nullptr) {
+            *count = ++count_queries == 1 ? 1 : 3;
+            return VK_SUCCESS;
+        }
+        if (*count < 2) {
+            return VK_INCOMPLETE;
+        }
+        entries[0] = 11;
+        entries[1] = 23;
+        *count = 2;
+        return VK_SUCCESS;
+    };
+    std::vector<uint32_t> entries;
+    ASSERT_NO_THROW(entries = cldnn::vulkan::enumerate_vulkan<uint32_t>("enumerate test entries", enumerate));
+    EXPECT_EQ(entries, (std::vector<uint32_t>{11, 23}));
 }
 
 TEST(VulkanMemorySmoke, ValidatesTensorSizeArithmetic) {

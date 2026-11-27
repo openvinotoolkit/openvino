@@ -6,6 +6,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <vector>
+
 #include "openvino/core/except.hpp"
 
 namespace cldnn {
@@ -74,6 +76,29 @@ inline const char* vk_result_name(VkResult result) noexcept {
 
 inline void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with ", vk_result_name(result), " (", static_cast<int>(result), ")");
+}
+
+template <typename T, typename Enumerate>
+std::vector<T> enumerate_vulkan(const char* operation, Enumerate enumerate) {
+    constexpr uint32_t max_attempts = 8;
+    for (uint32_t attempt = 0; attempt < max_attempts; ++attempt) {
+        uint32_t count = 0;
+        check_vk_result(enumerate(&count, nullptr), operation);
+        if (count == 0) {
+            return {};
+        }
+
+        std::vector<T> values(count);
+        const auto result = enumerate(&count, values.data());
+        if (result == VK_INCOMPLETE) {
+            continue;
+        }
+        check_vk_result(result, operation);
+        OPENVINO_ASSERT(count <= values.size(), "[GPU][Vulkan] ", operation, " exceeded the requested entry count");
+        values.erase(values.begin() + count, values.end());
+        return values;
+    }
+    OPENVINO_THROW("[GPU][Vulkan] ", operation, " still returned VK_INCOMPLETE after ", max_attempts, " attempts");
 }
 
 }  // namespace vulkan
