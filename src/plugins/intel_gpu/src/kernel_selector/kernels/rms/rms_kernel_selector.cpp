@@ -5,11 +5,13 @@
 #include "rms_kernel_selector.h"
 #include "rms_kernel_ref.h"
 #include "rms_kernel_bfyx_opt.h"
+#include "rms_kernel_fsv16.h"
 
 namespace kernel_selector {
 rms_kernel_selector::rms_kernel_selector() {
     Attach<RMSKernelRef>();
     Attach<RMSKernelBfyxOpt>();
+    Attach<RMSKernelFsv16>();
 }
 
 KernelsData rms_kernel_selector::GetBestKernels(const Params& params) const {
