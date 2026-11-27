@@ -1040,13 +1040,20 @@ public:
     /// `packed`: W_down in the K32 tile layout the single READ kernel reads (GR_DQ_PACKED in gr_common.cl); the pipeline's DOWN_PROJ
     /// reads the row-major one.
     explicit GrDequantGenerator(bool down, bool packed = false)
-        : GrGenerator("gr_common", packed ? "down_pk" : (down ? "down" : "up"), /*large_grf=*/false),
+        : GrGenerator("gr_common", suffix(down, packed), /*large_grf=*/false),
           m_down(down),
           m_packed(packed) {
         OPENVINO_ASSERT(down || !packed, "[GPU][OCL] gated_residual: only W_down has a packed scratch layout");
     }
 
 protected:
+    static const char* suffix(bool down, bool packed) {
+        if (packed) {
+            return "down_pk";
+        }
+        return down ? "down" : "up";
+    }
+
     /// W_down [L, C*D] or W_up [C*D, L] as [N, K], and the K values one lane converts per work-item
     struct Geometry {
         size_t n;
