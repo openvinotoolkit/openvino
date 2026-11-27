@@ -3,278 +3,32 @@
 //
 #pragma once
 
-// The row arithmetic and the block selection of the QSAIndexer and PagedQSAIndexer kernels. It is included by
-// cross-compiled sources only, so the functions are compiled once per instruction set (AVX-512, AVX2, plain C++) in
-// the namespace XARCH. One source serves all of them: `vfloat` is a vector of `kLanes` floats (16 / 8 / 1), and the
-// same loops run on every set.
+// The plan of a call, the row arithmetic and the block selection of the QSAIndexer and PagedQSAIndexer kernels, on the
+// simd layer (nodes/kernels/simd). It is included by cross-compiled sources only, so the functions are compiled once
+// per instruction set (AVX-512, AVX2, plain C++) in the namespace XARCH; nothing of it is visible to the nodes.
 
 #include <algorithm>
-#include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
 #include "nodes/kernels/scaled_attn/common.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
+#include "nodes/kernels/simd/simd_loop.hpp"
+#include "nodes/kernels/sparse_attn/qsa_executor.hpp"
+#include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
+#include "utils/general_utils.h"
+#include "utils/plain_tensor.hpp"
 
-namespace ov::Extensions::Cpu::XARCH::qsa {
+namespace ov::Extensions::Cpu::XARCH::qsa_kernel {
 
-#if defined(HAVE_AVX512F)
+using ov::Extensions::Cpu::XARCH::ScratchPartition;
 
-using vfloat = __m512;
-inline constexpr size_t kLanes = 16;
-inline vfloat vzero() {
-    return _mm512_setzero_ps();
-}
-inline vfloat vset1(float x) {
-    return _mm512_set1_ps(x);
-}
-inline vfloat vload(const float* p) {
-    return _mm512_loadu_ps(p);
-}
-inline void vstore(float* p, vfloat v) {
-    _mm512_storeu_ps(p, v);
-}
-inline vfloat vadd(vfloat a, vfloat b) {
-    return _mm512_add_ps(a, b);
-}
-inline vfloat vsub(vfloat a, vfloat b) {
-    return _mm512_sub_ps(a, b);
-}
-inline vfloat vmul(vfloat a, vfloat b) {
-    return _mm512_mul_ps(a, b);
-}
-inline vfloat vfma(vfloat a, vfloat b, vfloat c) {  // a * b + c
-    return _mm512_fmadd_ps(a, b, c);
-}
-inline float vsum(vfloat v) {
-    return _mm512_reduce_add_ps(v);
-}
-// The first n < kLanes lanes of a row; the other lanes are zero / not stored.
-inline vfloat vload_tail(const float* p, size_t n) {
-    return _mm512_maskz_loadu_ps(static_cast<__mmask16>((1U << n) - 1U), p);
-}
-inline void vstore_tail(float* p, vfloat v, size_t n) {
-    _mm512_mask_storeu_ps(p, static_cast<__mmask16>((1U << n) - 1U), v);
-}
-// Selection primitives: lanewise minimum / maximum, their reduction, comparison masks (bit l = lane l), the bucket of
-// each score (see select_top_blocks) and the compaction of the lanes of a mask.
-inline vfloat vmin(vfloat a, vfloat b) {
-    return _mm512_min_ps(a, b);
-}
-inline vfloat vmax(vfloat a, vfloat b) {
-    return _mm512_max_ps(a, b);
-}
-inline float vreduce_min(vfloat v) {
-    return _mm512_reduce_min_ps(v);
-}
-inline float vreduce_max(vfloat v) {
-    return _mm512_reduce_max_ps(v);
-}
-inline uint32_t vcmp_gt(vfloat a, vfloat b) {
-    return _mm512_cmp_ps_mask(a, b, _CMP_GT_OQ);
-}
-inline uint32_t vcmp_eq(vfloat a, vfloat b) {
-    return _mm512_cmp_ps_mask(a, b, _CMP_EQ_OQ);
-}
-// int(min(max_bucket, trunc((v - low) * to_bucket))) of every lane
-inline __m512i vbucket(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket) {
-    const __m512i bucket = _mm512_cvttps_epi32(_mm512_mul_ps(_mm512_sub_ps(v, low), to_bucket));
-    return _mm512_min_epi32(bucket, _mm512_set1_epi32(max_bucket));
-}
-inline void vstore_buckets(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket, int32_t* out) {
-    _mm512_storeu_si512(out, vbucket(v, low, to_bucket, max_bucket));
-}
-inline uint32_t vbucket_mask(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket, int32_t wanted) {
-    return _mm512_cmpeq_epi32_mask(vbucket(v, low, to_bucket, max_bucket), _mm512_set1_epi32(wanted));
-}
-// Stores the lanes of `v` selected by `mask` one after the other to dst (nothing else is written), returns how many.
-inline size_t vcompress_store(float* dst, vfloat v, uint32_t mask) {
-    _mm512_mask_compressstoreu_ps(dst, static_cast<__mmask16>(mask), v);
-    return std::bitset<32>(mask).count();
-}
-// The same for the ids base, base + 1, ... of the lanes.
-inline size_t vcompress_ids(int32_t* dst, int32_t base, uint32_t mask) {
-    const __m512i ids = _mm512_add_epi32(_mm512_set1_epi32(base),
-                                         _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15));
-    _mm512_mask_compressstoreu_epi32(dst, static_cast<__mmask16>(mask), ids);
-    return std::bitset<32>(mask).count();
-}
-
-#elif defined(HAVE_AVX2)
-
-using vfloat = __m256;
-inline constexpr size_t kLanes = 8;
-inline vfloat vzero() {
-    return _mm256_setzero_ps();
-}
-inline vfloat vset1(float x) {
-    return _mm256_set1_ps(x);
-}
-inline vfloat vload(const float* p) {
-    return _mm256_loadu_ps(p);
-}
-inline void vstore(float* p, vfloat v) {
-    _mm256_storeu_ps(p, v);
-}
-inline vfloat vadd(vfloat a, vfloat b) {
-    return _mm256_add_ps(a, b);
-}
-inline vfloat vsub(vfloat a, vfloat b) {
-    return _mm256_sub_ps(a, b);
-}
-inline vfloat vmul(vfloat a, vfloat b) {
-    return _mm256_mul_ps(a, b);
-}
-inline vfloat vfma(vfloat a, vfloat b, vfloat c) {  // a * b + c
-    return _mm256_fmadd_ps(a, b, c);
-}
-inline float vsum(vfloat v) {
-    __m128 sum = _mm_add_ps(_mm256_castps256_ps128(v), _mm256_extractf128_ps(v, 1));
-    sum = _mm_hadd_ps(sum, sum);
-    sum = _mm_hadd_ps(sum, sum);
-    return _mm_cvtss_f32(sum);
-}
-inline vfloat vload_tail(const float* p, size_t n) {
-    return _mm256_maskload_ps(p, get_mask(static_cast<int>(n)));
-}
-inline void vstore_tail(float* p, vfloat v, size_t n) {
-    _mm256_maskstore_ps(p, get_mask(static_cast<int>(n)), v);
-}
-// Selection primitives: lanewise minimum / maximum, their reduction, comparison masks (bit l = lane l), the bucket of
-// each score (see select_top_blocks) and the compaction of the lanes of a mask.
-inline vfloat vmin(vfloat a, vfloat b) {
-    return _mm256_min_ps(a, b);
-}
-inline vfloat vmax(vfloat a, vfloat b) {
-    return _mm256_max_ps(a, b);
-}
-inline float vreduce_min(vfloat v) {
-    __m128 m = _mm_min_ps(_mm256_castps256_ps128(v), _mm256_extractf128_ps(v, 1));
-    m = _mm_min_ps(m, _mm_movehl_ps(m, m));
-    m = _mm_min_ss(m, _mm_shuffle_ps(m, m, 1));
-    return _mm_cvtss_f32(m);
-}
-inline float vreduce_max(vfloat v) {
-    __m128 m = _mm_max_ps(_mm256_castps256_ps128(v), _mm256_extractf128_ps(v, 1));
-    m = _mm_max_ps(m, _mm_movehl_ps(m, m));
-    m = _mm_max_ss(m, _mm_shuffle_ps(m, m, 1));
-    return _mm_cvtss_f32(m);
-}
-inline uint32_t vcmp_gt(vfloat a, vfloat b) {
-    return static_cast<uint32_t>(_mm256_movemask_ps(_mm256_cmp_ps(a, b, _CMP_GT_OQ)));
-}
-inline uint32_t vcmp_eq(vfloat a, vfloat b) {
-    return static_cast<uint32_t>(_mm256_movemask_ps(_mm256_cmp_ps(a, b, _CMP_EQ_OQ)));
-}
-// int(min(max_bucket, trunc((v - low) * to_bucket))) of every lane
-inline __m256i vbucket(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket) {
-    const __m256i bucket = _mm256_cvttps_epi32(_mm256_mul_ps(_mm256_sub_ps(v, low), to_bucket));
-    return _mm256_min_epi32(bucket, _mm256_set1_epi32(max_bucket));
-}
-inline void vstore_buckets(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket, int32_t* out) {
-    _mm256_storeu_si256(reinterpret_cast<__m256i*>(out), vbucket(v, low, to_bucket, max_bucket));
-}
-inline uint32_t vbucket_mask(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket, int32_t wanted) {
-    const __m256i equal = _mm256_cmpeq_epi32(vbucket(v, low, to_bucket, max_bucket), _mm256_set1_epi32(wanted));
-    return static_cast<uint32_t>(_mm256_movemask_ps(_mm256_castsi256_ps(equal)));
-}
-
-#else
-
-using vfloat = float;
-inline constexpr size_t kLanes = 1;
-inline vfloat vzero() {
-    return 0.0F;
-}
-inline vfloat vset1(float x) {
-    return x;
-}
-inline vfloat vload(const float* p) {
-    return *p;
-}
-inline void vstore(float* p, vfloat v) {
-    *p = v;
-}
-inline vfloat vadd(vfloat a, vfloat b) {
-    return a + b;
-}
-inline vfloat vsub(vfloat a, vfloat b) {
-    return a - b;
-}
-inline vfloat vmul(vfloat a, vfloat b) {
-    return a * b;
-}
-inline vfloat vfma(vfloat a, vfloat b, vfloat c) {
-    return a * b + c;
-}
-inline float vsum(vfloat v) {
-    return v;
-}
-// A single lane has no tail: these are never reached.
-inline vfloat vload_tail(const float* p, size_t /*n*/) {
-    return *p;
-}
-inline void vstore_tail(float* p, vfloat v, size_t /*n*/) {
-    *p = v;
-}
-// Selection primitives: lanewise minimum / maximum, their reduction, comparison masks (bit l = lane l), the bucket of
-// each score (see select_top_blocks) and the compaction of the lanes of a mask.
-inline vfloat vmin(vfloat a, vfloat b) {
-    return std::min(a, b);
-}
-inline vfloat vmax(vfloat a, vfloat b) {
-    return std::max(a, b);
-}
-inline float vreduce_min(vfloat v) {
-    return v;
-}
-inline float vreduce_max(vfloat v) {
-    return v;
-}
-inline uint32_t vcmp_gt(vfloat a, vfloat b) {
-    return a > b ? 1U : 0U;
-}
-inline uint32_t vcmp_eq(vfloat a, vfloat b) {
-    return a == b ? 1U : 0U;
-}
-inline int32_t vbucket_one(float v, float low, float to_bucket, int32_t max_bucket) {
-    return std::min(max_bucket, static_cast<int32_t>((v - low) * to_bucket));
-}
-inline void vstore_buckets(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket, int32_t* out) {
-    out[0] = vbucket_one(v, low, to_bucket, max_bucket);
-}
-inline uint32_t vbucket_mask(vfloat v, vfloat low, vfloat to_bucket, int32_t max_bucket, int32_t wanted) {
-    return vbucket_one(v, low, to_bucket, max_bucket) == wanted ? 1U : 0U;
-}
-
-#endif
-
-#if !defined(HAVE_AVX512F)
-// Compaction without a compress instruction: every lane is stored at the write position, which advances only for the
-// selected ones (branch-free; the position past the last selected lane is written too, so dst needs one spare slot).
-inline size_t vcompress_store(float* dst, vfloat v, uint32_t mask) {
-    alignas(64) float lanes[kLanes];
-    vstore(lanes, v);
-    size_t count = 0;
-    for (size_t lane = 0; lane < kLanes; lane++) {
-        dst[count] = lanes[lane];
-        count += (mask >> lane) & 1U;
-    }
-    return count;
-}
-inline size_t vcompress_ids(int32_t* dst, int32_t base, uint32_t mask) {
-    size_t count = 0;
-    for (size_t lane = 0; lane < kLanes; lane++) {
-        dst[count] = base + static_cast<int32_t>(lane);
-        count += (mask >> lane) & 1U;
-    }
-    return count;
-}
-#endif
+// The vector type of a loop body: the full-width one in the main loop, the scalar one in the tail.
+template <typename Lanes>
+using vec_of = simd::f32_t<Lanes::isa_tag::value>;
 
 // ---- rows of the summary / key / query tensors: f32, f16 or bf16 in memory, f32 in the registers ----
 
@@ -299,48 +53,31 @@ void store_row(const float* src, T* dst, size_t n) {
 
 // sum of x[i]^2
 inline float sum_squares(const float* x, size_t n) {
-    vfloat acc0 = vzero();
-    vfloat acc1 = vzero();
-    size_t i = 0;
-    for (; i + 2 * kLanes <= n; i += 2 * kLanes) {
-        const vfloat v0 = vload(x + i);
-        const vfloat v1 = vload(x + i + kLanes);
-        acc0 = vfma(v0, v0, acc0);
-        acc1 = vfma(v1, v1, acc1);
-    }
-    if (i + kLanes <= n) {
-        const vfloat v0 = vload(x + i);
-        acc0 = vfma(v0, v0, acc0);
-        i += kLanes;
-    }
-    if (i < n) {
-        const vfloat v0 = vload_tail(x + i, n - i);
-        acc1 = vfma(v0, v0, acc1);
-    }
-    return vsum(vadd(acc0, acc1));
+    return simd::simd_loop_reduce<2>(
+        static_cast<int>(n),
+        [&](int j, simd::f32& acc) {
+            const auto v = simd::load<simd::f32>(x + j);
+            acc = fmadd(v, v, acc);
+        },
+        [&](int j, float& tail) {
+            tail += x[j] * x[j];
+        });
 }
 
 // dst[i] += src[i]
 inline void add_inplace(float* dst, const float* src, size_t n) {
-    size_t i = 0;
-    for (; i + kLanes <= n; i += kLanes) {
-        vstore(dst + i, vadd(vload(dst + i), vload(src + i)));
-    }
-    if (i < n) {
-        vstore_tail(dst + i, vadd(vload_tail(dst + i, n - i), vload_tail(src + i, n - i)), n - i);
-    }
+    simd::simd_loop(static_cast<int>(n), [&](int j, auto lanes) {
+        using V = vec_of<decltype(lanes)>;
+        store(simd::load<V>(dst + j) + simd::load<V>(src + j), dst + j);
+    });
 }
 
 // x[i] *= factor
 inline void scale_inplace(float* x, float factor, size_t n) {
-    const vfloat vfactor = vset1(factor);
-    size_t i = 0;
-    for (; i + kLanes <= n; i += kLanes) {
-        vstore(x + i, vmul(vload(x + i), vfactor));
-    }
-    if (i < n) {
-        vstore_tail(x + i, vmul(vload_tail(x + i, n - i), vfactor), n - i);
-    }
+    simd::simd_loop(static_cast<int>(n), [&](int j, auto lanes) {
+        using V = vec_of<decltype(lanes)>;
+        store(simd::load<V>(x + j) * V(factor), x + j);
+    });
 }
 
 // One row of D = `dim` channels in, one row out (src [dim], weight [dim], cos / sin [rotary_dim], dst [dim]):
@@ -348,7 +85,12 @@ inline void scale_inplace(float* x, float factor, size_t n) {
 //   2. RoPE      the split-half (rotate-half) RoPE of HF Transformers over the first `rotary_dim` channels of y:
 //                y_rot = y * cos + rotate_half(y) * sin, with rotate_half(y) = concat(-y[half:], y[:half]);
 //                the remaining dim - rotary_dim channels are kept as they are.
-// cos / sin are already duplicated across the two halves (new_spec/qsa-prepare-17.rst). `dst` may be `src`.
+// cos / sin (the rope_cos / rope_sin inputs of the QSA ops) are already duplicated across the two halves. `dst` may
+// be `src`.
+// The steps of a query head are optional: `do_norm` / `do_rope` are false while the RMSNorm / RoPE of the query are
+// still done by the graph in front of the op, and the row then only passes through that step. The flags are fixed per
+// node, so the branches are loop-invariant and well predicted (a template argument per flag measured about 1 ns per
+// row faster but made the kernel objects 2-3.5x larger). The rows of the keys always take both steps.
 inline void rms_rope(const float* src,
                      float* dst,
                      const float* weight,
@@ -356,35 +98,28 @@ inline void rms_rope(const float* src,
                      size_t rotary_dim,
                      float eps,
                      const float* cos,
-                     const float* sin) {
-    const float inv_rms = 1.0F / std::sqrt(sum_squares(src, dim) / static_cast<float>(dim) + eps);
-    const vfloat vinv = vset1(inv_rms);
-    size_t d = 0;
-    for (; d + kLanes <= dim; d += kLanes) {
-        vstore(dst + d, vmul(vmul(vload(src + d), vinv), vload(weight + d)));
+                     const float* sin,
+                     bool do_norm = true,
+                     bool do_rope = true) {
+    if (do_norm) {
+        const float inv_rms = 1.0F / std::sqrt(sum_squares(src, dim) / static_cast<float>(dim) + eps);
+        simd::simd_loop(static_cast<int>(dim), [&](int j, auto lanes) {
+            using V = vec_of<decltype(lanes)>;
+            store(simd::load<V>(src + j) * V(inv_rms) * simd::load<V>(weight + j), dst + j);
+        });
+    } else if (dst != src) {
+        std::copy(src, src + dim, dst);
     }
-    if (d < dim) {
-        const size_t rest = dim - d;
-        vstore_tail(dst + d, vmul(vmul(vload_tail(src + d, rest), vinv), vload_tail(weight + d, rest)), rest);
-    }
-
-    // the pair of channels (j, j + half) is rotated by the angle of the channel j
-    const size_t half = rotary_dim / 2;
-    size_t j = 0;
-    for (; j + kLanes <= half; j += kLanes) {
-        const vfloat x0 = vload(dst + j);
-        const vfloat x1 = vload(dst + j + half);
-        vstore(dst + j, vsub(vmul(x0, vload(cos + j)), vmul(x1, vload(sin + j))));
-        vstore(dst + j + half, vadd(vmul(x1, vload(cos + j + half)), vmul(x0, vload(sin + j + half))));
-    }
-    if (j < half) {
-        const size_t rest = half - j;
-        const vfloat x0 = vload_tail(dst + j, rest);
-        const vfloat x1 = vload_tail(dst + j + half, rest);
-        vstore_tail(dst + j, vsub(vmul(x0, vload_tail(cos + j, rest)), vmul(x1, vload_tail(sin + j, rest))), rest);
-        vstore_tail(dst + j + half,
-                    vadd(vmul(x1, vload_tail(cos + j + half, rest)), vmul(x0, vload_tail(sin + j + half, rest))),
-                    rest);
+    if (do_rope) {
+        // the pair of channels (j, j + half) is rotated by the angle of the channel j
+        const auto half = static_cast<int>(rotary_dim / 2);
+        simd::simd_loop(half, [&](int j, auto lanes) {
+            using V = vec_of<decltype(lanes)>;
+            const V x0 = simd::load<V>(dst + j);
+            const V x1 = simd::load<V>(dst + j + half);
+            store(x0 * simd::load<V>(cos + j) - x1 * simd::load<V>(sin + j), dst + j);
+            store(x1 * simd::load<V>(cos + j + half) + x0 * simd::load<V>(sin + j + half), dst + j + half);
+        });
     }
 }
 
@@ -398,37 +133,34 @@ inline constexpr size_t kScoreRows = 4;
 // row r), q [G, D] f32.
 template <size_t R>
 void score_rows(const float* q, const float* const* row, size_t G, size_t D, float* scores) {
+    constexpr auto W = static_cast<size_t>(simd::f32::width);
     float sum[R] = {};
     for (size_t h = 0; h < G; h++) {
         const float* const qh = q + h * D;
-        vfloat acc[R][2];
-        for (size_t r = 0; r < R; r++) {
-            acc[r][0] = vzero();
-            acc[r][1] = vzero();
-        }
+        simd::f32 acc[R][2];
         size_t d = 0;
-        for (; d + 2 * kLanes <= D; d += 2 * kLanes) {
-            const vfloat q0 = vload(qh + d);
-            const vfloat q1 = vload(qh + d + kLanes);
+        for (; d + 2 * W <= D; d += 2 * W) {
+            const auto q0 = simd::load<simd::f32>(qh + d);
+            const auto q1 = simd::load<simd::f32>(qh + d + W);
             for (size_t r = 0; r < R; r++) {
-                acc[r][0] = vfma(q0, vload(row[r] + d), acc[r][0]);
-                acc[r][1] = vfma(q1, vload(row[r] + d + kLanes), acc[r][1]);
+                acc[r][0] = fmadd(q0, simd::load<simd::f32>(row[r] + d), acc[r][0]);
+                acc[r][1] = fmadd(q1, simd::load<simd::f32>(row[r] + d + W), acc[r][1]);
             }
         }
-        for (; d + kLanes <= D; d += kLanes) {
-            const vfloat q0 = vload(qh + d);
+        for (; d + W <= D; d += W) {
+            const auto q0 = simd::load<simd::f32>(qh + d);
             for (size_t r = 0; r < R; r++) {
-                acc[r][0] = vfma(q0, vload(row[r] + d), acc[r][0]);
+                acc[r][0] = fmadd(q0, simd::load<simd::f32>(row[r] + d), acc[r][0]);
             }
         }
-        if (d < D) {
-            const vfloat q0 = vload_tail(qh + d, D - d);
+        float tail[R] = {};
+        for (; d < D; d++) {
             for (size_t r = 0; r < R; r++) {
-                acc[r][0] = vfma(q0, vload_tail(row[r] + d, D - d), acc[r][0]);
+                tail[r] += qh[d] * row[r][d];
             }
         }
         for (size_t r = 0; r < R; r++) {
-            sum[r] += std::max(0.0F, vsum(vadd(acc[r][0], acc[r][1])));
+            sum[r] += std::max(0.0F, reduce(acc[r][0] + acc[r][1]) + tail[r]);
         }
     }
     for (size_t r = 0; r < R; r++) {
@@ -450,8 +182,8 @@ void score_run(const float* q, const T* rows, size_t n, size_t G, size_t D, floa
         score_rows<kScoreRows>(q, row, G, D, scores + i);
     }
     for (; i < n; i++) {
-        const float* const row = row_as_f32(rows + i * D, D, stage);
-        score_rows<1>(q, &row, G, D, scores + i);
+        const float* const row[1] = {row_as_f32(rows + i * D, D, stage)};
+        score_rows<1>(q, row, G, D, scores + i);
     }
 }
 
@@ -460,15 +192,23 @@ void score_run(const float* q, const T* rows, size_t n, size_t G, size_t D, floa
 // The (score, block id) of a complete block.
 using BlockScore = std::pair<float, int32_t>;
 
+// A NaN / Inf in the query, keys or norm weights poisons a whole score row. The scores are sanitized before they are
+// ordered: finite, within +-kScoreLimit (no overflow in the row range or the bucketing of the brgemm scorer), NaN as
+// the lowest score. The ordering is then a strict weak one, and every scoring path picks the same blocks.
+constexpr float kScoreLimit = std::numeric_limits<float>::max() / 2;
+
+inline float sanitize_score(float score) {
+    // the negated comparison also catches NaN
+    return score > -kScoreLimit ? std::min(score, kScoreLimit) : -kScoreLimit;
+}
+
 // Writes the ids of the k = min(block_topk, num_blocks) blocks of the highest scores[0, num_blocks) to `chosen` and
-// returns k. Equal scores: the lower block id wins. The blocks are in ascending id order, or in descending score order
-// (equal scores: the lower id first) with order_by_score. `scores` is reordered.
-inline size_t select_topk(BlockScore* scores,
-                          int32_t* chosen,
-                          size_t num_blocks,
-                          size_t block_topk,
-                          bool order_by_score) {
+// returns k. Equal scores: the lower block id wins. The blocks are in ascending id order. `scores` is reordered.
+inline size_t select_topk(BlockScore* scores, int32_t* chosen, size_t num_blocks, size_t block_topk) {
     const size_t k = std::min(block_topk, num_blocks);
+    for (size_t i = 0; i < num_blocks; i++) {
+        scores[i].first = sanitize_score(scores[i].first);
+    }
     std::partial_sort(scores, scores + k, scores + num_blocks, [](const BlockScore& lhs, const BlockScore& rhs) {
         if (lhs.first != rhs.first) {
             return lhs.first > rhs.first;
@@ -478,10 +218,136 @@ inline size_t select_topk(BlockScore* scores,
     for (size_t i = 0; i < k; i++) {
         chosen[i] = scores[i].second;
     }
-    if (!order_by_score) {
-        std::sort(chosen, chosen + k);
-    }
+    std::sort(chosen, chosen + k);
     return k;
 }
 
-}  // namespace ov::Extensions::Cpu::XARCH::qsa
+// ======== the plan of a call ========
+// What the kernels know about a call: the plan of every row (a batch entry of the dense op, a sequence of the paged
+// one) that follows from the lengths in the call.
+
+using ov::Extensions::Cpu::qsa::Config;
+using ov::Extensions::Cpu::qsa::IndexerArgs;
+using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
+using ov::intel_cpu::PlainTensor;
+
+// ---- dense op ----
+
+// What one entry of the batch contributes to a call. Every quantity is derived from the entry's own key_length and the
+// window length L of the call alone -- no cross-call running counter is kept.
+struct BatchEntryPlan {
+    int64_t num_padding;  // left-padded positions of this call's window, skipped everywhere
+    int64_t current;      // real tokens of this call
+    int64_t tail;         // rows already sitting in the incomplete-block state
+    int64_t past_blocks;  // complete blocks of the earlier calls
+    int64_t new_blocks;   // blocks this call completes
+
+    // Complete blocks visible to the token `v` of this call (`v` counts the real tokens, left padding excluded).
+    [[nodiscard]] int64_t blocks_visible(int64_t v, int64_t ratio) const {
+        return past_blocks + (tail + v + 1) / ratio;
+    }
+};
+
+// The plan of batch entry b: key_length is [B] or [1] (one value shared by all the entries); the window is the L of the
+// call.
+inline BatchEntryPlan batch_entry_plan(const IndexerArgs& call, const Config& c, size_t b) {
+    const int64_t key_length = call.key_length.ptr<int32_t>()[call.key_length.size(0) == 1 ? 0 : b];
+    const auto window = static_cast<int64_t>(call.q_idx.size(1));
+    const auto ratio = static_cast<int64_t>(c.key_block_size);
+    const int64_t past = std::max<int64_t>(0, key_length - window);
+    BatchEntryPlan plan{};
+    plan.current = key_length - past;  // == min(window, key_length)
+    plan.num_padding = window - plan.current;
+    plan.tail = past % ratio;
+    plan.past_blocks = past / ratio;
+    plan.new_blocks = (plan.tail + plan.current) / ratio;
+    return plan;
+}
+
+// The RoPE tables may be shared by all the batches ([1, L, Dr]): batch 0 is read for every entry then.
+inline size_t rope_batch(const PlainTensor& table, size_t b) {
+    return table.size(0) == 1 ? 0 : b;
+}
+
+// ---- paged op ----
+
+// What a call knows about one sequence: its tokens, its page-table row and the index blocks it completes:
+// past_blocks = past_len / key_block_size were complete before, new_blocks = (past_len + q_len) / key_block_size -
+// past_blocks are completed by it.
+struct SeqPlan {
+    int64_t key_block_size;  // tokens per index block
+    int64_t page_size;       // tokens per page of the caches, from the shape of the key cache
+    int64_t slots_per_page;  // index blocks per page
+    int64_t token_begin;
+    int64_t q_len;
+    int64_t past_len;
+    int64_t block_begin;     // first entry of the sequence in block_indices
+    int64_t block_capacity;  // index blocks that fit the sequence's pages
+    int64_t past_blocks;
+    int64_t new_blocks;
+
+    // The complete blocks visible to the token `v` of the call (counted from the first token of the sequence's call):
+    // those up to the block the token completes.
+    [[nodiscard]] int64_t blocks_visible(int64_t v) const {
+        return (past_len + v + 1) / key_block_size;
+    }
+    // The complete blocks of the sequence after the call.
+    [[nodiscard]] int64_t total_blocks() const {
+        return past_blocks + new_blocks;
+    }
+};
+
+inline SeqPlan seq_plan(const PagedIndexerArgs& call, const Config& c, size_t seq) {
+    const auto* subsequence_begins = call.subsequence_begins.ptr<int32_t>();
+    const auto* block_indices_begins = call.block_indices_begins.ptr<int32_t>();
+    const int64_t block_begin = block_indices_begins[seq];
+    const int64_t seq_blocks = std::max<int64_t>(block_indices_begins[seq + 1] - block_begin, 0);
+    SeqPlan plan{};
+    plan.key_block_size = static_cast<int64_t>(c.key_block_size);
+    plan.page_size = static_cast<int64_t>(call.raw_k_cache.size(2));
+    plan.slots_per_page = plan.page_size / plan.key_block_size;
+    plan.token_begin = subsequence_begins[seq];
+    plan.q_len = std::max<int64_t>(subsequence_begins[seq + 1] - plan.token_begin, 0);
+    plan.past_len = call.past_lens.ptr<int32_t>()[seq];
+    plan.block_begin = block_begin;
+    plan.block_capacity = seq_blocks * plan.slots_per_page;
+    plan.past_blocks = plan.past_len / plan.key_block_size;
+    plan.new_blocks = (plan.past_len + plan.q_len) / plan.key_block_size - plan.past_blocks;
+    return plan;
+}
+
+// A row of a paged cache: the physical page (an entry of block_indices) and the slot inside it.
+struct CacheAddress {
+    size_t page;
+    size_t slot;
+};
+
+// Maps a logical token position (relative to the sequence's own 0..S history) to the (page, slot) address into
+// the raw key cache through the shared page table.
+inline CacheAddress token_address(const PagedIndexerArgs& call, const SeqPlan& plan, int64_t logical_pos) {
+    const int64_t page_table_idx = plan.block_begin + logical_pos / plan.page_size;
+    const auto page = static_cast<size_t>(*call.block_indices.ptr<int32_t>(static_cast<size_t>(page_table_idx)));
+    return {page, static_cast<size_t>(logical_pos % plan.page_size)};
+}
+
+// Maps a (sequence-local, 0-based) completed-block index to the (page, slot) address into the summary cache /
+// the block rope cache.
+inline CacheAddress block_address(const PagedIndexerArgs& call, const SeqPlan& plan, int64_t block_idx) {
+    const int64_t page_table_idx = plan.block_begin + (block_idx * plan.key_block_size) / plan.page_size;
+    const auto page = static_cast<size_t>(*call.block_indices.ptr<int32_t>(static_cast<size_t>(page_table_idx)));
+    return {page, static_cast<size_t>(block_idx % plan.slots_per_page)};
+}
+
+// A row of a port as f32: the row itself when the data is f32 (no copy), otherwise converted into `scratch`. All the
+// floating-point ports have the precision T (the nodes make sure of it), so no port needs a run-time lookup of its own.
+template <typename T, typename... Idx>
+const float* row_view(const PlainTensor& t, size_t len, float* scratch, Idx... idx) {
+    if constexpr (std::is_same_v<T, float>) {
+        return t.ptr<float>(idx...);
+    } else {
+        cvt_copy(scratch, t.ptr<T>(idx...), 1, len, 0, 0);
+        return scratch;
+    }
+}
+
+}  // namespace ov::Extensions::Cpu::XARCH::qsa_kernel

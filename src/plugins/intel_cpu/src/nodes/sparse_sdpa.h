@@ -15,7 +15,7 @@
 #include "memory_state.h"
 #include "node.h"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/sparse_attention.hpp"
@@ -72,13 +72,13 @@ public:
     [[nodiscard]] ov::element::Type getValueCachePrecision() const {
         return m_value_spec.precision;
     }
-    [[nodiscard]] const ov::Extensions::Cpu::CacheSpec& getKeySpec() const {
+    [[nodiscard]] const ov::intel_cpu::CacheSpec& getKeySpec() const {
         return m_key_spec;
     }
-    [[nodiscard]] const ov::Extensions::Cpu::CacheSpec& getValueSpec() const {
+    [[nodiscard]] const ov::intel_cpu::CacheSpec& getValueSpec() const {
         return m_value_spec;
     }
-    [[nodiscard]] static bool isQuantizedCache(const ov::Extensions::Cpu::CacheSpec& spec) {
+    [[nodiscard]] static bool isQuantizedCache(const ov::intel_cpu::CacheSpec& spec) {
         return spec.precision == ov::element::u8 || spec.precision == ov::element::u4;
     }
 
@@ -93,8 +93,8 @@ private:
     // precision of the plain (not quantized) cache and the precision the quantized cache is decoded to: the query's
     ov::element::Type m_cache_prec = ov::element::f32;
     // the stored precision of the key / value cache (m_cache_prec, u8 or u4) and its quantization parameters
-    ov::Extensions::Cpu::CacheSpec m_key_spec;
-    ov::Extensions::Cpu::CacheSpec m_value_spec;
+    ov::intel_cpu::CacheSpec m_key_spec;
+    ov::intel_cpu::CacheSpec m_value_spec;
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
 
@@ -106,11 +106,10 @@ private:
     // later createScratchPadMem() that grows it frees the memory of an earlier one. execute() makes exactly one
     // combined request and never holds a pointer across it.
 
-#ifdef OPENVINO_ARCH_X86_64
-    // AMX matrix products of the prefill over a pack of query heads (empty when the node is not eligible: no AMX, a non
-    // bf16/f16 cache, a non-causal op, dynamic head counts or a pack of one head), see SparseBrgemm.
-    ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
-#endif
+    // Shared by the nodes of the same configuration (params cache of the graph context); it owns the AMX kernels of the
+    // prefill (none when not eligible: no AMX for a bf16 / f16 query, a non-causal op, or a pack outside 2..31 heads),
+    // see TileBrgemmKernels.
+    std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> m_executor;
 };
 
 }  // namespace ov::intel_cpu::node
