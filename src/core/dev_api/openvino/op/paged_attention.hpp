@@ -9,8 +9,6 @@
 namespace ov {
 namespace op {
 
-inline constexpr const char* paged_attention_relative_bias_rt_info = "user_datapaged_attention_relative_bias";
-
 // This is an experimental operation that is implemented in the plugins.
 // Do not use in user applications, backward compatibility is not guaranteed in future releases.
 

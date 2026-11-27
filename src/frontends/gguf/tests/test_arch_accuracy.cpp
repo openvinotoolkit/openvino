@@ -61,6 +61,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -619,19 +620,18 @@ TEST(GGUFInkling, PagedBiasContractSurvivesSerialization) {
     ov::Core core;
     core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatherMatmul>>());
     auto restored = core.read_model(xml.str(), constants);
-    size_t markers = 0;
-    for (const auto& node : restored->get_ops())
-        markers += node->get_rt_info().count(ov::op::paged_attention_relative_bias_rt_info);
-    ASSERT_EQ(markers, 10);
     ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(restored));
-    size_t attentions = 0;
+    std::map<int64_t, size_t> windows;
     for (const auto& node : restored->get_ops()) {
         if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
-            ++attentions;
             EXPECT_EQ(pa->get_input_size(), 29);
+            const auto window = ov::as_type_ptr<ov::op::v0::Constant>(pa->get_input_node_shared_ptr(10));
+            ASSERT_TRUE(window);
+            ++windows[window->cast_vector<int64_t>()[0]];
         }
     }
-    EXPECT_EQ(attentions, 10);
+    // Windows are read from the AdaptToGenAI sliding-window mask: 5 sliding slots (window 2) and 5 global slots.
+    EXPECT_EQ(windows, (std::map<int64_t, size_t>{{0, 5}, {2, 5}}));
 }
 
 TEST(GGUFInkling, PagedBiasFollowsPrecisionConversion) {
@@ -674,23 +674,31 @@ TEST(GGUFInkling, PagedAttentionRejectsLiveConvolutionState) {
                     testing::HasSubstr("cannot retain unconverted state"));
 }
 
-TEST(GGUFInkling, PagedAttentionRejectsUnmarkedRelativeBias) {
+TEST(GGUFInkling, PagedAttentionRejectsMalformedRelativeBias) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     ov::frontend::gguf::FrontEnd frontend;
     frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
     auto model = frontend.convert(frontend.load(temporary.path));
-    bool removed = false;
+    bool changed = false;
     for (const auto& node : model->get_ops()) {
-        if (node->get_rt_info().erase(ov::op::paged_attention_relative_bias_rt_info)) {
-            removed = true;
-            break;
-        }
+        const auto gather = ov::as_type_ptr<ov::op::v6::GatherElements>(node);
+        const auto broadcast =
+            gather ? ov::as_type_ptr<ov::op::v3::Broadcast>(gather->get_input_node_shared_ptr(1)) : nullptr;
+        const auto select =
+            broadcast ? ov::as_type_ptr<ov::op::v1::Select>(broadcast->get_input_node_shared_ptr(0)) : nullptr;
+        if (!select)
+            continue;
+        const auto fallback = ov::as_type_ptr<ov::op::v0::Constant>(select->get_input_node_shared_ptr(2));
+        ASSERT_TRUE(fallback);
+        select->input(2).replace_source_output(fallback->clone_with_new_inputs({}));
+        changed = true;
+        break;
     }
-    ASSERT_TRUE(removed);
+    ASSERT_TRUE(changed);
     OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
                     ov::Exception,
-                    testing::HasSubstr("query-dependent relative bias has no conversion contract"));
+                    testing::HasSubstr("invalid relative-distance indexing"));
 }
 
 TEST(GGUFInkling, PagedAttentionAllowsUnrelatedGatherMask) {

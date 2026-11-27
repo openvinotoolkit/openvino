@@ -11,7 +11,6 @@
 #include "builder/api/metadata_store.hpp"
 #include "builder/graph_emitter.hpp"
 #include "builder/metadata_checks.hpp"
-#include "openvino/op/paged_attention.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "ov_ops/gather_matmul.hpp"
 
@@ -255,7 +254,8 @@ private:
             value = mul(value, scale);
         // No epsilon: it only matters below the threshold, where the factor clamps to 1, and an epsilon
         // denominator or a sum of squares would pin this chain to f32 on GPU.
-        auto factor = std::make_shared<op::Divide>(scalar(threshold), std::make_shared<op::ReduceL2>(value, ints({3}), true));
+        auto factor =
+            std::make_shared<op::Divide>(scalar(threshold), std::make_shared<op::ReduceL2>(value, ints({3}), true));
         return mul(value, std::make_shared<op::Clamp>(factor, 0., 1.));
     }
 
@@ -392,8 +392,6 @@ private:
         bias = std::make_shared<op::Subtract>(bias, transpose(sinks, {0, 3, 2, 1}));
         // Halving keeps masked logits finite in f16 after the bias, sink and score additions.
         bias = add(bias, mul(e.value(swa ? "self_kq_mask_swa" : "self_kq_mask"), scalar(0.5f)));
-        bias.get_node_shared_ptr()->get_rt_info()[ov::op::paged_attention_relative_bias_rt_info] =
-            std::to_string(swa ? window : 0);
         // The zero sink represents the removed query-dependent sink logit.
         auto sinks_zero = op::Constant::create(ov::element::f32, {1, 1, 1, static_cast<size_t>(heads)}, {0.f});
         auto out =

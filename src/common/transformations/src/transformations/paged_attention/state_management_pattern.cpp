@@ -4,7 +4,7 @@
 
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
-#include <charconv>
+#include <limits>
 #include <optional>
 #include <tuple>
 #include <unordered_set>
@@ -209,6 +209,7 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
 }
 
 static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target);
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_gemma3_sliding_window_pattern();
 
 namespace {
 
@@ -230,22 +231,12 @@ std::optional<RelativeBias> extract_relative_bias(const ov::Node* sdpa, const Pa
     const auto add = ov::as_type_ptr<v1::Add>(root);
     const auto sub = add ? ov::as_type_ptr<v1::Subtract>(add->get_input_node_shared_ptr(0)) : nullptr;
     const auto gather = sub ? ov::as_type_ptr<ov::op::v6::GatherElements>(sub->get_input_node_shared_ptr(0)) : nullptr;
-    const auto attr = root->get_rt_info().find(ov::op::paged_attention_relative_bias_rt_info);
-    if (attr == root->get_rt_info().end()) {
-        const auto table = gather ? ov::as_type_ptr<v0::MatMul>(gather->get_input_node_shared_ptr(0)) : nullptr;
-        const auto indices = gather ? ov::as_type_ptr<v3::Broadcast>(gather->get_input_node_shared_ptr(1)) : nullptr;
-        OPENVINO_ASSERT(!table || !indices, "PagedAttention: query-dependent relative bias has no conversion contract");
+    const auto table = gather ? ov::as_type_ptr<v0::MatMul>(gather->get_input_node_shared_ptr(0)) : nullptr;
+    const auto broadcast = gather ? ov::as_type_ptr<v3::Broadcast>(gather->get_input_node_shared_ptr(1)) : nullptr;
+    // A table of per-query distance biases gathered by relative distance; anything else is an ordinary mask.
+    if (!table || !broadcast)
         return std::nullopt;
-    }
-
-    const auto& text = attr->second.as<std::string>();
-    int32_t window = 0;
-    const auto parsed = std::from_chars(text.data(), text.data() + text.size(), window);
-    OPENVINO_ASSERT(parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size() && window >= 0,
-                    "PagedAttention: invalid relative-bias sliding window");
-    OPENVINO_ASSERT(add && sub && gather && gather->get_axis() == 3, "PagedAttention: invalid relative-bias mask");
-    const auto table = ov::as_type_ptr<v0::MatMul>(gather->get_input_node_shared_ptr(0));
-    const auto broadcast = ov::as_type_ptr<v3::Broadcast>(gather->get_input_node_shared_ptr(1));
+    OPENVINO_ASSERT(gather->get_axis() == 3, "PagedAttention: invalid relative-bias mask");
     const auto select = broadcast ? ov::as_type_ptr<v1::Select>(broadcast->get_input_node_shared_ptr(0)) : nullptr;
     const auto valid = select ? ov::as_type_ptr<v1::LogicalAnd>(select->get_input_node_shared_ptr(0)) : nullptr;
     const auto lower = valid ? ov::as_type_ptr<v1::GreaterEqual>(valid->get_input_node_shared_ptr(0)) : nullptr;
@@ -282,6 +273,25 @@ std::optional<RelativeBias> extract_relative_bias(const ov::Node* sdpa, const Pa
                         depends_on(query_pos->input_value(0), positions.get()) &&
                         depends_on(cache->input_value(1), positions.get()),
                     "PagedAttention: invalid cached-position state");
+
+    // The window comes from the sliding-window mask added to the bias, in the gpt-oss/Gemma 3 form.
+    auto mask = add->input_value(1);
+    for (auto node = mask.get_node();
+         ov::is_type_any_of<v0::Convert, v0::Unsqueeze, v0::Squeeze, v1::Reshape>(node) ||
+         (ov::is_type<v1::Multiply>(node) && ov::is_type<v0::Constant>(node->get_input_node_ptr(1)));
+         node = mask.get_node())
+        mask = node->input_value(0);
+    const auto [window_mask, window_offset] = gptoss_gemma3_sliding_window_pattern();
+    ov::pass::pattern::Matcher window_matcher(window_mask);
+    int32_t window = 0;
+    if (window_matcher.match(mask)) {
+        const auto offset = ov::as_type_ptr<v0::Constant>(
+            window_matcher.get_pattern_value_map().at(window_offset).get_node_shared_ptr());
+        const auto values = offset->cast_vector<int64_t>();
+        OPENVINO_ASSERT(values.size() == 1 && values[0] < 0 && values[0] >= -std::numeric_limits<int32_t>::max(),
+                        "PagedAttention: invalid relative-bias sliding window");
+        window = static_cast<int32_t>(-values[0]);
+    }
     return RelativeBias{table->output(0), sub->input_value(1), state, window};
 }
 
