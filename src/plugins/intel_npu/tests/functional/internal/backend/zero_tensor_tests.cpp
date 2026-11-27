@@ -587,6 +587,51 @@ TEST_P(ZeroTensorTestsCheckDataType, CopyZeroTensorAndCheckTensorDataType) {
     EXPECT_EQ(zero_tensor->get_element_type(), copy_zero_tensor->get_element_type());
 }
 
+TEST_P(ZeroTensorTestsCheckDataType, WrapNonContiguousUserTensorPreservesByteStrides) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    constexpr size_t rows = 2;
+    constexpr size_t row_elements = 16;
+    const size_t inner_stride = element_type.bitwidth() < 8 ? 1 : element_type.size();
+    const size_t dense_row_bytes = row_elements * element_type.bitwidth() / 8;
+    const size_t padded_row_bytes = 2 * dense_row_bytes;
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+
+    // Backing memory holds 'rows' padded rows, i.e. twice the dense size.
+    auto host_tensor =
+        std::make_shared<::intel_npu::ZeroHostTensor>(zero_context,
+                                                      init_struct,
+                                                      element_type,
+                                                      Shape{2 * rows, row_elements});
+
+    const Shape shape{rows, row_elements};
+    const Strides strides{padded_row_bytes, inner_stride};
+    auto strided_tensor = make_tensor(element_type, shape, host_tensor->data(), strides);
+
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor;
+    ASSERT_NO_THROW(zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, strided_tensor));
+    EXPECT_EQ(shape, zero_tensor->get_shape());
+    EXPECT_EQ(strides, zero_tensor->get_strides());
+    EXPECT_EQ(host_tensor->data(), zero_tensor->data());
+}
+
+TEST_P(ZeroTensorTestsCheckDataType, IsContinuousDoesNotCrashForDenseTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+
+    for (const auto& shape : {Shape{2, 16}, Shape{1, 2, 2, 2}, Shape{3, 5}}) {
+        auto host_tensor = std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, element_type, shape);
+        EXPECT_TRUE(host_tensor->is_continuous()) << shape;
+
+        auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element_type, shape, true);
+        EXPECT_TRUE(zero_tensor->is_continuous()) << shape;
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

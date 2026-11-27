@@ -26,7 +26,7 @@ public:
 
 private:
     JitConstants GetJitConstants(const eye_params& params) const;
-    CommonDispatchData SetDefault(const eye_params& params) const;
+    static CommonDispatchData SetDefault(const eye_params& params);
 };
 
 }  // namespace kernel_selector

@@ -88,12 +88,11 @@ public:
         auto input_md = onednn::layout_to_memory_desc_blocked(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
         auto output_md = onednn::layout_to_memory_desc_blocked(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
 
-        auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(
-            ib.get_engine().get_onednn_engine(),
-            input_md,
-            ib.get_engine().get_onednn_engine(),
-            output_md,
-            *_attrs.get());
+        auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                         input_md,
+                                                                         ib.get_engine().get_onednn_engine(),
+                                                                         output_md,
+                                                                         *_attrs);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;

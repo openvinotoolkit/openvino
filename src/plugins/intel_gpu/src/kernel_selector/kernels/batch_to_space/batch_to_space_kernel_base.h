@@ -46,7 +46,7 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const batch_to_space_params& params) const;
     virtual CommonDispatchData SetDefault(const batch_to_space_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;

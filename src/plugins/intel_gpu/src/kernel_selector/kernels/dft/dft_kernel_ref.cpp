@@ -250,7 +250,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         MakeJitConstForParam(jit, "SIGNAL_SIZE", out_rank, axis, signal_sizes[inverted_axis]);
     }
     if (params.direction == dft_params::Direction::inverse) {
-        jit.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
+        jit.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.F / s));
     }
     if (params.mode == dft_params::Mode::real) {
         jit.AddConstant(MakeJitConstant("REAL_DFT", true));

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,8 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
 }
 
 FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const fully_connected_params& params,
-                                                                          int, int /*kernel_number*/) const {
+                                                                          int /*autoTuneIndex*/,
+                                                                          int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
     std::vector<size_t> global = { params.outputs[0].Feature().v, params.outputs[0].Batch().v, 1 };
@@ -94,6 +95,16 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
         jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
     } else if (wt == WeightsType::UINT2) {
         jit.Merge(make_sub_byte_packed_type_jit_constant("UINT2_PACKED_TYPE", wt, 4));
+    }
+
+    if (params.compressed && params.has_decompression_zp && !params.scalar_zp) {
+        const auto zp_type = params.decompression_zero_point.GetDType();
+        const bool packed_int4 = zp_type == Datatype::INT4 || zp_type == Datatype::UINT4;
+        jit.AddConstant(MakeJitConstant("DECOMPRESSION_ZP_PACKED_INT4", packed_int4));
+        if (packed_int4) {
+            const auto packed_type = zp_type == Datatype::INT4 ? WeightsType::INT4 : WeightsType::UINT4;
+            jit.Merge(make_sub_byte_packed_type_jit_constant("DECOMPRESSION_ZP_PACKED_TYPE", packed_type, 2));
+        }
     }
 
     if (!params.fused_ops.empty()) {

@@ -57,15 +57,20 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
         auto& stream = instance.get_network().get_stream();
 
-        stream.wait_for_events(events);
+        // On an in-order queue the copy below is already ordered after the input's kernels,
+        // so a host-side wait and a blocking copy only stall the CPU (one stall per state per inference).
+        const bool in_order = stream.get_queue_type() == QueueTypes::in_order;
+        if (!in_order) {
+            stream.wait_for_events(events);
+        }
 
-        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory(), 0, 0, variable.get_layout().bytes_count(), true);
+        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory(), 0, 0, variable.get_layout().bytes_count(), !in_order);
         variable.set();
 
         return ev_set_memory;
     }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const assign_node& arg, const kernel_impl_params& impl_param) {

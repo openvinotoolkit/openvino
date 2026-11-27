@@ -124,7 +124,7 @@ public:
     VariableStateKVcache(const std::string& name,
                          MemoryDescPtr external_desc,
                          BlockedMemoryDescPtr dense_internal_desc,
-                         ov::Extensions::Cpu::CacheSpec spec);
+                         ov::intel_cpu::CacheSpec spec);
 
     // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
@@ -162,7 +162,7 @@ public:
         m_scale_zp = t;
     }
 
-    const ov::Extensions::Cpu::CacheSpec& get_spec() const {
+    const ov::intel_cpu::CacheSpec& get_spec() const {
         return m_spec;
     }
 
@@ -182,8 +182,24 @@ private:
 
     // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
     PlainTensor m_scale_zp;
-    ov::Extensions::Cpu::CacheSpec m_spec;
+    ov::intel_cpu::CacheSpec m_spec;
 };
+
+#if defined(OPENVINO_ARCH_X86_64)
+// KV cache state kept in the plain BHLS order (contiguous rows along L, capacity carried by the strides) for the
+// sparse attention node; overrides the LBHS / beam-table get_state() and set_state_impl() of the base.
+class VariableStateKVcacheBHLS : public VariableStateKVcache {
+public:
+    using VariableStateKVcache::VariableStateKVcache;
+
+    // ov::IVariableState
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+private:
+    // ov::intel_cpu::VariableStateBase
+    void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
+};
+#endif  // OPENVINO_ARCH_X86_64
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
 using MemStateCPtr = std::shared_ptr<const IVariableState>;

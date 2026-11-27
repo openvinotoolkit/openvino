@@ -22,9 +22,8 @@
 #endif
 
 namespace {
-static const char create_device_error_msg[] =
-    "[GPU] No supported OCL devices found or unexpected error happened during devices query.\n"
-    "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
+const char create_device_error_msg[] = "[GPU] No supported OCL devices found or unexpected error happened during devices query.\n"
+                                       "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
 
 std::vector<std::string> split(const std::string& s, char delim) {
     std::vector<std::string> result;
@@ -126,7 +125,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
                                                                               void* user_device,
                                                                               int ctx_device_id,
                                                                               int target_tile_id,
-                                                                              bool initialize_devices) const {
+                                                                              bool initialize_devices) {
     std::vector<device::ptr> devices_list;
     if (user_context != nullptr) {
         devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
@@ -177,7 +176,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
     return ret;
 }
 
-std::vector<device::ptr> ocl_device_detector::create_device_list() const {
+std::vector<device::ptr> ocl_device_detector::create_device_list() {
     cl_uint num_platforms = 0;
     // Get number of platforms available
     cl_int error_code = clGetPlatformIDs(0, nullptr, &num_platforms);
@@ -226,7 +225,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     return supported_devices;
 }
 
-std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_context(void* user_context, int ctx_device_id) const {
+std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_context(void* user_context, int ctx_device_id) {
     cl::Context ctx = cl::Context(static_cast<cl_context>(user_context), true);
     auto all_devices = ctx.getInfo<CL_CONTEXT_DEVICES>();
 
@@ -243,7 +242,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
     return supported_devices;
 }
 
-std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(void* user_device) const {
+std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(void* user_device) {
     cl_uint num_platforms = 0;
     // Get number of platforms availible
     cl_int error_code = clGetPlatformIDs(0, nullptr, &num_platforms);

@@ -77,6 +77,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/cosh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/crop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/cum_sum.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/deform_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/dequantize_linear.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/dft.cpp

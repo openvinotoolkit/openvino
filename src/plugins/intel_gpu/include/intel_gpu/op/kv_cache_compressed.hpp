@@ -20,12 +20,12 @@ public:
     KVCacheCompressed() = default;
 
     KVCacheCompressed(const OutputVector& inputs,
-                      const std::shared_ptr<ov::op::util::Variable>& past_values,
+                      const std::shared_ptr<ov::op::util::Variable>& past_variable,
                       bool trim,
                       int64_t concat_axis,
                       int64_t gather_axis,
                       const QuantizationAttrs& quantization_attrs,
-                      const ov::element::Type output_type = ov::element::dynamic);
+                      ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 

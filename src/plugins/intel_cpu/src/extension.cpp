@@ -21,6 +21,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -39,6 +40,7 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/nms_rotated.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/normalize_l2.hpp"
@@ -46,10 +48,13 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -117,6 +122,7 @@
 #    include "transformations/cpu_opset/x64/op/interaction.hpp"
 #    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#    include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 #    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
@@ -217,11 +223,17 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::SelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedSelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedCausalConv1D>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::GatedResidual>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::PagedQSAIndexer>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::QSAIndexer>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::PagedSparseAttention>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::NGramHashFunction>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::QKVProjectionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::SparseAttentionWithKVCache>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertSaturation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())

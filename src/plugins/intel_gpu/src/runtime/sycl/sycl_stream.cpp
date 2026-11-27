@@ -57,7 +57,11 @@ sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& confi
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& sycl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+#if defined(OV_GPU_VENDOR_INTEL)
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+#elif defined(OV_GPU_VENDOR_NVIDIA)
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == NVIDIA_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-NVIDIA devices");
+#endif
     if (!_onednn_stream) {
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::sycl_interop::make_stream(_engine.get_onednn_engine(), _command_queue));
     }
@@ -143,11 +147,11 @@ void sycl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
 event::ptr sycl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     // Wait for all previously enqueued tasks if deps list is empty
     if (deps.empty()) {
+        // Unlike an OCL marker, this barrier also blocks subsequently submitted commands.
+        // The queue stamp is left 0, same as the OCL runtime.
         ::sycl::event ret_ev;
         try {
-            ret_ev = _command_queue.submit([&](::sycl::handler &cgh) {
-                cgh.single_task([]() {});
-            });
+            ret_ev = _command_queue.ext_oneapi_submit_barrier();
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }

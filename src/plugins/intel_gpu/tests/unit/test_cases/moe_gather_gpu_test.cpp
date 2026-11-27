@@ -142,3 +142,77 @@ TEST(moe_unit, moe_gather_test_multi_batch_unaligned) {
 TEST(moe_unit, moe_gather_test_cached) {
     test_moe_gather<float>(true, 64);
 }
+
+// Rank-3 hidden states whose token axis disagrees with has_batch_dim (e.g. PagedAttention [T,1,H] with has_batch_dim=true).
+// Runs prefill -> decode -> prefill on one network to also cover output buffer reuse across shape changes.
+static void test_moe_gather_rank3(bool has_batch_dim, bool tokens_first) {
+    auto& engine = get_test_engine();
+    const size_t hidden_size = 64;
+    const int32_t top_k = 2;
+
+    ov::op::internal::MOECompressed::Config moe_config;
+    moe_config.top_k = top_k;
+    moe_config.hidden_size = hidden_size;
+    moe_config.num_expert = 8;
+    moe_config.has_batch_dim = has_batch_dim;
+
+    auto dyn_layout = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
+                             data_types::f16, format::bfyx};
+    topology topology(input_layout("input", dyn_layout),
+                      input_layout("tokens_per_expert", layout{ov::PartialShape{ov::Dimension::dynamic()}, data_types::i32, format::bfyx}),
+                      moe_gather("moe_gather", input_info("input"), input_info("tokens_per_expert"), moe_config));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"moe_gather", {format::bfyx, "", impl_types::ocl}}}));
+    network network(engine, topology, config);
+
+    for (size_t num_tokens : std::vector<size_t>{30, 1, 30}) {
+        const ov::Shape in_shape = tokens_first ? ov::Shape{num_tokens, 1, hidden_size} : ov::Shape{1, num_tokens, hidden_size};
+        std::vector<ov::float16> input_data(num_tokens * hidden_size);
+        for (size_t i = 0; i < input_data.size(); ++i)
+            input_data[i] = static_cast<ov::float16>(static_cast<float>((i / hidden_size) * 2 + (i % hidden_size) % 2));
+        auto input_mem = engine.allocate_memory(layout{in_shape, data_types::f16, format::bfyx});
+        set_values(input_mem, input_data);
+
+        std::vector<int32_t> token_indices;
+        for (int32_t k = 0; k < top_k; ++k)
+            for (size_t t = 0; t < num_tokens; ++t)
+                token_indices.push_back(static_cast<int32_t>((t + k) % num_tokens));
+        auto indices_mem = engine.allocate_memory(layout{ov::Shape{token_indices.size()}, data_types::i32, format::bfyx});
+        set_values(indices_mem, token_indices);
+
+        network.set_input_data("input", input_mem);
+        network.set_input_data("tokens_per_expert", indices_mem);
+        auto outputs = network.execute();
+        auto output = outputs.at("moe_gather").get_memory();
+
+        ASSERT_EQ(output->get_layout().count(), token_indices.size() * hidden_size);
+        ASSERT_GE(output->get_mem_tracker() ? output->get_mem_tracker()->size() : output->size(),
+                  token_indices.size() * hidden_size * sizeof(ov::float16));
+        const bool expected_batch_layout = (num_tokens == 1) ? has_batch_dim : !tokens_first;
+        const ov::PartialShape expected_out_shape = expected_batch_layout
+            ? ov::PartialShape{ov::Dimension(1), ov::Dimension(static_cast<int64_t>(token_indices.size())), ov::Dimension(static_cast<int64_t>(hidden_size))}
+            : ov::PartialShape{ov::Dimension(static_cast<int64_t>(token_indices.size())), ov::Dimension(1), ov::Dimension(static_cast<int64_t>(hidden_size))};
+        ASSERT_EQ(output->get_layout().get_partial_shape(), expected_out_shape);
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (size_t r = 0; r < token_indices.size(); ++r) {
+            for (size_t h = 0; h < hidden_size; ++h) {
+                ASSERT_EQ(output_ptr[r * hidden_size + h], input_data[token_indices[r] * hidden_size + h]) << "tokens=" << num_tokens << " row=" << r;
+            }
+        }
+    }
+}
+
+TEST(moe_unit, moe_gather_tokens_first_with_batch_dim_flag) {
+    test_moe_gather_rank3(true, true);
+}
+
+TEST(moe_unit, moe_gather_batch_first_without_batch_dim_flag) {
+    test_moe_gather_rank3(false, false);
+}
+
+TEST(moe_unit, moe_gather_batch_first_with_batch_dim_flag) {
+    test_moe_gather_rank3(true, false);
+}

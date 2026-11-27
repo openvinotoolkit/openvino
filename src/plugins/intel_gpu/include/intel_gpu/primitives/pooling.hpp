@@ -50,7 +50,7 @@ struct pooling : public primitive_base<pooling> {
             ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT,
             ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR)
         : primitive_base(id, {input}),
-          mode(static_cast<pooling_mode>(mode)),
+          mode(mode),
           size(size),
           stride(stride),
           pads_begin(pads_begin),
@@ -77,7 +77,7 @@ struct pooling : public primitive_base<pooling> {
             tensor output_size,
             const data_types output_data_type)
         : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
-          mode(static_cast<pooling_mode>(mode)),
+          mode(mode),
           size(size),
           stride(stride),
           pads_begin(pads_begin),

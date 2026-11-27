@@ -58,6 +58,12 @@ F8_DTYPE_MAP = {
     torch.float8_e5m2: OVType.f8e5m2,
 }
 
+# numpy has no bf16 or f8 types, so their data is viewed as a numpy type of the same width.
+_NUMPY_VIEW_DTYPES = {
+    torch.bfloat16: (torch.float16, OVType.bf16),
+    **{dtype: (torch.uint8, ov_type) for dtype, ov_type in F8_DTYPE_MAP.items()},
+}
+
 
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
     # Memory-free tracing placeholder: emit the original tensor and convert it to FP32 in the graph.
@@ -72,21 +78,17 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
     except ImportError:
         log.debug("Failed to import FakeTensor")
 
-    dtype = torch_t.dtype
+    if torch_t.dtype in _NUMPY_VIEW_DTYPES:
+        view_dtype, ov_type = _NUMPY_VIEW_DTYPES[torch_t.dtype]
+        narr = torch_t.contiguous().view(view_dtype).numpy(force=True)
+        tensor = Tensor(narr, torch_t.shape, ov_type)
+        # Constant(tensor) keeps a raw pointer to narr and does not own it.
+        # contiguous() and numpy(force=True) return temporaries for non-contiguous or non-CPU input.
+        shares_caller_memory = shared_memory and narr.ctypes.data == torch_t.data_ptr()
+        return op.Constant(tensor, shared_memory=shares_caller_memory)
+
     torch_t = torch_t.contiguous()
-    if dtype == torch.bfloat16:
-        # reinterpret bfloat16 data as float16 to allow conversion to numpy
-        torch_t = torch_t.view(torch.float16)
-        narr = torch_t.numpy(force=True)
-        tensor = Tensor(narr, torch_t.shape, OVType.bf16)
-        ov_const = op.Constant(tensor, shared_memory=shared_memory)
-    elif dtype in F8_DTYPE_MAP:
-        # reinterpret f8 data as u8 to allow conversion to numpy
-        torch_t = torch_t.view(torch.uint8)
-        narr = torch_t.numpy(force=True)
-        tensor = Tensor(narr, torch_t.shape, F8_DTYPE_MAP[dtype])
-        ov_const = op.Constant(tensor, shared_memory=shared_memory)
-    elif torch_t.is_complex():
+    if torch_t.is_complex():
         narr = torch.view_as_real(torch_t).numpy(force=True)
         # we rely on frontend to mark the constant as complex internally
         ov_const = op.Constant(narr, shared_memory=shared_memory)

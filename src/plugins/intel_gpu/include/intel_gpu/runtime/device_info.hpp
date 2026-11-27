@@ -158,7 +158,7 @@ struct device_info {
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
 
-    inline bool is_same_device(const device_info &other) const {
+    bool is_same_device(const device_info& other) const {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
         // Therefore, we also validate other attributes

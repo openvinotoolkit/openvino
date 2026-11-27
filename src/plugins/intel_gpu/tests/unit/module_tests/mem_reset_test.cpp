@@ -7,9 +7,13 @@
 #include "primitive_inst_test_helper.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/resample.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/shape_of.hpp>
 
 #include <algorithm>
 #include <array>
@@ -118,3 +122,75 @@ INSTANTIATE_TEST_SUITE_P(smoke, mem_reset_test,
         mem_reset_params{ 16, true, false }
     )
 );
+
+// The target shape of an optimized out reshape is read on host by its shape inference, so it must not be reset even if
+// the users of the reshape need a zero-filled padding. The reset is an asynchronous fill which may run after the CPU
+// impl of shape_of has written the shape, and the reshape would then read [0,0,0,0].
+TEST(mem_reset_shape_infer_dep_test, optimized_out_reshape_target_shape) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const ov::Dimension::value_type channels = 16;
+    const ov::Shape target_shape = {1, channels, 8, 8};
+    const ov::Shape data_shape = {1, 1, channels, 8, 8};
+    layout target_layout{ov::PartialShape{-1, channels, -1, -1}, data_types::f16, format::bfyx};
+    layout data_layout{ov::PartialShape{-1, 1, channels, -1, -1}, data_types::f16, format::bfzyx};
+    layout weights_layout{ov::PartialShape{16, channels, 3, 3}, data_types::f16, format::bfyx};
+
+    auto target_mem = engine.allocate_memory({target_shape, data_types::f16, format::bfyx});
+    auto data_mem = engine.allocate_memory({data_shape, data_types::f16, format::bfzyx});
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(target_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(target_shape), -1, 1));
+    set_values(data_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(data_shape), -1, 1));
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1));
+
+    // reshape(relu(data), shape_of(target)) is optimized out, the dynamic resample is runtime skippable (marked as
+    // optimized out until it is executed), and the bfyx ocl convolution needs a zero-padded input.
+    topology t(input_layout("target", target_layout),
+               input_layout("data", data_layout),
+               data("weights", weights_mem),
+               shape_of("shape_of", input_info("target"), data_types::i32),
+               activation("relu", input_info("data"), activation_func::relu),
+               reshape("reshape", input_info("relu"), input_info("shape_of"), false, ov::PartialShape::dynamic(4)),
+               resample("resample",
+                        input_info("reshape"),
+                        std::vector<int64_t>{},
+                        std::vector<float>{2.f, 2.f},
+                        std::vector<int64_t>{2, 3},
+                        {0, 0, 0, 0},
+                        {0, 0, 0, 0},
+                        0,
+                        -0.75f,
+                        resample::InterpolateOp::InterpolateMode::NEAREST,
+                        resample::InterpolateOp::ShapeCalcMode::SCALES),
+               convolution("conv",
+                           input_info("resample"),
+                           "weights",
+                           no_bias,
+                           1,
+                           ov::Strides{1, 1},
+                           ov::Strides{1, 1},
+                           ov::CoordinateDiff{1, 1},
+                           ov::CoordinateDiff{1, 1},
+                           false),
+               reorder("output", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::bfyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network net(engine, t, config);
+    net.set_input_data("target", target_mem);
+    net.set_input_data("data", data_mem);
+
+    // Before the first execution, as when shape_of is prepared in the first inference: the data input of the reshape
+    // needs the reset, its target shape must not get it.
+    ASSERT_TRUE(net.get_primitive("reshape")->can_be_optimized());
+    ASSERT_TRUE(PrimitiveInstTestHelper::need_reset_output_memory(net.get_primitive("relu")));
+    ASSERT_FALSE(PrimitiveInstTestHelper::need_reset_output_memory(net.get_primitive("shape_of")));
+
+    auto outputs = net.execute();
+    ASSERT_EQ(outputs.at("output").get_memory()->get_layout().get_shape(), ov::Shape({1, 16, 16, 16}));
+}

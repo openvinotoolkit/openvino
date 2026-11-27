@@ -59,6 +59,7 @@ std::string attention(GraphEmitter& e,
     const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
     // Qwen35 packs Q and the output gate into one interleaved attn_q_gate projection.
     const bool joint_q_gate = cfg.interleaved_q_gate;
+    bool shared_v = false;
 
     // Q/K/V projection weights. Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight;
     // split it into separate q/k/v weights so the rest of the layer is architecture-agnostic.
@@ -76,8 +77,10 @@ std::string attention(GraphEmitter& e,
             // head_count_kv==1 and no separate attn_v.weight; V reuses K's extracted tensors.
             if (e.has_weight(p + "attn_v.weight"))
                 e.add_weight(p + "attn_v.weight");
-            else
+            else {
                 e.add_weight_from(p + "attn_v.weight", p + "attn_k");
+                shared_v = true;
+            }
         }
     }
     std::string q, gate;
@@ -127,7 +130,7 @@ std::string attention(GraphEmitter& e,
     if (cfg.has_qk_norm && !cfg.qk_norm_full && !cfg.qk_norm_after_rope)
         qk_norm();
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
-    if (cfg.has_v_norm && has_own_kv)
+    if ((cfg.has_v_norm || (cfg.arch == "dflash" && shared_v)) && has_own_kv)
         v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
 
     // RoPE. rope_freqs.weight (per-dim frequency factor) is an optional 3rd input.
@@ -223,10 +226,11 @@ std::string attention(GraphEmitter& e,
     // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     std::vector<std::string> attn_in = {q, k, v};
-    if (!cfg.embedding_model || cfg.causal_attention)
+    // Stateless noncausal models keep a mask only on sliding-window layers (LFM3 D1).
+    if (!cfg.embedding_model || cfg.causal_attention || is_swa_layer)
         attn_in.emplace_back(is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask");
     if (cfg.has_sinks) {
-        e.add_named_weight(p + "attn_sinks.weight");
+        e.add_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
@@ -244,11 +248,12 @@ std::string attention(GraphEmitter& e,
     auto attn_2d = reshape(e, attn, merged_shape, p + "kqv_merged");
 
     if (cfg.has_attn_gate) {
-        const auto& gate_weight = e.weight_tensor(p + (joint_q_gate ? "attn_q.weight" : "attn_gate.weight"));
-        const bool rank3_gate = gate_weight.get_element_type() != ov::element::u2;
+        const auto gate_name = p + (joint_q_gate ? "attn_q.weight" : "attn_gate.weight");
+        const auto qtype = e.weight_qtype(gate_name);
+        const bool rank3_gate = !gguf_has_u2_weights(qtype);
         auto gate_width = static_cast<size_t>(q_width);
         if (!joint_q_gate) {
-            const auto& gate_shape = gate_weight.get_shape();
+            const auto& gate_shape = e.weight_shape(gate_name);
             OPENVINO_ASSERT(gate_shape.size() == 2 && (gate_shape[0] == static_cast<size_t>(n_head_l) ||
                                                        gate_shape[0] == static_cast<size_t>(q_width)),
                             "[GGUF] attention gate must have one value per head or per channel");

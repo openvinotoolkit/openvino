@@ -21,7 +21,7 @@ public:
         size_t max_per_dim_diff = 2;
 
         // Percentage mode preallocation
-        float buffers_preallocation_ratio = 1.1f;
+        float buffers_preallocation_ratio = 1.1F;
     };
 
     using Ptr = std::shared_ptr<ShapePredictor>;
@@ -53,7 +53,7 @@ public:
     std::pair<bool, ov::Shape> predict_preallocation_shape(const std::string& id,
                                                            const cldnn::layout& layout,
                                                            bool can_reuse_buffer,
-                                                           const size_t out_idx = 0,
+                                                           size_t out_idx = 0,
                                                            int32_t custom_next_iters_prealloc_count = -1,
                                                            int32_t custom_prealloc_dim = -1);
 

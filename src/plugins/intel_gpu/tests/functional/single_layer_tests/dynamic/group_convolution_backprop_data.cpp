@@ -316,4 +316,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Dynamic_OutputShape_FP32, GroupDec
         ::testing::Values(emptyAdditionalConfig)),
     GroupDeconvolutionLayerGPUTest::getTestCaseName);
 
+// SAME_UPPER/SAME_LOWER pads depend on the input and output spatial dims, so they are known only at runtime
+const std::vector<DeconvInputData> dyn_2D_inputs_with_output_shape_auto_pad = {
+    DeconvInputData{
+        InputShape{{-1, 12, -1, -1}, {{1, 12, 7, 7}, {2, 12, 6, 9}, {1, 12, 7, 7}}},
+        ov::test::utils::InputLayerType::PARAMETER,
+        {{7, 7}, {6, 8}, {8, 8}}
+    },
+    DeconvInputData{
+        InputShape{{1, 12, -1, -1}, {{1, 12, 7, 7}, {1, 12, 6, 9}, {1, 12, 7, 7}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{7, 8}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AutoPad_Dynamic_OutputShape_FP32, GroupDeconvolutionLayerGPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(std::vector<size_t>{3, 3}, std::vector<size_t>{4, 4}),
+            ::testing::ValuesIn(strides2d),
+            ::testing::ValuesIn(padBegins2d),
+            ::testing::ValuesIn(padEnds2d),
+            ::testing::ValuesIn(dilations2d),
+            ::testing::ValuesIn(numOutChannels),
+            ::testing::ValuesIn(numGroups),
+            ::testing::Values(ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER),
+            ::testing::ValuesIn(emptyOutputPadding)),
+        ::testing::ValuesIn(dyn_2D_inputs_with_output_shape_auto_pad),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
+        ::testing::Values(emptyAdditionalConfig)),
+    GroupDeconvolutionLayerGPUTest::getTestCaseName);
+
 } // namespace

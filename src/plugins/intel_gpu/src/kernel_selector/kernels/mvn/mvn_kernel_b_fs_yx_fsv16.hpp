@@ -29,7 +29,7 @@ protected:
         size_t item_groups;
     };
 
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     DispatchData SetDefault(const mvn_params& params) const override;
     JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
@@ -44,9 +44,9 @@ protected:
 
     KernelsData GetMultiStageKernelsData(const mvn_params& params) const;
     KernelsData GetDynamicMultiStageKernelsData(const mvn_params& params) const;
-    MultiDispatchData SetDefaultForMulti(const mvn_params& params) const;
+    static MultiDispatchData SetDefaultForMulti(const mvn_params& params);
 
 private:
-    Datatype GetAccumulatorType(const mvn_params& params) const;
+    static Datatype GetAccumulatorType(const mvn_params& params);
 };
 }  // namespace kernel_selector

@@ -7,7 +7,9 @@
 #include <sstream>
 
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 
 namespace intel_npu {
 
@@ -73,8 +75,13 @@ void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITenso
     setArg(arg);
     setOffset(offset);
     setSize(tensor->get_shape());
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    setStrides(tensor->get_strides(), static_cast<int32_t>(elementSize));
+    if (!ov::util::can_compute_byte_strides(tensor->get_element_type(), tensor->get_shape())) {
+        // Byte strides are not representable for this type/shape (e.g. an unaligned sub-byte row) -
+        // fall back to shape-derived contiguous element strides.
+        updateStride();
+        return;
+    }
+    setStrides(zeroUtils::byte_strides_to_element_strides(tensor->get_strides(), tensor->get_element_type()), 1);
 }
 
 void MemRefType::updateStride() {

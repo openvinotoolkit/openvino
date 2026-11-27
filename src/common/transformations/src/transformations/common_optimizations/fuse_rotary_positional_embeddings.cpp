@@ -204,7 +204,10 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     auto x2 = op_util::NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
-    auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto minus_one = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1"));
+    auto minus_one_convert = pattern::optional<v0::Convert>({minus_one});
+    auto x2neg =
+        pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), minus_one_convert}, {{"auto_broadcast", "numpy"}});
     auto x1 = op_util::NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
     auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 

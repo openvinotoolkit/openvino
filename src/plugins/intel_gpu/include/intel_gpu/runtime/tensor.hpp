@@ -277,7 +277,7 @@ public:
             }
 
             auto in_idx = in_order.find(channel);
-            if (in_idx == in_order.npos) {
+            if (in_idx == std::string::npos) {
                 throw std::runtime_error("Internal order of a format contains channel which does not appear in external order.");
             }
 

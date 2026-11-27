@@ -35,17 +35,22 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
     output_shape[out_n_dim] = ov::Dimension(n);
 
     if (!input_layout.is_dynamic()) {
-        size_t seq_len_dim = (desc->has_batch_dim) ? 1 : 0;
-        auto m = input_layout.get_shape()[seq_len_dim];
+        const auto& in_shape = input_layout.get_shape();
+        const auto m = in_shape[0] * in_shape[1];
+        // Follow the arrangement moe_gather produced; has_batch_dim only decides the ambiguous [1,1,K] case
+        bool batch_layout = desc->has_batch_dim;
+        if ((in_shape[0] == 1) != (in_shape[1] == 1)) {
+            batch_layout = in_shape[0] == 1;
+        }
         if (m == 1) {
             // first gemm (up/gate) in the generate phase
-            if (!desc->has_batch_dim) {
+            if (!batch_layout) {
                 output_shape = ov::PartialShape{ov::Dimension(num_experts_per_token), ov::Dimension(1), ov::Dimension(n)};
             } else {
                 output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_experts_per_token), ov::Dimension(n)};
             }
         } else {
-            if (!desc->has_batch_dim) {
+            if (!batch_layout) {
                 output_shape = ov::PartialShape{ov::Dimension(m), ov::Dimension(1), ov::Dimension(n)};
             } else {
                 output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(m), ov::Dimension(n)};

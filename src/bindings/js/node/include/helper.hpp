@@ -40,6 +40,10 @@ TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx);
 
+/** @brief  A template specialization for TargetType size_t. Accepts a non-negative integer Number or BigInt. */
+template <>
+size_t js_to_cpp<size_t>(const Napi::Env& env, const Napi::Value& value);
+
 /** @brief  A template specialization for TargetType std::vector<size_t> */
 template <>
 std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info, const size_t idx);

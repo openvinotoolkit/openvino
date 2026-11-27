@@ -17,20 +17,21 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
 KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
-    auto wei_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto wei_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto wei_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto wei_0_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::i4}));
+    auto wei_1_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::i4}));
+    auto wei_2_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::i4}));
+    // Zero points may be wider than the weights (u8 for GGUF Q4_1/Q4_K) or a dynamic placeholder when symmetric.
+    auto zp_0_m = wrap_type<ov::op::v0::Constant>();
+    auto zp_1_m = wrap_type<ov::op::v0::Constant>();
+    auto zp_2_m = wrap_type<ov::op::v0::Constant>();
 
     // Shared expert weights
-    auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_up_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_up_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::i4}));
+    auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>();
+    auto sh_up_wei_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::i4}));
+    auto sh_up_zp_m = wrap_type<ov::op::v0::Constant>();
+    auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::i4}));
+    auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>();
 
     // Without shared expert: 12 inputs [hs, routing, topk, w0, s0, zp0, w1, s1, zp1, w2, s2, zp2]
     auto moe_no_shared_m = wrap_type<ov::op::internal::MOECompressed>(
@@ -60,19 +61,30 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
                  ov::enable_keep_const_precision(pattern_map.at(pattern_node).get_node_shared_ptr());
             }
         };
+        // ConvertPrecision unpacks only 4-bit constants, so wider zero points need no protection.
+        auto enable_zp_if_4bit = [&](const std::shared_ptr<Node>& pattern_node) {
+            if (pattern_map.count(pattern_node) == 0) {
+                return;
+            }
+            const auto node = pattern_map.at(pattern_node).get_node_shared_ptr();
+            const auto et = node->get_output_element_type(0);
+            if (et == ov::element::u4 || et == ov::element::i4) {
+                ov::enable_keep_const_precision(node);
+            }
+        };
 
         enable_if_present(wei_0_m);
         enable_if_present(wei_1_m);
         enable_if_present(wei_2_m);
-        enable_if_present(zp_0_m);
-        enable_if_present(zp_1_m);
-        enable_if_present(zp_2_m);
+        enable_zp_if_4bit(zp_0_m);
+        enable_zp_if_4bit(zp_1_m);
+        enable_zp_if_4bit(zp_2_m);
         enable_if_present(sh_gate_wei_m);
-        enable_if_present(sh_gate_zp_m);
+        enable_zp_if_4bit(sh_gate_zp_m);
         enable_if_present(sh_up_wei_m);
-        enable_if_present(sh_up_zp_m);
+        enable_zp_if_4bit(sh_up_zp_m);
         enable_if_present(sh_down_wei_m);
-        enable_if_present(sh_down_zp_m);
+        enable_zp_if_4bit(sh_down_zp_m);
 
         return true;
     };

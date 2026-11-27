@@ -4,6 +4,7 @@
 
 #include "gather_elements_kernel_ref.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -194,10 +195,10 @@ bool GatherElementsKernelRef::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

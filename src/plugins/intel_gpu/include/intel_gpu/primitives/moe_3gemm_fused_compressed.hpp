@@ -62,7 +62,8 @@ struct moe_otd_descriptor {
 struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compressed> {
     CLDNN_DECLARE_PRIMITIVE(moe_3gemm_fused_compressed)
 
-    static constexpr size_t serialized_weight_offset_count = 9;
+    // Only the gate/up/down weights are streamed from the weights file: scales and zero points stay resident
+    static constexpr size_t serialized_weight_offset_count = 3;
 
     enum class input_index : size_t {
         hidden_states = 0,

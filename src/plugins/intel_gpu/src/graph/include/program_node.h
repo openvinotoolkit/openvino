@@ -122,12 +122,10 @@ public:
     bool is_fused_dep(size_t dep_idx) const;
 
     bool has_fused_dep() const {
-        for (const auto& fused : get_fused_primitives()) {
-            if (fused.has_outer_dep()) {
-                return true;
-            }
-        }
-        return false;
+        const auto& fused_primitives = get_fused_primitives();
+        return std::any_of(fused_primitives.begin(), fused_primitives.end(), [](const auto& fused) {
+            return fused.has_outer_dep();
+        });
     }
 
     int32_t get_first_fused_dep_idx() const {
@@ -231,7 +229,7 @@ public:
         return desc->output_size();
     }
 
-    const std::vector<layout> get_input_layouts() const;
+    std::vector<layout> get_input_layouts() const;
     const layout& get_input_layout(size_t idx = 0) const;
     const ov::PartialShape& get_input_pshape(size_t idx = 0) const;
     ov::PartialShape get_output_pshape(size_t idx = 0) const;
@@ -263,8 +261,8 @@ public:
     const std::vector<uint32_t>& get_memory_dependencies() const;
     bool has_memory_dependency(uint32_t id) const;
 
-    void add_memory_dependency(std::vector<size_t>);
-    void add_memory_dependency(const program_node& node);
+    void add_memory_dependency(std::vector<size_t> /*prim_list*/);
+    void add_memory_dependency(const program_node& dep);
 
     // At least the following scenarios are not allocating from memory pool:
     // 1. constant nodes
@@ -275,12 +273,9 @@ public:
 
     template <class PType>
     bool have_user_with_type() const {
-        for (const auto& usr : users) {
-            if (usr->is_type<PType>()) {
-                return true;
-            }
-        }
-        return false;
+        return std::any_of(users.begin(), users.end(), [](const auto& usr) {
+            return usr->template is_type<PType>();
+        });
     }
 
     bool is_detached(bool whole_branch = false);
@@ -346,7 +341,6 @@ public:
         return static_cast<bool>(get_output_layout().data_padding);
     }
 
-    bool has_padded_dependency();
     bool has_padded_dependency() const;
 
     bool is_input() const {
@@ -366,11 +360,9 @@ public:
         return valid_output_layouts[idx];
     }
     bool is_all_valid_output_layouts() const {
-        for (auto l : valid_output_layouts) {
-            if (!l)
-                return false;
-        }
-        return true;
+        return std::all_of(valid_output_layouts.begin(), valid_output_layouts.end(), [](bool valid) {
+            return valid;
+        });
     }
 
     uint8_t mark(uint8_t val = 1) {
@@ -488,10 +480,10 @@ public:
         reused_memory_color = color;
     }
 
-    bool is_reusing_memory() {
+    bool is_reusing_memory() const {
         return has_reused_memory;
     }
-    uint32_t get_reused_memory_color() {
+    uint32_t get_reused_memory_color() const {
         return reused_memory_color;
     }
 
@@ -600,7 +592,7 @@ public:
         return (idx < preferred_output_fmts.size()) ? preferred_output_fmts.at(idx) : format::any;
     }
 
-    void init_preferred_fmt(size_t dep_size, size_t user_size);
+    void init_preferred_fmt(size_t dep_node, size_t user_node);
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 

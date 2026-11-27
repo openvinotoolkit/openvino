@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_1x1_gemm_buf::get_required_device_featu
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];

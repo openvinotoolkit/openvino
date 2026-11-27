@@ -84,6 +84,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DLLAMA_USE_PREBUILT_UI=OFF \
             -DGGML_OPENVINO=ON
 
       - name: Build llama.cpp

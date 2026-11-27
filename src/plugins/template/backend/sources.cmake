@@ -65,6 +65,7 @@ set(OPS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ops/grouped_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ops/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/identity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/if.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/interpolate.cpp
@@ -84,6 +85,7 @@ set(OPS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ops/multinomial.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/mvn.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ops/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/normalize_l2.cpp

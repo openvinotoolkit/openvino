@@ -79,6 +79,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/framework_node.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul_compressed_test.cpp
@@ -97,6 +98,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hsigmoid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hswish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/identity.cpp
@@ -130,6 +132,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mvn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/negative.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/non_zero.cpp
@@ -138,10 +141,11 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/prelu.cpp
@@ -149,6 +153,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/random_poisson.cpp
     ${CMAKE_CURRENT_LIST_DIR}/random_uniform.cpp

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,8 +81,8 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
     bool has_dynamic_pad;
 };
 
-std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);
-bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout);
+std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, WeightsLayout layout);
+bool CheckImageSize(const weight_bias_params& newParams, WeightsLayout layout);
 bool UpdateWeightsParams(weight_bias_params& newParams,
                          WeightsLayout layout,
                          WeightsReorderParams& weightsReorderParams,

@@ -43,7 +43,7 @@ public:
             (input_layout.is_static() && input_layout.feature() % 16 != 0);
     }
 
-    typed_primitive_inst(network& network, reduce_node const& desc);
+    typed_primitive_inst(network& network, const reduce_node& node);
 };
 
 using reduce_inst = typed_primitive_inst<reduce>;

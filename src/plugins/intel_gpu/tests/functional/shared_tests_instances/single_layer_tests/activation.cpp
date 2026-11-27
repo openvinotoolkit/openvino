@@ -5,6 +5,9 @@
 #include "single_op_tests/activation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+#include <cstdint>
+#include <limits>
+
 namespace {
 using ov::test::ActivationLayerTest;
 using ov::test::ActivationParamLayerTest;
@@ -129,5 +132,45 @@ INSTANTIATE_TEST_SUITE_P(Activation_BigRanks, ActivationLayerTest, big_rank_case
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases(), ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases(), ActivationLayerTest::getTestCaseName);
+
+const auto clampLowerBoundInputShapes = std::make_pair(
+    ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{1, 8}}),
+    ov::Shape{});
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Clamp_LowerBound,
+    ActivationLayerTest,
+    ::testing::Values(
+        ov::test::activationParams{{ActivationTypes::Clamp,
+                                   {static_cast<float>(std::numeric_limits<int64_t>::lowest()), 5.0f}},
+                                  ov::element::i32,
+                                  clampLowerBoundInputShapes,
+                                  ov::test::utils::DEVICE_GPU},
+        ov::test::activationParams{{ActivationTypes::Clamp, {-2147483904.0f, 5.0f}},
+                                  ov::element::i32,
+                                  clampLowerBoundInputShapes,
+                                  ov::test::utils::DEVICE_GPU},
+        ov::test::activationParams{{ActivationTypes::Clamp,
+                                   {static_cast<float>(std::numeric_limits<int32_t>::lowest()), 5.0f}},
+                                  ov::element::i32,
+                                  clampLowerBoundInputShapes,
+                                  ov::test::utils::DEVICE_GPU},
+        ov::test::activationParams{{ActivationTypes::Clamp,
+                                   {static_cast<float>(std::numeric_limits<int64_t>::lowest()), 5.0f}},
+                                  ov::element::i64,
+                                  clampLowerBoundInputShapes,
+                                  ov::test::utils::DEVICE_GPU},
+        ov::test::activationParams{{ActivationTypes::Clamp, {-2147483904.0f, 5.0f}},
+                                  ov::element::i64,
+                                  clampLowerBoundInputShapes,
+                                  ov::test::utils::DEVICE_GPU},
+        ov::test::activationParams{{ActivationTypes::Clamp,
+                                   {static_cast<float>(std::numeric_limits<int32_t>::lowest()), 5.0f}},
+                                  ov::element::i64,
+                                  clampLowerBoundInputShapes,
+                                  ov::test::utils::DEVICE_GPU}),
+    [](const testing::TestParamInfo<ov::test::activationParams>& info) {
+        return "Case" + std::to_string(info.index);
+    });
 
 }  // namespace

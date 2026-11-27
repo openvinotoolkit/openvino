@@ -272,7 +272,7 @@ enum class Tags : uint32_t {
     model = 2,                 //!< See #model.
     runtime_requirements = 3,  //!< See #runtime_requirements_tag.
     weights = 4,               //!< See #weights_tag.
-    compiled_options = 5,      //!< See #compiled_options_tag.
+    compile_options = 5,       //!< See #compile_options_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -284,7 +284,7 @@ inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!
 inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
 inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);
-inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compiled_options);
+inline constexpr uint32_t compile_options = static_cast<uint32_t>(Tags::compile_options);
 
 /// Wire tag for #model_id - always inline-mode.
 inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
@@ -304,8 +304,8 @@ inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_
 /// Wire tag for #weights - always pointer-mode. Payload contract: CVS-196451.
 inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=*/false);
 
-/// Wire tag for #compiled_options - always pointer-mode. Payload contract: CVS-196452.
-inline constexpr SectionTag compiled_options_tag = SectionTag::make(compiled_options, /*is_inline=*/false);
+/// Wire tag for #compile_options - always pointer-mode. Payload: see openvino/runtime/hsm_compile_options_codec.hpp.
+inline constexpr SectionTag compile_options_tag = SectionTag::make(compile_options, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).
@@ -447,10 +447,10 @@ public:
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        if (m_view.empty() || entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
+        if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {
-            return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
+            return m_view.subspan(static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size));
         }
     }
 
@@ -461,13 +461,6 @@ public:
     bool validate() const noexcept;
 
 private:
-    constexpr const std::byte* begin() const noexcept {
-        return m_view.begin();
-    }
-    constexpr const std::byte* end() const noexcept {
-        return m_view.end();
-    }
-
     ov::util::MemoryView m_view{};
 };
 

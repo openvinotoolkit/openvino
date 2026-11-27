@@ -24,8 +24,9 @@ struct MSDAOpt : public ImplementationManager {
 
     [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
         std::vector<format::type> in_fmts;
-        for (size_t i = 0; i < node.get_dependencies().size(); i++)
+        for (size_t i = 0; i < node.get_dependencies().size(); i++) {
             in_fmts.push_back(format::get_default_format(node.get_input_layout(i).get_rank()));
+        }
         return {in_fmts, {format::get_default_format(node.get_output_layout(0).get_rank())}};
     }
 

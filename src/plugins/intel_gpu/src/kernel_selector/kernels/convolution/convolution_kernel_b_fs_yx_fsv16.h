@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ protected:
 
     bool NeedPaddedInput() const override { return false; }
     bool Validate(const Params& p) const override;
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
 
 private:
@@ -59,8 +59,8 @@ private:
     };
 
     std::vector<AutoTuneOption> autoTuneOptions;
-    AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
-    ConvolutionTuningData GetTuningParams(const convolution_params& params) const;
-    float EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const;
+    static AutoTuneOption GetAutoTuneOptions(const Params& params, int autoTuneIndex);
+    static ConvolutionTuningData GetTuningParams(const convolution_params& params);
+    static float EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data);
 };
 }  // namespace kernel_selector

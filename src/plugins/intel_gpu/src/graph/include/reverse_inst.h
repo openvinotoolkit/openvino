@@ -25,7 +25,7 @@ public:
     static layout calc_output_layout(reverse_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reverse_node const& node);
 
-    typed_primitive_inst(network& network, reverse_node const& desc);
+    typed_primitive_inst(network& network, const reverse_node& node);
 };
 
 using reverse_inst = typed_primitive_inst<reverse>;

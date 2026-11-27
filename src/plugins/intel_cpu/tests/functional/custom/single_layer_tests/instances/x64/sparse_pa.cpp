@@ -1,0 +1,432 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "custom/single_layer_tests/classes/sparse_pa.hpp"
+
+#include "utils/cpu_test_utils.hpp"
+
+namespace ov {
+namespace test {
+
+namespace {
+
+constexpr size_t kNumHeads = 4;
+
+// Decode steps after a 3-token prefill, around the causal block boundaries of key_block_size 2 and 4.
+const std::vector<size_t> kBoundarySteps = {3, 1, 1, 1, 1, 1, 1, 5, 1};
+// A prefill that stops in the middle of a page, a chunked prefill that crosses a page boundary (29 + 8 > 32), decode
+// steps on the partially filled pages and another chunk: every call continues the caches the previous ones wrote.
+const std::vector<size_t> kChunkedSteps = {29, 8, 1, 1, 32, 1};
+// Prefill lengths around the 32 rows of a brgemm chunk and the 128 rows of a tile, then a chunk after a long history;
+// 128 selectable blocks of 4 tokens.
+const std::vector<size_t> kLongSteps = {31, 1, 32, 254, 2};
+
+enum class Batch {
+    kSingle,  // one sequence
+    kMixed,   // three sequences: a prefill, a decode and a shorter chunk in the same call (see SparsePAConfig)
+    kLong,    // one sequence, long steps
+};
+
+// One test: the steps follow the PagedAttention tests' [L, B, H, S] form (consecutive calls of the same B sequences).
+SparsePALayerTestParams make_case(ov::element::Type data_precision,
+                                  size_t head_size,
+                                  Batch batch,
+                                  SparsePAConfig cfg,
+                                  ov::element::Type inference_precision = ov::element::dynamic) {
+    const bool mixed = batch == Batch::kMixed;
+    const size_t sequences = mixed ? 3 : 1;
+    std::vector<ov::Shape> targets;
+    for (const auto len : batch == Batch::kLong ? kLongSteps : mixed ? kChunkedSteps : kBoundarySteps) {
+        targets.push_back({len, sequences, kNumHeads, head_size});
+    }
+    cfg.mixed_lengths = mixed;
+    const std::vector<InputShape> steps = {{ov::PartialShape{-1,
+                                                             static_cast<int64_t>(sequences),
+                                                             static_cast<int64_t>(kNumHeads),
+                                                             static_cast<int64_t>(head_size)},
+                                            targets}};
+    return {data_precision, steps, cfg, inference_precision};
+}
+
+SparsePAConfig plain_config(size_t sel_head_num,
+                            size_t key_block_size,
+                            size_t page_size,
+                            size_t max_selected_blocks,
+                            SparsePASelection selection,
+                            size_t v_head_size = 16) {
+    SparsePAConfig cfg;
+    cfg.num_selection_heads = sel_head_num;
+    cfg.v_head_size = v_head_size;
+    cfg.key_block_size = key_block_size;
+    cfg.page_size = page_size;
+    cfg.max_selected_blocks = max_selected_blocks;
+    cfg.selection = selection;
+    return cfg;
+}
+
+// Quantized caches as ConvertPagedAttnInputs produces them: 32-token pages, key_block_size 4.
+SparsePAConfig quantized_config(ov::element::Type cache_precision,
+                                bool key_bychannel,
+                                size_t group_size,
+                                size_t sel_head_num,
+                                SparsePASelection selection,
+                                size_t v_head_size = 16,
+                                size_t max_selected_blocks = 8) {
+    auto cfg = plain_config(sel_head_num, 4, 32, max_selected_blocks, selection, v_head_size);
+    cfg.cache_precision = cache_precision;
+    cfg.key_bychannel = key_bychannel;
+    cfg.group_size = group_size;
+    return cfg;
+}
+
+constexpr auto kRecent = SparsePASelection::kRecent;
+constexpr auto kRandom = SparsePASelection::kRandom;
+constexpr auto kEmpty = SparsePASelection::kEmpty;
+
+// Plain caches on the vector kernels: every data precision, selection head count (1, K heads, query heads) and
+// selection mode, on 32-token pages.
+std::vector<SparsePALayerTestParams> plain_cases() {
+    const auto f32 = ov::element::f32;
+    const auto f16 = ov::element::f16;
+    const auto bf16 = ov::element::bf16;
+    return {make_case(f32,
+                      /*head_size=*/16,
+                      Batch::kSingle,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/2,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kRecent)),
+            make_case(f16,
+                      /*head_size=*/16,
+                      Batch::kSingle,
+                      plain_config(/*sel_heads=*/2,
+                                   /*key_block_size=*/2,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kRandom)),
+            make_case(bf16,
+                      /*head_size=*/16,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/kNumHeads,
+                                   /*key_block_size=*/2,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kRandom)),
+            make_case(f32,
+                      /*head_size=*/16,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/2,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kEmpty)),
+            make_case(bf16,
+                      /*head_size=*/16,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/2,
+                                   /*key_block_size=*/2,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kRecent)),
+            make_case(f16,
+                      /*head_size=*/16,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/2,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kRandom))};
+}
+
+// AMX brgemm path, bf16, key_block_size 4 on 32-token pages; head sizes 32, 128, 256, v_head_size differing from the
+// key one.
+std::vector<SparsePALayerTestParams> amx_cases() {
+    const auto bf16 = ov::element::bf16;
+    return {make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/4,
+                                   /*selection=*/kRecent)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/16,
+                                   /*selection=*/kRandom)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/kNumHeads,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/8,
+                                   /*selection=*/kRandom)),
+            // one sequence: the decode steps pack the query heads (the mixed batches run one head per decode item)
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kSingle,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/8,
+                                   /*selection=*/kRandom)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/2,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/16,
+                                   /*selection=*/kRecent)),
+            make_case(bf16,
+                      /*head_size=*/128,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/8,
+                                   /*selection=*/kRandom,
+                                   /*v_head_size=*/64)),
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/8,
+                                   /*selection=*/kRecent,
+                                   /*v_head_size=*/256)),
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/8,
+                                   /*selection=*/kRandom,
+                                   /*v_head_size=*/128)),
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kMixed,
+                      plain_config(/*sel_heads=*/2,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/8,
+                                   /*selection=*/kRandom,
+                                   /*v_head_size=*/256)),
+            // selections of up to 3 tiles of rows, tails of every length
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kLong,
+                      plain_config(/*sel_heads=*/1,
+                                   /*key_block_size=*/4,
+                                   /*page_size=*/32,
+                                   /*max_blocks=*/128,
+                                   /*selection=*/kRecent,
+                                   /*v_head_size=*/256))};
+}
+
+// Quantized (u8 / u4) caches: by-token and by-channel keys, one or several groups, one or several selection heads.
+std::vector<SparsePALayerTestParams> quantized_cases() {
+    const auto f32 = ov::element::f32;
+    const auto bf16 = ov::element::bf16;
+    const auto u8 = ov::element::u8;
+    const auto u4 = ov::element::u4;
+    return {make_case(f32,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u8,
+                                       /*key_bychannel=*/false,
+                                       /*group_size=*/0,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRecent)),
+            make_case(f32,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u4,
+                                       /*key_bychannel=*/true,
+                                       /*group_size=*/0,
+                                       /*sel_heads=*/2,
+                                       /*selection=*/kRandom)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u8,
+                                       /*key_bychannel=*/true,
+                                       /*group_size=*/16,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRandom)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u8,
+                                       /*key_bychannel=*/false,
+                                       /*group_size=*/0,
+                                       /*sel_heads=*/kNumHeads,
+                                       /*selection=*/kRecent)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kSingle,
+                      quantized_config(/*cache=*/u4,
+                                       /*key_bychannel=*/false,
+                                       /*group_size=*/16,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRandom)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u4,
+                                       /*key_bychannel=*/false,
+                                       /*group_size=*/16,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRecent)),
+            make_case(bf16,
+                      /*head_size=*/32,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u8,
+                                       /*key_bychannel=*/true,
+                                       /*group_size=*/0,
+                                       /*sel_heads=*/2,
+                                       /*selection=*/kRandom)),
+            // 16 selected blocks span two 32-token pages, so runs of four adjacent blocks inside one page occur.
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u8,
+                                       /*key_bychannel=*/true,
+                                       /*group_size=*/0,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRecent,
+                                       /*v_head_size=*/128,
+                                       /*max_blocks=*/16)),
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kMixed,
+                      quantized_config(/*cache=*/u4,
+                                       /*key_bychannel=*/false,
+                                       /*group_size=*/16,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRandom,
+                                       /*v_head_size=*/256,
+                                       /*max_blocks=*/16)),
+            make_case(bf16,
+                      /*head_size=*/256,
+                      Batch::kLong,
+                      quantized_config(/*cache=*/u8,
+                                       /*key_bychannel=*/false,
+                                       /*group_size=*/0,
+                                       /*sel_heads=*/1,
+                                       /*selection=*/kRecent,
+                                       /*v_head_size=*/256,
+                                       /*max_blocks=*/128))};
+}
+
+// f16 caches next to f32 data, the only plain cache type that differs from the data type; ConvertPagedAttnInputs sets
+// it.
+std::vector<SparsePALayerTestParams> f16_cache_cases() {
+    const auto f32 = ov::element::f32;
+    const auto with_f16_cache = [](SparsePAConfig cfg) {
+        cfg.cache_precision = ov::element::f16;
+        return cfg;
+    };
+    const auto small = plain_config(/*sel_heads=*/2, /*key_block_size=*/2, /*page_size=*/32, /*max_blocks=*/4, kRandom);
+    const auto tile = plain_config(/*sel_heads=*/1, /*key_block_size=*/4, /*page_size=*/32, /*max_blocks=*/8, kRecent);
+    return {make_case(f32, /*head_size=*/16, Batch::kSingle, with_f16_cache(small)),
+            make_case(f32, /*head_size=*/16, Batch::kMixed, with_f16_cache(small)),
+            make_case(f32, /*head_size=*/32, Batch::kMixed, with_f16_cache(tile))};
+}
+
+// f32 data with a bf16 hint, op mid-graph: with a quantized cache, query / key / value / scale follow the hint, the
+// caches are never converted.
+std::vector<SparsePALayerTestParams> inference_precision_cases() {
+    const auto cache = quantized_config(/*cache=*/ov::element::u8,
+                                        /*key_bychannel=*/false,
+                                        /*group_size=*/0,
+                                        /*sel_heads=*/1,
+                                        /*selection=*/kRecent);
+    return {make_case(ov::element::f32, /*head_size=*/32, Batch::kSingle, cache, ov::element::bf16),
+            make_case(ov::element::f32, /*head_size=*/32, Batch::kMixed, cache, ov::element::bf16)};
+}
+
+// The same cases with the selected blocks of a row in random order instead of ascending (SparseAttention does not
+// depend on the order): no adjacent runs remain.
+std::vector<SparsePALayerTestParams> shuffled(std::vector<SparsePALayerTestParams> cases) {
+    for (auto& test_case : cases) {
+        std::get<2>(test_case).shuffle_blocks = true;
+    }
+    return cases;
+}
+
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(plain_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(amx_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(quantized_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_F16Cache,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(f16_cache_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+// Invalid cache layouts and page tables the op must reject with an exception: a value cache with a smaller page or head
+// size, a wrong KV head count, block ids outside the cache, and a subsequence_begins that does not cover the tokens.
+static std::vector<SparsePALayerTestParams> invalid_cases() {
+    std::vector<SparsePALayerTestParams> cases;
+    for (const auto invalid : {SparsePAInvalid::kValueCachePageSize,
+                               SparsePAInvalid::kValueCacheHeadSize,
+                               SparsePAInvalid::kKvHeadCount,
+                               SparsePAInvalid::kBlockIdOutOfRange,
+                               SparsePAInvalid::kNegativeBlockId,
+                               SparsePAInvalid::kSubsequenceBeginsShort}) {
+        auto cfg = plain_config(/*sel_heads=*/1, /*key_block_size=*/2, /*page_size=*/32, /*max_blocks=*/4, kRecent);
+        cfg.invalid = invalid;
+        cases.push_back(make_case(ov::element::f32, /*head_size=*/16, Batch::kSingle, cfg));
+    }
+    return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_InvalidInputs,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(invalid_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_InferencePrecision,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(inference_precision_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain_Shuffled,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(shuffled(plain_cases())),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX_Shuffled,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(shuffled(amx_cases())),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache_Shuffled,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(shuffled(quantized_cases())),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+}  // namespace test
+}  // namespace ov

@@ -39,6 +39,22 @@ describe("Tests for AsyncInferQueue.", () => {
     }, /'AsyncInferQueue' constructor method called with incorrect parameters./);
   });
 
+  it("Test AsyncInferQueue constructor with 0 jobs uses optimal number of requests", async () => {
+    const queue = new ov.AsyncInferQueue(compiledModel, 0);
+    queue.setCallback(basicUserCallback);
+    try {
+      await queue.startAsync({ data: generateImage() });
+    } finally {
+      queue.release();
+    }
+  });
+
+  it("Test AsyncInferQueue constructor throws for negative jobs", () => {
+    for (const jobs of [-1, -2147483648]) {
+      assert.throws(() => new ov.AsyncInferQueue(compiledModel, jobs), /must be non-negative/);
+    }
+  });
+
   it("Test AsyncInferQueue constructor with default ctor", () => {
     assert.doesNotThrow(() => {
       new ov.AsyncInferQueue(compiledModel);

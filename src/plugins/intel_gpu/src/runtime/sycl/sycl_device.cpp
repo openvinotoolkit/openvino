@@ -4,7 +4,7 @@
 // Copyright (C) 2026 FUJITSU LIMITED
 //
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
@@ -13,6 +13,7 @@
 
 #include "sycl_device.hpp"
 #include "sycl_common.hpp"
+#include "driver_dev_id.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <map>
@@ -27,6 +28,8 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <sstream>
 #include <utility>
 
 #ifdef _WIN32
@@ -37,8 +40,6 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#include <setupapi.h>
-#include <devguid.h>
 #include <cstring>
 #else
 #include <unistd.h>
@@ -56,7 +57,7 @@ namespace sycl {
 
 namespace {
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
 gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
     switch (gpu_arch) {
         case ngen::HW::Gen9: return gpu_arch::gen9;
@@ -75,74 +76,70 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
 }
 #endif
 
-int driver_dev_id() {
-    const std::vector<int> unused_ids = {
-        0x4905, 0x4906, 0x4907, 0x4908
+gfx_version parse_version(uint32_t gmdid) {
+    union GMDID {
+        uint32_t value;
+        struct {
+            uint32_t revision : 6;
+            uint32_t reserved : 8;
+            uint32_t release : 8;
+            uint32_t architecture : 10;
+        };
     };
-    std::vector<int> result;
 
-#ifdef _WIN32
-    {
-        HDEVINFO device_info_set = SetupDiGetClassDevsA(&GUID_DEVCLASS_DISPLAY, NULL, NULL, DIGCF_PRESENT);
-        if (device_info_set == INVALID_HANDLE_VALUE)
-            return 0;
+    GMDID gmd_id = {gmdid};
+    if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
+        // New format
+        return {static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
+    }  // Old format
+    uint32_t ver = gmdid;
+    uint16_t major = ver >> 16;
+    uint8_t minor = (ver >> 8) & 0xFF;
+    uint8_t revision = ver & 0xFF;
 
-        SP_DEVINFO_DATA devinfo_data;
-        std::memset(&devinfo_data, 0, sizeof(devinfo_data));
-        devinfo_data.cbSize = sizeof(devinfo_data);
+    return {major, minor, revision};
+}
 
-        for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t kBufSize = 512;
-            char buf[kBufSize];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
-                continue;
-            }
+uint32_t query_device_ip_version(const ::sycl::device& device) {
+#if SYCL_EXT_ONEAPI_DEVICE_ARCHITECTURE
+    namespace syclex = ::sycl::ext::oneapi::experimental;
 
-            char* vendor_pos = std::strstr(buf, "VEN_");
-            if (vendor_pos != NULL && std::stoi(vendor_pos + 4, NULL, 16) == 0x8086) {
-                char* device_pos = strstr(vendor_pos, "DEV_");
-                if (device_pos != NULL) {
-                    result.push_back(std::stoi(device_pos + 4, NULL, 16));
-                }
-            }
-        }
+    try {
+        // arch = 0xAABBBBCCCCCCCCDD
+        // for Intel GPU, AA=0x00, BBBB=reserved, CCCCCCCC=GMDID, DD=reserved
+        const auto arch = device.get_info<syclex::info::device::architecture>();
 
-        if (device_info_set) {
-            SetupDiDestroyDeviceInfoList(device_info_set);
-        }
-    }
-#elif defined(__linux__)
-    {
-        std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
-        std::ifstream ifs(dev_base + "vendor");
-        if (ifs.good()) {
-            int ven_id;
-            ifs >> std::hex >> ven_id;
-            ifs.close();
-            if (ven_id == 0x8086) {
-                ifs.open(dev_base + "device");
-                if (ifs.good()) {
-                    int res = 0;
-                    ifs >> std::hex >> res;
-                    result.push_back(res);
-                }
-            }
-        }
-    }
-#endif
-
-    auto id_itr = result.begin();
-    while (id_itr != result.end()) {
-        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end())
-            id_itr = result.erase(id_itr);
-        else
-            id_itr++;
-    }
-
-    if (result.empty())
+        // extract GMDID from arch
+        return static_cast<uint32_t>(static_cast<uint64_t>(arch) >> 8);
+    } catch (const ::sycl::exception&) {
         return 0;
-    else
-        return result.back();
+    }
+#else
+    (void)device;
+    return 0;
+#endif
+}
+
+std::optional<pci_bus_info> get_pci_bus_info(const ::sycl::device& device) {
+    if (!device.has(::sycl::aspect::ext_intel_pci_address)) {
+        return std::nullopt;
+    }
+
+    // The address has the BDF form, e.g. "0000:03:00.0"
+    std::istringstream pci_address(device.get_info<::sycl::ext::intel::info::device::pci_address>());
+    unsigned int domain = 0;
+    unsigned int bus = 0;
+    unsigned int dev = 0;
+    unsigned int function = 0;
+    char domain_separator = 0;
+    char bus_separator = 0;
+    char function_separator = 0;
+    pci_address >> std::hex >> domain >> domain_separator >> bus >> bus_separator >> dev >> function_separator >> function;
+    if (pci_address.fail() || pci_address.peek() != std::char_traits<char>::eof() || domain_separator != ':' ||
+        bus_separator != ':' || function_separator != '.' || bus > 0xff || dev > 0x1f || function > 7) {
+        return std::nullopt;
+    }
+    return pci_bus_info{domain, bus, dev, function};
 }
 
 device_type get_device_type(const ::sycl::device& device) {
@@ -166,7 +163,7 @@ bool get_imad_support(const ::sycl::device& device) {
             0x9A60, 0x9A68, 0x9A70, 0x9A78,
             0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9
         };
-        int dev_id = driver_dev_id();
+        int dev_id = driver_dev_id(get_pci_bus_info(device));
         if (dev_id == 0)
             return false;
 
@@ -255,7 +252,11 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         std::fill_n(std::begin(info.luid.luid), ov::device::LUID::MAX_LUID_SIZE, 0);
     // }
 
-    info.has_separate_cache = false;
+    // Discrete GPUs always keep constants in device memory; integrated GPUs are
+    // enabled per vendor below (Intel: gfx_ver >= 12.70, same as the OCL runtime).
+    info.has_separate_cache = info.dev_type == device_type::discrete_gpu;
+    info.arch = gpu_arch::unknown;
+
     if (info.vendor_id == INTEL_VENDOR_ID) {
         info.ip_version = 0; // no corresponding info in SYCL
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
@@ -279,12 +280,36 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         auto matrix_combinations = device.get_info<::sycl::ext::oneapi::experimental::info::device::matrix_combinations>();
         info.supports_immad = matrix_combinations.size() > 0;
 #endif // SYCL_EXT_ONEAPI_MATRIX
-        info.has_separate_cache = false; // no corresponding info in SYCL
+
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
+        using namespace dnnl::impl::gpu::intel::jit;
+        ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
+        info.arch = convert_ngen_arch(ngen::getCore(product.family));
+        // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+        // This is required to guarantee some level of forward compatibility for the new HW generations
+        // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+        // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+        // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+        if (product.family == ngen::ProductFamily::Unknown) {
+            info.supports_immad = false;
+        }
+#endif
+
+        const uint32_t ip_version = query_device_ip_version(device);
+        if (ip_version != 0) {
+            // Same check as the OCL runtime (gfx_ver >= 12.70); discrete GPUs are already set above
+            info.has_separate_cache = info.has_separate_cache || parse_version(ip_version) >= gfx_version{12, 70, 0};
+        } else {
+            // Fallback when the architecture query is unavailable or returns 0:
+            // xe_hp/xe_hpc are discrete-only, so for iGPUs arch >= xe_hpg means MTL/ARL or newer
+            // (see ngen::npack::decodeHWIPVersion). iGPUs with unknown arch keep false.
+            info.has_separate_cache = info.has_separate_cache || info.arch >= gpu_arch::xe_hpg;
+        }
     } else if (info.vendor_id == NVIDIA_VENDOR_ID) {
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
     } else {
         info.gfx_ver = {0, 0, 0};
-        info.device_id = driver_dev_id();
+        info.device_id = driver_dev_id(get_pci_bus_info(device));
         info.num_slices = 0;
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
@@ -293,22 +318,6 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
     info.num_ccs = 1;
 
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    using namespace dnnl::impl::gpu::intel::jit;
-    ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
-    info.arch = convert_ngen_arch(ngen::getCore(product.family));
-    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
-    // This is required to guarantee some level of forward compatibility for the new HW generations
-    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
-    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
-    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
-    if (product.family == ngen::ProductFamily::Unknown) {
-        info.supports_immad = false;
-    }
-#else  // ENABLE_ONEDNN_FOR_GPU
-    info.arch = gpu_arch::unknown;
-#endif  // ENABLE_ONEDNN_FOR_GPU
     info.supports_bf16 = info.supports_immad;
 
     return info;

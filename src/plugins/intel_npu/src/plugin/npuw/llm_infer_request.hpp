@@ -58,6 +58,8 @@ protected:
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
+    int64_t get_external_stored_tokens() const;
+    void publish_stored_tokens(int64_t num_tokens);
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const PortsMap& in_ports,
@@ -209,6 +211,9 @@ protected:
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
     std::vector<std::string> m_swa_past_names;
+
+    // QSA key block size, 0 without QSA states. Read from the incomplete_index_key state, [N, r - 1, Di].
+    uint32_t m_qsa_key_block_size = 0u;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;

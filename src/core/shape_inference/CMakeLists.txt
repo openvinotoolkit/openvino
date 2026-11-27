@@ -66,6 +66,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/fft_base_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/fft_common_validation.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gated_delta_net_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/gated_residual_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_elements_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_nd_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_shape_inference.hpp
@@ -79,6 +80,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/grouped_matmul_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gru_cell_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gru_sequence_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/histc_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/i420_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/identity_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/interpolate_shape_inference.hpp
@@ -92,6 +94,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/max_pool_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/multiclass_nms_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/multinomial_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/ngram_hash_function_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/nms_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/nv12_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/one_hot_shape_inference.hpp
@@ -102,6 +105,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/paged_causal_conv1d_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_gated_delta_net_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_selective_ssm_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/pooling_shape_inference_util.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_clustered_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_shape_inference.hpp

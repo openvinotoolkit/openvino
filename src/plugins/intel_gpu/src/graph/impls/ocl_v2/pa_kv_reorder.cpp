@@ -165,7 +165,11 @@ protected:
             if (max_heads_per_wg == 0) {
                 max_heads_per_wg = 1;
             }
+            // Pick the largest divisor of heads_number that fits into one work-group to keep the dispatch uniform
             auto wg_heads_number = std::min(heads_number, max_heads_per_wg);
+            while (heads_number % wg_heads_number != 0) {
+                wg_heads_number--;
+            }
             wgs.global = {sequences_number, heads_number, subgroup_size};
             wgs.local = {1, is_kv_compressed ? 1 : wg_heads_number, subgroup_size};
         }};

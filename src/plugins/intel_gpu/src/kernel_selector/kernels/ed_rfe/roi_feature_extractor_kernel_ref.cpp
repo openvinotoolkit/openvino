@@ -47,9 +47,9 @@ namespace {
     }
 
     std::string GetDefinedSpatialScales(const std::vector<int64_t>& scales, size_t levels_num) {
-        std::string result = "(float[]){" + std::to_string(1.0f / scales[0]);
+        std::string result = "(float[]){" + std::to_string(1.0F / scales[0]);
         for (size_t i = 1; i < levels_num; i++) {
-            result += ", " + std::to_string(1.0f / scales[i]);
+            result += ", " + std::to_string(1.0F / scales[i]);
         }
         result += "}";
         return result;

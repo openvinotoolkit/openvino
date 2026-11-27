@@ -43,7 +43,7 @@ cldnn::data CreateShapeDataPrimitive(ProgramBuilder& p, const cldnn::primitive_i
     return {name, mem};
 }
 
-static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::Multinomial>& op) {
+void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::Multinomial>& op) {
     validate_inputs_count(op, { 2 });
     auto inputs = p.GetInputInfo(op);
     auto input_max_shape = op->get_input_partial_shape(0).get_max_shape();
@@ -98,10 +98,10 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     auto random_shape_prim = CreateShapeDataPrimitive(p, random_shape, input_max_shape);
     p.add_primitive(*op, random_shape_prim);
     const cldnn::primitive_id random_minval {layer_type_name_ID(op) + "_random_minval"};
-    auto random_minval_prim = CreateScalarDataPrimitive(p, random_minval, 0.f);
+    auto random_minval_prim = CreateScalarDataPrimitive(p, random_minval, 0.F);
     p.add_primitive(*op, random_minval_prim);
     const cldnn::primitive_id random_maxval {layer_type_name_ID(op) + "_random_maxval"};
-    auto random_maxval_prim = CreateScalarDataPrimitive(p, random_maxval, 1.f);
+    auto random_maxval_prim = CreateScalarDataPrimitive(p, random_maxval, 1.F);
     p.add_primitive(*op, random_maxval_prim);
     cldnn::random_uniform random_prim {
         random,

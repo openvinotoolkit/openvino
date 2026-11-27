@@ -36,7 +36,7 @@ You can find all workflows for this repository in the [workflows folder](/.githu
 The main workflows providing broad coverage for different operating systems are:
 * [Linux Ubuntu 22.04](/.github/workflows/ubuntu_22.yml)
 * [Linux Ubuntu 24.04](/.github/workflows/ubuntu_24.yml)
-* [Linux Ubuntu 26.04](/.github/workflows/ubuntu_26.yml)
+* [Linux Ubuntu 26.04](/.github/workflows/ubuntu_26.yml) (builds NPU and compiles tests, but does not run them)
 * [Windows](/.github/workflows/windows_vs2022_release.yml)
 * [macOS ARM64](/.github/workflows/mac_arm64.yml) (post-commit and scheduled validation)
 

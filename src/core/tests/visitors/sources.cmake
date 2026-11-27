@@ -78,6 +78,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/framework_node.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp
@@ -93,10 +94,10 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/group_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/group_query_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/grouped_matmul.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hsigmoid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hswish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/identity.cpp
@@ -132,6 +133,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/mvn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/negative.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/non_zero.cpp
@@ -141,7 +143,9 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/prelu.cpp

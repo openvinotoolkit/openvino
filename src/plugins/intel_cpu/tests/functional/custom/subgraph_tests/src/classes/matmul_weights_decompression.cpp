@@ -4,6 +4,9 @@
 
 #include "matmul_weights_decompression.hpp"
 
+#include <cstdint>
+#include <limits>
+
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "u3_symmetric_zero_point.hpp"
@@ -50,6 +53,7 @@ std::string MatmulWeightsDecompression::getTestCaseName(
 std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(
     const ov::PartialShape& data_shape,
     const ov::Shape& weights_shape,
+    const std::optional<ov::Shape>& post_multiply_shape,
     const int group_size,
     const ov::element::Type data_precision,
     const ov::element::Type weights_precision,
@@ -70,8 +74,12 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(
                                                                   decompression_multiply_type,
                                                                   decompression_subtract_type,
                                                                   reshape_on_decompression);
-    auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-    return create_ov_model(data_precision, params, matMul, "MatmulWeightsDecompression");
+    std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
+    if (post_multiply_shape) {
+        auto post_scale = std::make_shared<ov::op::v0::Constant>(data_precision, *post_multiply_shape, 2);
+        node = std::make_shared<ov::op::v1::Multiply>(node, post_scale);
+    }
+    return create_ov_model(data_precision, params, node, "MatmulWeightsDecompression");
 }
 
 void MatmulWeightsDecompression::SetUp() {
@@ -116,6 +124,7 @@ void MatmulWeightsDecompression::SetUp() {
 
     function = initSubgraph(inputDynamicShapes[0],
                             shape_params.weights_shape,
+                            shape_params.post_multiply_shape,
                             shape_params.decompression_group_size,
                             netType,
                             weights_precision,
@@ -151,6 +160,18 @@ void MatmulWeightsDecompression::check_results() {
         const auto implType = fc->get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
         EXPECT_NE(implType.find("brgemm"), std::string::npos) << "unexpected impl type: " << implType;
         EXPECT_NE(implType.find("avx512"), std::string::npos) << "unexpected impl type: " << implType;
+    }
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_KLEIDIAI)
+    // Integer weights kept compressed under dynamic quantization (group size UINT64_MAX) must run
+    // on the KleidiAI executor; the other ARM FC executors would take the decompressed weights.
+    const auto dyn_quant_it = configuration.find(ov::hint::dynamic_quantization_group_size.name());
+    const bool kleidiai_dyn_quant = dyn_quant_it != configuration.end() &&
+                                    dyn_quant_it->second.as<uint64_t>() == std::numeric_limits<uint64_t>::max();
+    if (use_matmul_decompression_impl && kleidiai_dyn_quant && compressed_weights_precision.is_integral()) {
+        const auto implType = fc->get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+        EXPECT_NE(implType.find("kleidiai"), std::string::npos) << "unexpected impl type: " << implType;
     }
 #endif
 

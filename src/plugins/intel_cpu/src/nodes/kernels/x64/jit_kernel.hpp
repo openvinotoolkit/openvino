@@ -310,6 +310,10 @@ public:
     }
 
     // NOLINTBEGIN(cppcoreguidelines-c-copy-assignment-signature, misc-unconventional-assign-operator)
+    const variable& operator=(const variable& rhs) const {
+        base::_kernel.mov(base::reg(), rhs.reg());
+        return *this;
+    }
     const variable& operator=(reg_type& rhs) const {
         base::_kernel.mov(base::reg(), rhs);
         return *this;
@@ -520,6 +524,11 @@ public:
     variable(variable&&) noexcept = default;
     explicit variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
+
+    const variable& operator=(const variable& rhs) const {
+        base::_kernel.uni_vmovups(base::reg(), rhs.reg());
+        return *this;
+    }
 
     const variable& operator=(reg_type& rhs) const {
         base::_kernel.uni_vmovups(base::reg(), rhs);
