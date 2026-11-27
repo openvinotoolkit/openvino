@@ -31,6 +31,7 @@ CASES = {
     "lfm3-plain": {"architecture": "lfm3"},
     "lfm3-attention-first": {"architecture": "lfm3", "attention_first": True, "fused": True, "post": True},
     "lfm3-wide-query": {"architecture": "lfm3", "heads": 6, "post": True},
+    "lfm3-d1": {"architecture": "lfm3", "tied": True, "post": True, "causal": False, "whole_prompt": True},
     "qwen35": {}, "qwen35moe": {},
     "qwen3next": {}, "qwen3next-legacy": {"architecture": "qwen3next", "legacy": True},
     "qwen3vl": {"qk": True, "mrope": True},
@@ -67,6 +68,12 @@ CASES = {
     "llama-embed-mean": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "pooling": 1},
     "llama-embed-cls": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "pooling": 2},
     "llama-embed-last": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "pooling": 3},
+    "lfm2-encoder": {"architecture": "lfm2", "embedding_output": True, "tied": True, "causal": False},
+    "lfm2-embed-mean": {"architecture": "lfm2", "embedding_output": True, "tied": True, "causal": False, "pooling": 1,
+                        "dense": True, "dense_bias": True},
+    "lfm2-embed-cls": {"architecture": "lfm2", "embedding_output": True, "tied": True, "causal": False, "pooling": 2},
+    "lfm2-embed-last": {"architecture": "lfm2", "embedding_output": True, "tied": True, "causal": False, "pooling": 3},
+    "lfm2-colbert": {"architecture": "lfm2", "embedding_output": True, "tied": True, "causal": False, "dense": True},
     "exaone-moe": {"qk": True, "moe": True, "shared": True, "lead": 1, "swa": True, "layers": 4},
     "exaone-moe-nextn": {"architecture": "exaone-moe", "qk": True, "moe": True, "shared": True, "lead": 1, "swa": True, "layers": 4, "nextn": 1, "sigmoid": True, "selection_bias": True, "expert_scale": 2.5},
     "glm4moe": {"qk": True, "moe": True, "shared": True, "lead": 1, "selection_bias": True, "sigmoid": True, "ffn_post_attn": True},
@@ -410,6 +417,12 @@ def write_lfm_model(path, arch, opts):
     w.add_uint32(arch + ".shortconv.l_cache", kernel)
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
+    if opts.get("causal") is False:
+        w.add_causal_attention(False)
+    if "pooling" in opts:
+        w.add_pooling_type(gguf.PoolingType(opts["pooling"]))
+    if opts.get("dense"):
+        w.add_uint32(arch + ".embedding_length_out", 12)
     if arch == "lfm3":
         w.add_sliding_window(2)
         w.add_sliding_window_pattern([i == kv_layers.index(kv) for i in range(len(kv_layers))])
@@ -431,6 +444,10 @@ def write_lfm_model(path, arch, opts):
         w.add_tensor("rope_freqs.weight", np.array([1.] * (head // 4) + [1e30] * (head // 4), dtype=np.float32))
     if not opts.get("tied"):
         tensor("output.weight", (vocab, d))
+    if opts.get("dense"):
+        tensor("dense_2.weight", (12, d))
+        if opts.get("dense_bias"):
+            tensor("dense_2.bias", (12,))
     for layer, layer_kv in enumerate(kv_layers):
         p = f"blk.{layer}."
         tensor(p + "attn_norm.weight", (d,), True)
@@ -687,6 +704,8 @@ def main():
                 packed.tofile(model.with_suffix(".embeddings"))
                 command += ["--embeddings", str(model.with_suffix(".embeddings"))]
                 extra["deepstack"] = features
+            if CASES[arch].get("whole_prompt"):
+                command.append("--whole-prompt")
             result = subprocess.run(command, capture_output=True)
             if result.returncode:
                 raise RuntimeError(f"{arch}: oracle failed\n{result.stderr.decode()}")
@@ -699,7 +718,7 @@ def main():
                 print(f"{arch}: embeddings {expected.shape}", flush=True)
                 continue
             vocab = np.fromfile(reference, dtype="<i4", count=1)[0]
-            logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(3, vocab)
+            logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(-1, vocab)
             if CASES[arch].get("d2t"):
                 extra["d2t"] = np.arange(0, vocab, 2, dtype=np.int64)
                 if CASES[arch].get("architecture", arch) != "dflash":

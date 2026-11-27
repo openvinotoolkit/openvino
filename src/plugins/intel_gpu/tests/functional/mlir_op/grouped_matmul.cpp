@@ -28,7 +28,6 @@ TEST_P(GroupedMatMulMlirTest, Inference) {
 }
 
 TEST_P(GroupedMatMulMlirEmptyExpertsTest, Inference) {
-    GTEST_SKIP() << "Known failure: experts without tokens (zero-length groups) are not handled correctly yet";
     run();
 }
 

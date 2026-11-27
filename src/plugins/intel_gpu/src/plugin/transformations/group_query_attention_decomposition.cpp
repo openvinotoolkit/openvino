@@ -186,21 +186,22 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
     KVCacheOutputs outputs;
     const bool sliding_window = node->get_sliding_window_cache();
-    const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
+    const int64_t local_window_size = node->get_local_window_size();
     std::optional<ov::Output<ov::Node>> cur_seq_len;
     if (query_seqlens) {
         cur_seq_len = node->input_value(static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::QUERY_SEQLENS));
     }
     const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
         if (query_seqlens) {
-            return register_new_node<op::StatelessKV>(past, current, seqlens_1d, *cur_seq_len, concat_axis, true, window_size);
+            return register_new_node<op::StatelessKV>(past, current, seqlens_1d, *cur_seq_len, concat_axis, true, local_window_size, sliding_window);
         }
-        return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, window_size);
+        return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, local_window_size, sliding_window);
     };
 
     const auto value_transpose_order = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, transpose_v_order));
-    const auto find_value_transpose = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v1::Transpose> {
-        const auto transpose = ov::as_type_ptr<v1::Transpose>(output.get_node_shared_ptr());
+    // Identifies the node itself, not a specific output/input port, so it takes a node rather than an Output.
+    const auto find_value_transpose = [](const std::shared_ptr<ov::Node>& candidate) -> std::shared_ptr<v1::Transpose> {
+        const auto transpose = ov::as_type_ptr<v1::Transpose>(candidate);
         if (!transpose) {
             return {};
         }
@@ -215,10 +216,10 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     std::shared_ptr<v1::Transpose> present_value_transpose;
     // explicit attention hard-coded layout so don't fuse
     if (can_fuse_transpose_v) {
-        past_value_transpose = find_value_transpose(node->input_value(4));
+        past_value_transpose = find_value_transpose(node->input_value(4).get_node_shared_ptr());
         if (node->output(2).get_target_inputs().size() == 1) {
             const auto target = *node->output(2).get_target_inputs().begin();
-            present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
+            present_value_transpose = find_value_transpose(target.get_node()->shared_from_this());
         }
     }
     if (past_value_transpose && present_value_transpose) {
@@ -285,9 +286,11 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     if (sliding_window) {
         OPENVINO_ASSERT(!need_qk_output, "[GPU] SWA does not support qk output");
+    }
+    if (local_window_size > 0 && !need_qk_output) {
         // Must match StatelessKV's sdpa_front = max(0, P - window + 1).
         const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-        const auto window_minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {window_size - 1}));
+        const auto window_minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size - 1}));
         const auto past_scalar = register_new_node<v0::Squeeze>(past_seqlen);
         const auto sdpa_front = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(past_scalar, window_minus_one), zero_scalar);
         const auto resident_past = register_new_node<v1::Subtract>(past_scalar, sdpa_front);
@@ -363,7 +366,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 [[maybe_unused]] const KVCacheMetadata& metadata_) {
     // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa),
     // so the explicit mask subgraph is unneeded whenever that path is reachable.
-    if (causal && (local_window_size == -1 || sliding_window_cache) && !external_bias.get_node() && scale == 0.0F && !has_sink) {
+    if (causal && !external_bias.get_node() && scale == 0.0F && !has_sink) {
         return nullptr;
     }
 

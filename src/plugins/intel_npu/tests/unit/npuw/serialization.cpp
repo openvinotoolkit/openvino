@@ -75,7 +75,7 @@ void expect_serialize_valid(const Gather& hg,
     auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
     closure.get().closure.resize(closure_size);
     closure.get().closure_uid.resize(closure_size, -1);
-    closure.get().is_remote.resize(closure_size, false);
+    closure.get().is_remote.assign(closure_size, false);
 
     std::stringstream ss;
     auto stream = Stream::writer(ss);
@@ -2378,7 +2378,7 @@ TEST(SerializationTest, FuncallSubmodelNegativeGatherIndexFails) {
     auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
     closure.get().closure.resize(4);
     closure.get().closure_uid.resize(4, -1);
-    closure.get().is_remote.resize(4, false);
+    closure.get().is_remote.assign(4, false);
 
     std::stringstream ss;
     auto stream = Stream::writer(ss);
@@ -2395,7 +2395,7 @@ TEST(SerializationTest, FuncallSubmodelHostGatherSrcIdxOutOfClosureFails) {
     auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
     closure.get().closure.resize(4);
     closure.get().closure_uid.resize(4, -1);
-    closure.get().is_remote.resize(4, false);
+    closure.get().is_remote.assign(4, false);
 
     std::stringstream ss;
     auto stream = Stream::writer(ss);

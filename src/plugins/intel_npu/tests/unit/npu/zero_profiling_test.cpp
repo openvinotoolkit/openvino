@@ -16,7 +16,7 @@
 namespace {
 
 ov::ProfilingInfo makeProfilingInfo(const std::string& name) {
-    ov::ProfilingInfo info;
+    ov::ProfilingInfo info{};
     info.node_name = name;
     return info;
 }

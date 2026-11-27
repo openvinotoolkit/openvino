@@ -199,6 +199,9 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data())) {
                 fqInputScale = fq->inputScale();
                 fqInputShift = fq->inputShift();
+                // Pooling::canFuse fuses only such FakeQuantize: the destination has a single scale and zero point.
+                OPENVINO_ASSERT(canFoldFakeQuantizeOutputShift(fq->outputScale(), fq->outputShift()),
+                                "AclPoolingExecutor: FakeQuantize output scale/shift cannot be folded");
                 foldFakeQuantizeOutputShift(fqInputShift, fq->outputScale(), fq->outputShift());
             } else {
                 OPENVINO_THROW("AclPoolingExecutor: the executor supports FakeQuantize post op only");

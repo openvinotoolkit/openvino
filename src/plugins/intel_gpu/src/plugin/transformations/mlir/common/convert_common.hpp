@@ -24,7 +24,7 @@ namespace ov::intel_gpu::mlir {
 using namespace ::mlir;
 
 class MLIRGpuProgram;
-std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id);
+std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id, InputOrders input_orders);
 
 // Verbose logging of the MLIR pipeline, controlled by the global ov::intel_gpu::mlir_debug option
 bool is_debug();

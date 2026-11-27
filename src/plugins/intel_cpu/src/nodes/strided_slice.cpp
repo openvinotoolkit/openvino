@@ -93,16 +93,20 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         isAxesSpecified = true;
     }
 
+    hasRuntimeAttrInputs = false;
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
-            !attrs.isSliceScatterOp) {
-            shapeHasDataDependency = true;
+        if (!isConstantInput[i] &&
+            (any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) || (isAxesSpecified && i == attrs.AXES_ID))) {
+            hasRuntimeAttrInputs = true;
         }
     }
-    hasConstAttrInputs = !shapeHasDataDependency;
-    if (isAxesSpecified) {
-        hasConstAttrInputs &= isConstantInput[attrs.AXES_ID];
+
+    if (hasRuntimeAttrInputs) {
+        isDynamic = true;
+        if (!shapeInference) {
+            shapeInference = StridedSliceShapeInferFactory(op).makeShapeInfer();
+        }
     }
 
     const size_t inputRank = getInputShapeAtPort(attrs.DATA_ID).getRank();
@@ -302,7 +306,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
 
         supportedTypes.push_back(LayoutType::nspc);
 
-        if (hasConstAttrInputs) {
+        if (!hasRuntimeAttrInputs) {
             auto tmpAttrs = attrs;
             addHiddenDims(tmpAttrs,
                           getInputShapeAtPort(attrs.DATA_ID).getRank(),
@@ -356,7 +360,7 @@ bool StridedSlice::isExecutable() const {
 }
 
 void StridedSlice::createPrimitive() {
-    if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
+    if (inputShapesDefined() && isExecutable() && !hasRuntimeAttrInputs) {
         if (needPrepareParams()) {
             prepareParams();
         }
@@ -365,7 +369,7 @@ void StridedSlice::createPrimitive() {
 }
 
 bool StridedSlice::needPrepareParams() const {
-    return true;
+    return Node::inputShapesModified() || hasRuntimeAttrInputs;
 }
 
 void StridedSlice::prepareParams() {
@@ -385,7 +389,7 @@ void StridedSlice::prepareParams() {
 }
 
 bool StridedSlice::needShapeInfer() const {
-    return Node::inputShapesModified() || shapeHasDataDependency;
+    return Node::inputShapesModified() || hasRuntimeAttrInputs;
 }
 
 void StridedSlice::execute([[maybe_unused]] const dnnl::stream& strm) {

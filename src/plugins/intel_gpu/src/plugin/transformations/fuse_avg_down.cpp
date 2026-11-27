@@ -23,10 +23,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 
@@ -44,6 +46,14 @@ std::optional<std::vector<int64_t>> get_i64_values(const ov::Output<ov::Node>& o
 bool has_values(const ov::Output<ov::Node>& output, const std::vector<int64_t>& expected) {
     const auto values = get_i64_values(output);
     return values && *values == expected;
+}
+
+bool is_zero_fill(const ov::Output<ov::Node>& output) {
+    const auto constant = ov::util::get_constant_from_source(output);
+    if (!constant || ov::shape_size(constant->get_shape()) != 1) {
+        return false;
+    }
+    return constant->cast_vector<double>()[0] == 0.0;
 }
 
 bool has_vector_size(const ov::Output<ov::Node>& output, size_t expected) {
@@ -116,9 +126,7 @@ bool is_padding_formula_value(const ov::Output<ov::Node>& output, const ov::Outp
     return false;
 }
 
-bool validate_padding_values(const std::shared_ptr<ov::op::v0::Concat>& padding_values,
-                             const ov::Output<ov::Node>& data,
-                             int64_t factor_t) {
+bool validate_padding_values(const std::shared_ptr<ov::op::v0::Concat>& padding_values, const ov::Output<ov::Node>& data, int64_t factor_t) {
     if (!padding_values || padding_values->get_axis() != 0) {
         return false;
     }
@@ -135,7 +143,9 @@ bool validate_padding_values(const std::shared_ptr<ov::op::v0::Concat>& padding_
             found_temporal_padding = true;
         } else {
             const auto values = get_i64_values(input);
-            if (!values || values->size() != size || std::any_of(values->begin(), values->end(), [](int64_t value) { return value != 0; })) {
+            if (!values || values->size() != size || std::any_of(values->begin(), values->end(), [](int64_t value) {
+                    return value != 0;
+                })) {
                 return false;
             }
         }
@@ -187,7 +197,7 @@ bool is_dynamic_temporal_padding(const ov::Output<ov::Node>& output, const ov::O
 
 bool validate_temporal_padding(const std::shared_ptr<ov::op::v12::Pad>& pad, int64_t factor_t) {
     if (pad->get_pad_mode() != ov::op::PadMode::CONSTANT || !has_vector_size(pad->input_value(1), 5) || !has_values(pad->input_value(2), {0, 0, 0, 0, 0}) ||
-        !has_values(pad->input_value(3), {0})) {
+        !is_zero_fill(pad->input_value(3))) {
         return false;
     }
 
@@ -251,44 +261,115 @@ bool validate_shape_contract(const std::shared_ptr<ov::op::v1::Reshape>& factor_
     return true;
 }
 
+// Static-shape form of validate_shape_contract(). The factors are read from the inferred reshape output
+// shapes instead of the target-shape expressions, so it also holds for special_zero Reshapes and for the
+// folded chain without the flatten Reshape. The 8-D view (B, C, T', factor_t, H', factor_s, W', factor_s)
+// and the 6-D view (B, output_channels, group_size, T', H', W') are both tied to the padded input
+// (B, C, T, H, W): with T = T' * factor_t, H = H' * factor_s and W = W' * factor_s, the 8-D Reshape only
+// splits T, H and W, and the trailing Reshape only regroups the channels.
+bool derive_factors_from_static_shapes(const ov::Output<ov::Node>& padded_input,
+                                       const std::shared_ptr<ov::op::v1::Reshape>& factor_reshape,
+                                       const std::shared_ptr<ov::op::v1::Reshape>& group_reshape,
+                                       int64_t& factor_t,
+                                       int64_t& factor_s,
+                                       int64_t& output_channels,
+                                       int64_t& group_size) {
+    const auto& input_shape = padded_input.get_partial_shape();
+    const auto& factor_out = factor_reshape->get_output_partial_shape(0);
+    const auto& group_out = group_reshape->get_output_partial_shape(0);
+    if (input_shape.is_dynamic() || factor_out.is_dynamic() || group_out.is_dynamic() || input_shape.size() != 5 || factor_out.size() != 8 ||
+        group_out.size() != 6) {
+        return false;
+    }
+
+    const auto input = input_shape.to_shape();
+    const auto factor = factor_out.to_shape();
+    const auto group = group_out.to_shape();
+    if (factor[0] != input[0] || factor[1] != input[1] || factor[5] != factor[7] || factor[2] * factor[3] != input[2] || factor[4] * factor[5] != input[3] ||
+        factor[6] * factor[7] != input[4]) {
+        return false;
+    }
+    if (group[0] != input[0] || group[3] != factor[2] || group[4] != factor[4] || group[5] != factor[6]) {
+        return false;
+    }
+
+    factor_t = static_cast<int64_t>(factor[3]);
+    factor_s = static_cast<int64_t>(factor[5]);
+    output_channels = static_cast<int64_t>(group[1]);
+    group_size = static_cast<int64_t>(group[2]);
+    return factor_t > 0 && factor_s > 0 && output_channels > 0 && group_size > 0;
+}
+
+// The mean runs over the group axis of the 6-D view (B, output_channels, group_size, T', H', W'), i.e. axis 2.
+// The equivalent negative axis -4 is accepted as well.
+bool reduces_group_axis(const ov::Output<ov::Node>& output) {
+    const auto& node = output.get_node_shared_ptr();
+    const auto axes = get_i64_values(node->input_value(1));
+    const auto rank = node->get_input_partial_shape(0).rank();
+    if (!axes || axes->size() != 1 || rank.is_dynamic() || rank.get_length() != 6) {
+        return false;
+    }
+    const int64_t axis = axes->front();
+    return axis == 2 || axis == 2 - rank.get_length();
+}
+
 }  // namespace
 
 FuseAvgDown::FuseAvgDown() {
     using namespace ov::pass::pattern;
 
-    auto input_m = any_input();
-    auto factor_reshape_m = wrap_type<ov::op::v1::Reshape>({input_m, any_input()}, consumers_count(1));
-    auto transpose_m = wrap_type<ov::op::v1::Transpose>({factor_reshape_m, wrap_type<ov::op::v0::Constant>()}, consumers_count(1));
-    auto flatten_reshape_m = wrap_type<ov::op::v1::Reshape>({transpose_m, any_input()}, consumers_count(1));
+    // The temporal Pad is validated in the callback (its pads may come from a ShapeOf-based expression).
+    auto pad_m = optional<ov::op::v12::Pad>({any_input(), any_input(), any_input(), any_input()});
+    auto factor_reshape_m = wrap_type<ov::op::v1::Reshape>({pad_m, any_input()}, consumers_count(1));
+    auto transpose_order_m = wrap_type<ov::op::v0::Constant>(value_matches("0, 1, 3, 5, 7, 2, 4, 6"));
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({factor_reshape_m, transpose_order_m}, consumers_count(1));
+    // The flatten Reshape is optional: earlier graph optimizations usually merge it with the group Reshape.
+    auto flatten_reshape_m = optional<ov::op::v1::Reshape>({transpose_m, any_input()}, consumers_count(1));
     auto group_reshape_m = wrap_type<ov::op::v1::Reshape>({flatten_reshape_m, any_input()}, consumers_count(1));
-    auto reduce_m = wrap_type<ov::op::v1::ReduceMean>({group_reshape_m, wrap_type<ov::op::v0::Constant>()});
+    auto reduce_m = wrap_type<ov::op::v1::ReduceMean>({group_reshape_m, wrap_const()}, reduces_group_axis, {{"keep_dims", false}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto input = pattern_map.at(input_m);
-        const auto factor_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(factor_reshape_m).get_node_shared_ptr());
-        const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_m).get_node_shared_ptr());
-        const auto flatten_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(flatten_reshape_m).get_node_shared_ptr());
-        const auto group_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(group_reshape_m).get_node_shared_ptr());
         const auto reduce = ov::as_type_ptr<ov::op::v1::ReduceMean>(pattern_map.at(reduce_m).get_node_shared_ptr());
-
-        if (transformation_callback(reduce) || factor_reshape->get_special_zero() || flatten_reshape->get_special_zero() || group_reshape->get_special_zero() ||
-            reduce->get_keep_dims() || !has_values(reduce->input_value(1), {2}) || !has_values(transpose->input_value(1), {0, 1, 3, 5, 7, 2, 4, 6})) {
+        if (transformation_callback(reduce)) {
             return false;
         }
+        const auto factor_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(factor_reshape_m).get_node_shared_ptr());
+        const auto transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
+        const auto group_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(group_reshape_m).get_node_shared_ptr());
+        std::shared_ptr<ov::op::v1::Reshape> flatten_reshape;
+        if (pattern_map.count(flatten_reshape_m)) {
+            flatten_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(flatten_reshape_m).get_node_shared_ptr());
+        }
+        std::shared_ptr<ov::op::v12::Pad> pad;
+        if (pattern_map.count(pad_m)) {
+            pad = ov::as_type_ptr<ov::op::v12::Pad>(pattern_map.at(pad_m).get_node_shared_ptr());
+        }
+        OPENVINO_ASSERT(reduce && factor_reshape && transpose && group_reshape, "FuseAvgDown: unexpected node types in the matched pattern");
 
+        // Static shapes: the factors come from the inferred reshape outputs, which is independent of special_zero.
+        // Dynamic shapes: the factors come from the target-shape expressions; with special_zero a literal 0 in them
+        // means "copy this dimension" rather than a length, so such a chain is left untouched.
+        const auto padded_input = factor_reshape->input_value(0);
         int64_t factor_t = 0;
         int64_t factor_s = 0;
         int64_t output_channels = 0;
         int64_t group_size = 0;
-        if (!validate_shape_contract(factor_reshape, flatten_reshape, group_reshape, factor_t, factor_s, output_channels, group_size)) {
-            return false;
+        if (!derive_factors_from_static_shapes(padded_input, factor_reshape, group_reshape, factor_t, factor_s, output_channels, group_size)) {
+            const bool special_zero =
+                factor_reshape->get_special_zero() || group_reshape->get_special_zero() || (flatten_reshape && flatten_reshape->get_special_zero());
+            if (special_zero || !flatten_reshape ||
+                !validate_shape_contract(factor_reshape, flatten_reshape, group_reshape, factor_t, factor_s, output_channels, group_size)) {
+                return false;
+            }
         }
 
-        ov::NodeVector matched_nodes = {factor_reshape, transpose, flatten_reshape, group_reshape, reduce};
-        std::shared_ptr<ov::op::v12::Pad> pad;
-        ov::Output<ov::Node> unpadded_input = input;
-        if ((pad = ov::as_type_ptr<ov::op::v12::Pad>(input.get_node_shared_ptr()))) {
+        ov::NodeVector matched_nodes = {factor_reshape, transpose, group_reshape, reduce};
+        if (flatten_reshape) {
+            matched_nodes.push_back(flatten_reshape);
+        }
+        ov::Output<ov::Node> unpadded_input = padded_input;
+        if (pad) {
             if (!validate_temporal_padding(pad, factor_t)) {
                 return false;
             }
@@ -307,29 +388,20 @@ FuseAvgDown::FuseAvgDown() {
         }
 
         if (factor_t == 1 && factor_s == 1 && output_channels == input_channels && group_size == 1) {
+            if (!input_shape.compatible(reduce->get_output_partial_shape(0))) {
+                return false;
+            }
             return ov::replace_output_update_name(reduce->output(0), unpadded_input);
         }
 
+        std::shared_ptr<ov::Node> fused;
         if (factor_t == 2 && factor_s == 2 && group_size == 4) {
-            auto grouped_space_to_depth = std::make_shared<ov::intel_gpu::op::GroupedSpaceToDepth>(unpadded_input,
-                                                                                                   static_cast<size_t>(factor_t),
-                                                                                                   static_cast<size_t>(factor_s),
-                                                                                                   static_cast<size_t>(output_channels));
-            if (!grouped_space_to_depth->get_output_partial_shape(0).compatible(reduce->get_output_partial_shape(0))) {
-                return false;
-            }
-
-            grouped_space_to_depth->set_friendly_name(reduce->get_friendly_name());
-            ov::copy_runtime_info(matched_nodes, grouped_space_to_depth);
-            ov::replace_node(reduce, grouped_space_to_depth);
-            return true;
-        }
-
-        if (factor_t != 1 || factor_s != 2 || output_channels != input_channels || group_size != 4) {
-            return false;
-        }
-
-        auto pool = std::make_shared<ov::op::v1::AvgPool>(unpadded_input,
+            fused = std::make_shared<ov::intel_gpu::op::GroupedSpaceToDepth>(unpadded_input,
+                                                                             static_cast<size_t>(factor_t),
+                                                                             static_cast<size_t>(factor_s),
+                                                                             static_cast<size_t>(output_channels));
+        } else if (factor_t == 1 && factor_s == 2 && output_channels == input_channels && group_size == 4) {
+            fused = std::make_shared<ov::op::v1::AvgPool>(unpadded_input,
                                                           ov::Strides{1, 2, 2},
                                                           ov::Shape{0, 0, 0},
                                                           ov::Shape{0, 0, 0},
@@ -337,13 +409,16 @@ FuseAvgDown::FuseAvgDown() {
                                                           false,
                                                           ov::op::RoundingType::FLOOR,
                                                           ov::op::PadType::EXPLICIT);
-        if (!pool->get_output_partial_shape(0).compatible(reduce->get_output_partial_shape(0))) {
+        } else {
+            return false;
+        }
+        if (!fused->get_output_partial_shape(0).compatible(reduce->get_output_partial_shape(0))) {
             return false;
         }
 
-        pool->set_friendly_name(reduce->get_friendly_name());
-        ov::copy_runtime_info(matched_nodes, pool);
-        ov::replace_node(reduce, pool);
+        fused->set_friendly_name(reduce->get_friendly_name());
+        ov::copy_runtime_info(matched_nodes, fused);
+        ov::replace_node(reduce, fused);
         return true;
     };
 

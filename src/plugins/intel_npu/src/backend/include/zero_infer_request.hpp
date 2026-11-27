@@ -101,6 +101,48 @@ protected:
                                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                               const std::optional<size_t>& batchSize = std::nullopt);
 
+    /**
+     * @brief Updates the batch size of this request based on the batch size candidate deduced from a user tensor.
+     * Sets the "batch changed" flag if a new pipeline needs to be created; the flag is only cleared once the pipeline
+     * is rebuilt. It does not check that the other inputs have the same batch size: that is validated when running.
+     *
+     * @param batchSizeCandidate Batch size deduced from the new tensor(s)
+     * @param tensorSizeChanged Whether the new tensor(s) have a different size than the previous ones
+     */
+    void update_dynamic_batch_size(const size_t batchSizeCandidate, const bool tensorSizeChanged);
+
+    /**
+     * @brief Called before running. The inputs decide the batch size of the request, so this:
+     * 1. Throws if the inputs with a dynamic batch do not have the same batch size.
+     * 2. Reconciles the batch size of the request with the one of the inputs.
+     * 3. Syncs (through set_tensor) the inputs that were reshaped, or whose Level Zero tensor has another batch size,
+     *    since the last set_tensor call.
+     */
+    void update_batch_size_from_user_inputs();
+
+    /**
+     * @brief Checks that the Level Zero tensor of an input (if any) already has the given batch size. Inputs with a
+     * related shape tensor are always considered matching, since their Level Zero tensor is kept at the max shape.
+     *
+     * @param inputIndex Index of the input
+     * @param batchSize Batch size the Level Zero tensor is expected to have
+     */
+    bool is_level_zero_input_batch_matching(size_t inputIndex, size_t batchSize) const;
+
+    /**
+     * @brief Checks that the output tensors set by the user have the batch size decided by the inputs. Outputs never
+     * decide the batch size, they are only validated against it. Throws if one of them does not match.
+     */
+    void validate_output_batch_sizes() const;
+
+    /**
+     * @brief Synchronizes the output tensors set by the user that were reshaped (e.g. shrunk to the batch size of the
+     * inputs after being rejected by validate_output_batch_sizes) without being set again. Their Level Zero tensor and
+     * the arguments of the pipeline would otherwise keep using the previous shape. Must be called after
+     * validate_output_batch_sizes.
+     */
+    void sync_reshaped_user_outputs();
+
     virtual void prepare_inputs();
     virtual void prepare_outputs();
 
@@ -164,6 +206,14 @@ protected:
     std::unique_ptr<IPipeline> _pipeline;
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+    // Batch size this request works with. It is per request on purpose: the graph is shared by all the requests of a
+    // compiled model, so the graph batch size cannot be updated by one request without affecting the others. The
+    // initial value is the one reported by the graph (e.g. the batch detected while compiling the model).
+    std::optional<size_t> _batchSize;
+    // Indices of the inputs that have a dynamic batch size (empty for dynamic graphs)
+    std::vector<size_t> _dynamicBatchInputs;
+    // Indices of the outputs that follow the batch size of the inputs (empty for dynamic graphs)
+    std::vector<size_t> _dynamicBatchOutputs;
 
     Logger _logger;
 
