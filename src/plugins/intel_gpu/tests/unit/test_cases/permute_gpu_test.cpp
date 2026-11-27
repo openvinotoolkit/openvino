@@ -2545,6 +2545,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_tile_reverse_rotate_4d,
                              {{1, 4, 16, 36}, format::bfyx},    // x remainder
                              {{1, 3, 13, 19}, format::bfyx},    // y and x remainder
                              {{1, 5, 6, 12}, format::bfyx},     // 4x4 tile (y < 8)
+                             {{1, 8, 16, 3}, format::bfyx},     // 4x4 tile (x < 4): every x tile is a remainder
+                             {{1, 4, 16, 16}, format::bfyx},    // aligned; 4x4 tile for i64
+                             {{2, 3, 13, 19}, format::bfyx},    // batch > 1 with y and x remainders
                          }),
                          TiledPermuteTest::PrintToStringParamName);
 
@@ -2556,12 +2559,23 @@ TEST_P(permute_tile_reverse_rotate_4d, combined) {
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 1, 2});
 }
 
-// Unforced kernel selection for a MaxViT-style NHWC -> NCHW permute (f16): the default
-// selector must pick the tiled kernel instead of falling back to permute_ref.
-TEST(permute_tile_reverse_rotate_selection, unforced_uses_tiled_kernel) {
+// INT64 always uses the 4x4 tile (long4 vector loads/stores), also for large y and x.
+TEST_P(permute_tile_reverse_rotate_4d, i64) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 1, 2});
+}
+
+TEST_P(permute_tile_reverse_rotate_4d, f16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 1, 2}, true);
+}
+
+// Unforced kernel selection for NHWC -> NCHW permutes (f16): the tiled kernel is preferred for
+// larger planes (MaxViT-style, y >= 32 and x >= 64); permute_ref is kept for small ones.
+static void run_reverse_rotate_selection(int32_t h, int32_t w, int32_t c, const std::string& expected_kernel) {
     auto& engine = get_test_engine();
-    // bfyx tensor {b, f, x, y}: input is (b=1, f=H=32, y=W=24, x=C=64).
-    cldnn::tensor tensor(1, 32, 64, 24);
+    // bfyx tensor {b, f, x, y}: input is (b=1, f=H, y=W, x=C).
+    cldnn::tensor tensor(1, h, c, w);
     auto input = engine.allocate_memory(cldnn::layout(cldnn::data_types::f16, cldnn::format::bfyx, tensor));
     tests::set_random_values<ov::float16>(input);
 
@@ -2574,7 +2588,7 @@ TEST(permute_tile_reverse_rotate_selection, unforced_uses_tiled_kernel) {
     auto res = net->execute();
     ASSERT_FALSE(res.empty());
 
-    EXPECT_NE(net->get_primitive_info("output").find("permute_tile_8x8_4x4"), std::string::npos);
+    EXPECT_NE(net->get_primitive_info("output").find(expected_kernel), std::string::npos);
 
     // out[b][c][h][w] == in[b][h][w][c]; in cldnn bfyx terms the input is (b, f=H, y=W, x=C)
     // and the output is (b, f=C, y=H, x=W).
@@ -2597,6 +2611,15 @@ TEST(permute_tile_reverse_rotate_selection, unforced_uses_tiled_kernel) {
                 ASSERT_EQ(static_cast<float>(in_ptr[in_off]), static_cast<float>(out_ptr[out_off]))
                     << "mismatch at c=" << c << " h=" << h << " w=" << w;
             }
+}
+
+TEST(permute_tile_reverse_rotate_selection, unforced_uses_tiled_kernel) {
+    run_reverse_rotate_selection(32, 32, 768, "permute_tile_8x8_4x4");
+}
+
+TEST(permute_tile_reverse_rotate_selection, unforced_small_plane_keeps_permute_ref) {
+    run_reverse_rotate_selection(32, 24, 64, "permute_ref");  // y = W = 24 < 32
+    run_reverse_rotate_selection(32, 32, 48, "permute_ref");  // x = C = 48 < 64
 }
 
 // permute_xy_swap kernel: optimized 4D X<->Y transpose ({0, 1, 3, 2}).

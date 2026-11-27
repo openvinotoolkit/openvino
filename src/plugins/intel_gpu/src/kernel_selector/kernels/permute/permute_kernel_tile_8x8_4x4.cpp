@@ -55,6 +55,10 @@ static inline bool IsReverseRotating4D(const std::vector<uint16_t>& order) {
     return order == kOrder4;
 }
 
+// Smallest input y and x for which the reverse rotation is preferred over permute_ref.
+constexpr size_t kReverseRotationMinY = 32;
+constexpr size_t kReverseRotationMinX = 64;
+
 // Size of the input axis tiled together with x: input y for the reverse rotation,
 // input feature otherwise.
 static inline size_t GetTiledFeatureSize(const permute_params& params) {
@@ -292,7 +296,9 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
 
 static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_size) {
     std::vector<size_t> lws{1, 1, 1};
-    std::vector<size_t> dims{0, 2, 1};
+    // Reverse rotation: grow the work group along input y tiles first, so that neighbouring work
+    // items write neighbouring parts of the output rows (output x = input y).
+    std::vector<size_t> dims = IsReverseRotating4D(params.order) ? std::vector<size_t>{2, 0, 1} : std::vector<size_t>{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
     const size_t elem_size = params.outputs[0].ElementSize();
@@ -429,6 +435,14 @@ KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& par
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
     const size_t tiled_f = GetTiledFeatureSize(newParams);
+
+    // The reverse rotation only beats permute_ref on larger planes: with small y or x most tiles
+    // are partial or the kernel is launch-bound. Measured on Xe2 (Arc B580, f16/f32, in-graph
+    // permutes); below these sizes permute_ref, registered first, wins the tie.
+    if (IsReverseRotating4D(newParams.order) &&
+        (newParams.inputs[0].Y().v < kReverseRotationMinY || newParams.inputs[0].X().v < kReverseRotationMinX)) {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    }
 
     if ((tiled_f >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_1;
