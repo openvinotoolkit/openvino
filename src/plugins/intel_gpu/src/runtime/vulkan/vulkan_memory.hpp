@@ -153,6 +153,7 @@ public:
     vulkan_memory_allocator(VkDeviceSize alignment, VkDeviceSize preferred_block_size, VkDeviceSize max_block_size, block_allocator allocate_block);
 
     vulkan_buffer_region::ptr allocate(size_t size);
+    vulkan_buffer_allocation::ptr allocate_staging(size_t size, const block_allocator& allocate_block);
 
 private:
     friend class vulkan_buffer_region;
@@ -170,6 +171,7 @@ private:
     };
 
     void release(const vulkan_buffer_allocation::ptr& allocation, VkDeviceSize offset, VkDeviceSize size);
+    bool reclaim_idle_blocks_locked();
     VkDeviceSize align_size(VkDeviceSize size) const;
 
     VkDeviceSize _alignment = 1;

@@ -11,6 +11,7 @@ namespace cldnn {
 namespace vulkan {
 
 class vulkan_buffer_region;
+class vulkan_buffer_allocation;
 class vulkan_memory_allocator;
 
 class vulkan_engine final : public engine {
@@ -56,6 +57,7 @@ public:
     VkDeviceSize get_non_coherent_atom_size() const;
     std::shared_ptr<vulkan_device> get_vulkan_device_object() const;
     std::shared_ptr<vulkan_buffer_region> allocate_buffer_region(size_t size);
+    std::shared_ptr<vulkan_buffer_allocation> allocate_staging_buffer(size_t size);
 
 private:
     bool supports_large_allocations() const override {

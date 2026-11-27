@@ -342,13 +342,9 @@ vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
     try {
         allocation = _allocate_block(static_cast<size_t>(block_size));
     } catch (const std::bad_alloc&) {
-        const auto live_blocks_end = std::remove_if(_blocks.begin(), _blocks.end(), [](const block& candidate) {
-            return candidate.live_regions == 0;
-        });
-        if (live_blocks_end == _blocks.end() && block_size == reserved_size) {
+        if (!reclaim_idle_blocks_locked() && block_size == reserved_size) {
             throw;
         }
-        _blocks.erase(live_blocks_end, _blocks.end());
         block_size = reserved_size;
         allocation = _allocate_block(static_cast<size_t>(block_size));
     }
@@ -366,6 +362,29 @@ vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
 
     region->_owner = weak_from_this();
     return region;
+}
+
+vulkan_buffer_allocation::ptr vulkan_memory_allocator::allocate_staging(size_t size, const block_allocator& allocate_block) {
+    try {
+        return allocate_block(size);
+    } catch (const std::bad_alloc&) {
+        const std::lock_guard<std::mutex> lock(_mutex);
+        if (!reclaim_idle_blocks_locked()) {
+            throw;
+        }
+    }
+    return allocate_block(size);
+}
+
+bool vulkan_memory_allocator::reclaim_idle_blocks_locked() {
+    const auto live_blocks_end = std::remove_if(_blocks.begin(), _blocks.end(), [](const block& candidate) {
+        return candidate.live_regions == 0;
+    });
+    if (live_blocks_end == _blocks.end()) {
+        return false;
+    }
+    _blocks.erase(live_blocks_end, _blocks.end());
+    return true;
 }
 
 void vulkan_memory_allocator::release(const vulkan_buffer_allocation::ptr& allocation, VkDeviceSize offset, VkDeviceSize size) {

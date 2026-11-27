@@ -94,7 +94,7 @@ void* vulkan_buffer::mapped_data() const {
 vulkan_buffer_allocation::ptr vulkan_buffer::allocate_staging(size_t size) const {
     auto* engine = dynamic_cast<vulkan_engine*>(_engine);
     OPENVINO_ASSERT(engine != nullptr, "[GPU][Vulkan] Staging allocation requires a Vulkan engine");
-    return vulkan_buffer_allocation::create(*engine, size, vulkan_buffer_memory_usage::host_staging);
+    return engine->allocate_staging_buffer(size);
 }
 
 event::ptr vulkan_buffer::write_staged(const vulkan_stream& queue,

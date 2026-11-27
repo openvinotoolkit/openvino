@@ -359,6 +359,40 @@ TEST(VulkanMemorySmoke, ReclaimsIdleBlocksAfterAllocationFailure) {
     }
 }
 
+TEST(VulkanMemorySmoke, ReclaimsIdleBlocksBeforeStagingRetry) {
+    using namespace cldnn::vulkan;
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
+    auto& vk_engine = static_cast<vulkan_engine&>(*engine);
+    constexpr size_t preferred = 256;
+    const auto allocator = std::make_shared<vulkan_memory_allocator>(sizeof(uint32_t), preferred, preferred, [&](size_t size) {
+        return vulkan_buffer_allocation::create(vk_engine, size, vulkan_buffer_memory_usage::device);
+    });
+
+    auto idle = allocator->allocate(64);
+    const auto live = allocator->allocate(128);
+    ASSERT_NE(idle->get_allocation(), live->get_allocation());
+    const std::weak_ptr<vulkan_buffer_allocation> cached_block = idle->get_allocation();
+    idle.reset();
+    ASSERT_FALSE(cached_block.expired());
+
+    size_t attempts = 0;
+    const auto allocate_staging = [&](size_t size) {
+        ++attempts;
+        if (!cached_block.expired()) {
+            throw std::bad_alloc{};
+        }
+        return vulkan_buffer_allocation::create(vk_engine, size, vulkan_buffer_memory_usage::host_staging);
+    };
+    vulkan_buffer_allocation::ptr staging;
+    ASSERT_NO_THROW(staging = allocator->allocate_staging(32, allocate_staging));
+    EXPECT_TRUE(staging->is_mapped());
+    EXPECT_EQ(attempts, 2U);
+    EXPECT_TRUE(cached_block.expired());
+    EXPECT_EQ(allocator->allocate(16)->get_allocation(), live->get_allocation());
+}
+
 TEST(VulkanMemorySmoke, PreservesPartialWritesAndNestedReads) {
     const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
     ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";

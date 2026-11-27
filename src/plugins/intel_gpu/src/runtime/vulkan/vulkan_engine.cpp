@@ -135,6 +135,13 @@ std::shared_ptr<vulkan_buffer_region> vulkan_engine::allocate_buffer_region(size
     return _memory_allocator->allocate(size);
 }
 
+std::shared_ptr<vulkan_buffer_allocation> vulkan_engine::allocate_staging_buffer(size_t size) {
+    OPENVINO_ASSERT(_memory_allocator != nullptr, "[GPU][Vulkan] Memory allocator is not initialized");
+    return _memory_allocator->allocate_staging(size, [this](size_t requested_size) {
+        return vulkan_buffer_allocation::create(*this, requested_size, vulkan_buffer_memory_usage::host_staging);
+    });
+}
+
 void* vulkan_engine::get_user_context(runtime_types runtime_type) const {
     OPENVINO_ASSERT(runtime_type == runtime_types::vulkan, "[GPU][Vulkan] Cannot provide a context for runtime ", runtime_type);
     return reinterpret_cast<void*>(get_device_handle());
