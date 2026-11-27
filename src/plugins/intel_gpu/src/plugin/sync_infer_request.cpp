@@ -64,6 +64,33 @@ std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor
     return packed;
 }
 
+// Some KV caches are read without their beam table (see op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX), which is only valid
+// while beam_idx keeps every row in place, i.e. without beam search. `tensor` is the whole beam_idx (a batched input is
+// checked once merged); a remote one is read back.
+void check_identity_beam_idx(const std::shared_ptr<ov::ITensor>& tensor, const std::string& name) {
+    if (!tensor) {
+        return;
+    }
+    const auto element_type = tensor->get_element_type();
+    if (element_type != ov::element::i32 && element_type != ov::element::i64) {
+        return;
+    }
+    auto host = tensor;
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr) {
+        host = ov::make_tensor(element_type, tensor->get_shape());
+        tensor->copy_to(host);
+    }
+    const auto* data = host->data();
+    for (size_t i = 0; i < host->get_size(); ++i) {
+        const int64_t value = element_type == ov::element::i32 ? static_cast<const int32_t*>(data)[i] : static_cast<const int64_t*>(data)[i];
+        OPENVINO_ASSERT(value == static_cast<int64_t>(i),
+                        "[GPU] Input '",
+                        name,
+                        "' reorders the KV cache rows (beam search), which the sparse attention layers of this model do not support yet: "
+                        "beam_idx must be [0, 1, ..., batch - 1].");
+    }
+}
+
 bool byte_ranges_overlap(const void* lhs_ptr, size_t lhs_size, const void* rhs_ptr, size_t rhs_size) {
     if (lhs_ptr == nullptr || rhs_ptr == nullptr || lhs_size == 0 || rhs_size == 0) {
         return false;
@@ -429,6 +456,9 @@ void SyncInferRequest::enqueue() {
             const bool is_repacked = contiguous_tensor != user_tensor.ptr;
             if (is_repacked) {
                 user_tensor = {contiguous_tensor, TensorOwner::PLUGIN};
+            }
+            if (m_identity_beam_idx_inputs.count(internal_name) != 0) {
+                check_identity_beam_idx(user_tensor.ptr, internal_name);
             }
             auto events = prepare_input(internal_name, port_idx, port, user_tensor, is_repacked);
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
@@ -989,6 +1019,13 @@ void SyncInferRequest::allocate_states() {
                 concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
                 compressed = kv_cache_prim->compressed;
                 has_zp_state = kv_cache_prim->get_compression_zp_inputs_num() > 0;
+                if (kv_cache_prim->requires_identity_beam_idx) {
+                    OPENVINO_ASSERT(kv_cache_prim->indirect && kv_cache_prim->input.size() > cldnn::kv_cache::beam_idx_input,
+                                    "[GPU] kv_cache '",
+                                    kv_cache_prim->id,
+                                    "' requires an identity beam_idx but has no beam_idx input");
+                    m_identity_beam_idx_inputs.insert(kv_cache_prim->input[cldnn::kv_cache::beam_idx_input].pid);
+                }
             } else if (const auto* read_value = dynamic_cast<const cldnn::read_value*>(p)) {
                 states_layouts = read_value->output_layouts;
             }
@@ -1011,6 +1048,19 @@ void SyncInferRequest::allocate_states() {
                                                                           m_shape_predictor,
                                                                           network->get_program()->get_tensor_conversion()));
         }
+    }
+
+    // The beam_idx checked by enqueue() must be a model input: IndirectSparseAttentionOpt and
+    // QSAIndexerBlockCacheFusionMatcher only accept a Parameter, which is lowered to an input_layout of the same id.
+    for (const auto& beam_idx : m_identity_beam_idx_inputs) {
+        const bool is_input = std::any_of(m_input_ports_map.begin(), m_input_ports_map.end(), [&](const auto& it) {
+            const auto names = m_graph->input_port_index_to_internal(it.first);
+            return std::find(names.begin(), names.end(), beam_idx) != names.end();
+        });
+        OPENVINO_ASSERT(is_input,
+                        "[GPU] '",
+                        beam_idx,
+                        "' is not a model input: beam search could not be rejected for the sparse attention KV caches it reorders.");
     }
 }
 
@@ -1050,6 +1100,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             }
         }
 
+        if (m_identity_beam_idx_inputs.count(internal_names[0]) != 0) {
+            check_identity_beam_idx(merged_tensor, internal_names[0]);
+        }
         auto events = prepare_input(internal_names[0], input_idx, port, {merged_tensor, TensorOwner::PLUGIN});
         std::move(events.begin(), events.end(), std::back_inserter(ret_events));
     } else {

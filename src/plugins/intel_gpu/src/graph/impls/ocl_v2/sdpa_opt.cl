@@ -136,13 +136,38 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 }
 #endif
 
+#if defined(V_HEAD_STRIDED) && (IS_INT4_COMPRESSED || defined(BEAM_TABLE_TYPE))
+inline uint FUNC(get_value_lane_offset)(OPTIONAL_SHAPE_INFO_ARG uint lane) {
+    return FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 0, lane) -
+           FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 0, 0);
+}
+#endif
+
 #define OUTPUT_BLOCK_READ(ptr, offset) BLOCK_READN(OUTPUT_TYPE, 1, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
 
 #if IS_INT4_COMPRESSED
-#define VALUE_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
+    #ifdef V_HEAD_STRIDED
+        #if V_HEAD_SIZE % (2 * SUBGROUP_SIZE) == 0
+            #define VALUE_READ(ptr, offset) ((ptr)[(offset) + value_lane_offset])
+        #else
+            #define VALUE_READ(ptr, offset) \
+                ((val_packed_x + sglid < V_HEAD_SIZE / 2) \
+                    ? (ptr)[(offset) + value_lane_offset] : (INPUT2_TYPE)0)
+        #endif
+    #else
+        #define VALUE_READ(ptr, offset) ((ptr)[(offset) + sglid])
+    #endif
+#elif defined(V_HEAD_STRIDED)
+#define VALUE_READ(ptr, offset) ((ptr)[(offset)])
 #else
-#define VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT2_TYPE, 1, ptr, offset)
+#define VALUE_READ(ptr, offset) BLOCK_READN(INPUT2_TYPE, 1, ptr, offset)
+#endif
+
+#if defined(V_HEAD_STRIDED) && !IS_INT4_COMPRESSED
+#define VALUE_BROADCAST_OFFSET(offset, lane) (sub_group_broadcast(offset, lane) + value_lane_offset)
+#else
+#define VALUE_BROADCAST_OFFSET(offset, lane) sub_group_broadcast(offset, lane)
 #endif
 #define SUBGROUPS_PER_WG CEIL_DIV(V_HEAD_SIZE * SG_SCALE_FACTOR, SUBGROUP_SIZE)
 
@@ -783,6 +808,9 @@ KERNEL(sdpa_opt)(
     {
         // Gemm2 calculation
         OUTPUT_COMPUTE_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {OUTPUT_VAL_ZERO};
+    #if defined(V_HEAD_STRIDED) && (IS_INT4_COMPRESSED || defined(BEAM_TABLE_TYPE))
+        const uint value_lane_offset = FUNC_CALL(get_value_lane_offset)(OPTIONAL_SHAPE_INFO_TENSOR sglid);
+    #endif
 #ifndef BEAM_TABLE_TYPE
 #ifdef INPUT2_DIMS_ORDER
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_v_idx, b1_idx, 0, 0, 0, 0);
@@ -860,14 +888,14 @@ KERNEL(sdpa_opt)(
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
 #ifdef BEAM_TABLE_TYPE
-    #if IS_INT4_COMPRESSED
+    #if IS_INT4_COMPRESSED && !defined(V_HEAD_STRIDED)
                 const INPUT2_TYPE value_packed = (val_packed_x + sglid < K_HEAD_SIZE / 2)
-                    ? VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i)) : (INPUT2_TYPE)0;
+                    ? VALUE_READ(value_input, VALUE_BROADCAST_OFFSET(value_offset, i)) : (INPUT2_TYPE)0;
     #else
-                const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                const INPUT2_TYPE value_packed = VALUE_READ(value_input, VALUE_BROADCAST_OFFSET(value_offset, i));
     #endif
 #else
-                const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                const INPUT2_TYPE value_packed = VALUE_READ(value_input, value_offset);
 #endif
 
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
@@ -936,11 +964,11 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len]);
             }
 
-#if IS_INT4_COMPRESSED
+#if IS_INT4_COMPRESSED && !defined(V_HEAD_STRIDED)
             const INPUT2_TYPE value_packed = (val_packed_x + sglid < K_HEAD_SIZE / 2)
-                ? VALUE_BLOCK_READ(value_input, value_offset) : (INPUT2_TYPE)0;
+                ? VALUE_READ(value_input, value_offset) : (INPUT2_TYPE)0;
 #else
-            const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+            const INPUT2_TYPE value_packed = VALUE_READ(value_input, value_offset);
 #endif
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
             // INT4 adjacent packing: shuffle to get correct byte, select nibble by lane parity
@@ -1696,6 +1724,14 @@ KERNEL(sdpa_opt)(
     // Q*K calculation loop
     MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) output_acc = OUTPUT_VAL_ZERO;
 
+#if defined(V_HEAD_STRIDED) && (IS_INT4_COMPRESSED || defined(BEAM_TABLE_TYPE))
+    const uint value_lane_offset = FUNC_CALL(get_value_lane_offset)(OPTIONAL_SHAPE_INFO_TENSOR sglid);
+#endif
+
+#if IS_INT4_COMPRESSED
+    const uint val_packed_x = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
+#endif
+
 #if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
     #ifdef INPUT1_DIMS_ORDER
     const uint key_base_s1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_k_idx, b1_idx, 0, 0, 0, 0);
@@ -2358,7 +2394,7 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if IS_INT4_COMPRESSED && !defined(IS_PAGED_ATTENTION)
-            const uint val_packed_x_s1 = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
+            const uint val_packed_x_s1 = val_packed_x;
             // Adjacent head packing: shuffle to get correct byte, select nibble by lane parity
             const uint shuffle_src_s1 = (head_size_idx & (2 * SUBGROUP_SIZE - 1)) >> 1;
             const uint nibble_sel_s1 = sglid & 1;
@@ -2416,16 +2452,16 @@ KERNEL(sdpa_opt)(
                     VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = DECODE_VALUE_ZP(GET_ZP(val_zp, val_scale, comp_offset));
 #endif
 #endif
-                    #ifdef V_HEAD_SIZE_LEFTOVER
+                    #if defined(V_HEAD_SIZE_LEFTOVER) && !(IS_INT4_COMPRESSED && defined(V_HEAD_STRIDED))
                     // splitting to two cases for supressing reg spill : block_read & eltwise read
                     if (sgid < SUBGROUPS_PER_WG - 1) {
                     // block_read values
                     #endif
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                         #ifdef BEAM_TABLE_TYPE
-                        const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                        const INPUT2_TYPE value_packed = VALUE_READ(value_input, VALUE_BROADCAST_OFFSET(value_offset, i));
                         #else
-                        const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                        const INPUT2_TYPE value_packed = VALUE_READ(value_input, value_offset);
                         #endif
 
                         #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
@@ -2449,12 +2485,12 @@ KERNEL(sdpa_opt)(
                         value_offset += value_pitch;
                         #endif
                     } // unroll_for
-                    #ifdef V_HEAD_SIZE_LEFTOVER
+                    #if defined(V_HEAD_SIZE_LEFTOVER) && !(IS_INT4_COMPRESSED && defined(V_HEAD_STRIDED))
                     } else if (head_size_idx < V_HEAD_SIZE) {
                     // read values element by element
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                         #ifdef BEAM_TABLE_TYPE
-                            const INPUT2_TYPE value_packed = value_input[sub_group_broadcast(value_offset, i)];
+                            const INPUT2_TYPE value_packed = value_input[VALUE_BROADCAST_OFFSET(value_offset, i)];
                         #else
                             const INPUT2_TYPE value_packed = value_input[value_offset];
                         #endif
@@ -2532,16 +2568,16 @@ KERNEL(sdpa_opt)(
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         qk_val[seq_idx] = slm_qk_vals[seq_idx][seq_len * SUBGROUP_SIZE + sglid];
                     }
-                #ifdef V_HEAD_SIZE_LEFTOVER
+                #if defined(V_HEAD_SIZE_LEFTOVER) && !(IS_INT4_COMPRESSED && defined(V_HEAD_STRIDED))
                     // splitting to two cases for supressing reg spill : block_read & eltwise read
                     if (sgid < SUBGROUPS_PER_WG - 1) {
                     // block_read values
                 #endif
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 #ifdef BEAM_TABLE_TYPE
-                        const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                        const INPUT2_TYPE value_packed = VALUE_READ(value_input, VALUE_BROADCAST_OFFSET(value_offset, i));
                 #else
-                        const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                        const INPUT2_TYPE value_packed = VALUE_READ(value_input, value_offset);
                 #endif
 
                 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
@@ -2565,12 +2601,12 @@ KERNEL(sdpa_opt)(
                         value_offset += value_pitch;
                 #endif
                     } // unroll_for
-                #ifdef V_HEAD_SIZE_LEFTOVER
+                #if defined(V_HEAD_SIZE_LEFTOVER) && !(IS_INT4_COMPRESSED && defined(V_HEAD_STRIDED))
                     } else if (head_size_idx < V_HEAD_SIZE) {
                     // read values element by element
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                         #ifdef BEAM_TABLE_TYPE
-                            const INPUT2_TYPE value_packed = value_input[sub_group_broadcast(value_offset, i)];
+                            const INPUT2_TYPE value_packed = value_input[VALUE_BROADCAST_OFFSET(value_offset, i)];
                         #else
                             const INPUT2_TYPE value_packed = value_input[value_offset];
                         #endif
@@ -2648,23 +2684,23 @@ KERNEL(sdpa_opt)(
 #endif
 
                     for (uint seq_len_idx = 0; seq_len_idx < partition_seq_len - seq_len_leftovers_start; seq_len_idx++) {
-                    #ifdef V_HEAD_SIZE_LEFTOVER
+                    #if defined(V_HEAD_SIZE_LEFTOVER) && !(IS_INT4_COMPRESSED && defined(V_HEAD_STRIDED))
                         #ifdef BEAM_TABLE_TYPE
-                        const uint value_offset_seq = sub_group_broadcast(value_offset, seq_len_idx);
+                        const uint value_offset_seq = VALUE_BROADCAST_OFFSET(value_offset, seq_len_idx);
                         const INPUT2_TYPE value_packed = (head_size_idx < V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
                         #else // !BEAM_TABLE_TYPE
                         INPUT2_TYPE value_packed;
                         if (sgid < SUBGROUPS_PER_WG - 1)
-                            value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                            value_packed = VALUE_READ(value_input, value_offset);
                         else
                             value_packed = (sglid < V_HEAD_SIZE_LEFTOVER) ? value_input[value_offset] : INPUT2_VAL_ZERO;
                         #endif // BEAM_TABLE_TYPE
 
                     #else // !V_HEAD_SIZE_LEFTOVER
                         #ifdef BEAM_TABLE_TYPE
-                        const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
+                        const INPUT2_TYPE value_packed = VALUE_READ(value_input, VALUE_BROADCAST_OFFSET(value_offset, seq_len_idx));
                         #else
-                        const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                        const INPUT2_TYPE value_packed = VALUE_READ(value_input, value_offset);
                         #endif
                     #endif // V_HEAD_SIZE_LEFTOVER
 

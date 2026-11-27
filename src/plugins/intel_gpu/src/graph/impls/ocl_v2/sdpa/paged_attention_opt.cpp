@@ -261,9 +261,11 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     return GQAMultiTokensKernel::SMALL_Q;
 }
 
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 inline bool can_use_gqa_multi_tokens_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage) {
     return select_gqa_multi_tokens_kernel(params, stage) != GQAMultiTokensKernel::NONE;
 }
+#endif
 
 inline void add_gqa_jit_constants(JitConstants& jit, const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_attention>();

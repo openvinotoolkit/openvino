@@ -4,18 +4,23 @@
 
 #include "indirect_kv_cache.hpp"
 #include <memory>
+#include <vector>
 
 #include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/indirect_gemm.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/kv_cache_compressed.hpp"
 #include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
@@ -23,6 +28,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
+#include "plugin/transformations/utils.hpp"
 
 namespace {
 // same impl as ov::replace node, but w/o outputs count check
@@ -236,8 +242,66 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
     this->register_matcher(m, callback);
 }
 
+IndirectSparseAttentionOpt::IndirectSparseAttentionOpt() {
+    using namespace ov::pass::pattern;
+
+    auto sparse_attention = wrap_type<op::SparseSDPA>();
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto attention = ov::as_type_ptr<op::SparseSDPA>(m.get_match_root());
+        if (!attention || attention->get_config().kv_compressed() || transformation_callback(attention)) {
+            return false;
+        }
+
+        // Both caches: ReadValue -> Gather(beam_idx, axis 0) -> KVCache, read by this attention only (other readers
+        // would see the cache in the order it was written) and by shape reads (the key_length of a SparseAttention
+        // without one, see ConvertSparseAttentionToInternal).
+        struct Cache {
+            std::shared_ptr<op::KVCache> kv_cache;
+            std::shared_ptr<ov::op::v8::Gather> gather;
+            std::shared_ptr<ov::Node> past;
+        };
+        std::vector<Cache> caches;
+        std::shared_ptr<ov::Node> beam_idx;
+        for (size_t idx : {op::SparseSDPA::InputIdx::KEY, op::SparseSDPA::InputIdx::VALUE}) {
+            const auto kv_cache = ov::as_type_ptr<op::KVCache>(attention->get_input_node_shared_ptr(idx));
+            if (!kv_cache || ov::is_type<op::KVCacheCompressed>(kv_cache) || kv_cache->get_indirect() || kv_cache->get_update_kv() ||
+                kv_cache->get_output_size() != 1 || !read_only_by(kv_cache->output(0), attention.get())) {
+                return false;
+            }
+            const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(kv_cache->get_input_node_shared_ptr(0));
+            if (!gather || gather->get_output_target_inputs(0).size() != 1 || gather->get_batch_dims() != 0) {
+                return false;
+            }
+            const auto past = gather->get_input_node_shared_ptr(0);
+            const auto indices = gather->get_input_node_shared_ptr(1);
+            const auto rank = gather->get_input_partial_shape(0).rank();
+            if (!ov::is_type<op::ReadValue>(past) || !ov::is_type<ov::op::v0::Parameter>(indices) || rank.is_dynamic() ||
+                ov::util::normalize(gather->get_axis(), rank.get_length()) != 0 || (beam_idx && beam_idx != indices)) {
+                return false;
+            }
+            beam_idx = indices;
+            caches.push_back({kv_cache, gather, past});
+        }
+
+        for (const auto& cache : caches) {
+            ov::replace_node(cache.gather, cache.past);
+            auto indirect_kv_cache = make_kvcache_indirect(cache.kv_cache, cache.past, beam_idx, 0);
+            indirect_kv_cache->set_friendly_name(cache.kv_cache->get_friendly_name());
+            ov::copy_runtime_info(cache.kv_cache, indirect_kv_cache);
+            indirect_kv_cache->get_rt_info()[op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX] = true;
+            replace_node_unsafe(cache.kv_cache, indirect_kv_cache);
+        }
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sparse_attention, "IndirectSparseAttentionOpt");
+    this->register_matcher(m, callback);
+}
+
 IndirectKVCache::IndirectKVCache() {
     add_matcher<IndirectGemmOpt>();
     add_matcher<IndirectSDPAOpt>();
+    add_matcher<IndirectSparseAttentionOpt>();
 }
 }  // namespace ov::intel_gpu

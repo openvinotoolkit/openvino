@@ -195,6 +195,5 @@ ov_generate_dev_package_config()
 _ov_register_extra_modules()
 
 # we need to generate final ov_plugins.hpp with all the information about plugins
-ov_generate_plugins_hpp()
-# we need to generate final ov_frontends.hpp with all the information about frontends
+ov_generate_plugins_hpp()# we need to generate final ov_frontends.hpp with all the information about frontends
 ov_generate_frontends_hpp()

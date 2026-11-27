@@ -3440,6 +3440,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                      params.push_back({16, 16, 16, 3, 1, 1, 1, 0, mode, permute_weights});
                                      params.push_back({16, 16, 16, 3, 1, 0, 0, 0, mode, permute_weights});
                                      params.push_back({4, 16, 32, 4, 2, 1, 1, 0, mode, permute_weights});
+                                     // a single group
+                                     params.push_back({1, 16, 8, 3, 2, 1, 1, 1, mode, permute_weights});
+                                     params.push_back({1, 16, 16, 3, 1, 0, 0, 0, mode, permute_weights});
+                                     params.push_back({1, 1, 1, 3, 1, 0, 0, 0, mode, permute_weights});  // the reproducer of #39884
                                  }
                              }
                              return params;

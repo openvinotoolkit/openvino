@@ -456,6 +456,10 @@ void primitive_inst::update_shape() {
 
     if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() &&
         !input_shape_changed && _impl_params->get_output_layout().is_static()) {
+        if (get_node().is_type<assign>()) {
+            // A reset restores the initial layout of the variable even when the assigned shape does not change.
+            get_network().get_variable(get_node().as<assign>().get_primitive()->variable_id).set_layout(_impl_params->get_output_layout());
+        }
         return;
     }
 
@@ -1643,6 +1647,11 @@ bool primitive_inst::use_async_compilation() {
 
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1) {
+                compile_fc_impls = false;
+            }
+            // The TernOCL shape-agnostic impl already runs the right kernel for every M. Other u2 impls keep async compilation.
+            if (weights_dt == data_types::u2 && get_node().get_selected_impl() != nullptr &&
+                get_node().get_selected_impl()->get_kernel_name() == "ternocl_int2") {
                 compile_fc_impls = false;
             }
         } else {

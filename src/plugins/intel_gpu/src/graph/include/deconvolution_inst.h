@@ -114,7 +114,9 @@ using deconvolution_inst = typed_primitive_inst<deconvolution>;
 // the deconvolution counterpart of extend_weights_layout_to_5d() for 1D grouped convolutions.
 inline layout get_deconvolution_weights_layout(const layout& weights_layout, bool grouped_weights_shape) {
     auto converted = weights_layout.convert_to_weights_layout(grouped_weights_shape);
-    if (!grouped_weights_shape || converted.get_rank() != 4 || converted.is_dynamic()) {
+    // Weights in a weights format were already reordered for the selected kernel and are not extended again: with one
+    // group, the kernel takes non-grouped weights, which are reordered to the 4D oiyx ([o, i, x, 1]).
+    if (!grouped_weights_shape || format::is_weights_format(weights_layout.format) || converted.get_rank() != 4 || converted.is_dynamic()) {
         return converted;
     }
 

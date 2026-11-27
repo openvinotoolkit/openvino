@@ -766,6 +766,7 @@ set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/concat_sdp_gqa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/conv_fq.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/conv_multiply.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/conv_sve_small_channels.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/convert_group_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/convert_group_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/convert_reduce_multi_axis.cpp
