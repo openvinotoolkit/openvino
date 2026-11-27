@@ -153,6 +153,15 @@ jobs:
           Write-Output "NUMBER_OF_PROCESSORS=$env:NUMBER_OF_PROCESSORS, build parallelism=$parallel"
           "CMAKE_BUILD_PARALLEL_LEVEL=$parallel" >> $env:GITHUB_ENV
 
+      # Samples system commit and per-process memory of the build tools once per second (see .github/scripts/win_mem_sampler.ps1)
+      - name: Start memory sampler
+        run: |
+          $dir = "$env:RUNNER_TEMP\mem_sampler"
+          $p = Start-Process (Get-Process -Id $PID).Path -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', "${{ env.OPENVINO_REPO }}\.github\scripts\win_mem_sampler.ps1", '-OutDir', $dir
+          "SAMPLER_PID=$($p.Id)" >> $env:GITHUB_ENV
+          "SAMPLER_DIR=$dir" >> $env:GITHUB_ENV
+          Write-Output "Memory sampler started, PID $($p.Id), output in $dir"
+
       # CMake file included at the end of the top-level project: assigns the tests_jobs pool to compile jobs of every target that builds tests
       - name: Create job pool hook for test targets
         run: |
@@ -317,6 +326,44 @@ jobs:
           name: compile_commands_windows_cc_collect_set_jobs_for_ut_target
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
+
+      - name: Stop memory sampler and summarize
+        if: ${{ always() }}
+        run: |
+          if (-not $env:SAMPLER_PID) { Write-Output 'Memory sampler was not started'; exit 0 }
+          $dir = $env:SAMPLER_DIR
+          New-Item -ItemType File -Force "$dir\stop" | Out-Null
+          Wait-Process -Id $env:SAMPLER_PID -Timeout 30 -ErrorAction SilentlyContinue
+          if (Get-Process -Id $env:SAMPLER_PID -ErrorAction SilentlyContinue) { Stop-Process -Id $env:SAMPLER_PID -Force }
+          $samples = @(Import-Csv "$dir\samples.csv")
+          if ($samples.Count -gt 0) {
+            $peak = $samples | Sort-Object { [double]$_.commit_gb } -Descending | Select-Object -First 1
+            $last = $samples[-1]
+            $minAvail = ($samples | ForEach-Object { [double]$_.phys_avail_gb } | Measure-Object -Minimum).Minimum
+            $lines = @(
+              '### Memory sampler',
+              "- samples: $($samples.Count), commit limit: $($last.commit_limit_gb) GB, physical total: $($last.phys_total_gb) GB",
+              "- peak sampled commit: $($peak.commit_gb) GB at $($peak.time_utc) (cl: $($peak.cl_n) / $($peak.cl_private_gb) GB, link: $($peak.link_n) / $($peak.link_private_gb) GB, mspdbsrv: $($peak.mspdbsrv_private_gb) GB)",
+              "- system commit peak counter: $($last.commit_peak_gb) GB, min available physical: $minAvail GB",
+              "- last sample $($last.time_utc): commit $($last.commit_gb) GB, top: $($last.top_processes)",
+              '',
+              '| peak private MB | process | seen for s | source |',
+              '|---|---|---|---|'
+            )
+            Import-Csv "$dir\processes.csv" | Sort-Object { [double]$_.peak_private_mb } -Descending | Select-Object -First 15 | ForEach-Object {
+              $lines += "| $($_.peak_private_mb) | $($_.name) $($_.pid) | $($_.seen_for_sec) | ``$($_.source)`` |"
+            }
+            $lines | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            $lines | Write-Output
+          }
+
+      - name: Upload memory sampler data
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: mem_sampler_collect_set_jobs_for_ut_target
+          path: ${{ runner.temp }}\mem_sampler
+          if-no-files-found: 'warn'
 
   Build_And_Run_On_Mode:
     name: Conditional Compilation
