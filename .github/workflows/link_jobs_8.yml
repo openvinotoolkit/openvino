@@ -1,0 +1,443 @@
+name: link_jobs_8
+# Collect Mode uses the Ninja Multi-Config generator: what the maxnick_pr configuration gets from MSBuild MultiToolTask
+# is done there with --parallel (ninja -j) = NUMBER_OF_PROCESSORS - 1.
+# Link concurrency is capped at 8 by the Ninja link_jobs pool.
+# Run Mode stays on the Visual Studio generator with MultiToolTask (as in maxnick_pr): onecoreuap.toolchain.cmake
+# relies on MSBuild macros that Ninja doesn't expand.
+# Pagefile experiment: after run 46049206311 (link_jobs_8 with a link pool of 2, passed) a DaemonSet raised the
+# pagefile on these nodes to 32 GB (can grow to 64 GB), so the 36 GB commit limit no longer applies. This copy looks for
+# the link concurrency at which the build breaks (or slows down by paging) with the larger commit limit. link.exe takes
+# ~7-10 GB of commit each (up to 10.2 GB for ov_cpu_func_tests), compilers are small (median 0.5 GB, max 2 GB).
+on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+concurrency:
+  group: ${{ github.ref }}-windows-cc-link_jobs_8
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
+
+  Build_And_Run_Collect_Mode:
+    timeout-minutes: 600 # 10 hours, no compiler cache (worst-case duration experiment)
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-16-cores-32gb-build-ab
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
+      # Compiler cache disabled for the worst-case duration experiment
+      # CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      # CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_SECONDARY_STORAGE: "file:///C:/mount/caches/ccache/shared/windows/vs2022/x86_64/Release_collect|update-mtime=true"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
+      CCACHE_SLOPPINESS: pch_defines,time_macros
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
+      INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
+      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      # CMAKE_BUILD_PARALLEL_LEVEL is not hard-coded: the 'Set build parallelism' step exports NUMBER_OF_PROCESSORS - 1,
+      # which nested cmake --build calls (e.g. intel_gpu onednn_gpu ExternalProject) pick up as well
+
+      # TODO: specify version of compiler here
+
+    steps:
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Clone test models
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          lfs: 'true'
+          ref: ${{ env.TARGET_BRANCH }}
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
+      # Dependencies
+      #
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
+
+      - name: Install certifi
+        run: |
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+
+      #
+      # Build
+      #
+
+      - name: Setup ccache
+        run: |
+          ccache --version
+          $config = ccache --show-config | Out-String
+          Write-Output $config
+          if (-not $config.Contains($env:CCACHE_SECONDARY_STORAGE)) {
+            Write-Error "ccache remote storage is not configured: expected $env:CCACHE_SECONDARY_STORAGE"
+            exit 1
+          }
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          toolset: 14.42 # v2022
+
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
+      # NUMBER_OF_PROCESSORS is only visible to PowerShell at run time: `env:` values and GitHub expressions can't evaluate it,
+      # so the limit is computed here and exported to the following steps through GITHUB_ENV.
+      # (The original workflow noted that nproc/NUMBER_OF_PROCESSORS don't respect Kubernetes pod CPU limits; the value is logged.)
+      - name: Set build parallelism (NUMBER_OF_PROCESSORS - 1)
+        run: |
+          $parallel = [Math]::Max(1, [int]$env:NUMBER_OF_PROCESSORS - 1)
+          Write-Output "NUMBER_OF_PROCESSORS=$env:NUMBER_OF_PROCESSORS, build parallelism=$parallel"
+          "CMAKE_BUILD_PARALLEL_LEVEL=$parallel" >> $env:GITHUB_ENV
+
+      # Samples system commit and per-process memory of the build tools once per second (see .github/scripts/win_mem_sampler.ps1)
+      - name: Start memory sampler
+        run: |
+          $dir = "$env:RUNNER_TEMP\mem_sampler"
+          $p = Start-Process (Get-Process -Id $PID).Path -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', "${{ env.OPENVINO_REPO }}\.github\scripts\win_mem_sampler.ps1", '-OutDir', $dir
+          "SAMPLER_PID=$($p.Id)" >> $env:GITHUB_ENV
+          "SAMPLER_DIR=$dir" >> $env:GITHUB_ENV
+          Write-Output "Memory sampler started, PID $($p.Id), output in $dir"
+
+      # If the build fails due to running out of RAM, lower the number of link jobs
+      - name: CMake configure - CC COLLECT
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DENABLE_TESTS=ON `
+            -DENABLE_NCC_STYLE=OFF `
+            -DENABLE_PROFILING_ITT=FULL `
+            -DSELECTIVE_BUILD=COLLECT `
+            -DENABLE_UNITY_BUILD=ON `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=8 `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
+
+      - name: Cmake build - CC COLLECT
+        run: |
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} -- -v && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- -v
+
+      # Records what the logs miss to explain why link.exe needs ~7 GB with Ninja and ~3 GB with MSBuild on the same inputs
+      # (see .github/scripts/win_link_probe.ps1); output goes into the memory sampler artifact
+      - name: Link probe
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          & "${{ env.OPENVINO_REPO }}\.github\scripts\win_link_probe.ps1" `
+            -BuildDir "${{ env.BUILD_DIR }}" `
+            -BinDir "${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}" `
+            -OutDir "$env:RUNNER_TEMP\mem_sampler\probe" `
+            -Config "${{ env.CMAKE_BUILD_TYPE }}"
+
+      - name: Show ccache stats
+        if: ${{ !cancelled() }}
+        run: '& ccache --show-stats --verbose'
+
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
+
+      - name: Build C++ samples - OpenVINO build tree
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- -v
+
+      - name: Perform code tracing via ITT collector
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+
+          python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
+          --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
+          -o ${{ env.SELECTIVE_BUILD_STAT_DIR }}\itt_stat ! ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe ^
+          -niter 1 ^
+          -nireq 1 ^
+          -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml ^
+          -d CPU
+
+      - name: List bin files
+        shell: cmd
+        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
+
+      - name: List install files
+        shell: cmd
+        run: dir ${{ env.INSTALL_DIR }} /s
+
+      - name: Pack Artifacts
+        run: |
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
+          }
+          Compress-Archive @compress
+
+          $file=Get-ChildItem -Path "${{ env.INSTALL_PDB_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
+          }
+          Compress-Archive @compress
+
+
+          $file=Get-ChildItem -Path "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip"
+          }
+          Compress-Archive @compress
+
+      - name: Build C samples - OpenVINO install tree
+        run: |
+          # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
+          # then, we need to clean build tree to remove PDB files
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        env:
+          CXXFLAGS: "/Zi"
+          CFLAGS: "/Zi"
+          LDFLAGS: "/DEBUG"
+          CMAKE_GENERATOR: "Visual Studio 17 2022"
+
+      #
+      # Upload build artifacts and logs
+      #
+
+      - name: Upload OpenVINO package
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_package_link_jobs_8
+          path: ${{ env.BUILD_DIR }}/openvino_package.zip
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO PDB package
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_pdb_link_jobs_8
+          path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
+          if-no-files-found: 'error'
+
+      - name: Upload selective build statistics package
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_selective_build_stat_link_jobs_8
+          path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
+          if-no-files-found: 'error'
+
+      - name: Upload compile_commands
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: compile_commands_windows_cc_collect_link_jobs_8
+          path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
+      - name: Stop memory sampler and summarize
+        if: ${{ always() }}
+        run: |
+          if (-not $env:SAMPLER_PID) { Write-Output 'Memory sampler was not started'; exit 0 }
+          $dir = $env:SAMPLER_DIR
+          New-Item -ItemType File -Force "$dir\stop" | Out-Null
+          Wait-Process -Id $env:SAMPLER_PID -Timeout 30 -ErrorAction SilentlyContinue
+          if (Get-Process -Id $env:SAMPLER_PID -ErrorAction SilentlyContinue) { Stop-Process -Id $env:SAMPLER_PID -Force }
+          $samples = @(Import-Csv "$dir\samples.csv")
+          if ($samples.Count -gt 0) {
+            $peak = $samples | Sort-Object { [double]$_.commit_gb } -Descending | Select-Object -First 1
+            $last = $samples[-1]
+            $minAvail = ($samples | ForEach-Object { [double]$_.phys_avail_gb } | Measure-Object -Minimum).Minimum
+            $lines = @(
+              '### Memory sampler',
+              "- samples: $($samples.Count), commit limit: $($last.commit_limit_gb) GB, physical total: $($last.phys_total_gb) GB",
+              "- peak sampled commit: $($peak.commit_gb) GB at $($peak.time_utc) (cl: $($peak.cl_n) / $($peak.cl_private_gb) GB, link: $($peak.link_n) / $($peak.link_private_gb) GB, mspdbsrv: $($peak.mspdbsrv_private_gb) GB)",
+              "- system commit peak counter: $($last.commit_peak_gb) GB, min available physical: $minAvail GB",
+              "- last sample $($last.time_utc): commit $($last.commit_gb) GB, top: $($last.top_processes)",
+              '',
+              '| peak private MB | process | seen for s | source |',
+              '|---|---|---|---|'
+            )
+            Import-Csv "$dir\processes.csv" | Sort-Object { [double]$_.peak_private_mb } -Descending | Select-Object -First 15 | ForEach-Object {
+              $lines += "| $($_.peak_private_mb) | $($_.name) $($_.pid) | $($_.seen_for_sec) | ``$($_.source)`` |"
+            }
+            # link.exe threads: how many it creates and how many cores it really keeps busy (cpu_sec / seen_for_sec)
+            $links = @(Import-Csv "$dir\processes.csv" | Where-Object { $_.name -eq 'link' -and [double]$_.seen_for_sec -ge 5 })
+            if ($links.Count -gt 0 -and ($links[0].PSObject.Properties.Name -contains 'peak_threads')) {
+              $thr = $links | ForEach-Object { [double]$_.peak_threads } | Measure-Object -Maximum -Average
+              $par = $links | ForEach-Object { [double]$_.cpu_sec / [double]$_.seen_for_sec } | Measure-Object -Maximum -Average
+              $sumThr = ($samples | ForEach-Object { [int]$_.link_threads } | Measure-Object -Maximum).Maximum
+              $lines += ''
+              $lines += ('- link.exe running >= 5 s (n={0}): threads per process max {1:F0} / avg {2:F1}; cores kept busy (cpu_sec / seen_for_sec) max {3:F1} / avg {4:F1}; most link threads at one moment: {5}' -f
+                $links.Count, $thr.Maximum, $thr.Average, $par.Maximum, $par.Average, $sumThr)
+            }
+            $lines | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            $lines | Write-Output
+          }
+
+      - name: Upload memory sampler data
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: mem_sampler_collect_link_jobs_8
+          path: ${{ runner.temp }}\mem_sampler
+          if-no-files-found: 'warn'
+
+  Build_And_Run_On_Mode:
+    name: Conditional Compilation
+    timeout-minutes: 600 # 10 hours (worst-case duration experiment)
+    needs: Build_And_Run_Collect_Mode
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-16-cores-32gb-build-ab
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Visual Studio 17 2022'
+      CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
+      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      # CMAKE_BUILD_PARALLEL_LEVEL is not hard-coded: the 'Set build parallelism' step exports NUMBER_OF_PROCESSORS - 1,
+      # which nested cmake --build calls (e.g. intel_gpu onednn_gpu ExternalProject) pick up as well
+
+    steps:
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Clone test models
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          lfs: 'true'
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Download selective build statistics package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_selective_build_stat_link_jobs_8
+          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+
+      - name: Extract selective build statistics package
+        run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
+
+      # NUMBER_OF_PROCESSORS is only visible to PowerShell at run time: `env:` values and GitHub expressions can't evaluate it,
+      # so the limit is computed here and exported to the following steps through GITHUB_ENV.
+      # (The original workflow noted that nproc/NUMBER_OF_PROCESSORS don't respect Kubernetes pod CPU limits; the value is logged.)
+      - name: Set build parallelism (NUMBER_OF_PROCESSORS - 1)
+        run: |
+          $parallel = [Math]::Max(1, [int]$env:NUMBER_OF_PROCESSORS - 1)
+          Write-Output "NUMBER_OF_PROCESSORS=$env:NUMBER_OF_PROCESSORS, build parallelism=$parallel"
+          "CMAKE_BUILD_PARALLEL_LEVEL=$parallel" >> $env:GITHUB_ENV
+
+      # Parallelism is limited by the MultiToolTask variables of the build step below, not by CMAKE_*_FLAGS
+      # (default values don't respect Kubernetes pod CPU limits and cause "Compiler is out of heap memory" errors)
+      - name: CMake configure - CC ON
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" `
+            -DENABLE_TESTS=OFF `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DSELECTIVE_BUILD=ON `
+            -DENABLE_TEMPLATE=OFF `
+            -DENABLE_INTEL_GPU=OFF `
+            -DENABLE_INTEL_NPU=OFF `
+            -DENABLE_OV_TF_FRONTEND=OFF `
+            -DENABLE_OV_TF_LITE_FRONTEND=OFF `
+            -DENABLE_OV_PADDLE_FRONTEND=OFF `
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF `
+            -DENABLE_OV_JAX_FRONTEND=OFF `
+            -DENABLE_OV_ONNX_FRONTEND=OFF `
+            -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+
+      - name: Cmake build - CC ON
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed
+        env:
+          UseMultiToolTask: 'true'
+          EnforceProcessCountAcrossBuilds: 'true'
+          MultiProcMaxCount: ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}
+
+      - name: List bin files
+        shell: cmd
+        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
+
+      - name: Run with CC-ed runtime
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
