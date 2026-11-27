@@ -23,7 +23,9 @@ struct DecoderConfig {
     DecoderConfig(const DecoderParameters& parameters, const GgufWeightTable& weights);
 
     // Sets the graph's RoPE, SWA and model-contract state and configures the weight transforms.
-    void configure_graph(GraphEmitter& emitter, const GgufMetadata& metadata) const;
+    void configure_graph(GraphEmitter& emitter,
+                         const GgufMetadata& metadata,
+                         bool allow_inverse_only_hadamard = false) const;
 
     std::string arch;
     ModelContract model_contract{};

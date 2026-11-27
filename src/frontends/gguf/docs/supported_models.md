@@ -59,7 +59,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `qwen2` | Qwen2.5-0.5B-Instruct Q4_0 | qwen2 / qwen2.5 |
 | `qwen3` | Qwen3-0.6B Q4_0 | QK-norm before RoPE |
 | `qwen3tts` | Qwen3TTS represented F32 | Speech decoder; projector and codec are separate components |
-| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA |
+| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0; Ternary-Bonsai-2-4B/9B PQ2_0-MTP-Q8_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights, embedded NextN MTP draft; batching and beam search with SDPA and PA |
 | `qwen35moe` | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert |
 | `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | NEOX RoPE, per-head QK-norm, normalized experts |
 | `qwen3vl` | Qwen3-VL-2B Q4_0 | Interleaved multimodal RoPE and DeepStack inputs |

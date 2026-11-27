@@ -39,7 +39,9 @@ TEST(GGUFArchitectureLibrary, ExternalModuleMatchesDirectRegistrationAcrossToken
     ov::frontend::gguf::FrontEnd direct;
     direct.add_extension(
         std::make_shared<ov::frontend::gguf::ArchitectureExtension>(example::projector_architecture()));
-    auto from_definition = direct.convert(direct.load(path.string()));
+    ASSERT_TRUE(direct.supported(path.string(), ov::frontend::gguf::LoadOptions{true}, false));
+    ASSERT_TRUE(direct.load(path.string(), ov::frontend::gguf::LoadOptions{true}, false));
+    auto from_definition = direct.convert(direct.load(path.string(), ov::frontend::gguf::LoadOptions{}, false));
     for (size_t tokens : {1u, 3u, 7u}) {
         ov::Tensor data(ov::element::f32, {1, 1, tokens, 2});
         std::iota(data.data<float>(), data.data<float>() + data.get_size(), 1.0f);
@@ -105,4 +107,38 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
     model.reset();
     holder.reset();
     EXPECT_TRUE(owner.expired());
+}
+
+TEST(GGUFArchitectureLibrary, RecommendedSamplingIsExposedAsGenerationConfig) {
+    const auto path =
+        std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + "_sampling.gguf");
+    struct RemoveFile {
+        std::filesystem::path path;
+        ~RemoveFile() {
+            std::error_code error;
+            std::filesystem::remove(path, error);
+        }
+    } cleanup{path};
+    ov_gguf_test::GgufWriter writer;
+    writer.kv_str("general.architecture", "example-projector");
+    writer.kv_i32("general.sampling.top_k", 20);
+    writer.kv_f32("general.sampling.top_p", 0.95f);
+    writer.kv_f32("general.sampling.temp", 0.6f);
+    writer.kv_f32("general.sampling.penalty_repeat", 1.1f);
+    writer.tensor("projection.weight", {2, 3}, {1, 2, 3, 4, 5, 6});
+    ASSERT_TRUE(writer.write(path.string()));
+
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(
+        std::make_shared<ov::frontend::gguf::ArchitectureExtension>(example::projector_architecture()));
+    const auto model = frontend.convert(frontend.load(path.string()));
+    const auto config = model->get_rt_info<ov::AnyMap>("generation_config");
+    const std::map<std::string, std::string> expected{{"do_sample", "true"},
+                                                      {"top_k", "20"},
+                                                      {"top_p", "0.95"},
+                                                      {"temperature", "0.6"},
+                                                      {"repetition_penalty", "1.1"}};
+    ASSERT_EQ(config.size(), expected.size());
+    for (const auto& [name, value] : expected)
+        EXPECT_EQ(config.at(name).as<std::string>(), value) << name;
 }

@@ -77,6 +77,8 @@ public:
     // Put the data output before auxiliary cache outputs registered by decoder blocks.
     void set_primary_output(const GgufValue& value);
     void set_output(const GgufValue& value, const std::string& name);
+    // Acknowledge that this builder handles the component selected in BuildContext.
+    void acknowledge_component();
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.

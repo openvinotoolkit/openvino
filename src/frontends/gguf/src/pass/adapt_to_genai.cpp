@@ -295,7 +295,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Token-only lookups move to the embedding model. FixEmbdAxis replaces them, keeping names.
     std::string embedding_name, per_layer_name;
     int64_t per_layer_count = 0;
-    if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
+    if (m_mode != InputMode::IDS_TO_LOGITS) {
         for (const auto& node : operations) {
             const auto& rt_info = node->get_rt_info();
             if (rt_info.count("gguf.token_embedding")) {
@@ -329,17 +329,21 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     self_correcting_axis_manager.run_passes(model);
 
     std::shared_ptr<v0::Parameter> inputs_embeds, per_layer_inputs;
-    auto native_hidden =
-        find_parameter(model, genai.attention_context_input.empty() ? "hidden_states" : genai.attention_context_input);
+    const auto hidden_name =
+        genai.attention_context_input.empty() ? std::string{"hidden_states"} : genai.attention_context_input;
+    auto native_hidden = find_parameter(model, hidden_name);
     std::shared_ptr<v0::Parameter> hidden_states;
-    if (native_hidden) {
+    if (native_hidden && std::find(contract.sequence_inputs.begin(), contract.sequence_inputs.end(), hidden_name) ==
+                             contract.sequence_inputs.end()) {
+        OPENVINO_ASSERT(native_hidden->get_partial_shape().rank() == 4,
+                        "[GGUF] native hidden-state input must have rank 4");
         const auto width = native_hidden->get_partial_shape()[3];
         hidden_states = make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, width});
         name_output(hidden_states, "hidden_states");
         native_hidden->output(0).replace(
             make_shared<v0::Unsqueeze>(hidden_states, v0::Constant::create(ov::element::i64, {1}, {1}))->output(0));
     }
-    if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
+    if (m_mode != InputMode::IDS_TO_LOGITS) {
         // rt_info can propagate to helper nodes, so rediscover the lookups by name.
         const auto find_boundary = [&](const std::string& name) {
             std::shared_ptr<ov::Node> found;
@@ -489,7 +493,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     name_output(attention_mask, "attention_mask");
     const bool three_section_positions =
         genai.position_layout == ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
-    const bool multimodal_positions = inputs_embeds && model->get_rt_info().count(gguf_imrope_key());
+    const bool multimodal_positions =
+        m_mode == InputMode::EMBEDS_TO_LOGITS && model->get_rt_info().count(gguf_imrope_key());
     auto position_ids = make_shared<v0::Parameter>(
         ov::element::i64,
         multimodal_positions ? ov::PartialShape{three_section_positions ? 3 : 4, -1, -1} : ov::PartialShape{-1, -1});
@@ -984,6 +989,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (p)
             kept.push_back(p);
     model->add_parameters(kept);
+    for (const auto& name : contract.sequence_inputs) {
+        auto parameter = find_parameter(model, name);
+        OPENVINO_ASSERT(parameter && parameter->get_partial_shape().rank() == 3,
+                        "[GGUF] declared sequence input must be a rank-3 parameter: ",
+                        name);
+        kept.push_back(parameter);
+    }
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {
         if (std::find(preserved_inputs.begin(), preserved_inputs.end(), p) != preserved_inputs.end())
