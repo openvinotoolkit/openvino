@@ -109,6 +109,9 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
             auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
             auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+            if (extended_input_v_transpose_order.back() != 3 && stage != SDPAStage::FINALIZATION) {
+                jit.make("V_HEAD_STRIDED", 1);
+            }
             const auto q_batch = get_batch_size(params.get_input_layout(0), extended_input_q_transpose_order);
             const auto k_batch = get_batch_size(params.get_input_layout(1), extended_input_k_transpose_order);
             const auto v_batch = get_batch_size(params.get_input_layout(2), extended_input_v_transpose_order);
