@@ -41,6 +41,10 @@ Set ``OPENVINO_TELEMETRY_OPTOUT=1`` to disable all telemetry collection and prev
 
    export OPENVINO_TELEMETRY_OPTOUT=1
 
+.. note::
+
+   The ``OPENVINO_TELEMETRY_OPTOUT`` environment variable is supported in ``openvino-telemetry>=2026.5.0``.
+
 **Excluding or removing the package**
 
 Users who wish to run OpenVINO without the telemetry package can exclude or remove it:
