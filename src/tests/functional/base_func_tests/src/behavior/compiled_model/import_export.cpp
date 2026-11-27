@@ -868,6 +868,7 @@ void OVCompiledModelHsmBlobTest::SetUp() {
     APIBaseTest::SetUp();
 
     core = ov::test::utils::create_core();
+    // Plugin-level too: Core picks the cache blob format from the plugin, not from the compile config.
     core.set_property(target_device, configuration);
     ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
 
