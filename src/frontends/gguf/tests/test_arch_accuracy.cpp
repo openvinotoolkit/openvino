@@ -32,6 +32,7 @@
 #include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -43,6 +44,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -57,8 +59,10 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "quant/gguf.hpp"
+#include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -985,6 +989,249 @@ TEST(GGUFMultimodalBackboneAdaptation, Rank3HeadRemainsVisibleToGenAI) {
     }
 }
 
+// Mirrors GenAI, which gathers the sampled rows before the LM head after SDPAToPagedAttention.
+static void add_sampled_tokens_indices(const std::shared_ptr<ov::Model>& model) {
+    auto output = model->output("logits").get_node()->input_value(0);
+    std::shared_ptr<ov::op::v0::MatMul> lm_head;
+    while (!(lm_head = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr())))
+        output = output.get_node()->input_value(0);
+    auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    indices->set_friendly_name("sampled_tokens_indices");
+    indices->output(0).set_names({"sampled_tokens_indices"});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    lm_head->input(0).replace_source_output(
+        std::make_shared<ov::op::v8::Gather>(lm_head->input_value(0), indices, axis));
+    model->add_parameters({indices});
+    model->validate_nodes_and_infer_types();
+}
+
+// Without the sampled rows, the model returns logits of all rows and nothing is pruned.
+static std::shared_ptr<ov::Model> to_paged_attention(std::shared_ptr<ov::Model> model, bool sampled) {
+    ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(model);
+    if (sampled)
+        add_sampled_tokens_indices(model);
+    return model;
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnprunedLogits) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto convert = [&] {
+        return ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(temporary.path))).at("language");
+    };
+    auto optimized = to_paged_attention(convert(), true);
+    auto reference = to_paged_attention(convert(), false);
+    size_t shared_sliding_layers = 0;
+    for (const auto& node : optimized->get_ordered_ops()) {
+        const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+        if (!pa || pa->get_write_kv_cache())
+            continue;
+        const auto window = ov::util::get_constant_from_source(pa->input_value(10));
+        ASSERT_NE(window, nullptr);
+        shared_sliding_layers += window->cast_vector<int32_t>().at(0) != 0;
+    }
+    EXPECT_GT(shared_sliding_layers, 0u);
+
+    ov::Core core;
+    const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+        return core.compile_model(model,
+                                  "CPU",
+                                  ov::hint::inference_precision(ov::element::f32),
+                                  ov::num_streams(1),
+                                  ov::inference_num_threads(4),
+                                  ov::hint::dynamic_quantization_group_size(0),
+                                  ov::hint::kv_cache_precision(ov::element::f32));
+    };
+    auto optimized_compiled = compile(optimized);
+    auto reference_compiled = compile(reference);
+    // The CPU pipeline prunes only the model with sampled rows, deriving its kept rows with Bucketize.
+    const auto has_bucketize = [](const ov::CompiledModel& compiled) {
+        const auto ops = compiled.get_runtime_model()->get_ops();
+        return std::any_of(ops.begin(), ops.end(), [](const auto& node) {
+            const auto& info = node->get_rt_info();
+            const auto type = info.find(ov::exec_model_info::LAYER_TYPE);
+            return type != info.end() && type->second.template as<std::string>() == "Bucketize";
+        });
+    };
+    EXPECT_TRUE(has_bucketize(optimized_compiled));
+    EXPECT_FALSE(has_bucketize(reference_compiled));
+    const auto initialize_cache = [](const ov::CompiledModel& compiled, ov::InferRequest& request) {
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name.find("key_cache.") != 0 && name.find("value_cache.") != 0)
+                continue;
+            auto shape = input.get_partial_shape();
+            shape[0] = 2;
+            ASSERT_TRUE(shape.is_static()) << name << ": " << shape;
+            ov::Tensor cache(input.get_element_type(), shape.to_shape());
+            std::memset(cache.data(), 0, cache.get_byte_size());
+            request.set_tensor(name, cache);
+        }
+    };
+    const auto set_vector =
+        [](ov::InferRequest& request, const char* name, const ov::element::Type& type, const auto& values) {
+            ov::Tensor tensor(type, {values.size()});
+            std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
+            request.set_tensor(name, tensor);
+        };
+    const auto compare = [&](ov::InferRequest& actual,
+                             ov::InferRequest& expected,
+                             const std::vector<int64_t>& ids,
+                             const std::vector<int64_t>& positions,
+                             const std::vector<int32_t>& past,
+                             const std::vector<int32_t>& begins,
+                             const std::vector<int32_t>& block_begins,
+                             const std::vector<int64_t>& sampled,
+                             int32_t max_context) {
+        for (auto* request : {&actual, &expected}) {
+            set_vector(*request, "input_ids", ov::element::i64, ids);
+            set_vector(*request, "position_ids", ov::element::i64, positions);
+            set_vector(*request, "past_lens", ov::element::i32, past);
+            set_vector(*request, "subsequence_begins", ov::element::i32, begins);
+            set_vector(*request, "block_indices", ov::element::i32, std::vector<int32_t>{0, 1});
+            set_vector(*request, "block_indices_begins", ov::element::i32, block_begins);
+            ov::Tensor maximum(ov::element::i32, {});
+            *maximum.data<int32_t>() = max_context;
+            request->set_tensor("max_context_len", maximum);
+        }
+        set_vector(actual, "sampled_tokens_indices", ov::element::i64, sampled);
+        actual.infer();
+        expected.infer();
+        const auto actual_logits = actual.get_tensor("logits");
+        const auto expected_logits = expected.get_tensor("logits");
+        ASSERT_EQ(expected_logits.get_size() % ids.size(), 0u);
+        const auto vocab = expected_logits.get_size() / ids.size();
+        ASSERT_EQ(actual_logits.get_size(), sampled.size() * vocab);
+        std::vector<float> sampled_logits;
+        const auto rows = static_cast<int64_t>(ids.size());
+        for (const auto index : sampled) {
+            const auto row = index < 0 ? index + rows : index;
+            if (row < 0 || row >= rows) {
+                // Gather-8 returns zeros for out-of-range indices.
+                sampled_logits.insert(sampled_logits.end(), vocab, 0.f);
+                continue;
+            }
+            const auto* data = expected_logits.data<const float>() + static_cast<size_t>(row) * vocab;
+            sampled_logits.insert(sampled_logits.end(), data, data + vocab);
+        }
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual_logits.data<const float>(), sampled_logits.data(), sampled_logits.size()),
+            1e-5);
+    };
+    auto actual = optimized_compiled.create_infer_request();
+    auto expected = reference_compiled.create_infer_request();
+    initialize_cache(optimized_compiled, actual);
+    initialize_cache(reference_compiled, expected);
+    const std::vector<int64_t> prompt{1, 2, 3, 4, 5};
+    const std::vector<int64_t> positions{0, 1, 2, 0, 1};
+    // Last rows, a speculative-decoding suffix, a sequence with no sampled rows, all rows (echo),
+    // rows that do not form a suffix, and negative and out-of-range indices.
+    for (const auto& sampled :
+         std::vector<std::vector<int64_t>>{{2, 4}, {1, 2, 4}, {4}, {0, 1, 2, 3, 4}, {0, 2, 4}, {-6, -1, 2, 5}})
+        compare(actual, expected, prompt, positions, {0, 0}, {0, 3, 5}, {0, 1, 2}, sampled, 3);
+    compare(actual, expected, {6, 7, 8}, {3, 4, 2}, {3, 2}, {0, 2, 3}, {0, 1, 2}, {1, 2}, 5);
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4AdaptedPagedAttentionPrunesSharedRows) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(temporary.path))).at("language");
+    model = to_paged_attention(model, true);
+    EXPECT_TRUE(ov::pass::PruneSharedKVRows().run_on_model(model));
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4AdaptedBatchMatchesSingleSequences) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(temporary.path))).at("language");
+    ov::Core core;
+    auto request = core.compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::num_streams(1),
+                                      ov::inference_num_threads(4),
+                                      ov::hint::dynamic_quantization_group_size(0),
+                                      ov::hint::kv_cache_precision(ov::element::f32))
+                       .create_infer_request();
+    const auto infer = [&](size_t batch, const std::vector<int64_t>& ids) {
+        const size_t length = ids.size() / batch;
+        std::vector<int64_t> positions(ids.size()), mask(ids.size(), 1);
+        for (size_t i = 0; i < ids.size(); ++i)
+            positions[i] = static_cast<int64_t>(i % length);
+        const auto set = [&](const char* name, const std::vector<int64_t>& values) {
+            ov::Tensor tensor(ov::element::i64, {batch, length});
+            std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
+            request.set_tensor(name, tensor);
+        };
+        set("input_ids", ids);
+        set("attention_mask", mask);
+        set("position_ids", positions);
+        ov::Tensor beams(ov::element::i32, {batch});
+        for (size_t i = 0; i < batch; ++i)
+            beams.data<int32_t>()[i] = static_cast<int32_t>(i);
+        request.set_tensor("beam_idx", beams);
+        request.reset_state();
+        request.infer();
+        const auto logits = request.get_tensor("logits");
+        return std::vector<float>(logits.data<const float>(), logits.data<const float>() + logits.get_size());
+    };
+    const auto batched = infer(2, {1, 2, 3, 4, 7, 6, 5, 4});
+    auto expected = infer(1, {1, 2, 3, 4});
+    const auto second = infer(1, {7, 6, 5, 4});
+    expected.insert(expected.end(), second.begin(), second.end());
+    ASSERT_EQ(batched.size(), expected.size());
+    ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(batched.data(), expected.data(), expected.size()), 1e-5);
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionKeepsGenAIInputs) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = to_paged_attention(frontend.convert(frontend.load(temporary.path)), true);
+    const auto parameters = model->get_parameters();
+    ASSERT_TRUE(ov::pass::PruneSharedKVRows().run_on_model(model));
+    EXPECT_EQ(model->get_parameters(), parameters);
+
+    size_t shared_kv_attention_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+        if (!pa || pa->get_write_kv_cache())
+            continue;
+        ++shared_kv_attention_count;
+        EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(pa->get_input_node_ptr(5)));
+        EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(pa->get_input_node_ptr(6)));
+    }
+    EXPECT_GT(shared_kv_attention_count, 0);
+    ASSERT_NO_THROW(model->reshape({{"input_ids", {128}},
+                                    {"position_ids", {128}},
+                                    {"past_lens", {2}},
+                                    {"subsequence_begins", {3}},
+                                    {"sampled_tokens_indices", {2}}}));
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningWithQueryBias) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+
+    ASSERT_NO_THROW(
+        ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, true, false).run_on_model(model));
+
+    bool has_query_bias = false;
+    for (const auto& parameter : model->get_parameters())
+        has_query_bias |= parameter->get_friendly_name() == "qq_bias";
+    EXPECT_TRUE(has_query_bias);
+    add_sampled_tokens_indices(model);
+    EXPECT_FALSE(ov::pass::PruneSharedKVRows().run_on_model(model));
+}
+
 TEST(GGUFMultimodalBackboneAdaptation, Lfm3SupportsBatchesAndBeamReordering) {
     for (const auto* family : {"lfm3", "lfm3-attention-first", "lfm3-wide-query"}) {
         SCOPED_TRACE(family);
@@ -1038,6 +1285,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
         const bool gemma = std::string(family).find("gemma4") == 0;
         size_t attention = 0, recurrent = 0;
+        size_t sliding_attention = 0;
         for (const auto& node : model->get_ops()) {
             if (auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
                 ++attention;
@@ -1045,6 +1293,13 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
                 EXPECT_EQ(query_shape.rank(), 2);
                 EXPECT_EQ(query_shape[0], 5);
                 EXPECT_TRUE(query_shape[1] == 64 || (gemma && query_shape[1] == 32));
+                if (std::string(family) == "gemma4-ple") {
+                    const auto window_value = ov::util::get_constant_from_source(pa->input_value(10));
+                    ASSERT_NE(window_value, nullptr);
+                    const auto size = window_value->cast_vector<int32_t>()[0];
+                    EXPECT_TRUE(size == 0 || size == 2);
+                    sliding_attention += size == 2;
+                }
             }
             if (auto gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(node)) {
                 ++recurrent;
@@ -1052,6 +1307,9 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
             }
         }
         EXPECT_EQ(attention, gemma ? (std::string(family) == "gemma4-ple" ? 4 : 2) : 1);
+        if (std::string(family) == "gemma4-ple") {
+            EXPECT_EQ(sliding_attention, 2);
+        }
         EXPECT_EQ(recurrent, gemma ? 0 : 3);
         EXPECT_TRUE(model->get_sinks().empty());
     }

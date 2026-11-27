@@ -349,6 +349,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_unfusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/eltwise_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/eltwise_merge.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/gather_after_in_place_split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/hybrid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/kv_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/kv_cache_sdpa.cpp

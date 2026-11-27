@@ -142,6 +142,7 @@
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
+#include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
@@ -540,6 +541,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::PruneSharedKVRows);
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantization, defaultPrecisions);
     }

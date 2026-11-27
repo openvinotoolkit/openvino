@@ -241,6 +241,7 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
+#include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -1040,6 +1041,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+        manager.register_pass<ov::pass::PruneSharedKVRows>();
 
         // Transformation of SDPA to VLSDPA for QWen2.x-VL,
         // Note: this should be applied before TransposeFusion.

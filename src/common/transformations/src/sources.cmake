@@ -262,6 +262,7 @@ set(PAGED_ATTENTION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_sparse_attention_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prune_shared_kv_rows.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/total_sequence_length_pattern.cpp
 )

@@ -11,6 +11,7 @@ set(TESTS_ROOT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/prelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/resolve_names_collisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_to_paged_attention_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/prune_shared_kv_rows_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/skip_tests_config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/type_relaxed_tests.cpp
 )

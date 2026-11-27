@@ -52,6 +52,7 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -161,6 +162,48 @@ public:
                          callback);
     }
 };
+
+// Whether a stateful KV cache reaches the keys of more than one attention through layout-only
+// operations, as in Gemma4 shared-KV layers.
+bool shares_kv_cache(const std::shared_ptr<ov::Model>& model) {
+    using namespace ov::op;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::util::ReadValueBase>(node))
+            continue;
+        std::unordered_set<const ov::Node*> visited, attentions;
+        std::vector<const ov::Node*> pending{node.get()};
+        while (!pending.empty()) {
+            const auto* current = pending.back();
+            pending.pop_back();
+            for (const auto& output : current->outputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
+                    const auto* target = consumer.get_node();
+                    if (ov::is_type<v13::ScaledDotProductAttention>(target)) {
+                        if (consumer.get_index() == 1)
+                            attentions.insert(target);
+                    } else if ((consumer.get_index() == 0 || ov::is_type<v0::Concat>(target)) &&
+                               ov::is_type_any_of<v8::Gather,
+                                                  v0::Concat,
+                                                  v1::Reshape,
+                                                  v0::Squeeze,
+                                                  v0::Unsqueeze,
+                                                  v1::Transpose,
+                                                  v1::Broadcast,
+                                                  v3::Broadcast,
+                                                  v0::Convert,
+                                                  v8::Slice,
+                                                  v0::Tile>(target) &&
+                               visited.insert(target).second) {
+                        pending.push_back(target);
+                    }
+                }
+            }
+        }
+        if (attentions.size() > 1)
+            return true;
+    }
+    return false;
+}
 
 // Largest attention head size across the stateful KV caches (the ReadValue last dim). The
 // frontend emits f16 KV caches mirroring llama.cpp, but the CPU plugin defaults
@@ -793,7 +836,23 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // (batch_dim=1), giving the single global index tokens - 1. Under SDPAToPagedAttention it is
     // [tokens, 1] (batch_dim=tokens, seq_dim=1), giving indices [0, 1, .., tokens - 1] -- the
     // identity that layout needs, since it already carries one token per row.
-    if (auto inp_out_ids = find_parameter(model, "inp_out_ids")) {
+    auto inp_out_ids = find_parameter(model, "inp_out_ids");
+    // With shared KV caches, the last rows are taken with Slice so that plugins can prune shared-KV rows.
+    const bool slices_last_rows = inp_out_ids && shares_kv_cache(model);
+    std::vector<std::shared_ptr<v8::Gather>> out_row_selects;
+    if (slices_last_rows) {
+        for (const auto& reshape_input : inp_out_ids->output(0).get_target_inputs()) {
+            const auto indices = reshape_input.get_node()->shared_from_this();
+            if (!ov::is_type<v1::Reshape>(indices))
+                continue;
+            for (const auto& gather_input : indices->output(0).get_target_inputs()) {
+                if (const auto gather = ov::as_type_ptr<v8::Gather>(gather_input.get_node()->shared_from_this());
+                    gather && gather_input.get_index() == 1)
+                    out_row_selects.push_back(gather);
+            }
+        }
+    }
+    if (inp_out_ids) {
         auto batch_dim = gather_dims(ids_shape, {0});
         auto seq_dim = gather_dims(ids_shape, {1});
         auto seq_dim_i32 = make_shared<v0::Convert>(seq_dim, ov::element::i32);
@@ -854,9 +913,12 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const auto& hidden_ps = lm_head ? lm_head->get_input_partial_shape(0) : ov::PartialShape::dynamic();
     if (lm_head && hidden_ps.rank().is_static() && (hidden_ps.size() == 3 || hidden_ps.size() == 4) &&
         hidden_ps[hidden_ps.size() - 1].is_static() && lm_head->get_input_partial_shape(1).size() == 2) {
+        // The selected rows size the head, so passes that prune rows keep its shape consistent.
+        const auto head_batch_len = slices_last_rows ? get_dimensions(lm_head->input_value(0), {0}) : batch_len;
         const auto sequence_and_hidden_dims =
             v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, hidden_ps[hidden_ps.size() - 1].get_length()});
-        const auto hidden_3d_shape = make_shared<v0::Concat>(ov::OutputVector{batch_len, sequence_and_hidden_dims}, 0);
+        const auto hidden_3d_shape =
+            make_shared<v0::Concat>(ov::OutputVector{head_batch_len, sequence_and_hidden_dims}, 0);
         auto hidden_3d =
             make_shared<v1::Reshape>(lm_head->input_value(0), hidden_3d_shape, false);  // [batch, seq, hidden]
         lm_head->input(0).replace_source_output(hidden_3d);
@@ -1001,6 +1063,30 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
 
     model->validate_nodes_and_infer_types();
+    // The last row of each sequence of a [batch, 1, seq, hidden] activation, as a Slice instead of a
+    // row-index Gather: under PagedAttention seq is 1, so passes like PruneSharedKVRows see that
+    // rows are kept independently.
+    for (const auto& gather : out_row_selects) {
+        const auto data_flat = gather->get_input_node_shared_ptr(0);
+        if (!ov::is_type<v1::Reshape>(data_flat))
+            continue;
+        const auto data = data_flat->input_value(0);
+        const auto& shape = data.get_partial_shape();
+        if (shape.rank() != 4 || shape[1] != 1 || shape[3].is_dynamic())
+            continue;
+        auto last =
+            make_shared<v8::Slice>(data,
+                                   v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                   v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()}),
+                                   v0::Constant::create(ov::element::i64, {1}, {1}),
+                                   v0::Constant::create(ov::element::i64, {1}, {2}));
+        auto rows = make_shared<v1::Reshape>(
+            last,
+            v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{-1, 1, shape[3].get_length()}),
+            false);
+        ov::copy_runtime_info(gather, {last, rows});
+        ov::replace_node_update_name(gather, rows);
+    }
     if (inputs_embeds) {
         // Detached nodes can still consume input_ids. Only reachable auxiliary branches
         // require it in the model's input contract; get_ops() excludes detached consumers.
