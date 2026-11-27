@@ -8298,3 +8298,140 @@ TEST(fully_connected_onednn_gpu, f32_residual_add_fused_as_binary_post_op) {
     }
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+namespace {
+// A dynamic FC [B, H, W, K] x [N, K], which OCL kernels compute on the 2D view [B * H * W, K] x [N, K]
+struct fc_4d_dynamic_params {
+    data_types input_type;    // f16 or i8
+    data_types weights_type;  // i8 for an i8 input; u8 / u4 for an f16 input are decompressed with a scale
+    bool with_bias;
+    size_t dynamic_quantization_group_size;
+};
+
+// Runs the dynamic FC on a sequence of input shapes and compares each result with a static network using the reference kernel
+void run_fc_4d_dynamic(const fc_4d_dynamic_params& p) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad) {
+        GTEST_SKIP();  // A dynamic FC on an XMX device prefers oneDNN, so the registry doesn't give it a shape-agnostic OCL impl
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int64_t K = 64;
+    const int64_t N = 48;
+    const int64_t scale_group_size = 32;
+    const bool is_i8 = p.input_type == data_types::i8;
+    const bool compressed = !is_i8 && p.weights_type != p.input_type;
+    const auto output_type = is_i8 ? data_types::f32 : p.input_type;
+
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{N, K}, p.weights_type, format::bfyx});
+    if (is_i8) {
+        set_values(weights_mem, rg.generate_random_1d<int8_t>(N * K, -3, 3));
+    } else if (p.weights_type == data_types::u8) {
+        set_values(weights_mem, rg.generate_random_1d<uint8_t>(N * K, 0, 10));
+    } else if (p.weights_type == data_types::u4) {
+        set_values(weights_mem, rg.generate_random_1d<uint8_t>(N * K / 2, 0, 255));
+    } else {
+        set_values(weights_mem, rg.generate_random_1d<ov::float16>(N * K, -1, 1));
+    }
+    memory::ptr scale_mem;
+    if (compressed) {
+        const int64_t groups = p.weights_type == data_types::u4 ? K / scale_group_size : 1;
+        scale_mem = engine.allocate_memory({ov::PartialShape{N, groups}, data_types::f16, format::bfyx});
+        set_values(scale_mem, rg.generate_random_1d<ov::float16>(N * groups, -0.5f, 0.5f));
+    }
+    memory::ptr bias_mem;
+    if (p.with_bias) {
+        bias_mem = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx});
+        set_values(bias_mem, rg.generate_random_1d<ov::float16>(N, -1, 1));
+    }
+
+    auto make_topology = [&](const layout& input_layout_desc) {
+        topology topo(input_layout("input", input_layout_desc), data("weights", weights_mem));
+        const std::string bias_id = p.with_bias ? "bias" : "";
+        if (p.with_bias) {
+            topo.add(data("bias", bias_mem));
+        }
+        if (compressed) {
+            topo.add(data("scale", scale_mem));
+            auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", bias_id, "scale", "", output_type, 4, 2);
+            fc_prim.decompression_zero_point_scalar = 8.0f;
+            topo.add(fc_prim);
+        } else {
+            topo.add(fully_connected("fc_prim", input_info("input"), "weights", bias_id, output_type, 4, 2));
+        }
+        topo.add(reorder("out", input_info("fc_prim"), format::bfyx, data_types::f32));
+        return topo;
+    };
+    auto make_config = [&](size_t dynamic_quantization_group_size) {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(dynamic_quantization_group_size));
+        return config;
+    };
+
+    network net(engine, make_topology(layout{ov::PartialShape{-1, -1, -1, K}, p.input_type, format::bfyx}),
+                make_config(p.dynamic_quantization_group_size));
+
+    // [1, 17, 17, K] has more than 256 rows, so bf_tiled runs its SLM kernel, which also does the dynamic quantization
+    const std::vector<ov::PartialShape> shapes = {{1, 4, 4, K}, {2, 3, 5, K}, {1, 7, 7, K}, {1, 1, 1, K}, {3, 1, 1, K}, {1, 17, 17, K}};
+    for (size_t shape_idx = 0; shape_idx < shapes.size(); ++shape_idx) {
+        const auto& shape = shapes[shape_idx];
+        SCOPED_TRACE("input shape " + shape.to_string());
+        const layout input_layout_desc{shape, p.input_type, format::bfyx};
+        const auto count = static_cast<size_t>(ov::shape_size(shape.to_shape()));
+        auto input_mem = engine.allocate_memory(input_layout_desc);
+        if (is_i8) {
+            set_values(input_mem, rg.generate_random_1d<int8_t>(count, -3, 3));
+        } else {
+            set_values(input_mem, rg.generate_random_1d<ov::float16>(count, -1, 1));
+        }
+
+        auto ref_config = make_config(0);
+        ref_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl}}}));
+        network ref_net(engine, make_topology(input_layout_desc), ref_config);
+        ref_net.set_input_data("input", input_mem);
+        auto ref_mem = ref_net.execute().at("out").get_memory();
+
+        net.set_input_data("input", input_mem);
+        auto out_mem = net.execute().at("out").get_memory();
+        const auto impl = net.get_primitive("fc_prim")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        if (shape_idx == 0) {
+            ASSERT_TRUE(impl->is_dynamic());
+        }
+        if (impl->is_dynamic()) {
+            ASSERT_EQ(impl->get_kernel_name(), is_i8 ? "fully_connected_gpu_imad" : "fully_connected_gpu_bf_tiled");
+        }
+
+        mem_lock<float, mem_lock_type::read> out(out_mem, get_test_stream());
+        mem_lock<float, mem_lock_type::read> ref(ref_mem, get_test_stream());
+        const size_t out_count = count / K * N;
+        ASSERT_EQ(net.get_primitive("out")->get_output_layout().count(), out_count);
+        // Dynamic quantization rounds the input to int8 per group, which adds an absolute error of up to about 0.16 here
+        const bool dynamic_quantization = p.dynamic_quantization_group_size != 0;
+        const float abs_tolerance = dynamic_quantization ? 0.25f : 0.f;
+        const float rel_tolerance = dynamic_quantization ? 5e-3f : (is_i8 ? 1e-3f : 2e-2f);
+        for (size_t i = 0; i < out_count; ++i) {
+            ASSERT_NEAR(out[i], ref[i], abs_tolerance + rel_tolerance * std::max(1.f, std::fabs(ref[i]))) << "i = " << i;
+        }
+    }
+}
+}  // namespace
+
+TEST(fc_4d_dynamic, f16) {
+    run_fc_4d_dynamic({data_types::f16, data_types::f16, false, 0});
+}
+
+TEST(fc_4d_dynamic, i8) {
+    run_fc_4d_dynamic({data_types::i8, data_types::i8, false, 0});
+}
+
+TEST(fc_4d_dynamic, f16_u8_compressed_bias) {
+    run_fc_4d_dynamic({data_types::f16, data_types::u8, true, 0});
+}
+
+TEST(fc_4d_dynamic, f16_u4_compressed_dynamic_quantization) {
+    run_fc_4d_dynamic({data_types::f16, data_types::u4, false, 32});
+}

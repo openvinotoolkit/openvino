@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include "fusion_test_common.hpp"
 #include "primitive_inst.h"
+#include "intel_gpu/runtime/compilation_context.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
@@ -16,6 +17,7 @@
 #include <intel_gpu/primitives/dynamic_quantize.hpp>
 
 #include <cmath>
+#include <functional>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1593,3 +1595,320 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sum_post_op_cap, ::testing
     fully_connected_test_params{ CASE_FC_FP16_1, 0, 0 },
 }));
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* --------------------------------------- 4D FC cases ------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+// OCL FC computes an FC with input_size > 3 on a 2D [B*H*W, N] view of its output, so fused op peers must be folded to 2D too.
+#define CASE_FC_I8S8_4D_1 { 1, 4, 4, 32 }, { 1, 4, 4, 16 }, { 16, 32 }, data_types::i8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_I8S8_4D_2 { 2, 3, 5, 64 }, { 2, 3, 5, 48 }, { 48, 64 }, data_types::i8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+
+namespace {
+class FullyConnected4DFusingTest : public FullyConnectedFusingTest {
+public:
+    // Adds "input" (static, or dynamic [?, ?, ?, ?]), "weights" and "fc_prim" to both topologies
+    void add_fc(fully_connected_test_params& p, bool dynamic) {
+        auto in_layout = get_input_layout(p);
+        if (dynamic) {
+            in_layout.set_partial_shape(ov::PartialShape::dynamic(4));
+        }
+        create_topologies(input_layout("input", in_layout),
+                          data("weights", get_mem(get_weights_layout(p))),
+                          fully_connected("fc_prim", input_info("input"), "weights", "", p.default_type, get_output_dim_size(p), get_input_weights_rank(p)));
+    }
+
+    // Adds a quantize of "in_id" with the given input range layout and a per-tensor output range
+    void add_quantize(fully_connected_test_params& p, const std::string& in_id, const layout& range_layout) {
+        create_topologies(
+            data("in_lo", get_mem(range_layout, -200000, -50000)),
+            data("in_hi", get_mem(range_layout, 50000, 200000)),
+            data("out_lo", get_mem(get_single_element_layout(p), -127)),
+            data("out_hi", get_mem(get_single_element_layout(p), 127)),
+            quantize("quantize", input_info(in_id), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 255, data_types::i8));
+    }
+
+    void add_output(fully_connected_test_params& p, const std::string& in_id) {
+        create_topologies(reorder("reorder_bfyx", input_info(in_id), p.default_format, data_types::f32));
+    }
+
+    void force_ocl_fc() {
+        ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::ocl};
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl}}));
+    }
+
+    // [1, 1, 1, N]: broadcasts along all leading dims
+    layout get_per_channel_4d_layout(fully_connected_test_params& p) {
+        return layout{ov::PartialShape{1, 1, 1, p.out_shape[3]}, p.default_type, p.default_format};
+    }
+
+    // [1, H, 1, N]: broadcasts along only part of the leading dims, so it can't be folded to 2D
+    layout get_partial_broadcast_4d_layout(fully_connected_test_params& p) {
+        return layout{ov::PartialShape{1, p.out_shape[1], 1, p.out_shape[3]}, p.default_type, p.default_format};
+    }
+
+    // in_shape, then a shape with other H and W, then in_shape again
+    std::vector<ov::PartialShape> get_dynamic_input_shapes(fully_connected_test_params& p) {
+        return {p.in_shape, ov::PartialShape{p.in_shape[0], 7, 3, p.in_shape[3]}, p.in_shape};
+    }
+
+    // in_shape, then a shape with other W only, for a peer that broadcasts along W only
+    std::vector<ov::PartialShape> get_other_w_input_shapes(fully_connected_test_params& p) {
+        return {p.in_shape, ov::PartialShape{p.in_shape[0], p.in_shape[1], 7, p.in_shape[3]}};
+    }
+
+    // Runs both networks on each input shape in turn, compares the outputs and checks whether fc_prim runs with its fused ops.
+    // Set the fields below for the checks done on each run.
+    void execute_dynamic(fully_connected_test_params& p, const std::vector<ov::PartialShape>& in_shapes, bool expect_unfused_subgraph = false) {
+        if (engine.get_device_info().supports_immad) {
+            // On XMX devices FC runs on oneDNN, which doesn't need the 2D view. Only the not fused network, which can't use
+            // oneDNN at build time, would get the shape-agnostic OCL FC there, and it would then switch to a static oneDNN impl,
+            // which gives wrong results for any rank (a separate issue).
+            GTEST_SKIP();
+        }
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network_not_fused(engine, topology_non_fused, cfg_not_fused);
+        network network_fused(engine, topology_fused, cfg_fused);
+        const float rel_tolerance = 2e-3f;
+
+        for (const auto& in_shape : in_shapes) {
+            for (size_t run = 0; run < (check_static_switch ? 2 : 1); ++run) {
+                SCOPED_TRACE("input shape " + in_shape.to_string() + ", run " + std::to_string(run));
+                auto input_mem = get_mem(layout{in_shape, p.data_type, p.input_format});
+                network_fused.set_input_data("input", input_mem);
+                network_not_fused.set_input_data("input", input_mem);
+                if (get_peer_shape) {
+                    auto peer_mem = get_mem(layout{get_peer_shape(in_shape), p.default_type, p.default_format}, -10, 10);
+                    network_fused.set_input_data("peer", peer_mem);
+                    network_not_fused.set_input_data("peer", peer_mem);
+                }
+                auto outputs_ref = network_not_fused.execute();
+                auto outputs_fused = network_fused.execute();
+
+                // The output memory may be larger than the output, e.g. when it was allocated for a larger shape before
+                const size_t out_count = ov::shape_size(in_shape.to_shape()) / p.in_shape[3].get_length() * p.out_shape[3].get_length();
+                auto val_ref = get_output_values_to_float(network_not_fused, outputs_ref.begin()->second, out_count);
+                auto val_opt = get_output_values_to_float(network_fused, outputs_fused.begin()->second, out_count);
+                ASSERT_EQ(val_ref.size(), out_count);
+                ASSERT_EQ(val_opt.size(), out_count);
+                for (size_t i = 0; i < out_count; i++) {
+                    ASSERT_NEAR(val_ref[i], val_opt[i], std::max(tolerance, std::fabs(val_ref[i]) * rel_tolerance)) << "i = " << i;
+                }
+
+                auto fc_inst = network_fused.get_primitive("fc_prim");
+                ASSERT_EQ(fc_inst->get_impl_params()->fused_desc.empty(), !expect_fused);
+                ASSERT_EQ(fc_inst->has_unfused_subgraph(), expect_unfused_subgraph);
+                if (!expect_unfused_subgraph) {
+                    ASSERT_NE(fc_inst->get_impl(), nullptr);
+                    ASSERT_EQ(fc_inst->get_impl()->get_kernel_name(), "fully_connected_gpu_bf_tiled");
+                }
+                if (check_static_switch) {
+                    // A new shape runs the shape-agnostic impl first, and the static impl compiled in the background next
+                    ASSERT_EQ(fc_inst->get_impl()->is_dynamic(), run == 0);
+                    network_fused.get_program()->get_compilation_context().wait_all();
+                }
+            }
+        }
+    }
+
+    // Whether fc_prim keeps its fused ops after prepare_primitive_fusing
+    bool expect_fused = true;
+    // Runs each input shape twice and checks the switch from the shape-agnostic impl to the static impl
+    bool check_static_switch = false;
+    // Shape of the dynamic "peer" input for an input shape, if the topology has one
+    std::function<ov::PartialShape(const ov::PartialShape&)> get_peer_shape;
+};
+}  // namespace
+
+// Static 4D FC with a static OCL impl
+class fc_int8_eltwise_4d : public FullyConnected4DFusingTest {};
+TEST_P(fc_int8_eltwise_4d, full_tensor_sum) {
+    auto p = GetParam();
+    add_fc(p, false);
+    create_topologies(data("eltwise_data", get_mem(layout{p.out_shape, p.default_type, p.default_format}, -100, 100)),
+                      eltwise("eltwise", {input_info("fc_prim"), input_info("eltwise_data")}, eltwise_mode::sum));
+    add_output(p, "eltwise");
+    force_ocl_fc();
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(fc_int8_eltwise_4d, partial_broadcast_prod_not_fused) {
+    auto p = GetParam();
+    add_fc(p, false);
+    create_topologies(data("eltwise_data", get_mem(get_partial_broadcast_4d_layout(p), 1, 9)),
+                      eltwise("eltwise", {input_info("fc_prim"), input_info("eltwise_data")}, eltwise_mode::prod));
+    add_output(p, "eltwise");
+    force_ocl_fc();
+    tolerance = 1e-5f;
+    p.expected_fused_primitives = p.expected_not_fused_primitives;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_I8S8_4D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_I8S8_4D_2, 2, 3 },
+}));
+
+// An activation param is a fused op peer like an eltwise input
+class fc_int8_activation_4d : public FullyConnected4DFusingTest {};
+TEST_P(fc_int8_activation_4d, partial_broadcast_slope_not_fused) {
+    auto p = GetParam();
+    add_fc(p, false);
+    create_topologies(data("slope", get_mem(get_partial_broadcast_4d_layout(p), 0, 1)),
+                      activation("activation", input_info("fc_prim"), "slope", activation_func::relu_negative_slope));
+    add_output(p, "activation");
+    force_ocl_fc();
+    tolerance = 1e-5f;
+    p.expected_fused_primitives = p.expected_not_fused_primitives;
+    execute(p);
+}
+
+// prepare_buffer_fusing runs after prepare_primitive_fusing and makes the crop in place, which pads the fused slope along H. A
+// static FC can't fall back to the unfused subgraph, so the OCL impl rejects a peer that the 2D view can't describe.
+TEST_P(fc_int8_activation_4d, full_tensor_slope_padded_peer_rejected) {
+    auto p = GetParam();
+    const auto& out = p.out_shape;
+    const int64_t h = out[1].get_length();
+    add_fc(p, false);
+    create_topologies(input_layout("slope_src", layout{ov::PartialShape{out[0], 2 * h, out[2], out[3]}, p.default_type, p.default_format}),
+                      crop("crop", input_info("slope_src"), tensor(out[0].get_length(), h, out[3].get_length(), out[2].get_length()), tensor(0, h, 0, 0)),
+                      activation("activation", input_info("fc_prim"), "crop", activation_func::relu_negative_slope));
+    add_output(p, "activation");
+    force_ocl_fc();
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    OV_EXPECT_THROW(network net(engine, topology_fused, cfg_fused), ov::Exception, ::testing::HasSubstr("can't read its fused op input"));
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_activation_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_I8S8_4D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_I8S8_4D_2, 2, 3 },
+}));
+
+class fc_int8_eltwise_quantize_4d : public FullyConnected4DFusingTest {};
+TEST_P(fc_int8_eltwise_quantize_4d, per_channel_prod_per_channel_range) {
+    auto p = GetParam();
+    add_fc(p, false);
+    create_topologies(data("eltwise_data", get_mem(get_per_channel_4d_layout(p), 1, 9)),
+                      eltwise("eltwise", {input_info("fc_prim"), input_info("eltwise_data")}, eltwise_mode::prod));
+    add_quantize(p, "eltwise", get_per_channel_4d_layout(p));
+    add_output(p, "quantize");
+    force_ocl_fc();
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_I8S8_4D_1, 2, 4 },
+    fully_connected_test_params{ CASE_FC_I8S8_4D_2, 2, 4 },
+}));
+
+class fc_int8_quantize_4d : public FullyConnected4DFusingTest {};
+TEST_P(fc_int8_quantize_4d, partial_broadcast_range_not_fused) {
+    auto p = GetParam();
+    add_fc(p, false);
+    add_quantize(p, "fc_prim", get_partial_broadcast_4d_layout(p));
+    add_output(p, "quantize");
+    force_ocl_fc();
+    tolerance = 1.f;
+    p.expected_fused_primitives = p.expected_not_fused_primitives;
+    execute(p);
+}
+
+// prepare_quantization replaces a rank 1 [N] range with a [N, 1, 1, 1] scale and shift, which the 2D view of the output can't index
+TEST_P(fc_int8_quantize_4d, rank1_range_not_fused) {
+    auto p = GetParam();
+    add_fc(p, false);
+    add_quantize(p, "fc_prim", layout{ov::PartialShape{p.out_shape[3]}, p.default_type, p.default_format});
+    add_output(p, "quantize");
+    force_ocl_fc();
+    tolerance = 1.f;
+    p.expected_fused_primitives = p.expected_not_fused_primitives;
+    // The legacy shape infer can't broadcast the [N] range to the output
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_I8S8_4D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_I8S8_4D_2, 2, 3 },
+}));
+
+#define CASE_FC_FP16_4D_1 { 1, 4, 4, 32 }, { 1, 4, 4, 16 }, { 16, 32 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP32_4D_1 { 2, 3, 5, 64 }, { 2, 3, 5, 48 }, { 48, 64 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+
+// Dynamic 4D FC with the shape-agnostic OCL impl, which runs fused ops on the 2D view of its output
+class fc_fp_eltwise_4d_dynamic : public FullyConnected4DFusingTest {
+public:
+    fc_fp_eltwise_4d_dynamic() {
+        tolerance = 2e-2f;
+    }
+
+    // fc_prim + eltwise with the "eltwise_data" constant of the given layout
+    void create_const_peer_topologies(fully_connected_test_params& p, const layout& peer_layout, eltwise_mode mode) {
+        add_fc(p, true);
+        create_topologies(data("eltwise_data", get_mem(peer_layout, 1, 9)), eltwise("eltwise", {input_info("fc_prim"), input_info("eltwise_data")}, mode));
+    }
+};
+
+// Shapes with different numbers of rows after fake alignment, so that each of them compiles its own static impl
+TEST_P(fc_fp_eltwise_4d_dynamic, per_channel_prod_gelu_static_switch) {
+    auto p = GetParam();
+    create_const_peer_topologies(p, get_per_channel_4d_layout(p), eltwise_mode::prod);
+    create_topologies(activation("activation", input_info("eltwise"), activation_func::gelu));
+    add_output(p, "activation");
+    check_static_switch = true;
+    execute_dynamic(p, {ov::PartialShape{1, 4, 4, p.in_shape[3]}, ov::PartialShape{2, 3, 5, p.in_shape[3]}});
+}
+
+// Whether the peer fits the output isn't known for a dynamic output, so it isn't fused
+TEST_P(fc_fp_eltwise_4d_dynamic, partial_broadcast_prod_not_fused) {
+    auto p = GetParam();
+    create_const_peer_topologies(p, get_partial_broadcast_4d_layout(p), eltwise_mode::prod);
+    add_output(p, "eltwise");
+    expect_fused = false;
+    execute_dynamic(p, get_other_w_input_shapes(p));
+}
+
+// The OCL FC canonicalizes a rank 1 [N] peer to [N, 1, 1, 1], which doesn't match its numpy broadcast to [1, 1, 1, N]
+TEST_P(fc_fp_eltwise_4d_dynamic, rank_mismatch_peer_not_fused) {
+    auto p = GetParam();
+    create_const_peer_topologies(p, layout{ov::PartialShape{p.out_shape[3]}, p.default_type, p.default_format}, eltwise_mode::prod);
+    add_output(p, "eltwise");
+    expect_fused = false;
+    execute_dynamic(p, get_dynamic_input_shapes(p));
+}
+
+// A dynamic peer isn't fused: it may broadcast along only part of the leading dims at runtime, e.g. [B, 1, 1, N] for B > 1
+TEST_P(fc_fp_eltwise_4d_dynamic, dynamic_peer_not_fused) {
+    auto p = GetParam();
+    add_fc(p, true);
+    create_topologies(input_layout("peer", layout{ov::PartialShape::dynamic(4), p.default_type, p.default_format}),
+                      eltwise("eltwise", {input_info("fc_prim"), input_info("peer")}, eltwise_mode::sum));
+    add_output(p, "eltwise");
+    get_peer_shape = [&p](const ov::PartialShape& in_shape) {
+        return ov::PartialShape{in_shape[0], 1, 1, p.out_shape[3]};
+    };
+    expect_fused = false;
+    execute_dynamic(p, {ov::PartialShape{1, 4, 4, p.in_shape[3]}, ov::PartialShape{2, 3, 5, p.in_shape[3]}});
+}
+
+// prepare_buffer_fusing runs after prepare_primitive_fusing and makes the crop in place, which pads the fused [1, 1, 1, N] peer
+// along H. The 2D view can't describe that, so is_valid_fusion() runs fc_prim with the unfused subgraph.
+TEST_P(fc_fp_eltwise_4d_dynamic, per_channel_padded_peer_unfused) {
+    auto p = GetParam();
+    const int64_t n = p.out_shape[3].get_length();
+    add_fc(p, true);
+    create_topologies(input_layout("peer", layout{ov::PartialShape{1, 2, 1, n}, p.default_type, p.default_format}),
+                      crop("crop", input_info("peer"), tensor(1, 1, n, 1), tensor(0, 1, 0, 0)),
+                      eltwise("eltwise", {input_info("fc_prim"), input_info("crop")}, eltwise_mode::sum));
+    add_output(p, "eltwise");
+    get_peer_shape = [n](const ov::PartialShape&) {
+        return ov::PartialShape{1, 2, 1, n};
+    };
+    execute_dynamic(p, get_dynamic_input_shapes(p), true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp_eltwise_4d_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_4D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_4D_1, 2, 3 },
+}));
