@@ -710,6 +710,21 @@ TEST_F(OVTensorTest, expandRankOnSubByteRoiTensor) {
     ASSERT_TRUE(vector.is_continuous());
 }
 
+TEST_F(OVTensorTest, expandRankOnI4RoiKeepsStridesRankMatchedAndContinuityWellDefined) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    ASSERT_EQ(roi.get_strides().size(), 2U);
+
+    roi.set_shape({1, 2, 8});
+    ASSERT_EQ(roi.get_strides(), ov::Strides({8, 4, 1}));
+    ASSERT_TRUE(roi.is_continuous());
+
+    ov::Tensor roi2{owner, {0, 0}, {2, 8}};
+    roi2.set_shape({1, 2, 4});
+    ASSERT_EQ(roi2.get_strides(), ov::Strides({8, 4, 1}));
+    ASSERT_FALSE(roi2.is_continuous());
+}
+
 TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
@@ -1035,6 +1050,13 @@ TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStride3DThrows) {
     std::vector<uint8_t> buffer(2 * 4 * row_bytes);
     const ov::Strides bad_strides{4 * row_bytes, row_bytes, 2};  // last stride must be 1, not 2
     OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 4, 8}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewSubByteScalarThrows) {
+    uint8_t data = 0;
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor(ov::element::i4, ov::Shape{}, &data, ov::Strides{1})),
+                                  ov::Exception,
+                                  "Could not create strided access tensor");
 }
 
 TEST_F(OVTensorTest, stridedViewSetShapeRejectsUnalignedSubByteShape) {

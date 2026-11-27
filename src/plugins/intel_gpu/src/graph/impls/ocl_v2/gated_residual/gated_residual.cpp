@@ -610,6 +610,8 @@ protected:
             slm_gain = 1;
         }
         jit.make("GR_RD_SLM_GAIN", slm_gain);
+        // the predequantized W_down scratch is written in the K32 tile layout (GrDequantGenerator, packed)
+        jit.make("GR_WD_PACKED", m_pd ? 1 : 0);
         if (m_q) {
             const auto wtype = gr_weight_type(params);
             add_wq_format_constants(jit, params);
@@ -1035,9 +1037,23 @@ private:
 // ---------------------------------------------------------------------------
 class GrDequantGenerator : public GrGenerator {
 public:
-    explicit GrDequantGenerator(bool down) : GrGenerator("gr_common", down ? "down" : "up", /*large_grf=*/false), m_down(down) {}
+    /// `packed`: W_down in the K32 tile layout the single READ kernel reads (GR_DQ_PACKED in gr_common.cl); the pipeline's DOWN_PROJ
+    /// reads the row-major one.
+    explicit GrDequantGenerator(bool down, bool packed = false)
+        : GrGenerator("gr_common", suffix(down, packed), /*large_grf=*/false),
+          m_down(down),
+          m_packed(packed) {
+        OPENVINO_ASSERT(down || !packed, "[GPU][OCL] gated_residual: only W_down has a packed scratch layout");
+    }
 
 protected:
+    static const char* suffix(bool down, bool packed) {
+        if (packed) {
+            return "down_pk";
+        }
+        return down ? "down" : "up";
+    }
+
     /// W_down [L, C*D] or W_up [C*D, L] as [N, K], and the K values one lane converts per work-item
     struct Geometry {
         size_t n;
@@ -1056,6 +1072,7 @@ protected:
         auto jit = GrGenerator::get_jit_constants(params);
         const auto g = geometry(params, m_down);
         jit.make("GR_DEQUANT_WEIGHTS", 1);
+        jit.make("GR_DQ_PACKED", m_packed ? 1 : 0);
         add_wq_format_constants(jit, params);
         jit.make("GR_DQ_N", g.n);
         jit.make("GR_DQ_K", g.k);
@@ -1087,6 +1104,7 @@ protected:
 
 private:
     bool m_down;
+    bool m_packed;
 };
 
 /// Dequantizes the compressed W_inject into the f16 scratch matrix WI_F16, see gr_common.cl.
@@ -1153,6 +1171,7 @@ public:
     Stage::Ptr gr_read_dpas_q = make_stage<GrReadDpasGenerator>(true);
     // compressed weights dequantized into f16 scratch by gr_dq_*, then the f16 kernels on the scratch (see gr_pd_min_rows)
     Stage::Ptr gr_dq_down = make_stage<GrDequantGenerator>(true);
+    Stage::Ptr gr_dq_down_packed = make_stage<GrDequantGenerator>(true, true);  // for gr_read_dpas_pd
     Stage::Ptr gr_dq_up = make_stage<GrDequantGenerator>(false);
     Stage::Ptr gr_down_proj_pd = make_stage<GrDownProjGenerator>(GrTier::wide, false, true);
     Stage::Ptr gr_down_proj_pd_mid = make_stage<GrDownProjGenerator>(GrTier::mid, false, true);
@@ -1192,7 +1211,8 @@ public:
         const auto p = read_plan(params, rows);
         std::vector<Stage::Ptr*> stages;
         if (p.pd) {
-            stages.push_back(&gr_dq_down);
+            // the single kernel reads W_down in the packed tile layout, the pipeline's DOWN_PROJ the row-major one
+            stages.push_back(p.single ? &gr_dq_down_packed : &gr_dq_down);
             stages.push_back(&gr_dq_up);
         }
         if (p.dq_inject) {

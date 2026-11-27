@@ -188,7 +188,8 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         }
     };
 
-    if (desc->groups > 1) {
+    // A GroupConvolutionBackpropData with one group still has grouped weights
+    if (desc->groups > 1 || desc->grouped_weights_shape) {
         ov::op::v1::GroupConvolutionBackpropData op;
         op.set_strides(strides);
         op.set_dilations(dilations);
