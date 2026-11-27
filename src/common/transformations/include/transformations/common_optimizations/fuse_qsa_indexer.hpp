@@ -75,7 +75,8 @@ public:
  *
  * The RoPE is the plain rotate-half RoPE of the QSAIndexer rotary dimension, with Unsqueeze(axis=1) of the
  * QSAIndexer cos / sin (before their batch Broadcast). A Reshape with a constant target from [B, L, D] to
- * [B, 1, L, D] is also supported when L and D are static and positive. It is fused while query_rope is disabled.
+ * [B, 1, L, D] is also supported when D and at least one of B or L are static and positive.
+ * It is fused while query_rope is disabled.
  * QSAIndexer normalizes before it rotates, so it must run before FuseQSAIndexerQueryNorm, as FuseQSAIndexerQuery
  * does; the query_norm of the matched indexer is not checked.
  * The PagedQSAIndexer specialization requires the layout adapters produced by PagedQSAIndexerFusion:
