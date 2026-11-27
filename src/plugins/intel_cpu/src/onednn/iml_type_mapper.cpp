@@ -46,8 +46,6 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     }
     SEARCH_WORD(blas);
     SEARCH_WORD(mlas);
-    SEARCH_WORD(sse42);
-    SEARCH_WORD_2(sse41, sse42);
     SEARCH_WORD(avx2);
     SEARCH_WORD(amx);
     SEARCH_WORD(avx512);
@@ -62,11 +60,6 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(asimd);
     SEARCH_WORD(gv);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
-        (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
-        SEARCH_WORD(avx);
-    }
-    if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 && (res & impl_desc_type::avx) != impl_desc_type::avx &&
-        (res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(uni);
     }
@@ -99,24 +92,16 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(gemm_blas);
     CASE(gemm_avx512);
     CASE(gemm_avx2);
-    CASE(gemm_avx);
-    CASE(gemm_sse42);
     CASE(jit_gemm);
     CASE(jit_avx512_winograd);
     CASE(jit_avx512);
     CASE(jit_avx2);
-    CASE(jit_avx);
-    CASE(jit_sse42);
     CASE(jit_uni);
     CASE(jit_avx512_1x1);
     CASE(jit_avx2_1x1);
-    CASE(jit_avx_1x1);
-    CASE(jit_sse42_1x1);
     CASE(jit_uni_1x1);
     CASE(jit_avx512_dw);
     CASE(jit_avx2_dw);
-    CASE(jit_avx_dw);
-    CASE(jit_sse42_dw);
     CASE(jit_uni_dw);
     CASE(jit_avx512_amx);
     CASE(jit_avx512_amx_1x1);
@@ -124,22 +109,16 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_avx2_1x1_dw);
     CASE(brgconv_avx512);
     CASE(brgconv_avx2);
-    CASE(brgconv_avx);
-    CASE(brgconv_sse42);
     CASE(brgconv_uni);
     CASE(brgconv_avx512_amx);
     CASE(brgconv_avx512_1x1);
     CASE(brgconv_avx2_1x1);
-    CASE(brgconv_avx_1x1);
-    CASE(brgconv_sse42_1x1);
     CASE(brgconv_uni_1x1);
     CASE(brgconv_avx512_amx_1x1);
     CASE(brgconv_avx512_dw);
     CASE(brgconv_avx2_dw);
     CASE(brgemm_avx512);
     CASE(brgemm_avx2);
-    CASE(brgemm_avx);
-    CASE(brgemm_sse42);
     CASE(brgemm_uni);
     CASE(brgemm_avx512_amx);
     CASE(brgemm_sparse_avx512_amx);

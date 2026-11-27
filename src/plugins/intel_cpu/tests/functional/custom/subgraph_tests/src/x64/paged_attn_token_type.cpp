@@ -1,7 +1,10 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <vector>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
@@ -737,6 +740,69 @@ TEST_P(PagedAttnTokenTypeTest, ImageTokensWithSlidingWindowDifferFromCausal) {
         << ": expected image tokens (bidir) to differ from causal baseline, but they were identical.\n"
         << "This indicates the sliding window is incorrectly clipping the image group "
         << "[" << first_image << ", " << last_image << "].\n";
+}
+
+// Independent dense reference: covers full query blocks, tails and accumulation across KV blocks.
+TEST_P(PagedAttnTokenTypeTest, PrefillMatchesDenseReference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, head_size, head_num, pattern] = this->GetParam();
+    ASSERT_EQ(inType, ElementType::f32);
+    targetDevice = ov::test::utils::DEVICE_CPU;
+    // Compare exact f32 data, not the default compressed cache representation.
+    configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
+    const size_t seq_len = pattern.types.size();
+    const size_t hidden_dim = head_size * head_num;
+    // Match the deterministic Q/K/V initialization in run_pa_with_token_types().
+    auto value = [hidden_dim](size_t token, size_t feature, float base) {
+        return base + 0.01f * static_cast<float>((token * hidden_dim + feature) % 17);
+    };
+
+    for (const int32_t window : {0, 7}) {
+        auto model = get_pa_model(inType, head_size, head_num, window);
+        auto actual = run_pa_with_token_types(model, inType, seq_len, head_size, head_num, pattern.types);
+        ov::Tensor expected(ov::element::f32, {seq_len, hidden_dim});
+        auto* dst = expected.data<float>();
+        for (size_t q = 0; q < seq_len; ++q) {
+            size_t begin = window && q + 1 > static_cast<size_t>(window) ? q + 1 - window : 0;
+            size_t end = q + 1;
+            if (pattern.types[q] == 1) {
+                size_t group_begin = q;
+                while (group_begin > 0 && pattern.types[group_begin - 1] == 1) {
+                    --group_begin;
+                }
+                begin = std::min(begin, group_begin);
+                while (end < seq_len && pattern.types[end] == 1) {
+                    ++end;
+                }
+            }
+            for (size_t h = 0; h < head_num; ++h) {
+                std::vector<double> weights(end - begin);
+                double max_score = std::numeric_limits<double>::lowest();
+                for (size_t k = begin; k < end; ++k) {
+                    double score = 0;
+                    for (size_t d = 0; d < head_size; ++d) {
+                        score += static_cast<double>(value(q, h * head_size + d, 0.1f)) *
+                                 value(k, h * head_size + d, 0.2f);
+                    }
+                    weights[k - begin] = score / std::sqrt(static_cast<double>(head_size));
+                    max_score = std::max(max_score, weights[k - begin]);
+                }
+                double sum = 0;
+                for (auto& weight : weights) {
+                    weight = std::exp(weight - max_score);
+                    sum += weight;
+                }
+                for (size_t d = 0; d < head_size; ++d) {
+                    double output = 0;
+                    for (size_t k = begin; k < end; ++k) {
+                        output += weights[k - begin] * value(k, h * head_size + d, 0.3f);
+                    }
+                    dst[q * hidden_dim + h * head_size + d] = static_cast<float>(output / sum);
+                }
+            }
+        }
+        ov::test::utils::compare(expected, actual.output, 1e-5, 1e-5);
+    }
 }
 
 TEST_P(PagedAttnTokenTypeTest, ChunkedPrefillMatchesSingleShot) {

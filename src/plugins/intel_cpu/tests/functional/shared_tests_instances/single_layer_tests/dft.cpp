@@ -107,4 +107,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_1d, DFTLayerTest, testCase1D, DFTLayerTe
 INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_2d, DFTLayerTest, testCase2D, DFTLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_3d, DFTLayerTest, testCase3D, DFTLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_4d, DFTLayerTest, testCase4D, DFTLayerTest::getTestCaseName);
+
+// Exercise the rank-2 FFT path and twiddle-cache growth/reuse, with and without signal padding/truncation.
+const std::vector<std::vector<ov::test::InputShape>> fft_input_shapes = {
+    {{{-1, 2}, {{2, 2}, {4, 2}, {8, 2}, {32, 2}, {16, 2}, {64, 2}}}},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_FFTFallback,
+                         DFTLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(fft_input_shapes),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(std::vector<int64_t>{0}),
+                                            ::testing::Values(std::vector<int64_t>{},
+                                                              std::vector<int64_t>{16},
+                                                              std::vector<int64_t>{5}),
+                                            ::testing::ValuesIn(op_types),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(axes_in_type),
+                                            ::testing::ValuesIn(signal_size_in_type)),
+                         DFTLayerTest::getTestCaseName);
 }  // namespace

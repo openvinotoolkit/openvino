@@ -76,6 +76,22 @@ const auto basicCases4D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
+// Keep both block sizes instead of ISA-filtering them: reference execution must work without a matching JIT ISA.
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_BlockedFallback_CPU, ActivationLayerCPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{{{2, 17, 5, 4}}})),
+        ::testing::Values(activationShapes()),
+        ::testing::Values(std::make_pair(Mish, std::vector<float>{}),
+                          std::make_pair(SoftSign, std::vector<float>{}),
+                          std::make_pair(Log, std::vector<float>{})),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}),
+                          CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})),
+        ::testing::Values(false)),
+    ActivationLayerCPUTest::getTestCaseName);
+
 /* ============= Activation (3D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams5Dblocked() {
     static const std::vector<CPUSpecificParams> cpuParams5Dblocked {

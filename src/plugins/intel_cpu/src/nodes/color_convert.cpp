@@ -306,7 +306,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
                        std::vector<PortConfigurator>{{layout, precision}},
-                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_avx2() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;
@@ -529,10 +529,6 @@ const jit_uni_converter& jit_converter_create() {
             auto converter = new JitConverter<T[8]>;
             kernel.reset(converter);
             converter->init();
-        } else if (ov::with_cpu_x86_sse42()) {
-            auto converter = new JitConverter<T[4]>;
-            kernel.reset(converter);
-            converter->init();
         } else {
             OPENVINO_THROW("Can't create jit color converter kernel");
         }
@@ -637,7 +633,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
                        std::vector<PortConfigurator>{{layout, precision}},
-                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_avx2() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;
@@ -865,10 +861,6 @@ const jit_uni_converter& jit_converter_create() {
             auto converter = new JitConverter<T[8]>;
             kernel.reset(converter);
             converter->init();
-        } else if (ov::with_cpu_x86_sse42()) {
-            auto converter = new JitConverter<T[4]>;
-            kernel.reset(converter);
-            converter->init();
         } else {
             OPENVINO_THROW("Can't create jit color converter kernel");
         }
@@ -976,7 +968,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{{layout, precision}},
                        outConfigs,
-                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_avx2() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;
@@ -1568,10 +1560,6 @@ const jit_to_nv12_converter& jit_to_nv12_create() {
             c->init();
         } else if (mayiuse(cpu_isa_t::avx2)) {
             auto c = new JitConverter<T[8]>;
-            kernel.reset(c);
-            c->init();
-        } else if (mayiuse(cpu_isa_t::sse41)) {
-            auto c = new JitConverter<T[4]>;
             kernel.reset(c);
             c->init();
         } else {

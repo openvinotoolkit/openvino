@@ -1009,7 +1009,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         }
     }
 
-    unsigned thresholdNumChannels = 128U;  // for avx and below
+    unsigned thresholdNumChannels = 128U;  // for AVX2
     if (is1x1) {
         thresholdNumChannels = 2048U;
     } else if (ov::with_cpu_x86_avx512_core()) {
@@ -1021,13 +1021,9 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         return false;
     }
 
-    if (!ov::with_cpu_x86_avx()) {
-        // SSE41 nspc convolutions do not support ic and oc tails yet
-        // the blocked implementation is faster than gemm
-        if ((IC % 8) || (OC % 8)) {
-            return false;
-        }
-    }
+    // Capability check: if AVX2 is not available, NSPC convolution is not supported.
+    // Returning false allows higher-level logic to pick a supported implementation/layout.
+    return ov::with_cpu_x86_avx2();
 
     return true;
 }

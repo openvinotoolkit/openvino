@@ -193,8 +193,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             }
         }
 
-        size_t data_step =
-            (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+        size_t data_step = vector_step;
         src_stride = data_step * jcp_.src_data_size;
 
         load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
@@ -234,8 +233,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits_t<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -600,8 +598,7 @@ private:
         Xbyak::Reg64 reg_work_amount_bk = rdi;
         mov(reg_src_bk, reg_src);
         mov(reg_work_amount_bk, reg_work_amount);
-        int repeats =
-            (isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41 with two step process
+        int repeats = 1;
 
         auto reset_with_offset = [&](int offset) {
             add(reg_src_bk, offset * jcp_.src_data_size);
@@ -692,11 +689,6 @@ private:
             L(label_tails);
             {
                 Xbyak::Label label_sse_full_size;
-                if (isa == cpu::x64::sse41) {
-                    // on sse, first 4 could be done with vector manner
-                    cmp(reg_rt_shape, 4);
-                    jae(label_sse_full_size, T_NEAR);
-                }
 
                 worker_tails_unroll();
                 // exit directly if tails is done, for all platforms
@@ -898,11 +890,7 @@ private:
             uni_vsubps(vmm_val, vmm_val, vmm_mean);
             if (is_zero_pad) {
                 uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
-                if (isa == cpu::x64::sse41) {
-                    uint8 imm = 1;
-                    imm = ~((imm << block_num) - imm);
-                    blendps(vmm_val, vmm_zero, imm);
-                } else if (isa == cpu::x64::avx2) {
+                if (isa == cpu::x64::avx2) {
                     uint8 imm = 1;
                     imm = ~((imm << block_num) - imm);
                     vblendps(vmm_val, vmm_val, vmm_zero, imm);
@@ -937,9 +925,7 @@ private:
     }
 
     void reduce_sum_store_vmm(int vmm_idx) {
-        if (isa == cpu::x64::sse41) {
-            reduce_sum_store_xmm(Xmm(vmm_idx));
-        } else if (isa == cpu::x64::avx2) {
+        if (isa == cpu::x64::avx2) {
             auto ymm_sum = Xbyak::Ymm(vmm_idx);
             vextractf128(xmm_aux1, ymm_sum, 0);
             vextractf128(xmm_aux2, ymm_sum, 1);
@@ -1069,8 +1055,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator_
         mov(reg_rt_shape, ptr[reg_params + GET_OFF(rt_shape_size)]);
         mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
 
-        size_t data_step =
-            (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+        size_t data_step = vector_step;
         src_stride = data_step * jcp_.src_data_size;
         dst_stride = data_step * jcp_.dst_data_size;
 
@@ -1127,8 +1112,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator_
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits_t<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -1228,7 +1212,7 @@ private:
         // cover vector and tails on avx512, avx2
         // cover on sse, 2 part vector, first part vector and second part tails, first part tails
         Xbyak::Label label_exit;
-        int repeats = (isa == cpu::x64::sse41) ? 2 : 1;
+        int repeats = 1;
         for (int i = 0; i < repeats; i++) {
             if (i > 0) {
                 reset_with_offset(4);
@@ -1245,11 +1229,6 @@ private:
             L(label_tails);
             {
                 Xbyak::Label label_sse_full_size;
-                if (isa == cpu::x64::sse41) {
-                    // on sse, first 4 could be done with vector manner
-                    cmp(reg_rt_shape, 4);
-                    jae(label_sse_full_size, T_NEAR);
-                }
 
                 worker_tails_unroll();
                 // exit directly if tails is done, for all platforms
@@ -2032,8 +2011,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    // ref with float planar and no fusion
-    if (!ov::with_cpu_x86_sse42()) {
+    // Reference execution uses f32 and does not support fusion.
+    if (!ov::with_cpu_x86_avx2()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 #endif
@@ -2107,13 +2086,10 @@ void MVN::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
 
-    if (ov::with_cpu_x86_sse42()) {
+    if (ov::with_cpu_x86_avx2()) {
         // nspc
         if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
             pushDesc(LayoutType::nspc, impl_type);
@@ -2123,11 +2099,15 @@ void MVN::initSupportedPrimitiveDescriptors() {
             if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
                 pushDesc(LayoutType::nCsp16c, impl_type);
             }
-        } else if (impl_desc_type::jit_avx2 == impl_type || impl_desc_type::jit_sse42 == impl_type) {
+        } else if (impl_desc_type::jit_avx2 == impl_type) {
             if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
                 pushDesc(LayoutType::nCsp8c, impl_type);
             }
         }
+    } else if (inputPrecision == ov::element::f32 && outputPrecision == ov::element::f32 &&
+               (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5)) {
+        // The f32 reference executor also handles channel-last layouts.
+        pushDesc(LayoutType::nspc, impl_type);
     }
 
     // planar
@@ -2169,14 +2149,6 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] c
             jcp.normalize_variance = true;
             mvn_variance_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>>(jcp);
         }
-    } else if (ov::with_cpu_x86_sse42()) {
-        mvn_kernel = std::make_shared<jit_uni_mvn_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
-        jcp.normalize_variance = false;
-        mvn_mean_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>>(jcp);
-        if (mvnAttrs.normalizeVariance_) {
-            jcp.normalize_variance = true;
-            mvn_variance_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>>(jcp);
-        }
     } else {
         OPENVINO_THROW("Can't create jit MVN kernel");
     }
@@ -2198,7 +2170,7 @@ void MVN::MVNJitExecutor::exec(const uint8_t* src_data,
                                const VectorDims& shape5d,
                                const CpuParallelPtr& cpu_parallel) {
     OPENVINO_ASSERT(mvn_mean_kernel && (!mvnAttrs.normalizeVariance_ || mvn_variance_kernel) && mvn_kernel,
-                    "MVN layer doesn't create kernel to execute on sse41 above platform.");
+                    "MVN layer doesn't create kernel to execute on avx2 above platform.");
     if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
         mvn_pln(src_data, dst_data, post_ops_data_, shape5d, cpu_parallel);
     } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
@@ -2280,7 +2252,7 @@ void MVN::prepareParams() {
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutorBase> {
         std::shared_ptr<MVNExecutorBase> executor;
-        if (ov::with_cpu_x86_sse42()) {
+        if (ov::with_cpu_x86_avx2()) {
             executor = std::make_shared<MVNJitExecutor>(key.mvnAttrs, key.attr);
         } else {
             executor = std::make_shared<MVNRefExecutor>(key.mvnAttrs);
@@ -2393,8 +2365,6 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
         blk_size = 16;
     } else if (ov::with_cpu_x86_avx2()) {
         blk_size = 8;
-    } else if (ov::with_cpu_x86_sse42()) {
-        blk_size = 4;
     }
 
     const size_t N = shape5d[0];
@@ -2544,6 +2514,9 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
     size_t C1 = H * W;
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
+    const bool channelLast = mvnAttrs.layout == MVNLayoutType::mvn_by_channel;
+    const size_t spatialStride = channelLast ? C : 1;
+    const size_t channelStride = channelLast ? 1 : C2;
 
     cpu_parallel->parallel_for(N, [&](int b) {
         size_t cb = b * C3;
@@ -2554,9 +2527,9 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
 
             mean_temp = cpu_parallel->parallel_sum(C, mean_temp, [&](size_t c) -> float {
                 float mean_internal = 0.0F;
-                size_t cc = cb + c * C2;
+                size_t cc = cb + c * channelStride;
                 for (size_t sp = 0LU; sp < C2; sp++) {
-                    mean_internal += src_data_ptr[cc + sp];
+                    mean_internal += src_data_ptr[cc + sp * spatialStride];
                 }
                 return mean_internal;
             });
@@ -2568,9 +2541,10 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
                 float variance_temp = 0.0F;
                 variance_temp = cpu_parallel->parallel_sum(C, variance_temp, [&](size_t c) -> float {
                     float variance_internal = 0.0F;
-                    size_t cc = cb + c * C2;
+                    size_t cc = cb + c * channelStride;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        variance_internal += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
+                        const float centered = src_data_ptr[cc + sp * spatialStride] - mean;
+                        variance_internal += centered * centered;
                     }
                     return variance_internal;
                 });
@@ -2583,16 +2557,18 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
                 }
 
                 cpu_parallel->parallel_for(C, [&](int c) {
-                    size_t cc = cb + c * C2;
+                    size_t cc = cb + c * channelStride;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = (src_data_ptr[cc + sp] - mean) * variance;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = (src_data_ptr[offset] - mean) * variance;
                     }
                 });
             } else {
                 cpu_parallel->parallel_for(C, [&](int c) {
-                    size_t cc = cb + c * C2;
+                    size_t cc = cb + c * channelStride;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = src_data_ptr[cc + sp] - mean;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = src_data_ptr[offset] - mean;
                     }
                 });
             }
@@ -2601,9 +2577,9 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
             cpu_parallel->parallel_for(C, [&](size_t c) {
                 // mean for this channel
                 float mean = 0.F;
-                size_t cc = cb + c * C2;
+                size_t cc = cb + c * channelStride;
                 for (size_t sp = 0LU; sp < C2; sp++) {
-                    mean += src_data_ptr[cc + sp];
+                    mean += src_data_ptr[cc + sp * spatialStride];
                 }
                 mean *= C2inv;
 
@@ -2611,7 +2587,8 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
                     // variance for this channel
                     float variance = 0.F;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        variance += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
+                        const float centered = src_data_ptr[cc + sp * spatialStride] - mean;
+                        variance += centered * centered;
                     }
 
                     if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
@@ -2622,12 +2599,14 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
 
                     // mvn for this channel
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = (src_data_ptr[cc + sp] - mean) * variance;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = (src_data_ptr[offset] - mean) * variance;
                     }
                 } else {
                     // mvn for this channel
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = src_data_ptr[cc + sp] - mean;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = src_data_ptr[offset] - mean;
                     }
                 }
             });
@@ -3053,7 +3032,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
 }
 
 bool MVN::canFuse(const NodePtr& node) const {
-    if (!ov::with_cpu_x86_sse42()) {
+    if (!ov::with_cpu_x86_avx2()) {
         return false;
     }
     // limit post ops to unary when shape transformed on channel

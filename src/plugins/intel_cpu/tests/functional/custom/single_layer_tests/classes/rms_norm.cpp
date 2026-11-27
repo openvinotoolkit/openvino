@@ -8,6 +8,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "ov_ops/rms.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -121,7 +122,9 @@ void RMSNormLayerCPUTest::SetUp() {
 
 TEST_P(RMSNormLayerCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "RMS", m_rms_decomposed ? 0 : 1);
+    // Without AVX2 the RMS node is decomposed, even for a supported vector/scalar gain shape.
+    const bool rms_decomposed = m_rms_decomposed || !ov::with_cpu_x86_avx2();
+    CheckNumberOfNodesWithType(compiledModel, "RMS", rms_decomposed ? 0 : 1);
 }
 
 }  // namespace test

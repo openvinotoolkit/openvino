@@ -56,10 +56,7 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator_t* host,
 }
 
 void jit_dnnl_emitter::set_injector() {
-    if (host_isa_ == cpu::x64::sse41) {
-        eltwise_injector_sse42 =
-            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::sse41>>(h, kind, alpha, beta, 1.F, data_type::f32);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 =
             std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx2>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx512_core) {
@@ -83,12 +80,7 @@ void jit_dnnl_emitter::emit_code_impl(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs,
                                       [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
                                       [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
-    if (host_isa_ == cpu::x64::sse41) {
-        if (out_vec_idxs[0] != in_vec_idxs[0]) {
-            h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));
-        }
-        eltwise_injector_sse42->compute_vector(out_vec_idxs[0]);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         if (out_vec_idxs[0] != in_vec_idxs[0]) {
             h->uni_vmovups(Ymm(out_vec_idxs[0]), Ymm(in_vec_idxs[0]));
         }
@@ -104,9 +96,7 @@ void jit_dnnl_emitter::emit_code_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_dnnl_emitter::emit_data() const {
-    if (host_isa_ == cpu::x64::sse41) {
-        eltwise_injector_sse42->prepare_table();
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2->prepare_table();
     } else if (host_isa_ == cpu::x64::avx512_core) {
         eltwise_injector_avx512_core->prepare_table();

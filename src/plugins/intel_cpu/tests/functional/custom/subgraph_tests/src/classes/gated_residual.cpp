@@ -432,6 +432,9 @@ TEST_P(GatedResidualLayerCPUTest, Inference) {
         // WRITE.
         CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 0);
         CheckNumberOfNodesWithType(runtime_model, {"Eltwise"}, 1);
+    } else if (!ov::with_cpu_x86_avx2()) {
+        // READ requires AVX2 to fuse; run() still validates every target shape on the decomposed graph.
+        CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 0);
     } else {
         CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);
         // The write gate is an output of the node, not a decomposed branch next to it.

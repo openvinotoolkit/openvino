@@ -225,9 +225,8 @@ void serialize_model(std::shared_ptr<ov::Model> model,
 
 std::string build_runtime_requirements() {
     std::ostringstream ss;
-    ss << "meta=1.0"
-       << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";isa=" << dnnl::impl::cpu::platform::get_isa_info();
+    ss << "meta=1.0" << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "."
+       << OPENVINO_VERSION_PATCH << ";isa=" << dnnl::impl::cpu::platform::get_isa_info();
     return ss.str();
 }
 

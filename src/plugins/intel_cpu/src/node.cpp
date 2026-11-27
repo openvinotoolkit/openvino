@@ -640,8 +640,6 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(avx512);
     SEARCH_TYPE(amx);
     SEARCH_TYPE(avx2);
-    SEARCH_TYPE(avx);
-    SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
     SEARCH_TYPE(mlas);
     SEARCH_TYPE(any);
@@ -1316,12 +1314,6 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::jit_avx2_dw,
         impl_desc_type::jit_avx2_1x1,
         impl_desc_type::jit_avx2,
-        impl_desc_type::jit_avx_dw,
-        impl_desc_type::jit_avx_1x1,
-        impl_desc_type::jit_avx,
-        impl_desc_type::jit_sse42_dw,
-        impl_desc_type::jit_sse42_1x1,
-        impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
         impl_desc_type::jit_asimd,
 #elif defined(OPENVINO_ARCH_RISCV64)
@@ -1331,8 +1323,6 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,
         impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,
-        impl_desc_type::gemm_sse42,
         impl_desc_type::gemm_acl,
         impl_desc_type::acl,
         impl_desc_type::gemm_kleidiai,

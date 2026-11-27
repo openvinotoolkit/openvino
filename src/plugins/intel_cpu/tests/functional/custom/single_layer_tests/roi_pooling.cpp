@@ -222,8 +222,6 @@ std::vector<CPUSpecificParams> selectCPUInfoForDevice() {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
-    } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc}, {nChw8c}, {"ref"}, "ref"});
     }

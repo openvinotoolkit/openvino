@@ -193,9 +193,6 @@ TEST(JitKernel, variable_permute_and_blend) {
     if (mayiuse(cpu_isa_t::avx2)) {
         kernel.test<8>();
     }
-    if (mayiuse(cpu_isa_t::sse41)) {
-        kernel.test<4>();
-    }
 }
 
 struct jit_loop_and_condition_test_kernel {
@@ -334,12 +331,6 @@ TEST(JitKernel, variable_load_and_store) {
             kernel.test<8, 5, false>();
             kernel.test<8, 4, false>();
         }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 4, false>();
-            kernel.test<4, 3, false>();
-            kernel.test<4, 2, false>();
-            kernel.test<4, 1, false>();
-        }
     }
 
     {
@@ -349,9 +340,6 @@ TEST(JitKernel, variable_load_and_store) {
         }
         if (mayiuse(cpu_isa_t::avx2)) {
             kernel.test<8, 5, false>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 3, false>();
         }
     }
 
@@ -363,9 +351,6 @@ TEST(JitKernel, variable_load_and_store) {
         }
         if (mayiuse(cpu_isa_t::avx2)) {
             kernel.test<8, 5, true>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 3, true>();
         }
     }
 
@@ -384,12 +369,6 @@ TEST(JitKernel, variable_load_and_store) {
             kernel.test<8, 5, true>();
             kernel.test<8, 4, true>();
         }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 4, true>();
-            kernel.test<4, 3, true>();
-            kernel.test<4, 2, true>();
-            kernel.test<4, 1, true>();
-        }
     }
 
     {
@@ -399,9 +378,6 @@ TEST(JitKernel, variable_load_and_store) {
         }
         if (mayiuse(cpu_isa_t::avx2)) {
             kernel.test<8, 5, true>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 3, true>();
         }
     }
 }

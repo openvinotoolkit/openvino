@@ -246,10 +246,7 @@ cpu_isa_t get_current_isa() {
     if (mayiuse(cpu_isa_t::avx512_core)) {
         return cpu_isa_t::avx512_core;
     }
-    if (mayiuse(cpu_isa_t::avx2)) {
-        return cpu_isa_t::avx2;
-    }
-    return cpu_isa_t::sse41;
+    return cpu_isa_t::avx2;
 }
 
 stack_frame::stack_frame(ov::intel_cpu::jit_kernel& kernel, size_t size, uint32_t alignment)
