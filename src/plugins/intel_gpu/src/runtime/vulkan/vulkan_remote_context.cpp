@@ -29,4 +29,10 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor_from_params(const 
     OPENVINO_THROW("[GPU][Vulkan] External GPU tensors are unsupported");
 }
 
+// Interop implementations use the handles and context of the owning tensor.
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+AnyMap RemoteTensorImpl::get_memory_properties(const cldnn::memory& /*memory*/, TensorType /*mem_type*/) const {
+    return {};
+}
+
 }  // namespace ov::intel_gpu

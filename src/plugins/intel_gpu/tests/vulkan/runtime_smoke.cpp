@@ -91,6 +91,7 @@ TEST_F(VulkanRuntimeSmoke, CopiesRemoteTensorsAndReportsMemoryUsage) {
     EXPECT_EQ(tracked_buffer_bytes(), 0U);
 
     auto context = m_core.get_default_context(m_device_name);
+    EXPECT_TRUE(context.get_params().empty());
     EXPECT_EQ(tracked_buffer_bytes(), 0U);
     for (const auto& shape : {ov::Shape{}, ov::Shape{256}, ov::Shape{257}}) {
         const auto count = ov::shape_size(shape);
@@ -103,6 +104,7 @@ TEST_F(VulkanRuntimeSmoke, CopiesRemoteTensorsAndReportsMemoryUsage) {
         {
             auto source = context.create_tensor(ov::element::u8, shape);
             auto destination = context.create_tensor(ov::element::u8, shape);
+            EXPECT_TRUE(source.get_params().empty());
             EXPECT_EQ(tracked_buffer_bytes(), 2 * count);
             source.copy_from(input);
             source.copy_to(destination);
