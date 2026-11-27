@@ -22,8 +22,7 @@ ov::OutputVector swiglu(const ov::frontend::onnx::Node& node) {
     const auto alpha = node.get_attribute_as_constant<float>("alpha", 1.0f, gate.get_element_type());
 
     const auto swish = std::make_shared<v4::Swish>(gate, alpha);
-    // SwiGLU requires A and B to have identical shapes, so broadcasting is disabled
-    return {std::make_shared<v1::Multiply>(swish, value, ov::op::AutoBroadcastType::NONE)};
+    return {std::make_shared<v1::Multiply>(swish, value)};
 }
 
 // SwiGLU is a part of the standard ONNX domain since opset 28, but it is registered since opset 1,
