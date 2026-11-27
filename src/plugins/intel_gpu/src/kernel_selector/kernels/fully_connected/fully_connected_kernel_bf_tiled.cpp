@@ -360,6 +360,18 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
+    if (fc_params.compressed && (wt == WeightsType::UINT4 || wt == WeightsType::INT4)) {
+        // Per-weight factors use element-wise lookups; other groups must align with a packed byte.
+        const auto is_unaligned_group = [](size_t group_size) {
+            return group_size > 1 && group_size % 2 != 0;
+        };
+        if ((fc_params.decompression_scale.Feature().v > 1 && is_unaligned_group(get_scale_group_size(fc_params))) ||
+            (fc_params.has_decompression_zp && !fc_params.scalar_zp && fc_params.decompression_zero_point.Feature().v > 1 &&
+             is_unaligned_group(weights.IFM().v / fc_params.decompression_zero_point.Feature().v))) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
+    }
+
     return true;
 }
 
