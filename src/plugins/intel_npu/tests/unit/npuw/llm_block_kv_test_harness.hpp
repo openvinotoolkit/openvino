@@ -299,9 +299,18 @@ protected:
         return std::vector<uint64_t>(kBlock, 7u);
     }
 
-    // Caches the block of the request's pool that starts at `token_start`.
-    static std::shared_ptr<ov::npuw::KVBlock> store_block(ov::npuw::LLMInferRequest& req, size_t token_start) {
+    // Builds the block that starts at `token_start` without handing it to a cache.
+    static std::shared_ptr<ov::npuw::KVBlock> make_block(ov::npuw::LLMInferRequest& req, size_t token_start) {
         return LLMBlockKvTestAccess::block_strategy(req).make_prefix_block(token_start, 0u, kBlock, hashes());
+    }
+
+    // Caches the block of the request's pool that starts at `token_start`, as a cache that retains it.
+    static std::shared_ptr<ov::npuw::KVBlock> store_block(ov::npuw::LLMInferRequest& req, size_t token_start) {
+        auto block = make_block(req, token_start);
+        if (block) {
+            LLMBlockKvTestAccess::block_strategy(req).on_prefix_block_cached(block);
+        }
+        return block;
     }
 
     static const ov::npuw::PrefixBlockBlockKV& as_pool_block(const std::shared_ptr<ov::npuw::KVBlock>& block) {

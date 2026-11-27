@@ -948,6 +948,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         OPENVINO_THROW_NOT_IMPLEMENTED("QSA models do not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
     }
 
+    if (m_enable_prefix_caching) {
+        for (const auto& input : kvcache_model->inputs()) {
+            for (const auto& name : input.get_names()) {
+                if (ov::npuw::util::starts_with_past_lincache(name)) {
+                    OPENVINO_THROW_NOT_IMPLEMENTED(
+                        "NPUW_LLM_ENABLE_PREFIX_CACHING does not support models with recurrent (conv/ssm) state "
+                        "yet: a restored prefix would leave that state zeroed.");
+                }
+            }
+        }
+    }
+
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation

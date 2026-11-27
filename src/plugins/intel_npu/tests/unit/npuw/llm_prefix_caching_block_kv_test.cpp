@@ -114,6 +114,57 @@ TEST_F(PrefixCacheBlockKv, IncompleteBlockIsDeclinedWhileTheCompleteOneStaysShar
     }
 }
 
+TEST_F(PrefixCacheBlockKv, BuildingABlockDoesNotShareItsPoolTensors) {
+    LLMKvTestPipeline pipeline(build_llm_test_model(), block_props());
+    pipeline.prefill(kTwoBlocks, 0);
+
+    ASSERT_NE(make_block(pipeline.request(), 0u), nullptr);
+
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        for (const auto* manager : {layer.key_manager.get(), layer.value_manager.get()}) {
+            for (const auto id : manager->get_allocated_blocks()) {
+                EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*manager, id)) << "layer " << layer_idx;
+            }
+        }
+    }
+}
+
+// put_block() reports success for a duplicate but keeps the block it already had, so the pool
+// tensors of the recomputed copy must stay unshared and warm for the next conversation.
+TEST_F(PrefixCacheBlockKv, DuplicateBlockStaysUnsharedAndWarm) {
+    LLMKvTestPipeline pipeline(build_llm_test_model(), prefix_props());
+    pipeline.prefill(kTwoBlocks, 0, 1);
+    pipeline.prefill(kTwoBlocks, 0, 1);  // block 0 is restored, block 1 is recomputed and a duplicate
+
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        const auto ids = layer.key_manager->get_allocated_blocks();
+        ASSERT_EQ(ids.size(), 2u);
+        EXPECT_TRUE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, ids[0])) << "layer " << layer_idx;
+        EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, ids[1])) << "layer " << layer_idx;
+    }
+    const auto recomputed = key_block_data(pipeline.request(), 1);
+
+    pipeline.prefill(kTwoBlocks, 0, 2);
+
+    EXPECT_EQ(key_block_data(pipeline.request(), 1), recomputed);
+}
+
+// The cache is full after its first block and the second one has nothing to evict, so it is
+// rejected and its pool tensors are not shared.
+TEST_F(PrefixCacheBlockKv, BlockRejectedForCapacityStaysUnshared) {
+    auto props = prefix_props();
+    props["NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS"] = "1";
+    LLMKvTestPipeline pipeline(build_llm_test_model(), props);
+    pipeline.prefill(kTwoBlocks, 0);
+
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        const auto ids = layer.key_manager->get_allocated_blocks();
+        ASSERT_EQ(ids.size(), 2u);
+        EXPECT_TRUE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, ids[0])) << "layer " << layer_idx;
+        EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, ids[1])) << "layer " << layer_idx;
+    }
+}
+
 TEST_F(PrefixCacheBlockKv, RestoreInjectsTheCachedTensorsIntoAnEmptyPool) {
     LLMKvTestPipeline source(build_llm_test_model(), block_props());
     source.prefill(kTwoBlocks, 0);

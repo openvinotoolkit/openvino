@@ -141,6 +141,12 @@ public:
         OPENVINO_THROW("Prefix caching is not supported by this KV cache strategy.");
     }
 
+    // Called once the prefix cache actually holds `block`, a block make_prefix_block() returned.
+    // A block the cache rejected or already had a duplicate of never gets here.
+    virtual void on_prefix_block_cached(const std::shared_ptr<KVBlock>& block) {
+        (void)block;
+    }
+
 protected:
     LLMInferRequest& m_req;
 };

@@ -238,6 +238,11 @@ std::shared_ptr<KVBlock> PrefixCacheManager::get_block(uint64_t combined_hash) {
     return block;
 }
 
+bool PrefixCacheManager::holds_block(const std::shared_ptr<KVBlock>& block) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return get_block_unsafe(block->get_block_hash()) == block;
+}
+
 std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash) const {
     auto it = m_cache_map.find(combined_hash);
     if (it != m_cache_map.end()) {
@@ -496,12 +501,11 @@ void PrefixCachingHelper::store_blocks(size_t chunk_size,
             prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
         }
 
-        // Note: put_block returns bool but we don't need to check it here.
-        // The block's lifetime is managed by shared_ptr reference counting.
-        // If cache accepts it, both cache and this function hold references.
-        // If cache rejects it, only this function holds reference and block will be destroyed
-        // when it goes out of scope, which is the expected behavior.
-        m_cache_manager->put_block(block, prev_block_hash);
+        // put_block() also returns true for a duplicate and keeps the block it already had, so ask the
+        // cache whether it retained this block before the strategy treats its memory as shared.
+        if (m_cache_manager->put_block(block, prev_block_hash) && m_cache_manager->holds_block(block)) {
+            m_request.m_kvcache_strategy->on_prefix_block_cached(block);
+        }
     }
 }
 

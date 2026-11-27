@@ -148,6 +148,8 @@ public:
                                                size_t out_token_offset,
                                                size_t block_size,
                                                const std::vector<uint64_t>& token_hashes) override;
+    // Only a block the cache retains is marked shared; a declined one stays reusable scratch memory.
+    void on_prefix_block_cached(const std::shared_ptr<KVBlock>& block) override;
 
 private:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;

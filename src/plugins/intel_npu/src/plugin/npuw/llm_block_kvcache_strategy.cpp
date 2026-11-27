@@ -759,20 +759,42 @@ std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block
         const auto& ids = pool_blocks.at(layer_idx);
         BlockKVRef ref;
         ref.num_tokens = m_block_size;
-        // The pool must not reuse a tensor the cache holds as scratch memory in a later conversation.
         if (ids.key) {
             ref.key_tensor = layer_managers.key_manager->get_block_tensor(*ids.key);
-            layer_managers.key_manager->mark_block_shared(*ids.key);
         }
         if (ids.value) {
             ref.value_tensor = layer_managers.value_manager->get_block_tensor(*ids.value);
-            layer_managers.value_manager->mark_block_shared(*ids.value);
         }
         block->add_layer_ref(layer_idx, std::move(ref));
     }
 
     block->add_block(token_hashes, {});
     return block;
+}
+
+void LLMBlockKVCacheStrategy::on_prefix_block_cached(const std::shared_ptr<KVBlock>& block) {
+    const auto* prefix_block = dynamic_cast<const PrefixBlockBlockKV*>(block.get());
+    OPENVINO_ASSERT(prefix_block, "Prefix cache store: a cached block was not produced by the block KV cache.");
+    const size_t block_idx = prefix_block->get_token_start() / m_block_size;
+
+    // The pool must not reuse a tensor the cache holds as scratch memory in a later conversation.
+    const auto share = [&](KVCacheBlockManager* manager, const ov::SoPtr<ov::ITensor>& cached) {
+        if (!manager) {
+            return;
+        }
+        const auto allocated = manager->get_allocated_blocks();
+        if (block_idx < allocated.size() && manager->get_block_tensor(allocated[block_idx])._ptr == cached._ptr) {
+            manager->mark_block_shared(allocated[block_idx]);
+        }
+    };
+    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        const auto ref_it = prefix_block->get_layer_refs().find(layer_idx);
+        if (ref_it == prefix_block->get_layer_refs().end()) {
+            continue;
+        }
+        share(layer_managers.key_manager.get(), ref_it->second.key_tensor);
+        share(layer_managers.value_manager.get(), ref_it->second.value_tensor);
+    }
 }
 
 // ============================================================================

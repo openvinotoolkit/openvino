@@ -168,12 +168,15 @@ public:
      */
     std::shared_ptr<KVBlock> get_block(uint64_t combined_hash);
 
+    // True when this very block, not an equal one, is what the cache holds for its hash.
+    bool holds_block(const std::shared_ptr<KVBlock>& block) const;
+
     // Print the current status of the cache
     void print_cache_status(bool verbose = false) const;
 
 private:
     size_t m_max_cache_size;
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
     // LRU list for evictable blocks only (leaf nodes with no children, most recent at front)
