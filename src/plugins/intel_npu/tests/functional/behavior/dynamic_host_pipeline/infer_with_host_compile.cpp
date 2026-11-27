@@ -283,6 +283,11 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(importedModel = core.import_model(modelStream, target_device));
     OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
+    const auto input = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
+                                                               makeInputShape(model, 1, true),
+                                                               100,
+                                                               0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(input));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
@@ -363,7 +368,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
 
     auto& testContext = setupResult.context;
 
-    // Start with the smallest shape allowed by the model's declared bounds.
+    // Start at half the spatial upper bounds.
     const ov::Shape shape = makeInputShape(model, 1, false);
 
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -1524,6 +1529,11 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
         }
     }
 
+    const auto input = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
+                                                               makeInputShape(model, 1, true),
+                                                               100,
+                                                               0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(input));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
@@ -1546,8 +1556,8 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<std::string> modelNames = {
-    "ESPCN_x2_DynHW_H960xW960",
-    "ESPCN_x2_DynNHW_H960xW960",
+    "ESPCN_x2_DynHW_H480xW640",
+    "ESPCN_x2_DynNHW_H480xW640",
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1564,8 +1574,8 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H960xW960_NCHW",
-                                                      "ESPCN_x2_DynNHW_H960xW960_NCHW"};
+const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H480xW640_NCHW",
+                                                      "ESPCN_x2_DynNHW_H480xW640_NCHW"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),
