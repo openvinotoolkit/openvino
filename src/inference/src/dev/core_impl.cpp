@@ -1923,10 +1923,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                                     const CacheContent& cache_content) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
 
-    auto cfg = parsed_config;
-    if (cache_content.m_shared_ctx && device_supports_internal_property(plugin, ov::internal::model_sharing_context)) {
-        cfg.emplace(ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
-    }
+    const auto get_cfg_with_shared_ctx = [](auto&& parsed_config, auto&& cache_content) {
+        auto config_with_shared_ctx = parsed_config;
+        config_with_shared_ctx.emplace(ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
+        return config_with_shared_ctx;
+    };
+    const auto& cfg =
+        cache_content.m_shared_ctx && device_supports_internal_property(plugin, ov::internal::model_sharing_context)
+            ? get_cfg_with_shared_ctx(parsed_config, cache_content)
+            : parsed_config;
 
     auto compiled_model = context ? plugin.compile_model(model, context, cfg) : plugin.compile_model(model, cfg);
     if (cache_content.m_cache_manager && device_supports_model_caching(plugin)) {
