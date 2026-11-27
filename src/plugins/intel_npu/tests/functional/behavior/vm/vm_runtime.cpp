@@ -344,7 +344,7 @@ protected:
 
     // Allocates ZeroMem-backed memref handles for all graph arguments.
     void prepareZeroMemRefs(npu_vm_runtime_handle_t handle, const npu_vm_runtime_properties_t& props,
-                            const std::shared_ptr<intel_npu::ZeroInitStructsHolder>& initStruct,
+                            const std::shared_ptr<intel_npu::ZeroContext>& initStruct,
                             std::vector<ZeroMemRef>& inputs, std::vector<ZeroMemRef>& outputs) {
         constexpr std::size_t kPageSize = 4096;
         ze_graph_argument_properties_3_t arg;
@@ -402,7 +402,7 @@ protected:
     }
 
     // Initialises a command queue, graph extension table, command lists, and a fence.
-    void setupZEInfrastructure(const std::shared_ptr<intel_npu::ZeroInitStructsHolder>& initStruct,
+    void setupZEInfrastructure(const std::shared_ptr<intel_npu::ZeroContext>& initStruct,
                                const npu_vm_runtime_properties_t& props,
                                std::shared_ptr<intel_npu::CommandQueue>& commandQueue,
                                ze_graph_dditable_ext_t*& graphDdiTableExt,
@@ -422,13 +422,13 @@ protected:
 
         graphDdiTableExt = nullptr;
         checkStatus("zeDriverGetExtensionFunctionAddress",
-                    intel_npu::zeDriverGetExtensionFunctionAddress(initStruct->getDriver(), ZE_GRAPH_EXT_NAME,
+                    intel_npu::zeDriverGetExtensionFunctionAddress(initStruct->getZeroDriver()->getZeDriver(), ZE_GRAPH_EXT_NAME,
                                                                    reinterpret_cast<void**>(&graphDdiTableExt)));
 
         commandQueueDdiTableExt = nullptr;
         checkStatus(
                 "zeDriverGetExtensionFunctionAddress",
-                intel_npu::zeDriverGetExtensionFunctionAddress(initStruct->getDriver(), ZE_COMMAND_QUEUE_NPU_EXT_NAME,
+                intel_npu::zeDriverGetExtensionFunctionAddress(initStruct->getZeroDriver()->getZeDriver(), ZE_COMMAND_QUEUE_NPU_EXT_NAME,
                                                                reinterpret_cast<void**>(&commandQueueDdiTableExt)));
 
         commandLists.reserve(props.numOfSubGraphs);
@@ -446,7 +446,7 @@ protected:
 
     // Builds execution parameters from the provided ZE handles and memref arg arrays.
     static npu_vm_runtime_execute_params_t buildExecParams(
-            const std::shared_ptr<intel_npu::ZeroInitStructsHolder>& initStruct,
+            const std::shared_ptr<intel_npu::ZeroContext>& initStruct,
             std::vector<npu_vm_runtime_mem_ref_handle_t>& inputArgs,
             std::vector<npu_vm_runtime_mem_ref_handle_t>& outputArgs,
             std::vector<ze_command_list_handle_t>& commandListHandles,
@@ -459,7 +459,7 @@ protected:
         execParams.numOfOutputs = static_cast<uint32_t>(outputArgs.size());
         execParams.pOutputs = outputArgs.data();
         execParams.ctx = initStruct->getContext();
-        execParams.device = initStruct->getDevice();
+        execParams.device = initStruct->getZeroDriver()->getDefaultDevice()->getZeDevice();
         execParams.graphDdiTableExt = graphDdiTableExt;
         execParams.commandLists = commandListHandles.data();
         execParams.numCommandLists = static_cast<uint64_t>(commandListHandles.size());
@@ -645,7 +645,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModel) {
     npu_vm_runtime_properties_t props;
     ASSERT_NO_FATAL_FAILURE(createRuntimeHandle(handle, props));
 
-    auto initStruct = std::make_shared<intel_npu::ZeroInitStructsHolder>();
+    auto initStruct = std::make_shared<intel_npu::ZeroContext>();
     std::vector<ZeroMemRef> inputs, outputs;
     ASSERT_NO_FATAL_FAILURE(prepareZeroMemRefs(handle, props, initStruct, inputs, outputs));
 
@@ -693,7 +693,7 @@ TEST_P(NPUVMRuntimeCAPITest, UpdateMutableCommandList) {
     ASSERT_EQ(fntbl.npuVMRuntimeCreateExecutionContext(handle, &executionContextHandle), NPU_VM_RUNTIME_RESULT_SUCCESS);
     ASSERT_NE(executionContextHandle, nullptr);
 
-    auto initStruct = std::make_shared<intel_npu::ZeroInitStructsHolder>();
+    auto initStruct = std::make_shared<intel_npu::ZeroContext>();
     std::vector<ZeroMemRef> inputs, outputs;
     ASSERT_NO_FATAL_FAILURE(prepareZeroMemRefs(handle, props, initStruct, inputs, outputs));
 
@@ -1019,7 +1019,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModel_v2) {
     npu_vm_runtime_properties_t props;
     ASSERT_NO_FATAL_FAILURE(createRuntimeHandle_v2(handle, props));
 
-    auto initStruct = std::make_shared<intel_npu::ZeroInitStructsHolder>();
+    auto initStruct = std::make_shared<intel_npu::ZeroContext>();
     std::vector<ZeroMemRef> inputs, outputs;
     ASSERT_NO_FATAL_FAILURE(prepareZeroMemRefs(handle, props, initStruct, inputs, outputs));
 
@@ -1040,7 +1040,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModel_v2) {
     npu_vm_runtime_create_execution_context_params_t createContextParams;
     createContextParams.commandQueue = nullptr;
     createContextParams.ctx = initStruct->getContext();
-    createContextParams.device = initStruct->getDevice();
+    createContextParams.device = initStruct->getZeroDriver()->getDefaultDevice()->getZeDevice();
     createContextParams.graphDdiTableExt = graphDdiTableExt;
     createContextParams.commandQueueDdiTableExt = commandQueueDdiTableExt;
     ASSERT_EQ(fntbl.npuVMRuntimeCreateExecutionContext2(handle, &createContextParams, &executionContextHandle),
@@ -1078,7 +1078,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModelWithSharedCmdQueue_v2) {
     npu_vm_runtime_properties_t props;
     ASSERT_NO_FATAL_FAILURE(createRuntimeHandle_v2(handle, props));
 
-    auto initStruct = std::make_shared<intel_npu::ZeroInitStructsHolder>();
+    auto initStruct = std::make_shared<intel_npu::ZeroContext>();
     std::vector<ZeroMemRef> inputs, outputs;
     ASSERT_NO_FATAL_FAILURE(prepareZeroMemRefs(handle, props, initStruct, inputs, outputs));
 
@@ -1100,7 +1100,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModelWithSharedCmdQueue_v2) {
     createContextParams.commandQueue = commandQueue->handle();
 
     createContextParams.ctx = initStruct->getContext();
-    createContextParams.device = initStruct->getDevice();
+    createContextParams.device = initStruct->getZeroDriver()->getDefaultDevice()->getZeDevice();
     createContextParams.graphDdiTableExt = graphDdiTableExt;
     createContextParams.commandQueueDdiTableExt = commandQueueDdiTableExt;
     ASSERT_EQ(fntbl.npuVMRuntimeCreateExecutionContext2(handle, &createContextParams, &executionContextHandle),
@@ -1138,7 +1138,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModelWithCmdQueueConfig_v2) {
     npu_vm_runtime_properties_t props;
     ASSERT_NO_FATAL_FAILURE(createRuntimeHandle_v2(handle, props));
 
-    auto initStruct = std::make_shared<intel_npu::ZeroInitStructsHolder>();
+    auto initStruct = std::make_shared<intel_npu::ZeroContext>();
     std::vector<ZeroMemRef> inputs, outputs;
     ASSERT_NO_FATAL_FAILURE(prepareZeroMemRefs(handle, props, initStruct, inputs, outputs));
 
@@ -1159,7 +1159,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModelWithCmdQueueConfig_v2) {
     npu_vm_runtime_create_execution_context_params_t createContextParams;
     createContextParams.commandQueue = nullptr;
     createContextParams.ctx = initStruct->getContext();
-    createContextParams.device = initStruct->getDevice();
+    createContextParams.device = initStruct->getZeroDriver()->getDefaultDevice()->getZeDevice();
     createContextParams.graphDdiTableExt = graphDdiTableExt;
     createContextParams.commandQueueDdiTableExt = commandQueueDdiTableExt;
 

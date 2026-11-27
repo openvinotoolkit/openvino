@@ -26,7 +26,6 @@ public:
     static constexpr uint32_t kDeviceId = 0;
     static constexpr uint32_t kSubDevId = 3;
     static constexpr uint32_t kMaxNumSlices = 4;
-    static constexpr uint64_t kAllocMemSize = 4096;
     static constexpr uint8_t kUuidByte = 0x5A;
 
     // @param reportsMaxNumSlices When false, getMaxNumSlices() fails like on a device that cannot report it.
@@ -45,19 +44,11 @@ public:
         uuid.uuid.fill(kUuidByte);
         return uuid;
     }
-    uint64_t getAllocMemSize() const override {
-        return kAllocMemSize;
-    }
     uint32_t getSubDevId() const override {
         return kSubDevId;
     }
     uint32_t getMaxNumSlices() const override {
         return _reportsMaxNumSlices ? kMaxNumSlices : ::intel_npu::IDevice::getMaxNumSlices();
-    }
-    std::shared_ptr<::intel_npu::InferRequest> createInferRequest(
-        const std::shared_ptr<const ::intel_npu::ICompiledModel>&,
-        const ::intel_npu::Config&) override {
-        return nullptr;
     }
     void updateInfo(const ov::AnyMap&) override {}
     bool validateCompatibilityDescriptor(const std::string&) const override {
@@ -72,10 +63,33 @@ private:
     bool _reportsMaxNumSlices;
 };
 
+// What the fake driver reports, handed out through the driver of the fake backend
 struct FakeBackendOptions {
     bool contextExtensionSupported = false;
     uint32_t driverVersion = 1;
     uint32_t graphExtVersion = 1;
+};
+
+// A driver that reports the values it was given, with a dummy handle.
+class FakeDriver final : public ::intel_npu::IDriver {
+public:
+    explicit FakeDriver(FakeBackendOptions options = {}) : _options(options) {}
+
+    void* getDriverHandle() const override {
+        return reinterpret_cast<void*>(0x1);
+    }
+    uint32_t getDriverVersion() const override {
+        return _options.driverVersion;
+    }
+    uint32_t getGraphExtVersion() const override {
+        return _options.graphExtVersion;
+    }
+    bool isContextExtSupported() const override {
+        return _options.contextExtensionSupported;
+    }
+
+private:
+    const FakeBackendOptions _options;
 };
 
 // Mirrors the device lookup of ZeroEngineBackend: an empty id selects the first device, a number is an index when it is
@@ -127,6 +141,9 @@ public:
             names.push_back(device->getName());
         }
         return names;
+    }
+    std::shared_ptr<::intel_npu::IDriver> getDriver() const override {
+        return std::make_shared<FakeDriver>(_options);
     }
     const std::string getName() const override {
         return kName;

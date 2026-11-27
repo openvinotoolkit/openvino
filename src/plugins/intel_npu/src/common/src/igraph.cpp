@@ -66,8 +66,8 @@ void IGraph::update_network_name(std::string_view) {
     OPENVINO_THROW("update_network_name not implemented");
 }
 
-CommandQueueDesc IGraph::get_command_queue_desc() const {
-    OPENVINO_THROW("get_command_queue_desc not implemented");
+uint64_t IGraph::get_command_queue_key() const {
+    OPENVINO_THROW("get_command_queue_key not implemented");
 }
 
 void IGraph::set_workload_type(const ov::WorkloadType) {
@@ -76,14 +76,6 @@ void IGraph::set_workload_type(const ov::WorkloadType) {
 
 void IGraph::set_model_priority(const ov::hint::Priority) {
     OPENVINO_THROW("set_model_priority not implemented");
-}
-
-void IGraph::set_last_submitted_event(const std::shared_ptr<Event>&, size_t) {
-    OPENVINO_THROW("set_last_submitted_event not implemented");
-}
-
-const std::shared_ptr<Event>& IGraph::get_last_submitted_event(size_t) const {
-    OPENVINO_THROW("get_last_submitted_event not implemented");
 }
 
 void IGraph::resize_last_submitted_event(size_t) {

@@ -9,17 +9,18 @@
 #include <atomic>
 #include <mutex>
 
-#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/utils/zero/zero_graph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_graph_deps.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class DynamicGraph final : public IGraph {
+class DynamicGraph final : public IZeroGraph {
 public:
-    DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    DynamicGraph(const ZeroGraphDeps& zeroDeps,
                  ov::Tensor blob,
                  BlobType blobType = BlobType::BYTECODE);
 
@@ -63,7 +64,7 @@ private:
     void create_execution_engine(const Config& config);
     void prepare_metadata();
 
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    ZeroGraphDeps _zeroDeps;
 
     NetworkMetadata _metadata;
 

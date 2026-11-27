@@ -17,9 +17,9 @@ RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBack
         OPENVINO_THROW("Level zero backend is not found!");
     }
 
-    _init_structs = engineBackend->getInitStructs();
+    _init_structs = asZeroContext(engineBackend->getContext());
 
-    _properties = {l0_context(engineBackend->getContext())};
+    _properties = {l0_context(engineBackend->getContext()->getContextHandle())};
 
     if (!remote_properties.empty()) {
         _mem_type_object = zeroUtils::extract_object(remote_properties, mem_type);

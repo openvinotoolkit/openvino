@@ -21,7 +21,7 @@ public:
     ZeroMemPoolManager() = default;
     ~ZeroMemPoolManager() = default;
 
-    static std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    static std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                                     const size_t bytes,
                                                     const size_t alignment,
                                                     const bool is_input) {
@@ -40,7 +40,7 @@ public:
         return zero_memory;
     }
 
-    static std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    static std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                                          const void* data,
                                                          const size_t bytes) {
         auto zero_memory = std::shared_ptr<ZeroMem>(new ZeroMem(init_structs, data, bytes, false, false),
@@ -59,7 +59,7 @@ public:
     }
 
     static std::shared_ptr<ZeroMem> import_standard_allocation_memory(
-        const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+        const std::shared_ptr<ZeroContext>& init_structs,
         const void* data,
         const size_t bytes,
         const bool is_input) {
@@ -114,7 +114,7 @@ public:
 
 private:
     static std::shared_ptr<ZeroMem> import_standard_allocation(
-        const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+        const std::shared_ptr<ZeroContext>& init_structs,
         const void* data,
         const size_t bytes,
         const bool is_input) {
@@ -135,7 +135,7 @@ private:
         return zero_memory;
     }
 
-    static void update_pool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    static void update_pool(const std::shared_ptr<ZeroContext>& init_structs,
                             const std::shared_ptr<ZeroMem>& zero_memory) {
         auto& zero_mem_pool = init_structs->getZeroMemPool().mem_pool;
         auto pair = std::make_pair(zero_memory->id(), zero_memory);
@@ -157,7 +157,7 @@ private:
         zero_mem_pool.emplace(pair);
     }
 
-    static void delete_pool_entry(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, ZeroMem* zero_memory) {
+    static void delete_pool_entry(const std::shared_ptr<ZeroContext>& init_structs, ZeroMem* zero_memory) {
         auto& zero_mem_pool = init_structs->getZeroMemPool().mem_pool;
         std::unique_lock<std::mutex> deleter_lock(init_structs->getZeroMemPool().mem_pool_deleter_mutex);
         zero_mem_pool.erase(zero_memory->id());
@@ -165,20 +165,20 @@ private:
     }
 };
 
-std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                          const size_t bytes,
                                          const size_t alignment,
                                          const bool is_input) {
     return ZeroMemPoolManager::allocate_memory(init_structs, bytes, alignment, is_input);
 }
 
-std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                               const void* data,
                                               const size_t bytes) {
     return ZeroMemPoolManager::import_shared_memory(init_structs, data, bytes);
 }
 
-std::shared_ptr<ZeroMem> import_standard_allocation_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+std::shared_ptr<ZeroMem> import_standard_allocation_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                                            const void* data,
                                                            const size_t bytes,
                                                            const bool is_input) {

@@ -36,7 +36,7 @@ class ZeroCmdQueuePoolTests : public ov::test::behavior::OVPluginTestBase,
                               public testing::WithParamInterface<std::string> {
 protected:
     ov::AnyMap configuration;
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
@@ -64,7 +64,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
-        init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        init_struct = ::intel_npu::ZeroContext::getInstance();
     }
 
     void TearDown() override {
@@ -80,7 +80,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeForNewQueue) {
                                                      nullptr,
                                                      true};
 
-    if (init_struct->getCommandQueueDdiTable().version() > 0) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() > 0) {
         OV_ASSERT_NO_THROW(
             ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc));
     } else {
@@ -92,7 +92,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeForNewQueue) {
 }
 
 TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
-    if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
         GTEST_SKIP() << "The WorkloadType feature is not supported by the current driver.\n";
     }
 
@@ -111,7 +111,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
 }
 
 TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
-    if (!init_struct->getCapabilities().commandQueueSetPrioritySupported) {
+    if (!init_struct->getZeroDriver()->getCapabilities().commandQueueSetPrioritySupported) {
         GTEST_SKIP() << "The SetPriority feature is not supported by the current driver.\n";
     }
 
@@ -236,7 +236,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
     EXPECT_NE(base_queue.get(), priority_queue.get())
         << "Changing model priority should create a different queue for shared_common_queue=false";
 
-    if (init_struct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
         ::intel_npu::CommandQueueDesc workload_desc{
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
             ZE_WORKLOAD_TYPE_BACKGROUND,
@@ -251,7 +251,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
             << "Changing workload type should create a different queue for shared_common_queue=false";
     }
 
-    if (init_struct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
         ::intel_npu::CommandQueueDesc option_desc{
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
             std::nullopt,
@@ -268,7 +268,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
 }
 
 TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
-    if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
         GTEST_SKIP() << "Not all the command queue options are supported by the current driver.\n";
     }
 
@@ -315,7 +315,7 @@ TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
 }
 
 TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsDisabled) {
-    if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
         GTEST_SKIP()
             << "ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC command queue option is not supported by the current driver.\n";
     }
@@ -394,7 +394,7 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
 }
 
 TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTest) {
-    if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
         GTEST_SKIP() << "Workload type and turbo options are not supported by the current driver.\n";
     }
 
@@ -471,7 +471,7 @@ TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTest) {
 }
 
 TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTestWithDestroyCmdQueue) {
-    if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+    if (init_struct->getZeroDriver()->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
         GTEST_SKIP() << "Workload type and turbo options are not supported by the current driver.\n";
     }
 

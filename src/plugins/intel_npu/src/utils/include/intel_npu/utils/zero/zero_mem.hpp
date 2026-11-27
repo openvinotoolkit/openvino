@@ -40,7 +40,7 @@ private:
      * @param is_input Optimize reads from this buffer. Specific level zero flags will be used for allocation in case
      * the buffer is intended to be used as an input.
      */
-    ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    ZeroMem(const std::shared_ptr<ZeroContext>& init_structs,
             const size_t bytes,
             const size_t alignment,
             const bool is_input);
@@ -55,7 +55,7 @@ private:
      * @param standard_allocation If a CPU standard allocation is shared it must be set to true. Otherwise it will try
      * to import DMA-BUF (on Linux) or WIN32 (on Windows) memory.
      */
-    ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    ZeroMem(const std::shared_ptr<ZeroContext>& init_structs,
             const void* data,
             const size_t bytes,
             const bool is_input,
@@ -68,7 +68,7 @@ private:
 
     ~ZeroMem();
 
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
     Logger _logger;
 
     void* _ptr = nullptr;

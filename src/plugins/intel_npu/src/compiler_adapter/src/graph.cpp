@@ -14,16 +14,16 @@
 namespace intel_npu {
 
 Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-             const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+             const ZeroGraphDeps& zeroDeps,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
              const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
-    : IGraph(),
+    : IZeroGraph(),
       _zeGraphExt(zeGraphExt),
-      _zeroInitStruct(zeroInitStruct),
+      _zeroDeps(zeroDeps),
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
@@ -46,7 +46,7 @@ CommandQueueDesc Graph::get_command_queue_desc() const {
 }
 
 void Graph::set_workload_type(const ov::WorkloadType workloadType) {
-    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
+    OPENVINO_ASSERT(_zeroDeps, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
@@ -67,7 +67,7 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
 }
 
 void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
-    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
+    OPENVINO_ASSERT(_zeroDeps, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
@@ -75,7 +75,7 @@ void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
     // If the graph already holds a command queue, that queue is the one used for execution,
     // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
-        if (_zeroInitStruct->getCapabilities().commandQueueSetPrioritySupported) {
+        if (_zeroDeps.driver->getCapabilities().commandQueueSetPrioritySupported) {
             _commandQueue->setPriority(zeModelPriority);
             return;
         }
@@ -90,7 +90,7 @@ void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
         }
 
         _commandQueueDesc.setPriority(zeModelPriority);
-        _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+        _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroDeps.context, _commandQueueDesc);
     }
 
     // Otherwise, the command queue is not created yet. Update the command queue descriptor,
@@ -182,19 +182,19 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
 void Graph::initialize_impl(const Config& config) {
     _logger.debug("Graph initialize start");
 
-    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || !_zeroDeps) {
         // To ensure that no issues are thrown during subsequent calls.
         return;
     }
 
     bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
     uint32_t commandQueueOptions = 0;
-    if (config.get<TURBO>() && _zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+    if (config.get<TURBO>() && _zeroDeps.driver->getCommandQueueExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
     if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+        if (_zeroDeps.driver->getCommandQueueExtVersion() >= ZE_MAKE_VERSION(1, 1)) {
             _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
         } else {
@@ -216,7 +216,7 @@ void Graph::initialize_impl(const Config& config) {
 
         if (sharedCommonQueue == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
-            _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+            _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroDeps.context, _commandQueueDesc);
         }
     }
 
@@ -233,7 +233,7 @@ void Graph::initialize_impl(const Config& config) {
     }
 
     if (config.get<RUN_INFERENCES_SEQUENTIALLY>() &&
-        _zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
+        _zeroDeps.driver->getCommandQueueExtVersion() < ZE_MAKE_VERSION(1, 1)) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
         _lastSubmittedEvent.resize(numberOfCommandLists);

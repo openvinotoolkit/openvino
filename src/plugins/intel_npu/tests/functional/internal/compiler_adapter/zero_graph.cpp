@@ -88,7 +88,7 @@ protected:
 
         ZeroInitTargets targets;
         targets.graphNpuExtVersion = zeGraphNpuExtVersion;
-        zeroInitStruct = std::make_shared<ZeroInitStructsHolder>(targets);
+        zeroInitStruct = std::make_shared<ZeroContext>(targets);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     }
 
@@ -103,7 +103,7 @@ protected:
     }
 
     void serializeIR() {
-        auto compilerProperties = zeroInitStruct->getCompilerProperties();
+        auto compilerProperties = zeroInitStruct->getZeroDriver()->getDefaultDevice()->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
         // The test is not concerned with validating the serialization algorithm. Choose the "all-weights-copy" as the
         // safest version.
@@ -137,7 +137,7 @@ protected:
         return false;
     }
 
-    std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
+    std::shared_ptr<ZeroContext> zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
     ov::AnyMap configuration;
 
@@ -310,8 +310,8 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
-    if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 13) &&
-        zeroInitStruct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 13) &&
+        zeroInitStruct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         ASSERT_TRUE(zeGraphExt->isBlobDataImported(graphDescriptor));
     } else {
         ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
@@ -320,9 +320,9 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
 
 #ifdef _WIN32
 TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
-    if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11)) {
+    if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11)) {
         // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-        if (zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(zeroInitStruct->getDevice(),
+        if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().pfnCompilerIsOptionSupported(zeroInitStruct->getZeroDriver()->getDefaultDevice()->getZeDevice(),
                                                                             ZE_NPU_DRIVER_OPTIONS,
                                                                             "NO_THROW_ON_UNSUPPORTED_FEATURE",
                                                                             nullptr) != ZE_RESULT_SUCCESS) {
@@ -344,7 +344,7 @@ TEST_P(ZeroGraphTest, DontDestroyZeroGraphWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto localZeroInitStruct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto localZeroInitStruct = std::make_shared<::intel_npu::ZeroContext>();
 
     {
         utils::LogCallbackGuard log_callback_guard(logCb);
@@ -356,7 +356,7 @@ TEST_P(ZeroGraphTest, DontDestroyZeroGraphWhenZeroContextIsDestroyed) {
         OV_ASSERT_NO_THROW(localGraphDescriptor = localZeroGraphExt->getGraphDescriptor(serializedIR, ""));
         OV_ASSERT_NO_THROW(localZeroGraphExt->initializeGraph(localGraphDescriptor));
 
-        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(localZeroInitStruct);
+        ::intel_npu::ZeroContext::destroyContextForInstance(localZeroInitStruct);
 
         try {
             localZeroGraphExt->destroyGraph(localGraphDescriptor);
@@ -373,7 +373,7 @@ using IsOptionSupported = ZeroGraphTest;
 TEST_P(IsOptionSupported, GetCompilerSupportedOptions) {
     std::optional<std::string> compilerSupportedOptions;
     OV_ASSERT_NO_THROW(compilerSupportedOptions = zeGraphExt->getCompilerSupportedOptions());
-    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+    if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
         ASSERT_FALSE(compilerSupportedOptions.has_value());
     } else {
         ASSERT_TRUE(compilerSupportedOptions.has_value());
@@ -383,7 +383,7 @@ TEST_P(IsOptionSupported, GetCompilerSupportedOptions) {
 TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
     std::optional<bool> isOptionSupportedResult;
     OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("FAKE_OPTION"));
-    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+    if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
         ASSERT_FALSE(isOptionSupportedResult.has_value());
     } else {
         ASSERT_TRUE(isOptionSupportedResult.has_value());
@@ -394,7 +394,7 @@ TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
 TEST_P(IsOptionSupported, PropertySupportedByDriver) {
     std::optional<bool> isOptionSupportedResult;
     OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("PERFORMANCE_HINT"));
-    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+    if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
         ASSERT_FALSE(isOptionSupportedResult.has_value());
     } else {
         ASSERT_TRUE(isOptionSupportedResult.has_value());
@@ -407,7 +407,7 @@ using EncryptionCallbacks = ZeroGraphTest;
 TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
     auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     serializeIR();
-    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+    if (zeroInitStruct->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
         OV_EXPECT_THROW(
             localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true),
             ov::Exception,

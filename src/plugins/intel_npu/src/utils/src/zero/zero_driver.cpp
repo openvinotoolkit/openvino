@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_driver.hpp"
 
 #include <ze_command_queue_npu_ext.h>
 #include <ze_context_npu_ext.h>
@@ -11,6 +11,7 @@
 
 #include <regex>
 
+#include "intel_npu/utils/zero/zero_device.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
@@ -38,10 +39,10 @@ void saveSupportedExtension(std::map<std::string, uint32_t, std::less<>>& suppor
 
 namespace intel_npu {
 
-void ZeroInitStructsHolder::initNpuDriver(const ze_api_version_t zeApiVersion) {
+void ZeroDriver::initNpuDriver(const ze_api_version_t zeApiVersion) {
     auto setNpuDriver = [&](uint32_t drivers_count, std::vector<ze_driver_handle_t> all_drivers) {
         _driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
-        _log.debug("ZeroInitStructsHolder::initNpuDriver - get NPU driver");
+        _log.debug("ZeroDriver::initNpuDriver - get NPU driver");
         for (uint32_t i = 0; i < drivers_count; ++i) {
             zeDriverGetProperties(all_drivers[i], &_driver_properties);
             if (memcmp(&_driver_properties.uuid, &uuid, sizeof(uuid)) == 0) {
@@ -57,11 +58,11 @@ void ZeroInitStructsHolder::initNpuDriver(const ze_api_version_t zeApiVersion) {
     bool get_loader_version = false;
 
     auto fallbackToZeDriverGet = [&]() {
-        _log.debug("ZeroInitStructsHolder::initNpuDriver - zeInitDrivers not supported, fallback to zeDriverGet");
+        _log.debug("ZeroDriver::initNpuDriver - zeInitDrivers not supported, fallback to zeDriverGet");
 
         if (get_loader_version) {
             // With a newer Loader but an older Driver where zeInitDriver is not supported, we still need to call zeInit
-            _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zeInit on NPU only");
+            _log.debug("ZeroDriver::initNpuDriver - performing zeInit on NPU only");
             THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
         }
 
@@ -77,7 +78,7 @@ void ZeroInitStructsHolder::initNpuDriver(const ze_api_version_t zeApiVersion) {
 
     zel_version_t loader_version = {};
     try {
-        _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zelGetLoaderVersion");
+        _log.debug("ZeroDriver::initNpuDriver - performing zelGetLoaderVersion");
         zel_component_version_t version;
         auto result = zelGetLoaderVersion(&version);
         if (result == ZE_RESULT_SUCCESS) {
@@ -89,7 +90,7 @@ void ZeroInitStructsHolder::initNpuDriver(const ze_api_version_t zeApiVersion) {
     }
 
     if (!get_loader_version) {
-        _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zeInit on NPU only");
+        _log.debug("ZeroDriver::initNpuDriver - performing zeInit on NPU only");
         THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
         size_t num_components;
         auto result = zelLoaderGetVersions(&num_components, nullptr);
@@ -107,7 +108,7 @@ void ZeroInitStructsHolder::initNpuDriver(const ze_api_version_t zeApiVersion) {
         }
     }
 
-    _log.debug("ZeroInitStructsHolder::initNpuDriver - ze_loader.dll version: %d.%d.%d",
+    _log.debug("ZeroDriver::initNpuDriver - ze_loader.dll version: %d.%d.%d",
                loader_version.major,
                loader_version.minor,
                loader_version.patch);
@@ -143,10 +144,10 @@ void ZeroInitStructsHolder::initNpuDriver(const ze_api_version_t zeApiVersion) {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
+ZeroDriver::ZeroDriver(const ZeroInitTargets& targets)
     : _zero_api(ZeroApi::get_instance()),
-      _log("NPUZeroInitStructsHolder", Logger::global().level()) {
-    _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
+      _log("NPUZeroDriver", Logger::global().level()) {
+    _log.debug("ZeroDriver - initialize NPU Driver");
     initNpuDriver(targets.zeApiVersion);
     ze_api_version_t ze_drv_api_version = {};
 
@@ -264,7 +265,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
     ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
     getExtensionFunctionAddress(graph_ext_name, graph_ext_version, reinterpret_cast<void**>(&graph_ddi_table_ext));
     _graph_dditable_ext_decorator =
-        std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, graph_ext_version);
+        std::make_shared<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, graph_ext_version);
 
     // Query npu command queue extension version
     std::string command_queue_ext_name;
@@ -289,7 +290,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
     }
 
     _command_queue_npu_dditable_ext_decorator =
-        std::make_unique<ze_command_queue_npu_dditable_ext_decorator>(command_queue_npu_dditable_ext,
+        std::make_shared<ze_command_queue_npu_dditable_ext_decorator>(command_queue_npu_dditable_ext,
                                                                       command_queue_ext_version);
 
     // Query the mutable command list version
@@ -332,7 +333,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
                                 reinterpret_cast<void**>(&graph_profiling_ddi_table_ext));
 
     _graph_profiling_npu_dditable_ext_decorator =
-        std::make_unique<ze_graph_profiling_dditable_ext_decorator>(graph_profiling_ddi_table_ext);
+        std::make_shared<ze_graph_profiling_dditable_ext_decorator>(graph_profiling_ddi_table_ext);
 
     // Query npu context extension version
     std::string context_ext_name;
@@ -357,18 +358,13 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
     }
 
     _context_npu_dditable_ext_decorator =
-        std::make_unique<ze_context_npu_dditable_ext_decorator>(context_npu_dditable_ext, context_ext_version);
+        std::make_shared<ze_context_npu_dditable_ext_decorator>(context_npu_dditable_ext, context_ext_version);
 
+    // The device the capabilities below are read from, it is handed on to the ZeroDevice made by createDevice()
     uint32_t device_count = 1;
     // Get npu target device
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGet", zeDeviceGet(_driver_handle, &device_count, &_device_handle));
-
-    // Create context - share between the compiler and the backend
-    ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-    ze_context_handle_t ctx = nullptr;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &ctx));
-    _context.store(ctx);
-    _log.debug("ZeroInitStructsHolder initialize complete");
+    ze_device_handle_t device_handle = nullptr;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGet", zeDeviceGet(_driver_handle, &device_count, &device_handle));
 
     bool external_memory_standard_allocation_supported = false;
     bool external_memory_fd_win32_supported = false;
@@ -376,7 +372,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
     // Discover if standard allocation is supported
     ze_device_external_memory_properties_t external_memory_properties_desc = {};
     external_memory_properties_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
-    auto res = zeDeviceGetExternalMemoryProperties(_device_handle, &external_memory_properties_desc);
+    auto res = zeDeviceGetExternalMemoryProperties(device_handle, &external_memory_properties_desc);
     if (res == ZE_RESULT_SUCCESS) {
 #ifdef _WIN32
         if (external_memory_properties_desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32) {
@@ -441,81 +437,35 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
                ZE_MINOR_VERSION(device_luid_ext_version));
 
     const uint32_t command_queue_group_ordinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        zeroUtils::findCommandQueueGroupOrdinal(device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     _capabilities = makeZeroCapabilities(supported_extensions,
-                                         external_memory_standard_allocation_supported,
-                                         external_memory_fd_win32_supported,
-                                         command_queue_group_ordinal,
-                                         ze_drv_api_version);
+                                                         external_memory_standard_allocation_supported,
+                                                         external_memory_fd_win32_supported,
+                                                         command_queue_group_ordinal,
+                                                         ze_drv_api_version);
     _capabilities.driverVersion = _driver_properties.driverVersion;
-    _capabilities.graphExtVersion = _graph_dditable_ext_decorator->version();
+    _device_handles.push_back(device_handle);
 }
 
-const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
-    static std::mutex mutex;
-    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
-
-    std::lock_guard<std::mutex> lock(mutex);
-    auto instance = weak_instance.lock();
-
-    if (instance) {
-        // Check if device is still valid
-        auto res = zeDeviceGetStatus(instance->getDevice());
-        if (res == ZE_RESULT_ERROR_DEVICE_LOST) {
-            destroyContextForInstance(instance);
-            weak_instance.reset();
-            instance.reset();
+const std::vector<std::shared_ptr<ZeroDevice>>& ZeroDriver::getDevices() {
+    std::call_once(_devices_flag, [this] {
+        for (const auto deviceHandle : _device_handles) {
+            _devices.push_back(std::make_shared<ZeroDevice>(deviceHandle, shared_from_this()));
         }
-    }
-
-    if (!instance) {
-        instance = std::make_shared<ZeroInitStructsHolder>();
-        weak_instance = instance;
-    }
-
-    return instance;
+    });
+    return _devices;
 }
 
-void ZeroInitStructsHolder::destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance) {
-    if (!instance) {
-        return;
-    }
-
-    std::lock_guard<std::mutex> lock(instance->_mutex);
-    instance->destroyContextLocked();
+const std::shared_ptr<ZeroDevice>& ZeroDriver::getDefaultDevice() {
+    const auto& devices = getDevices();
+    OPENVINO_ASSERT(!devices.empty(), "No NPU device was found on the driver");
+    return devices.front();
 }
 
-ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
-    std::lock_guard<std::mutex> lock(_mutex);
-    initCompilerPropertiesLocked();
-    return _compiler_properties.value();
-}
-
-void ZeroInitStructsHolder::initCompilerPropertiesLocked() {
-    if (_compiler_properties.has_value()) {
-        return;
-    }
-
-    // Keep optional disengaged unless driver query succeeds.
-    ze_device_graph_properties_t compiler_properties = {};
-    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "pfnDeviceGetGraphProperties",
-        _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties));
-
-    _compiler_properties = compiler_properties;
-}
-
-uint32_t ZeroInitStructsHolder::getCompilerVersion() {
-    std::lock_guard<std::mutex> lock(_mutex);
-    initCompilerPropertiesLocked();
-    return ZE_MAKE_VERSION(_compiler_properties->compilerVersion.major, _compiler_properties->compilerVersion.minor);
-}
-
-void ZeroInitStructsHolder::getExtensionFunctionAddress(const std::string& name,
-                                                        const uint32_t version,
-                                                        void** function_address) {
+void ZeroDriver::getExtensionFunctionAddress(const std::string& name,
+                                              const uint32_t version,
+                                              void** function_address) {
     if (_driver_npu_dditable_ext_decorator->version()) {
         ze_driver_extension_npu_ext_t driver_extension = {ZE_STRUCTURE_TYPE_DRIVER_EXTENSION_NPU_EXT,
                                                           nullptr,
@@ -530,59 +480,6 @@ void ZeroInitStructsHolder::getExtensionFunctionAddress(const std::string& name,
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeDriverGetExtensionFunctionAddress" + name,
             zeDriverGetExtensionFunctionAddress(_driver_handle, name.c_str(), function_address));
-    }
-}
-
-void ZeroInitStructsHolder::setContextProperties() {
-    ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
-                                                                  nullptr,
-                                                                  _context_options};
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "pfnSetProperties",
-        _context_npu_dditable_ext_decorator->pfnSetProperties(_context.load(), &context_properties_npu_ext));
-}
-
-void ZeroInitStructsHolder::clearContextOptions(const uint32_t options) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _context_options &= ~options;
-    setContextProperties();
-}
-
-void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _context_options |= options;
-    setContextProperties();
-}
-
-void ZeroInitStructsHolder::destroyContextLocked() {
-    _zero_mem_pool.clear();
-
-    if (!_context.load()) {
-        return;
-    }
-
-    _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
-    auto result = zeContextDestroy(_context.load());
-    if (result == ZE_RESULT_SUCCESS) {
-        _context.store(nullptr);
-        _log.debug("ZeroInitStructsHolder - zeContextDestroy succeeded");
-    } else if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
-        _context.store(nullptr);
-        _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
-    } else {
-        _log.error("zeContextDestroy failed %#X", uint64_t(result));
-    }
-}
-
-ZeroInitStructsHolder::~ZeroInitStructsHolder() {
-    std::lock_guard<std::mutex> lock(_mutex);
-    try {
-        destroyContextLocked();
-    } catch (const std::exception& e) {
-        _log.error("ZeroInitStructsHolder::~ZeroInitStructsHolder - exception during context destruction: %s",
-                   e.what());
-    } catch (...) {
-        _log.error("ZeroInitStructsHolder::~ZeroInitStructsHolder - unknown exception during context destruction");
     }
 }
 

@@ -95,7 +95,7 @@ protected:
     uint32_t zeGraphNpuExtVersion;
     uint32_t zeMutableCommandListExtVersion;
     std::unique_ptr<::intel_npu::Config> npu_config;
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zeroInitStruct;
+    std::shared_ptr<::intel_npu::ZeroContext> zeroInitStruct;
     std::shared_ptr<ov::Model> ov_model;
 
 public:
@@ -165,7 +165,7 @@ public:
         ::intel_npu::ZeroInitTargets targets;
         targets.graphNpuExtVersion = zeGraphNpuExtVersion;
         targets.mutableCommandListExtVersion = zeMutableCommandListExtVersion;
-        zeroInitStruct = std::make_shared<::intel_npu::ZeroInitStructsHolder>(targets);
+        zeroInitStruct = std::make_shared<::intel_npu::ZeroContext>(targets);
 
         OVPluginTestBase::SetUp();
     }
@@ -225,6 +225,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         ov_model,
         std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
+        nullptr,
+        nullptr,
         graph,
         *npu_config,
         unknownProperties,

@@ -50,7 +50,7 @@ public:
 
     static ZeroCmdQueuePool& getInstance();
 
-    std::shared_ptr<CommandQueue> getCommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    std::shared_ptr<CommandQueue> getCommandQueue(const std::shared_ptr<ZeroContext>& init_structs,
                                                   const CommandQueueDesc& command_queue_desc);
 
 private:

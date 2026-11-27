@@ -25,7 +25,9 @@ public:
      * to bugs.
      * @param model The IR of the model to be compiled
      * @param plugin Pointer towards the NPU plugin instance
-     * @param device Backend specific object through which inference requests can be created
+     * @param device The device the model runs on
+     * @param driver The driver the model runs on, with what it supports
+     * @param inferRequestFactory Creates the inference requests of the model
      * @param graph Object holding the graph handle along with distinct fields for metadata
      * @param config Custom configuration object
      * @param batchSize Optional batch size value.
@@ -33,6 +35,8 @@ public:
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
+                  const std::shared_ptr<const IDriver>& driver,
+                  const std::shared_ptr<IInferRequestFactory>& inferRequestFactory,
                   const std::shared_ptr<IGraph>& graph,
                   const Config& config,
                   const ov::AnyMap& properties,
@@ -70,6 +74,8 @@ private:
     Logger _logger;
 
     const std::shared_ptr<IDevice> _device;
+    const std::shared_ptr<const IDriver> _driver;
+    const std::shared_ptr<IInferRequestFactory> _inferRequestFactory;
     std::shared_ptr<IGraph> _graph;
     std::optional<int64_t> _batchSize;
 

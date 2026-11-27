@@ -130,9 +130,9 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     // and unsupported for earlier driver versions. CIP always supports it.
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const auto initStructs = ::intel_npu::ZeroContext::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
     if (driverHandlesCompatibilityCheck) {
         ASSERT_TRUE(it != properties.cend());
     } else {
@@ -170,9 +170,9 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
 
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const auto initStructs = ::intel_npu::ZeroContext::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
     if (driverHandlesCompatibilityCheck) {
         OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
     } else {
@@ -345,9 +345,9 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImportForWSIterativeCID) {
     // The compatibility descriptor on the compiler-in-driver path is only available when the driver
     // graph API version is high enough. On older drivers it is expected to be absent.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const auto initStructs = ::intel_npu::ZeroContext::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     // Preparing the model for the test
     std::stringstream model_xml, model_bin;
@@ -486,9 +486,9 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
 
     // Determine at runtime whether the driver version is sufficient to handle the
     // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const auto initStructs = ::intel_npu::ZeroContext::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
@@ -524,9 +524,9 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
 
     // Determine at runtime whether the driver version is sufficient to handle the
     // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const auto initStructs = ::intel_npu::ZeroContext::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));

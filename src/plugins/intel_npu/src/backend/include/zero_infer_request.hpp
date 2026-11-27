@@ -27,7 +27,7 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor);
 
 class ZeroInferRequest : public InferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    explicit ZeroInferRequest(const std::shared_ptr<ZeroContext>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
                               const Config& config);
 
@@ -182,7 +182,7 @@ protected:
     void check_network_precision(const ov::element::Type_t precision) const;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    const std::shared_ptr<ZeroContext> _initStructs;
 
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a reference to shared_ptr!

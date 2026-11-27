@@ -50,7 +50,7 @@ class ZeroMemPoolTests : public ov::test::behavior::OVPluginTestBase,
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
 
@@ -81,7 +81,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
-        init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        init_struct = ::intel_npu::ZeroContext::getInstance();
     }
 
     void TearDown() override {
@@ -101,7 +101,7 @@ TEST_P(ZeroMemPoolTests, GetZeroMemoryData) {
 
     std::shared_ptr<::intel_npu::ZeroMem> get_zero_mem;
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         OV_ASSERT_NO_THROW(get_zero_mem =
                                ::intel_npu::zero_mem::import_standard_allocation_memory(init_struct, data, 4096));
         ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), data));
@@ -120,7 +120,7 @@ TEST_P(ZeroMemPoolTests, GetZeroMemoryData) {
 TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         const int threads_no = 256;
         std::array<std::thread, threads_no> threads;
         std::array<std::shared_ptr<::intel_npu::ZeroMem>, 5> zero_mem;
@@ -161,7 +161,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         constexpr int threads_no = 256;
         constexpr int no_of_buffers = 5;
         std::array<std::thread, threads_no> threads;
@@ -202,7 +202,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
 TEST_P(ZeroMemPoolTests, GetPoolReturnsSamePoolForSameInitStruct) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto zero_init = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init = std::make_shared<::intel_npu::ZeroContext>();
     auto local_init_struct_0 = zero_init;
     auto local_init_struct_1 = zero_init;
 
@@ -218,9 +218,9 @@ TEST_P(ZeroMemPoolTests, GetPoolReturnsSamePoolForSameInitStruct) {
 TEST_P(ZeroMemPoolTests, CheckDifferentZeroStructsHolderPools) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto zero_init_0 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    auto zero_init_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    auto zero_init_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_0 = std::make_shared<::intel_npu::ZeroContext>();
+    auto zero_init_1 = std::make_shared<::intel_npu::ZeroContext>();
+    auto zero_init_2 = std::make_shared<::intel_npu::ZeroContext>();
 
     auto local_init_struct_0 = zero_init_0;
     auto local_init_struct_1 = zero_init_1;
@@ -259,9 +259,9 @@ TEST_P(ZeroMemPoolTests, MultiThreadingDifferentZeroInitStructsHaveIsolatedPools
     constexpr size_t threads_per_pool = 32;
     constexpr size_t total_threads = threads_per_pool * 3;
 
-    auto zero_init_0 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    auto zero_init_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    auto zero_init_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_0 = std::make_shared<::intel_npu::ZeroContext>();
+    auto zero_init_1 = std::make_shared<::intel_npu::ZeroContext>();
+    auto zero_init_2 = std::make_shared<::intel_npu::ZeroContext>();
 
     auto local_init_struct_0 = zero_init_0;
     auto local_init_struct_1 = zero_init_1;
@@ -306,7 +306,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingDifferentZeroInitStructsHaveIsolatedPools
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultipleInitStructs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (!init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (!init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "Test requires support for importing standard allocated memory as external memory, which is "
                         "not available on this platform.";
     }
@@ -315,11 +315,11 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
     constexpr size_t threads_per_pool = 32;
     constexpr size_t no_of_buffers = 5;
 
-    auto zero_init_0 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    auto zero_init_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    auto zero_init_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_0 = std::make_shared<::intel_npu::ZeroContext>();
+    auto zero_init_1 = std::make_shared<::intel_npu::ZeroContext>();
+    auto zero_init_2 = std::make_shared<::intel_npu::ZeroContext>();
 
-    std::array<std::shared_ptr<::intel_npu::ZeroInitStructsHolder>, init_structs_no> init_structs = {
+    std::array<std::shared_ptr<::intel_npu::ZeroContext>, init_structs_no> init_structs = {
         zero_init_0,
         zero_init_1,
         zero_init_2};
@@ -369,7 +369,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
 TEST_P(ZeroMemPoolTests, ImportMemoryAdjacentToAlreadyImportedAllocation) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (!init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (!init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "Test requires support for importing standard allocated memory as external memory, which is "
                         "not available on this platform.";
     }
@@ -411,16 +411,16 @@ TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto zero_init = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init = std::make_shared<::intel_npu::ZeroContext>();
 
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct = zero_init;
+    std::shared_ptr<::intel_npu::ZeroContext> zero_init_struct = zero_init;
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
 
         auto zero_memory = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
-        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init);
+        ::intel_npu::ZeroContext::destroyContextForInstance(zero_init);
 
         try {
             zero_memory = {};
@@ -435,8 +435,8 @@ TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
 TEST_P(ZeroMemPoolTests, PoolIsEmptiedAfterContextIsDestroyed) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto zero_init = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct = zero_init;
+    auto zero_init = std::make_shared<::intel_npu::ZeroContext>();
+    std::shared_ptr<::intel_npu::ZeroContext> zero_init_struct = zero_init;
 
     // Keep the ZeroMem objects alive on purpose: the pool must be cleared regardless of whether the
     // tracked instances are still referenced elsewhere.
@@ -444,13 +444,13 @@ TEST_P(ZeroMemPoolTests, PoolIsEmptiedAfterContextIsDestroyed) {
     auto mem1 = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
     ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 2u);
 
-    ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init);
+    ::intel_npu::ZeroContext::destroyContextForInstance(zero_init);
 
     ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 0u);
     ASSERT_EQ(zero_init->getZeroMemPool().notify_mem_pool.size(), 0u);
 
     // Destroying an already-destroyed context must be a no-op and must not crash.
-    OV_ASSERT_NO_THROW(::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init));
+    OV_ASSERT_NO_THROW(::intel_npu::ZeroContext::destroyContextForInstance(zero_init));
     ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 0u);
 
     mem0 = {};

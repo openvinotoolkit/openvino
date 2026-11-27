@@ -14,14 +14,14 @@
 
 namespace intel_npu {
 
-class ZeroInitStructsHolder;
+class ZeroContext;
 class ZeroMem;
 
 /**
  * @brief Per-context registry of tracked Level Zero memory objects.
  * @details Stores weak references to imported and allocated ZeroMem instances together with the synchronization
  * primitives used to serialize pool updates and coordinate pool entry removal with re-import attempts.
- * The pool is owned by ZeroInitStructsHolder to make it global for a given Level Zero context, while memory
+ * The pool is owned by ZeroContext to make it global for a given Level Zero context, while memory
  * allocation/import/look-up is intentionally mediated by zero_mem helper APIs.
  */
 struct ZeroMemPool {
@@ -57,7 +57,7 @@ namespace zero_mem {
  * @param alignment Alignment needed for the memory; it must be a multiple of the standard page size.
  * @param is_input Memory is used only as input or not.
  */
-std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                          const size_t bytes,
                                          const size_t alignment,
                                          const bool is_input = false);
@@ -69,7 +69,7 @@ std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroInitStructsHo
  * @param data Memory to be imported.
  * @param bytes Size in bytes of the memory that must be allocated.
  */
-std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                               const void* data,
                                               const size_t bytes);
 
@@ -82,7 +82,7 @@ std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStru
  * @param bytes Size in bytes of the memory.
  * @param is_input Memory is used only as input or not.
  */
-std::shared_ptr<ZeroMem> import_standard_allocation_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+std::shared_ptr<ZeroMem> import_standard_allocation_memory(const std::shared_ptr<ZeroContext>& init_structs,
                                                            const void* data,
                                                            const size_t bytes,
                                                            const bool is_input = false);

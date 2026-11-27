@@ -624,7 +624,7 @@ TEST_P(compatibility_CheckCompilerTypeProperty, CheckTurboWhenLoadingFromCacheWi
         }
 
         auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
-        if (!backend->getCapabilities().commandQueueExtSupported) {
+        if (!backend->getDriver()->isCommandQueueExtSupported()) {
             // Loading from cache must only warn that the compile-time property is not used, not fail.
             ASSERT_NE(logs.find("Property 'NPU_TURBO' is recognized as a compiler option, will not be used for current "
                                 "configuration."),
@@ -873,7 +873,7 @@ TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
     ov::Core core;
     ov::AnyMap configuration = {{configKey, configValue},
                                 ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)};
-    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+    if (::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
         OV_EXPECT_THROW(core.compile_model(model, deviceName, configuration),
                         ov::Exception,
                         testing::HasSubstr(

@@ -21,10 +21,10 @@
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+PluginCompilerAdapter::PluginCompilerAdapter(const ZeroGraphDeps& zeroDeps,
                                              const std::shared_ptr<IVCLCompiler>& compiler,
                                              const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
-    : _zeroInitStruct(zeroInitStruct),
+    : _zeroDeps(zeroDeps),
       _compiler(compiler),
       _profilingDecoder(profilingDecoder),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
@@ -32,15 +32,15 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     OPENVINO_ASSERT(_compiler != nullptr, "PluginCompilerAdapter requires a non-null compiler");
 
-    if (_zeroInitStruct == nullptr) {
+    if (!_zeroDeps) {
         return;
     }
 
-    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    uint32_t graphExtVersion = _zeroDeps.driver->getGraphDdiTable().version();
 
     _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
 
-    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroDeps);
 
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),
@@ -65,7 +65,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
+        return std::make_shared<DynamicGraph>(_zeroDeps, std::move(tensor), blobType);
     }
 
     GraphDescriptor graphDesc;
@@ -89,7 +89,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     return std::make_shared<Graph>(
         _zeGraphExt,
-        _zeroInitStruct,
+        _zeroDeps,
         graphDesc,
         std::move(networkMeta),
         std::move(tensor),
@@ -243,7 +243,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
-        _zeroInitStruct,
+        _zeroDeps,
         mainGraphDesc,
         std::move(mainNetworkMetadata),
         std::move(tensorMain),

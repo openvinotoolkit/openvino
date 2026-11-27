@@ -9,6 +9,7 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 #include "zero_backend.hpp"
+#include "zero_infer_request_factory.hpp"
 
 using namespace intel_npu;
 
@@ -43,7 +44,10 @@ ov::SoPtr<IEngineBackend> BackendsRegistry::initializeBackend(const AvailableBac
     try {
         switch (backendName) {
         case AvailableBackends::LEVEL_ZERO: {
-            return ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+            auto backend = std::make_shared<ZeroEngineBackend>();
+            _inferRequestFactories[backendName] =
+                std::make_shared<ZeroInferRequestFactory>(asZeroContext(backend->getContext()));
+            return ov::SoPtr<IEngineBackend>(backend);
         }
         default:
             _logger.warning("Invalid backend '%s'", backendNameToString.c_str());
@@ -99,6 +103,15 @@ ov::SoPtr<IEngineBackend> BackendsRegistry::getEngineBackend() {
                     "Only offline compilation can be done!");
 
     return {nullptr};
+}
+
+std::shared_ptr<IInferRequestFactory> BackendsRegistry::getInferRequestFactory() const {
+    // Only the level zero backend exists, the factory is created together with it
+    if (_registeredBackends.find(AvailableBackends::LEVEL_ZERO) == _registeredBackends.end()) {
+        return nullptr;
+    }
+    const auto factory = _inferRequestFactories.find(AvailableBackends::LEVEL_ZERO);
+    return factory != _inferRequestFactories.end() ? factory->second : nullptr;
 }
 
 }  // namespace intel_npu

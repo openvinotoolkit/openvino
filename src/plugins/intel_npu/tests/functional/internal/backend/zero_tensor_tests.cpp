@@ -50,7 +50,7 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     ov::element::Type element_type;
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParamsAndTensorDataType>& obj) {
@@ -82,7 +82,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
-        init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        init_struct = ::intel_npu::ZeroContext::getInstance();
     }
 
     void TearDown() override {
@@ -152,7 +152,7 @@ TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
     auto new_shape_size = ov::shape_size(new_shape);
     // set_shape() will force tensor reallocation for a larger shape. The new data pointer must also be a valid level
     // zero address.
-    if (init_struct->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0)) {
+    if (init_struct->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0)) {
         zero_tensor->set_shape(new_shape);
         EXPECT_EQ(new_shape, zero_tensor->get_shape());
         EXPECT_EQ(new_shape_size, zero_tensor->get_size());
@@ -390,7 +390,7 @@ TEST_P(ZeroTensorTests, CheckStandardAllocation) {
     {
         auto default_tensor = make_tensor(element_type, shape, data);
         std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor;
-        if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+        if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
             OV_ASSERT_NO_THROW(zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor));
             logger.info("Import memory");
         } else {
@@ -406,7 +406,7 @@ TEST_P(ZeroTensorTests, CheckStandardAllocation) {
 TEST_P(ZeroTensorTests, UseSameStandardAllocationMultipleTimesCompatible) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 4194304};
 
         // shape size is aligned to standard page size, align address as well
@@ -450,7 +450,7 @@ TEST_P(ZeroTensorTests, UseSameStandardAllocationMultipleTimesCompatible) {
 TEST_P(ZeroTensorTests, UseRangePointerFromAlreadyImportedStandardAllocation) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 4194304};
 
         // shape size is aligned to standard page size, align address as well
@@ -488,7 +488,7 @@ TEST_P(ZeroTensorTests, UseRangePointerFromAlreadyImportedStandardAllocation) {
 TEST_P(ZeroTensorTests, UseRangeOutOfBoundsPointerFromAlreadyImportedStandardAllocation) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 1024};
 
         // shape size is aligned to standard page size, align address as well
@@ -514,7 +514,7 @@ TEST_P(ZeroTensorTests, UseRangeOutOfBoundsPointerFromAlreadyImportedStandardAll
 TEST_P(ZeroTensorTests, UseBiggerMemoryFromAlreadyImportedStandardAllocation) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
+    if (init_struct->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 2048};
 
         // shape size is aligned to standard page size, align address as well

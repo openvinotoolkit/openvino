@@ -75,7 +75,7 @@ inline std::shared_ptr<ov::Model> createModelContainingSubgraph() {
 }
 
 inline bool isCommandQueueExtSupported() {
-    return std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable().version() > 0;
+    return std::make_shared<::intel_npu::ZeroContext>()->getZeroDriver()->getCommandQueueDdiTable().version() > 0;
 }
 
 typedef std::tuple<std::shared_ptr<ov::Model>,  // Model
@@ -148,7 +148,7 @@ TEST_P(OVCompileAndInferRequest, EvictGraphMemoryThenInferAgain) {
 // The test is disabled due to the fact that it requires another check of the memory since device_alloc_mem_size doesn't
 // provide memory feedback after eviction is called.
 TEST_P(OVCompileAndInferRequest, DISABLED_CheckMemoryAfterEvictGraphMemoryAndAfterRunningInferAgain) {
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+    if (std::make_shared<::intel_npu::ZeroContext>()->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Memory eviction is not supported by the current driver version.";
     }
 

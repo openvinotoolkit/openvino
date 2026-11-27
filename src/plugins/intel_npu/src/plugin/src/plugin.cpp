@@ -146,7 +146,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
         // Options registered only if drivers is present and supports the corresponding extension
         REGISTER_OPTION(MODEL_PRIORITY);
 
-        if (backend->getCapabilities().commandQueueExtSupported) {
+        if (utils::driverOf(backend)->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
     }
@@ -182,6 +182,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     // backend registry shall be created after configs are updated
     _backendsRegistry = std::make_unique<BackendsRegistry>();
     _backend = _backendsRegistry->getEngineBackend();
+    _inferRequestFactory = _backendsRegistry->getInferRequestFactory();
     const auto optionSupportCache = std::make_shared<OptionSupportCache>();
     _compilerAdapterFactory =
         std::make_shared<const CompilerAdapterFactory>(_backend, vcl_functions_provider(), optionSupportCache);
@@ -513,6 +514,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
+                                                        utils::driverOf(_backend),
+                                                        _inferRequestFactory,
                                                         graph,
                                                         localConfig,
                                                         unknownProperties,
@@ -636,6 +639,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     return std::make_shared<CompiledModel>(blobFormatImporter->create_dummy_model(),
                                            shared_from_this(),
                                            device,
+                                           utils::driverOf(_backend),
+                                           _inferRequestFactory,
                                            graph,
                                            blobFormatImporter->get_config(),
                                            unknownProperties,

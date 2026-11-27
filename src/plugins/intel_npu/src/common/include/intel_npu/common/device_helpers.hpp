@@ -16,6 +16,11 @@ namespace utils {
 bool isNPUDevice(const uint32_t deviceId);
 uint32_t getSliceIdBySwDeviceId(const uint32_t swDevId);
 std::string getPlatformByDeviceName(const std::string_view deviceName);
+/**
+ * @brief The driver of the backend, or one that reports nothing as available when there is no backend or the backend
+ * has no driver (for example with offline compilation). Never null, so the capabilities can be read without checks.
+ */
+std::shared_ptr<const IDriver> driverOf(const ov::SoPtr<IEngineBackend>& engineBackend);
 std::string getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,
                                    const std::string_view platform,
                                    const std::string_view deviceId);

@@ -253,7 +253,7 @@ void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>
 
 WeightlessGraph::WeightlessGraph(
     const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    const ZeroGraphDeps& zeroDeps,
     const GraphDescriptor& mainGraphDesc,
     NetworkMetadata mainMetadata,
     std::optional<ov::Tensor> mainBlob,
@@ -266,7 +266,7 @@ WeightlessGraph::WeightlessGraph(
     const std::optional<std::string>& compatibilityDescriptor,
     const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : Graph(zeGraphExt,
-            zeroInitStruct,
+            zeroDeps,
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
@@ -370,7 +370,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 }
 
 void WeightlessGraph::initialize_impl(const Config& config) {
-    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || !_zeroDeps) {
         // To ensure that no issues are thrown during subsequent calls.
         return;
     }
@@ -394,7 +394,7 @@ void WeightlessGraph::initialize_impl(const Config& config) {
     // Create a single command queue for all weights initialization schedules
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+        if (_zeroDeps.driver->getCommandQueueExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
             _wgLogger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
@@ -405,7 +405,7 @@ void WeightlessGraph::initialize_impl(const Config& config) {
         commandQueueOptions,
         this,
         config.get<SHARED_COMMON_QUEUE>()};
-    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
+    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroDeps.context, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -448,7 +448,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
     // tensors" are used for separating them.
     const std::shared_ptr<ZeroTensor> initInputsAllocatedTensor =
-        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true);
+        std::make_shared<ZeroTensor>(_zeroDeps.context, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true);
 
     std::vector<size_t> noLongerRequiredIds;
     noLongerRequiredIds.reserve(_initsMetadata.at(initIndex).inputs.size());
@@ -525,7 +525,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
     }
 
     const std::shared_ptr<ZeroTensor> initOutputsAllocatedTensor =
-        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), false);
+        std::make_shared<ZeroTensor>(_zeroDeps.context, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), false);
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -610,11 +610,11 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    if (_zeroInitStruct == nullptr) {
+    if (!_zeroDeps) {
         OPENVINO_THROW("Zero init structure wasn't initialized");
     }
 
-    _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
+    _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroDeps.context);
     _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
 
     size_t io_index = 0;

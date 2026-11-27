@@ -6,18 +6,18 @@ set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_backend.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_device.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_infer_request_factory.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_variable_state.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_backend.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_device.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_infer_request_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_profiling.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_variable_state.cpp
@@ -44,6 +44,7 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
+        openvino::npu_zero_utils
         openvino::npu_al
 )
 #

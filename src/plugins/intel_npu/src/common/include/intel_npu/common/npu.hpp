@@ -4,90 +4,12 @@
 
 #pragma once
 
-#include <cstdint>
-
-#include "intel_npu/common/backend_capabilities.hpp"
+// Umbrella header, include the specific headers where possible.
 #include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/icontext.hpp"
+#include "intel_npu/common/idevice.hpp"
+#include "intel_npu/common/idriver.hpp"
+#include "intel_npu/common/iengine_backend.hpp"
+#include "intel_npu/common/iinfer_request_factory.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
-#include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/properties.hpp"
-
-namespace intel_npu {
-
-//------------------------------------------------------------------------------
-class IDevice;
-
-class IEngineBackend : public std::enable_shared_from_this<IEngineBackend> {
-public:
-    /** @brief Get device, which can be used for inference. Backend responsible for selection. */
-    virtual const std::shared_ptr<IDevice> getDevice() const;
-    /** @brief Search for a specific device by name */
-    virtual const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const;
-    /** @brief Get device, which is configured/suitable for provided params */
-    virtual const std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
-    /** @brief Provide a list of names of all devices, with which user can work directly */
-    virtual const std::vector<std::string> getDeviceNames() const;
-    /** @brief Get name of backend */
-    virtual const std::string getName() const = 0;
-    /** @brief Register backend-specific options */
-    virtual void registerOptions(OptionsDesc& options) const;
-    /** @brief Get Level Zero context */
-    virtual void* getContext() const;
-    /** @brief What the plugin need to know about the backend. Defaults to "nothing available" */
-    virtual BackendCapabilities getCapabilities() const;
-    /** @brief Update backend and device info */
-    virtual void updateInfo(const ov::AnyMap& properties) = 0;
-    /** @brief Get LevelZero structures */
-    virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
-
-protected:
-    virtual ~IEngineBackend() = default;
-};
-
-//------------------------------------------------------------------------------
-
-class InferRequest : public ov::IInferRequest {
-public:
-    virtual void infer_async() = 0;
-    virtual void get_result() = 0;
-
-    virtual ~InferRequest() = default;
-};
-
-//------------------------------------------------------------------------------
-
-class IDevice : public std::enable_shared_from_this<IDevice> {
-public:
-    using Uuid = ov::device::UUID;
-    struct DeviceProperties {
-        uint32_t deviceId;
-        uint32_t subdeviceId;
-        uint32_t numSlices;
-    };
-
-    virtual std::string getName() const = 0;
-    virtual std::string getFullDeviceName() const = 0;
-    virtual Uuid getUuid() const;
-    virtual ov::device::LUID getLUID() const;
-    virtual uint32_t getSubDevId() const;
-    virtual uint32_t getMaxNumSlices() const;
-    virtual uint64_t getAllocMemSize() const;
-    virtual uint64_t getTotalMemSize() const;
-    virtual ov::device::PCIInfo getPciInfo() const;
-    virtual ov::device::Type getDeviceType() const;
-    virtual std::map<ov::element::Type, float> getGops() const;
-
-    virtual std::shared_ptr<InferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                                             const Config& config) = 0;
-
-    virtual void updateInfo(const ov::AnyMap& properties) = 0;
-    virtual bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const = 0;
-    virtual DeviceProperties getDeviceProperties() const = 0;
-
-protected:
-    virtual ~IDevice() = default;
-};
-
-}  // namespace intel_npu
+#include "intel_npu/common/infer_request.hpp"

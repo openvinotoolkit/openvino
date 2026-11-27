@@ -11,7 +11,7 @@
 
 using namespace intel_npu;
 
-ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroContext>& initStructs,
                                                  const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                  const Config& config)
     : ZeroInferRequest(initStructs, compiledModel, config) {
@@ -36,7 +36,7 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
                       itt::domains::LevelZeroBackend,
                       "ZeroDynamicInferRequest",
                       "sync_zero_tensor_with_graph");
-    if (_initStructs->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0)) {
+    if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0)) {
         auto& levelZeroTensor =
             foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 

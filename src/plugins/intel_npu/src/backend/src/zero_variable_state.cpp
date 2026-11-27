@@ -14,7 +14,7 @@
 
 namespace intel_npu {
 
-ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroContext>& init_structs,
                                      const std::string& name,
                                      const std::shared_ptr<ZeroTensor>& zero_tensor,
                                      size_t tensor_index,

@@ -59,7 +59,7 @@ public:
 private:
     std::shared_ptr<ov::IRemoteContext> get_this_shared_ptr();
 
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
 
     ov::AnyMap _properties;
     std::string _device_name;

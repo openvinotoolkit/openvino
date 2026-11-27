@@ -35,6 +35,35 @@ std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
     return std::string(platformName);
 }
 
+namespace {
+
+// What is reported when there is no driver: no handle, nothing supported
+class NoDriver final : public IDriver {
+public:
+    void* getDriverHandle() const override {
+        return nullptr;
+    }
+};
+
+// The memory is reported by the context, the device only has to exist
+std::shared_ptr<intel_npu::IContext> getDeviceContext(const ov::SoPtr<intel_npu::IEngineBackend>& engineBackend) {
+    auto context = engineBackend->getContext();
+    OPENVINO_ASSERT(context != nullptr, "The backend has no context that can report memory");
+    return context;
+}
+
+}  // namespace
+
+std::shared_ptr<const IDriver> utils::driverOf(const ov::SoPtr<IEngineBackend>& engineBackend) {
+    if (engineBackend != nullptr) {
+        if (auto driver = engineBackend->getDriver()) {
+            return driver;
+        }
+    }
+    static const auto noDriver = std::make_shared<const NoDriver>();
+    return noDriver;
+}
+
 std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,
                                           const std::string_view platform,
                                           const std::string_view deviceId) {
@@ -148,7 +177,7 @@ uint64_t utils::getDeviceAllocMemSize(const ov::SoPtr<IEngineBackend>& engineBac
     const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
     auto device = getDeviceById(engineBackend, devName);
     if (device) {
-        return device->getAllocMemSize();
+        return getDeviceContext(engineBackend)->getAllocMemSize();
     }
 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
@@ -159,7 +188,7 @@ uint64_t utils::getDeviceTotalMemSize(const ov::SoPtr<IEngineBackend>& engineBac
     const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
     auto device = getDeviceById(engineBackend, devName);
     if (device) {
-        return device->getTotalMemSize();
+        return getDeviceContext(engineBackend)->getTotalMemSize();
     }
 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");

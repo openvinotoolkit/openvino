@@ -29,7 +29,7 @@ bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::el
 
 namespace intel_npu {
 
-ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroContext>& init_structs,
                        const ov::element::Type element_type,
                        const ov::Shape& shape,
                        const bool is_input)
@@ -53,7 +53,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _can_be_reused = true;
 }
 
-ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroContext>& init_structs,
                        const ov::SoPtr<ov::ITensor>& user_tensor)
     : _init_structs(init_structs),
       _logger("ZeroTensor", Logger::global().level()),
@@ -182,7 +182,7 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
     _shape = std::move(new_shape);
 
     if (get_byte_size() > _bytes_capacity) {
-        OPENVINO_ASSERT(_init_structs->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0),
+        OPENVINO_ASSERT(_init_structs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0),
                         "Re-shaping the tensor with a larger shape is not available using this driver version. "
                         "Please update the driver to the latest version.");
 

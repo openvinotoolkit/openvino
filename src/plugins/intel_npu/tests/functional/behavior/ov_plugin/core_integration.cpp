@@ -271,7 +271,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCom
 TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCompiledModelWithTurboAndSeqRun) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable().version() >
+    if (std::make_shared<::intel_npu::ZeroContext>()->getZeroDriver()->getCommandQueueDdiTable().version() >
         ZE_MAKE_VERSION(1, 0)) {
         ov::Core core;
         ov::Any deviceAllocMemSizeAny;

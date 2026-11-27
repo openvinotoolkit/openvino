@@ -6,8 +6,10 @@ set(TARGET_NAME openvino_npu_zero_utils)
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_cmd_queue_pool.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_device.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_host_tensor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/zero_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_driver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_mem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_mem_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_remote_tensor.cpp
@@ -29,7 +31,7 @@ target_include_directories(${TARGET_NAME}
     $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev openvino::zero_loader)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev openvino::zero_loader openvino::npu_common)
 
 #
 # targets install

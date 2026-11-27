@@ -32,9 +32,6 @@ TEST(ZeroCapabilities, DefaultConstructedSupportsNothing) {
     EXPECT_EQ(caps.mutableCommandListExtVersion, 0u);
     EXPECT_EQ(caps.commandQueueGroupOrdinal, 0u);
     EXPECT_EQ(caps.driverVersion, 0u);
-    EXPECT_EQ(caps.graphExtVersion, 0u);
-    EXPECT_EQ(caps.commandQueueExtVersion, 0u);
-    EXPECT_EQ(caps.contextExtVersion, 0u);
     EXPECT_FALSE(caps.commandQueueSetPrioritySupported);
     EXPECT_FALSE(caps.luidExtSupported);
     EXPECT_FALSE(caps.externalMemoryStandardAllocationSupported);
@@ -45,22 +42,16 @@ TEST(ZeroCapabilities, NoNegotiatedExtensionsMeansNothingSupported) {
     const auto caps = build({});
 
     EXPECT_EQ(caps.mutableCommandListExtVersion, 0u);
-    EXPECT_EQ(caps.commandQueueExtVersion, 0u);
-    EXPECT_EQ(caps.contextExtVersion, 0u);
     EXPECT_FALSE(caps.commandQueueSetPrioritySupported);
     EXPECT_FALSE(caps.luidExtSupported);
 }
 
 TEST(ZeroCapabilities, EveryNegotiatedExtensionIsReported) {
-    const auto caps = build({{ZE_COMMAND_QUEUE_NPU_EXT_NAME, ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1},
-                             {ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME, ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0},
-                             {ZE_CONTEXT_NPU_EXT_NAME, ZE_CONTEXT_NPU_EXT_VERSION_1_0},
+    const auto caps = build({{ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME, ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0},
                              {ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0},
                              {ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1}});
 
-    EXPECT_EQ(caps.commandQueueExtVersion, static_cast<uint32_t>(ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1));
     EXPECT_TRUE(caps.commandQueueSetPrioritySupported);
-    EXPECT_EQ(caps.contextExtVersion, static_cast<uint32_t>(ZE_CONTEXT_NPU_EXT_VERSION_1_0));
     EXPECT_TRUE(caps.luidExtSupported);
     EXPECT_EQ(caps.mutableCommandListExtVersion, static_cast<uint32_t>(ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1));
 }
@@ -70,16 +61,24 @@ TEST(ZeroCapabilities, ExtensionsAreReportedIndependently) {
         build({{ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME, ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0}});
 
     EXPECT_TRUE(onlyPriority.commandQueueSetPrioritySupported);
-    EXPECT_EQ(onlyPriority.commandQueueExtVersion, 0u);
-    EXPECT_EQ(onlyPriority.contextExtVersion, 0u);
     EXPECT_FALSE(onlyPriority.luidExtSupported);
     EXPECT_EQ(onlyPriority.mutableCommandListExtVersion, 0u);
 
-    const auto onlyContext = build({{ZE_CONTEXT_NPU_EXT_NAME, ZE_CONTEXT_NPU_EXT_VERSION_1_0}});
+    const auto onlyLuid = build({{ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0}});
 
-    EXPECT_EQ(onlyContext.contextExtVersion, static_cast<uint32_t>(ZE_CONTEXT_NPU_EXT_VERSION_1_0));
-    EXPECT_EQ(onlyContext.commandQueueExtVersion, 0u);
-    EXPECT_FALSE(onlyContext.commandQueueSetPrioritySupported);
+    EXPECT_TRUE(onlyLuid.luidExtSupported);
+    EXPECT_FALSE(onlyLuid.commandQueueSetPrioritySupported);
+    EXPECT_EQ(onlyLuid.mutableCommandListExtVersion, 0u);
+}
+
+TEST(ZeroCapabilities, ExtensionsThatComeWithTheirOwnDdiTableAreNotRepeated) {
+    // The command queue and context extensions are read from their decorators, they must not change the capabilities
+    const auto caps = build({{ZE_COMMAND_QUEUE_NPU_EXT_NAME, ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1},
+                             {ZE_CONTEXT_NPU_EXT_NAME, ZE_CONTEXT_NPU_EXT_VERSION_1_0}});
+
+    EXPECT_FALSE(caps.commandQueueSetPrioritySupported);
+    EXPECT_FALSE(caps.luidExtSupported);
+    EXPECT_EQ(caps.mutableCommandListExtVersion, 0u);
 }
 
 TEST(ZeroCapabilities, MutableCommandListKeepsTheNegotiatedVersion) {
@@ -95,9 +94,7 @@ TEST(ZeroCapabilities, MutableCommandListKeepsTheNegotiatedVersion) {
 TEST(ZeroCapabilities, UnrelatedExtensionsAreIgnored) {
     const auto caps = build({{"ZE_some_other_extension", 1}});
 
-    EXPECT_EQ(caps.commandQueueExtVersion, 0u);
     EXPECT_FALSE(caps.commandQueueSetPrioritySupported);
-    EXPECT_EQ(caps.contextExtVersion, 0u);
     EXPECT_FALSE(caps.luidExtSupported);
     EXPECT_EQ(caps.mutableCommandListExtVersion, 0u);
 }
