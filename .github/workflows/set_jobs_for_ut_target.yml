@@ -1,10 +1,10 @@
 name: set_jobs_for_ut_target
 # Collect Mode uses the Ninja Multi-Config generator: what the maxnick_pr configuration gets from MSBuild MultiToolTask
 # is done there with --parallel (ninja -j) = NUMBER_OF_PROCESSORS - 1.
-# On top of that, compile jobs of all targets that build tests (source dir under a tests/ folder or name ending with
-# _test(s)/Tests: ov_core_unit_tests, funcSharedTests, ...) share one Ninja job pool (tests_jobs, a quarter of the
-# cores). Heavy gtest translation units ran the compiler out of heap space when ~15 of them were compiled at once
-# (ov_core_unit_tests in the first run, funcSharedTests in the second). Other targets keep the full --parallel value.
+# Link concurrency is capped at 2 by the Ninja link_jobs pool: the memory sampler showed that each link.exe takes ~7-9.5 GB
+# of commit even for small samples, while the pod has a 36 GB commit limit (32 GB RAM) and ~6 GB used outside of the
+# build. With 4 links at once (NUMBER_OF_PROCESSORS / 4) commit reached the limit, and cl.exe (C1060) and link.exe
+# (LNK1102) ran out of memory. Compilers are small (median 0.5 GB, max 1.7 GB) and keep the full --parallel value.
 # Run Mode stays on the Visual Studio generator with MultiToolTask (as in maxnick_pr): onecoreuap.toolchain.cmake
 # relies on MSBuild macros that Ninja doesn't expand.
 on:
@@ -162,33 +162,6 @@ jobs:
           "SAMPLER_DIR=$dir" >> $env:GITHUB_ENV
           Write-Output "Memory sampler started, PID $($p.Id), output in $dir"
 
-      # CMake file included at the end of the top-level project: assigns the tests_jobs pool to compile jobs of every target that builds tests
-      - name: Create job pool hook for test targets
-        run: |
-          @'
-          function(ov_assign_tests_pool dir)
-            get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
-            foreach(tgt IN LISTS targets)
-              get_target_property(type ${tgt} TYPE)
-              if(NOT type MATCHES "^(EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY)$")
-                continue()
-              endif()
-              get_target_property(src_dir ${tgt} SOURCE_DIR)
-              file(RELATIVE_PATH rel "${CMAKE_SOURCE_DIR}" "${src_dir}")
-              if(NOT rel MATCHES "^[.][.]" AND (rel MATCHES "(^|/)tests?(/|$)" OR tgt MATCHES "([_-]tests?|Tests?)$"))
-                set_property(TARGET ${tgt} PROPERTY JOB_POOL_COMPILE tests_jobs)
-                message(STATUS "tests_jobs pool: ${tgt} (${rel})")
-              endif()
-            endforeach()
-            get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
-            foreach(subdir IN LISTS subdirs)
-              ov_assign_tests_pool("${subdir}")
-            endforeach()
-          endfunction()
-          cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL ov_assign_tests_pool "${CMAKE_SOURCE_DIR}")
-          '@ | Set-Content -Path "$env:RUNNER_TEMP\tests_job_pool.cmake"
-          Get-Content "$env:RUNNER_TEMP\tests_job_pool.cmake"
-
       # If the build fails due to running out of RAM, lower the number of link jobs
       - name: CMake configure - CC COLLECT
         run: |
@@ -201,8 +174,7 @@ jobs:
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
-            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)));tests_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)))" `
-            "-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=$env:RUNNER_TEMP\tests_job_pool.cmake" `
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=2 `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `

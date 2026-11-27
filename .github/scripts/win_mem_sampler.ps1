@@ -94,7 +94,7 @@ function Get-Source([int]$procId, [string]$name) {
 }
 
 function Write-ProcessRow($procId, $info, [double]$now) {
-    $line = '{0},{1},{2:N0},{3:N0},{4:N1},{5:N1},"{6}"' -f $procId, $info.Name, $info.First, ($info.Last - $info.First),
+    $line = '{0},{1},{2:F0},{3:F0},{4:F1},{5:F1},"{6}"' -f $procId, $info.Name, $info.First, ($info.Last - $info.First),
         ($info.PeakPrivate / $MB), ($info.PeakWs / $MB), ($info.Source -replace '"', "'")
     Add-Content -Path $procsPath -Value $line
 }
@@ -147,8 +147,8 @@ try {
             $rows += [pscustomobject]@{ Name = $i.Name; Id = $procId; Cur = $i.Cur }
         }
         $top = ($rows | Sort-Object Cur -Descending | Select-Object -First 8 |
-            ForEach-Object { '{0}:{1}:{2:N0}MB' -f $_.Name, $_.Id, ($_.Cur / $MB) }) -join ' '
-        $line = '{0},{1:N1},{2:N2},{3:N2},{4:N2},{5:N2},{6:N2},{7},{8:N2},{9},{10:N2},{11},{12:N2},{13:N2},"{14}"' -f
+            ForEach-Object { '{0}:{1}:{2:F0}MB' -f $_.Name, $_.Id, ($_.Cur / $MB) }) -join ' '
+        $line = '{0},{1:F1},{2:F2},{3:F2},{4:F2},{5:F2},{6:F2},{7},{8:F2},{9},{10:F2},{11},{12:F2},{13:F2},"{14}"' -f
             [DateTime]::UtcNow.ToString('o'), $t0, ($sys[0] / $GB), ($sys[1] / $GB), ($sys[2] / $GB), ($sys[4] / $GB), ($sys[3] / $GB),
             $agg['cl'].N, ($agg['cl'].Sum / $GB), $agg['link'].N, ($agg['link'].Sum / $GB),
             $agg['mspdbsrv'].N, ($agg['mspdbsrv'].Sum / $GB), ($toolsSum / $GB), $top
