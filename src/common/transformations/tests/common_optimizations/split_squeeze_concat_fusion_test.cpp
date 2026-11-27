@@ -29,6 +29,11 @@ public:
     SplitSqueezeConcatFusionConcatAxis() {
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<int64_t>& info) {
+        const auto axis = info.param;
+        return "ConcatAxis" + (axis < 0 ? "Negative" + std::to_string(-axis) : std::to_string(axis));
+    }
 };
 
 TEST_P(SplitSqueezeConcatFusionConcatAxis, SplitSqueezeConcatFusion) {
@@ -67,7 +72,10 @@ TEST_P(SplitSqueezeConcatFusionConcatAxis, SplitSqueezeConcatFusion) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, SplitSqueezeConcatFusionConcatAxis, testing::Values(4, -1, -2));
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         SplitSqueezeConcatFusionConcatAxis,
+                         testing::Values(4, -1, -2),
+                         SplitSqueezeConcatFusionConcatAxis::getTestCaseName);
 
 TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
     size_t num_splits = 4;
