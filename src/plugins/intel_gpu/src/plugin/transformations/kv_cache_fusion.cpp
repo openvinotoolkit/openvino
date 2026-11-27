@@ -35,7 +35,10 @@ namespace ov::intel_gpu {
 KVCacheFusionMatcher::KVCacheFusionMatcher() {
     using namespace ov::pass::pattern;
 
-    auto past = wrap_type<ov::op::v6::ReadValue>();
+    // kv_cache primitive has no integer implementations; integer states such as cache positions stay unfused.
+    auto past = wrap_type<ov::op::v6::ReadValue>([](const ov::Output<ov::Node>& output) {
+        return output.get_element_type().is_real();
+    });
     auto convert_past = wrap_type<ov::op::v0::Convert>({past});
     auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
@@ -70,11 +73,6 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         auto present_node = ov::as_type_ptr<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
 
         if (past_node->get_variable_id() != present_node->get_variable_id()) {
-            return false;
-        }
-
-        // kv_cache primitive has no integer implementations; integer states such as cache positions stay unfused.
-        if (!past_node->get_output_element_type(0).is_real()) {
             return false;
         }
 

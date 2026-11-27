@@ -303,6 +303,9 @@ TEST(GGUFInkling, PaddedVocabularyAndIntegerPositionState) {
 }
 
 TEST(GGUFPagedAttention, Qwen3MoeMatchesLlamaCpu) {
+#if defined(OPENVINO_ARCH_ARM64)
+    GTEST_SKIP() << "ARM64 PagedAttention does not support the FP16 KV caches required by this parity test";
+#endif
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen3moe.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     ov::frontend::gguf::FrontEnd frontend;
