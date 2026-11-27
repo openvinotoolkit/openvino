@@ -109,6 +109,8 @@ per-layer token embeddings, `text_embeddings_per_layer`.
   slice-before-matmul optimization projects only the sampled rows during prefill.
   A scalar output scale is moved to the activation input when the head has no other consumers;
   softcap output chains remain recognizable without expanding compressed weights.
+  Models with other post-head processing, such as Inkling's padded-vocabulary trimming, project
+  every prompt row instead.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
   Noncausal sliding-window attention is not supported by GenAI adaptation.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states

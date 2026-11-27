@@ -46,7 +46,10 @@ namespace ov::intel_gpu {
 KVCacheFusionMatcher::KVCacheFusionMatcher() {
     using namespace ov::pass::pattern;
 
-    auto past = wrap_type<ov::op::v6::ReadValue>();
+    // kv_cache has no i32 implementation, so integer states such as cache positions stay unfused.
+    auto past = wrap_type<ov::op::v6::ReadValue>([](const ov::Output<ov::Node>& output) {
+        return output.get_element_type().is_real();
+    });
     auto convert_past = wrap_type<ov::op::v0::Convert>({past});
     auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
