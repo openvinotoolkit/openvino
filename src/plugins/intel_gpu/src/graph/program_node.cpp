@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "activation_inst.h"
+#include "condition_inst.h"
 #include "dynamic_quantize_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "loop_inst.h"
@@ -84,6 +85,11 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
     if (is_type<loop>()) {
         loop_node& loop = *this;
         loop.update_primitive_map(dependencies[idx].first->id(), new_dep.first->id(), true);
+    } else if (is_type<condition>()) {
+        // condition maps its inputs to the branch parameters by input id, so keep the map in sync when an input is replaced
+        // (e.g. by a reorder inserted in front of condition).
+        condition_node& cond = *this;
+        cond.update_primitive_map(dependencies[idx].first->id(), new_dep.first->id());
     }
 
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);

@@ -90,6 +90,7 @@ struct PagedAttentionManager {
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+    ov::element::Type qkv_precision = ov::element::f16;
     bool has_score_aggregation;
     CacheRotationDescriptor rotation_config;
     std::vector<SubsequenceDescriptor> subsequence_descs;
@@ -153,7 +154,8 @@ struct PagedAttentionManager {
                           bool has_score_aggregation,
                           bool has_xattention,
                           CacheRotationDescriptor rotation_config,
-                          ov::element::Type kv_cache_precision = ov::element::dynamic)
+                          ov::element::Type kv_cache_precision = ov::element::dynamic,
+                          ov::element::Type qkv_precision = ov::element::f16)
         : num_heads(num_heads),
           num_kv_heads(num_kv_heads),
           k_head_size(k_head_size),
@@ -163,6 +165,7 @@ struct PagedAttentionManager {
           kv_cache_compression(kv_cache_compression),
           key_cache_quant_mode(key_cache_quant_mode),
           kv_cache_precision(kv_cache_precision),
+          qkv_precision(qkv_precision),
           has_score_aggregation(has_score_aggregation),
           rotation_config(rotation_config),
           subsequence_descs(subsequence_descs),
@@ -365,12 +368,29 @@ struct PagedAttentionManager {
         return memory;
     }
 
+    // Writes f16 source values into a memory whose data type is f16 or f32.
+    static void set_values_typed(cldnn::stream& stream, cldnn::memory::ptr mem, const ov::float16* vals, size_t size, size_t dst_offset) {
+        const auto data_type = mem->get_layout().data_type;
+        OPENVINO_ASSERT(data_type == cldnn::data_types::f16 || data_type == cldnn::data_types::f32, "Unsupported data type: ", data_type);
+        if (data_type == cldnn::data_types::f32) {
+            cldnn::mem_lock<float> mem_ptr(mem, stream);
+            for (size_t i = 0; i < size; i++) {
+                mem_ptr[dst_offset + i] = static_cast<float>(vals[i]);
+            }
+        } else {
+            cldnn::mem_lock<ov::float16> mem_ptr(mem, stream);
+            for (size_t i = 0; i < size; i++) {
+                mem_ptr[dst_offset + i] = vals[i];
+            }
+        }
+    }
+
     bool is_int4_kv_cache() const {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
     cldnn::memory::ptr get_key_cache_memory() {
-        auto key_cache_dt = cldnn::data_types::f16;
+        auto key_cache_dt = kv_cache_precision == ov::element::f32 ? cldnn::data_types::f32 : cldnn::data_types::f16;
         auto adjusted_head_size = k_head_size;
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
@@ -568,7 +588,7 @@ struct PagedAttentionManager {
                                     size_t output_offset = (start_block_idx + block_idx) * num_kv_heads * k_head_size * block_size +
                                                            head_idx * k_head_size * block_size + k_head_size_idx * block_size + token_idx;
 
-                                    set_values(test_stream, memory, data_ptr, 1, output_offset);
+                                    set_values_typed(test_stream, memory, data_ptr, 1, output_offset);
                                 }
                             }
                         }
@@ -581,7 +601,7 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_value_cache_memory() {
-        auto value_cache_dt = cldnn::data_types::f16;
+        auto value_cache_dt = kv_cache_precision == ov::element::f32 ? cldnn::data_types::f32 : cldnn::data_types::f16;
         const int head_size = v_head_size;
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
@@ -624,7 +644,7 @@ struct PagedAttentionManager {
                                                  static_cast<size_t>(block_size) * static_cast<size_t>(head_size)) +
                                                 (static_cast<size_t>(head_idx) * static_cast<size_t>(block_size) * static_cast<size_t>(head_size));
                             const size_t off = base + static_cast<size_t>(token_idx) * static_cast<size_t>(head_size);
-                            set_values(test_stream, memory, src_ptr, head_size, off);
+                            set_values_typed(test_stream, memory, src_ptr, head_size, off);
                         } else if (is_int4_kv_cache()) {
                             // INT4 (u4) BY_TOKEN value cache: inline per-token comp layout.
                             // [num_blocks, kv_heads, block_size, PACKED_ADJUSTED_V_HEAD_SIZE] u8
@@ -873,7 +893,7 @@ private:
             total_tokens += subsequence_desc.num_tokens;
 
         auto query_shape = ov::PartialShape{total_tokens, num_heads * head_size};
-        auto query_layout = cldnn::layout{query_shape, cldnn::data_types::f16, cldnn::format::bfyx};
+        auto query_layout = cldnn::layout{query_shape, qkv_precision, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(query_layout);
 
         for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
@@ -889,7 +909,7 @@ private:
                     size_t output_token_offset = subsequence_begins[subsequence_idx] + token_idx;
                     size_t output_offset = output_token_offset * num_heads * head_size + head_idx * head_size;
 
-                    set_values(test_stream, memory, data_ptr, head_size, output_offset);
+                    set_values_typed(test_stream, memory, data_ptr, head_size, output_offset);
                 }
             }
         }
@@ -1801,7 +1821,8 @@ public:
                     p.scores_mode == ScoresMode::SNAPKV,
                     p.has_xattention,
                     p.rotation_config,
-                    p.kv_cache_precision);
+                    p.kv_cache_precision,
+                    p.qkv_precision == ov::element::dynamic ? ov::element::f16 : p.qkv_precision);
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {
@@ -2988,6 +3009,7 @@ struct paged_attention_test_params {
     std::optional<std::vector<int>> xattention_block_size = std::nullopt;
 
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+    ov::element::Type qkv_precision = ov::element::dynamic;
 
     // test query-to-query attention bias
     bool has_qq_bias = false;

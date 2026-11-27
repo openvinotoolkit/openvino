@@ -786,6 +786,7 @@ KERNEL(pa_sdpa_opt)(
             #define VALUE_BLOCK MAKE_VECTOR_TYPE(INPUT2_TYPE, VALUE_VEC_SIZE)
             #define VALUE_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, VALUE_VEC_SIZE)
             #define TO_VALUE_UNCOMPRESSED_TYPE(val) CAT(convert_, VALUE_UNCOMPRESSED)(val)
+            #define TO_VALUE_BLOCK_UNCOMPRESSED_TYPE(v) CAT(convert_, VALUE_BLOCK_UNCOMPRESSED)(v)
 
 
 #ifdef USE_DUAL_NIBBLE_V_OPT
@@ -849,7 +850,7 @@ KERNEL(pa_sdpa_opt)(
                 value_vals[i] = (TO_VALUE_UNCOMPRESSED_TYPE(v_vals_packed[i]) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
             }
 #else
-            VALUE_BLOCK value_vals = v_vals_packed;
+            VALUE_BLOCK_UNCOMPRESSED value_vals = TO_VALUE_BLOCK_UNCOMPRESSED_TYPE(v_vals_packed);
 #endif
 
             unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {

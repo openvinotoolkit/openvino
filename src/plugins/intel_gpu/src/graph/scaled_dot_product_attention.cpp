@@ -90,9 +90,12 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
 
     // For INT4 KV-cache, restore logical head size from query for shape inference
     if (prim->is_kv_compressed && scaled_dot_product_attention_inst::is_int4_kv_cache(impl_param) && input_shapes.size() >= 3) {
-        auto q_last = input_shapes[0][input_shapes[0].size() - 1];
-        input_shapes[1][input_shapes[1].size() - 1] = q_last;
-        input_shapes[2][input_shapes[2].size() - 1] = q_last;
+        const auto head_axis = [](const ShapeType& shape, const std::vector<int64_t>& order) {
+            return order.size() > 1 ? static_cast<size_t>(order.back()) : shape.size() - 1;
+        };
+        const auto q_head_size = input_shapes[0][head_axis(input_shapes[0], prim->input_q_transpose_order)];
+        input_shapes[1][head_axis(input_shapes[1], prim->input_k_transpose_order)] = q_head_size;
+        input_shapes[2][head_axis(input_shapes[2], prim->input_v_transpose_order)] = q_head_size;
     }
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,

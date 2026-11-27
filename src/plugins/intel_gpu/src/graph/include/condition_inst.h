@@ -26,8 +26,12 @@ public:
           _branch_true(prim->branch_true),
           _branch_false(prim->branch_false) {}
 
-    condition::branch get_branch_true() const { return _branch_true; }
-    condition::branch get_branch_false() const { return _branch_false; }
+    const condition::branch& get_branch_true() const {
+        return _branch_true;
+    }
+    const condition::branch& get_branch_false() const {
+        return _branch_false;
+    }
 
     // Dependencies whose buffer may become the output of this primitive at runtime: a skipped body passes the outer
     // input memory through, and a body output shares the buffer of a body parameter that it reaches through in-place
