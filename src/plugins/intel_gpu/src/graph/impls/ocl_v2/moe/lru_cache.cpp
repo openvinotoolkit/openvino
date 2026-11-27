@@ -12,6 +12,25 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
+std::vector<std::pair<size_t, size_t>> plan_expert_waves(const std::vector<uint32_t>& experts, size_t capacity) {
+    OPENVINO_ASSERT(capacity > 0, "Expert wave requires at least one resident slot");
+    std::vector<std::pair<size_t, size_t>> waves;
+    std::unordered_set<uint32_t> unique;
+    size_t first = 0;
+    for (size_t index = 0; index < experts.size(); ++index) {
+        if (!unique.count(experts[index]) && unique.size() == capacity) {
+            waves.emplace_back(first, index);
+            first = index;
+            unique.clear();
+        }
+        unique.insert(experts[index]);
+    }
+    if (first < experts.size()) {
+        waves.emplace_back(first, experts.size());
+    }
+    return waves;
+}
+
 ExpertSlotReservations::ExpertSlotReservations(size_t capacity) : _slots(capacity) {
     if (capacity == 0) {
         OPENVINO_THROW("LES requires at least one resident slot");

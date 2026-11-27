@@ -29,11 +29,14 @@ using ov::intel_gpu::ocl::moe::RoutedWeightViews;
 #    include <array>
 #    include <chrono>
 #    include <cstdint>
+#    include <cstdio>
+#    include <cstdlib>
 #    include <fstream>
 #    include <initializer_list>
 #    include <iostream>
 #    include <limits>
 #    include <mutex>
+#    include <numeric>
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_ocl.hpp>
 #    include <sstream>
@@ -650,9 +653,9 @@ private:
 
 class MoE3GemmSwigluMLPReduce : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPReduce(bool disable_shared_experts = false)
+    MoE3GemmSwigluMLPReduce(bool disable_shared_experts = false, bool expert_order = false)
         : KernelGenerator("moe_3gemm_swiglu_mlp", "reduce"),
-          _disable_shared_experts(disable_shared_experts) {}
+          _disable_shared_experts(disable_shared_experts), _expert_order(expert_order) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -660,6 +663,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
+        jit.make("LES_EXPERT_ORDER", _expert_order ? 1 : 0);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
@@ -680,6 +684,7 @@ protected:
 
 private:
     bool _disable_shared_experts;
+    bool _expert_order;
 };
 
 dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int64_t offset = 0) {
@@ -726,6 +731,7 @@ public:
     Stage::Ptr mlp_gate_up_masked = make_stage<MoE3GemmSwigluMLPGateUp>(false, true);
     Stage::Ptr mlp_down_masked = make_stage<MoE3GemmSwigluMLPDown>(false, true);
     Stage::Ptr mlp_reduce = make_stage<MoE3GemmSwigluMLPReduce>();
+    Stage::Ptr mlp_reduce_expert_order = make_stage<MoE3GemmSwigluMLPReduce>(false, true);
 
     Stage::Ptr prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>();
     Stage::Ptr micro_gemm_gate = make_stage<MoE3GemmMicroGenerator>(MoE3GemmMicroKernelType::MLP_GATE);
@@ -948,6 +954,10 @@ public:
 
         auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, get_routed_inputs(instance), get_slot_views(instance), stream);
         if (!lease) {
+            const auto* trace = std::getenv("MOE_LES_WAVE_TRACE");
+            if (trace && std::string_view(trace) == "1") {
+                std::fprintf(stderr, "LES_BATCHED_FALLBACK layer=%s pairs=%zu\n", instance.id().c_str(), topk_count);
+            }
             if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->batched_fallbacks.fetch_add(1, std::memory_order_relaxed);
             }
@@ -1023,9 +1033,17 @@ public:
         dnn_stream.wait();
 
         auto& stream = instance.get_network().get_stream();
-        auto& dnnl_weights = _dnnl_weights[expert_no];
         auto lru_expert_no = static_cast<int64_t>(
             _weight_provider->acquire_one(static_cast<uint32_t>(expert_no), get_routed_inputs(instance), get_slot_views(instance), stream));
+        bind_expert_slot(expert_no, lru_expert_no, instance, addr);
+        return true;
+    }
+
+    void bind_expert_slot(size_t expert_no,
+                          int64_t lru_expert_no,
+                          typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                          const moe_fusion_weights_base_addr& addr) {
+        auto& dnnl_weights = _dnnl_weights[expert_no];
         const bool has_zp = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.has_zp;
 
 #    define CONVERT_DNNL_OTD(i)                                                                                                                       \
@@ -1044,7 +1062,6 @@ public:
         CONVERT_DNNL_OTD(1)
         CONVERT_DNNL_OTD(2)
 #    undef CONVERT_DNNL_OTD
-        return true;
     }
 
     int get_num_grouped_experts(int num_total_experts) {
@@ -1331,6 +1348,7 @@ public:
         if (params.prog->get_config().get_moe_lookahead_prefetch() && cur_moe->_otd.lru_expert_num > 0) {
             add_stage(mlp_gate_up_masked, params);
             add_stage(mlp_down_masked, params);
+            add_stage(mlp_reduce_expert_order, params);
         }
     }
 
@@ -1898,7 +1916,9 @@ public:
 
         const bool demand_les = _les_owner && predict && _weight_provider->is_offloaded() &&
                     _weight_provider->resident_capacity() > 0;
-        const bool split_les = demand_les && token_num == 1;
+        const auto* multi_token_waves = std::getenv("MOE_LES_MULTITOKEN_WAVES");
+        const bool split_les = demand_les && (token_num == 1 ||
+                       (multi_token_waves && std::string_view(multi_token_waves) == "1"));
         const bool compare = demand_les && moe_otd::les_prediction_compare_enabled();
         std::vector<uint32_t> experts;
         if (split_les) {
@@ -1920,6 +1940,10 @@ public:
                                 ", expert=", expert, ", count=", cur_moe->_config.num_expert,
                                 ", layout=", scratch.topk_id->get_layout().to_short_string());
             }
+        }
+        if (split_les && token_num > 1 &&
+            std::unordered_set<uint32_t>(experts.begin(), experts.end()).size() > _weight_provider->resident_capacity()) {
+            return exec_split_onednn_waves(events, stream, instance, scratch, experts, token_num);
         }
         auto batch_mem_ptr = scratch.topk_id;
         if (!split_les) {
@@ -1999,7 +2023,7 @@ public:
 
                 auto ret_event = execute_stage(dependencies,
                                                instance,
-                                               mask ? *mlp_gate_up_masked : *stage_gate_up,
+                                              mask ? *mlp_gate_up_masked : *stage_gate_up,
                                                args_gate_up,
                                                {scratch.up},
                                                {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
@@ -2043,20 +2067,44 @@ public:
                 OPENVINO_ASSERT(provider, "Lookahead requires an offload provider");
                 auto& prefetcher = _lookahead->prefetcher();
                 prefetcher.rethrow_if_failed();
-                const size_t wave_capacity = std::min<size_t>(provider->resident_capacity(), max_topk);
-                const size_t wave_count = (pair_count + wave_capacity - 1) / wave_capacity;
-                if (_les_decode_metadata.size() < wave_count * 3) {
-                    _les_decode_metadata.resize(wave_count * 3);
+                std::vector<std::pair<size_t, size_t>> waves;
+                if (token_num == 1) {
+                    const size_t wave_capacity = std::min<size_t>(provider->resident_capacity(), max_topk);
+                    for (size_t first = 0; first < pair_count; first += wave_capacity) {
+                        waves.emplace_back(first, std::min(pair_count, first + wave_capacity));
+                    }
+                } else {
+                    waves = moe::plan_expert_waves(experts, provider->resident_capacity());
+                }
+                const size_t wave_count = waves.size();
+                const auto* trace = std::getenv("MOE_LES_WAVE_TRACE");
+                if (token_num > 1 && trace && std::string_view(trace) == "1") {
+                    std::fprintf(stderr, "LES_MULTITOKEN_WAVES layer=%s tokens=%zu pairs=%zu slots=%zu waves=%zu\n",
+                                 instance.id().c_str(), token_num, pair_count, provider->resident_capacity(), wave_count);
+                }
+                const size_t metadata_count = wave_count * 3;
+                if (_les_decode_metadata.size() < metadata_count) {
+                    _les_decode_metadata.resize(metadata_count);
                 }
                 try {
                     for (size_t wave = 0; wave < wave_count; ++wave) {
-                    const size_t first_pair = wave * wave_capacity;
-                    const size_t last_pair = std::min(pair_count, first_pair + wave_capacity);
+                    const auto [first_pair, last_pair] = waves[wave];
                     std::vector<uint32_t> wave_experts(experts.begin() + first_pair, experts.begin() + last_pair);
                     auto partition = [&] {
                         return provider->cache().partition_3way(wave_experts,
-                            [&] { return prefetcher.make_ready_event(); }, wave > 0);
+                            [&] { return prefetcher.make_ready_event(); }, token_num == 1 && wave > 0);
                     }();
+                    if (!partition && token_num > 1) {
+                        prefetcher.promote(*provider, wave_experts);
+                        _lookahead->demand_partitioned(instance.id());
+                        stream.flush();
+                        if (ret_event) {
+                            ret_event->wait();
+                        }
+                        prefetcher.drain();
+                        partition = provider->cache().partition_3way(wave_experts,
+                            [&] { return prefetcher.make_ready_event(); });
+                    }
                     OPENVINO_ASSERT(partition, "Lookahead demand cannot reserve its wave slots");
                     if (wave == 0) {
                         _lookahead->demand_partitioned(instance.id());
@@ -2165,6 +2213,133 @@ public:
         return scratch._expert_index_buffer ? scratch._expert_index_buffer : scratch.topk_id;
     }
 
+    cldnn::event::ptr exec_split_onednn_waves(const std::vector<cldnn::event::ptr>& events,
+                                             cldnn::stream& stream,
+                                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                             scratch_buffers& scratch,
+                                             const std::vector<uint32_t>& routed_experts,
+                                             size_t token_num) {
+        const auto desc = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        const auto& config = desc->_config;
+        auto& engine = instance.get_network().get_engine();
+        auto& dnn_stream = stream.get_onednn_stream();
+        auto provider = std::dynamic_pointer_cast<moe::OffloadExpertWeightProvider>(_weight_provider);
+        OPENVINO_ASSERT(provider, "LES waves require offloaded weights");
+        auto& prefetcher = _lookahead->prefetcher();
+        prefetcher.rethrow_if_failed();
+        init_dnnl_weights(desc, engine, scratch.moe_fusion_wei_addr);
+        const auto& buffers = instance.get_intermediates_memories();
+        scratch.x = buffers[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
+        scratch.gate = buffers[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
+        if (scratch.expert_masks.empty()) {
+            prepare_expert_masks(instance, scratch, token_num);
+        }
+        expert_mask_cpu masks;
+        get_expert_mask_from_gpu(config, scratch.topk_id, stream, masks, token_num);
+        std::vector<uint32_t> experts;
+        for (size_t expert = 0; expert < config.num_expert; ++expert) {
+            if (!masks.batch[expert].empty()) {
+                experts.push_back(static_cast<uint32_t>(expert));
+            }
+        }
+        const auto capacity = provider->resident_capacity();
+        const auto waves = moe::plan_expert_waves(experts, capacity);
+        const auto* trace = std::getenv("MOE_LES_WAVE_TRACE");
+        if (trace && std::string_view(trace) == "1") {
+            std::fprintf(stderr, "LES_MULTITOKEN_WAVES layer=%s tokens=%zu pairs=%zu slots=%zu waves=%zu backend=onednn\n",
+                         instance.id().c_str(), token_num, routed_experts.size(), capacity, waves.size());
+        }
+        auto saved_down = engine.allocate_memory(scratch.y->get_layout(), scratch.y->get_allocation_type(), false);
+        auto completion = saved_down->fill(stream, 0U);
+        const size_t row_bytes = config.hidden_size * data_type_traits::size_of(saved_down->get_layout().data_type);
+        const size_t experts_per_token = config.top_k + (_has_shared_expert ? 1 : 0);
+        try {
+            for (size_t wave = 0; wave < waves.size(); ++wave) {
+                const auto [first, last] = waves[wave];
+                std::vector<uint32_t> wave_experts(experts.begin() + first, experts.begin() + last);
+                auto partition = provider->cache().partition_3way(wave_experts, [&] { return prefetcher.make_ready_event(); });
+                if (!partition) {
+                    prefetcher.promote(*provider, wave_experts);
+                    _lookahead->demand_partitioned(instance.id());
+                    stream.flush();
+                    completion->wait();
+                    prefetcher.drain();
+                    partition = provider->cache().partition_3way(wave_experts, [&] { return prefetcher.make_ready_event(); });
+                }
+                OPENVINO_ASSERT(partition, "LES cannot reserve OneDNN wave slots");
+                if (wave == 0) {
+                    _lookahead->demand_partitioned(instance.id());
+                }
+                std::vector<uint32_t> missing;
+                for (const auto& load : partition->missing) {
+                    missing.push_back(load.expert_id);
+                }
+                auto demand = prefetcher.demand_async(*provider, missing);
+                prefetcher.promote(*provider, wave_experts);
+                if (wave == 0) {
+                    _lookahead->prefetch(&instance);
+                }
+                auto compute = [&](const std::vector<size_t>& pairs, const std::vector<event::ptr>& uploads) {
+                    if (pairs.empty()) {
+                        return;
+                    }
+                    if (!prefetcher.wait_for_uploads_on_shared_queue(uploads)) {
+                        dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(uploads);
+                    }
+                    for (auto pair : pairs) {
+                        const auto expert = wave_experts[pair];
+                        bind_expert_slot(expert, partition->slots[pair], instance, scratch.moe_fusion_wei_addr);
+                        copy_expert_mask_to_gpu(stream, masks, expert, scratch.expert_masks[expert]);
+                        completion = exec_resident_expert(completion, stream, instance, scratch, expert,
+                                                         static_cast<int>(masks.batch[expert].size()));
+                        for (size_t row = 0; row < masks.topk[expert].size(); ++row) {
+                            const auto route = static_cast<size_t>(masks.topk[expert][row]);
+                            const auto destination = route / config.top_k * experts_per_token + route % config.top_k;
+                            completion = saved_down->copy_from(stream, *scratch.y, row * row_bytes,
+                                                                destination * row_bytes, row_bytes, false);
+                        }
+                    }
+                    stream.flush();
+                };
+                compute(partition->ready_pairs, partition->ready_events);
+                auto pending = partition->inflight_pairs;
+                pending.insert(pending.end(), partition->missing_pairs.begin(), partition->missing_pairs.end());
+                auto uploads = partition->wait_events;
+                if (demand) {
+                    uploads.push_back(demand);
+                }
+                compute(pending, uploads);
+                provider->cache().unpin_all(completion);
+                stream.flush();
+            }
+            std::vector<int32_t> order(routed_experts.size());
+            for (size_t token = 0; token < token_num; ++token) {
+                auto first = order.begin() + token * config.top_k;
+                std::iota(first, first + config.top_k, 0);
+                std::stable_sort(first, first + config.top_k, [&](int32_t left, int32_t right) {
+                    return routed_experts[token * config.top_k + left] < routed_experts[token * config.top_k + right];
+                });
+            }
+            auto order_memory = engine.allocate_memory(layout{ov::Shape{order.size()}, ov::element::i32, format::bfyx},
+                                                        allocation_type::usm_host, false);
+            order_memory->copy_from(stream, order.data(), true);
+            scratch.y = saved_down;
+            completion = exec_batched_gemv_reduce(completion, instance, scratch, token_num, order_memory);
+            if (_has_shared_expert) {
+                completion->wait();
+                init_shared_primitives(engine, scratch.moe_fusion_wei_addr, static_cast<int>(token_num));
+                execute_shared_expert(dnn_stream, static_cast<int>(token_num),
+                                      instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
+                                      instance.output_memory_ptr(0), scratch);
+            }
+            on_after_exec_sync(stream);
+            return stream.enqueue_marker({}, true);
+        } catch (...) {
+            prefetcher.cancel_all();
+            throw;
+        }
+    }
+
     // Per-expert onednn loop for a batched GEMV step whose experts cannot all be leased at once, then the shared expert,
     // which the batched GEMV would have computed
     cldnn::event::ptr exec_batched_gemv_fallback(const std::vector<cldnn::event::ptr>& events,
@@ -2199,7 +2374,8 @@ public:
     cldnn::event::ptr exec_batched_gemv_reduce(cldnn::event::ptr dep,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                scratch_buffers& scratch,
-                                               size_t token_num) const {
+                                               size_t token_num,
+                                               const memory::ptr& expert_order = {}) const {
         const auto& info = instance.get_impl_params()->get_device_info();
         const size_t subgroup_size = info.arch >= gpu_arch::xe2 ? 32 : 16;
         // The local size must divide hidden_size: drivers may reject non-uniform work-groups (-54).
@@ -2209,10 +2385,14 @@ public:
             reduce_lws -= subgroup_size;
         }
         OPENVINO_ASSERT(reduce_lws > 0, "MoE mlp_reduce: hidden_size=", hidden_size, " is not a multiple of SUBGROUP_SIZE=", subgroup_size);
+        std::vector<memory::ptr> inputs{scratch.y};
+        if (expert_order) {
+            inputs.push_back(expert_order);
+        }
         return execute_stage({dep},
                              instance,
-                             *mlp_reduce,
-                             {scratch.y},
+                             expert_order ? *mlp_reduce_expert_order : *mlp_reduce,
+                             inputs,
                              {instance.output_memory_ptr(0)},
                              {token_num, hidden_size},
                              {1, reduce_lws},
@@ -2871,6 +3051,51 @@ public:
     //     scratch.y = MLP(scratch.x, .gate/up/down) * scratch.routing_weights
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
+    cldnn::event::ptr exec_resident_expert(cldnn::event::ptr dependency,
+                                           cldnn::stream& stream,
+                                           typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                           scratch_buffers& scratch,
+                                           size_t expert_no,
+                                           int n_token,
+                                           bool scatter_output = false) {
+        auto& dnn_stream = stream.get_onednn_stream();
+        auto& weights = _dnnl_weights[expert_no];
+        auto& mask = scratch.expert_masks[expert_no];
+        size_t local_size = 128;
+        while (local_size >= 8 && _hidden_size % local_size != 0) {
+            local_size /= 2;
+        }
+        OPENVINO_ASSERT(local_size >= 8, "Unsupported MoE hidden size: ", _hidden_size);
+        auto& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
+        auto completion = execute_stage({dependency}, instance, *gather,
+                                         {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
+                                          scratch.topk_weights, mask.batch, mask.topk},
+                                         {scratch.x, scratch.routing_weights},
+                                         {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                         {1, local_size}, instance.needs_completion_event());
+        kernel.up.forward(dnn_stream, n_token,
+                          convert2dnnl(scratch.x, {n_token, weights[1].ic}, dnnl::memory::format_tag::ab),
+                          convert2dnnl(scratch.up, {n_token, _intermediate_size}, dnnl::memory::format_tag::ab),
+                          dnnl::memory());
+        kernel.gate.forward(dnn_stream, n_token,
+                            convert2dnnl(scratch.x, {n_token, weights[0].ic}, dnnl::memory::format_tag::ab),
+                            convert2dnnl(scratch.gate, {n_token, _intermediate_size}, dnnl::memory::format_tag::ab),
+                            convert2dnnl(scratch.up, {n_token, _intermediate_size}, dnnl::memory::format_tag::ab));
+        const auto top_k = static_cast<int64_t>(instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.top_k);
+        OPENVINO_ASSERT(n_token > 0 && n_token <= std::numeric_limits<int64_t>::max() / top_k,
+                        "MoE routing weights size overflow");
+        kernel.down.forward(dnn_stream, n_token,
+                            convert2dnnl(scratch.gate, {n_token, _intermediate_size}, dnnl::memory::format_tag::ab),
+                            convert2dnnl(scratch.y, {n_token, _hidden_size}, dnnl::memory::format_tag::ab),
+                            convert2dnnl(scratch.routing_weights, {n_token * top_k}, dnnl::memory::format_tag::a));
+        if (scatter_output) {
+            return execute_stage({completion}, instance, *scatter, {scratch.y, mask.batch},
+                                  {instance.output_memory_ptr(0)},
+                                  {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)}, {1, local_size}, true);
+        }
+        return stream.enqueue_marker({}, true);
+    }
+
     cldnn::event::ptr exec_per_expert_onednn_linear(const std::vector<cldnn::event::ptr>& events,
                                                     cldnn::stream& stream,
                                                     typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
@@ -2893,20 +3118,6 @@ public:
             prepare_expert_masks(instance, scratch, token_num);
         }
 
-        auto routing_mem_ptr = scratch.topk_weights;
-        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        auto get_best_lws = [](size_t hidden_size) {
-            const size_t candidate[] = {128, 64, 32, 16, 8};
-            for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
-                if (hidden_size % candidate[i] == 0) {
-                    return candidate[i];
-                }
-            }
-            OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
-        };
-        auto lws_size = get_best_lws(_hidden_size);
-        auto max_topk = static_cast<int64_t>(config.top_k);
-
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
         expert_mask_cpu expert_mask;
@@ -2922,59 +3133,13 @@ public:
             }
 
             on_load_expert_weights(expert_no, instance, scratch.moe_fusion_wei_addr, dnn_stream);
-            auto& dnnl_weights = _dnnl_weights[expert_no];
 
             // expert_mask
             expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
-
-            // Be careful about possible overflow
-            if (n_token > std::numeric_limits<int64_t>::max() / max_topk) {
-                OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
-            }
-
-            int64_t routing_weights_size = static_cast<int64_t>(n_token * max_topk);
-            onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
-
-            // gather
-            result_event = execute_stage({result_event},
-                                         instance,
-                                         *gather,
-                                         {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
-                                         {scratch.x, scratch.routing_weights},
-                                         {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
-                                         {1, lws_size},
-                                         instance.needs_completion_event());
-
-            // up
-            kernel.up.forward(dnn_stream,
-                              n_token,
-                              convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
-                              convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                              dnnl::memory());
-            // gate
-            kernel.gate.forward(dnn_stream,
-                                n_token,
-                                convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
-            // down
-            kernel.down.forward(dnn_stream,
-                                n_token,
-                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.y, {static_cast<int64_t>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {routing_weights_size}, dnnl::memory::format_tag::a));
-            // index_add
-            result_event = execute_stage({result_event},
-                                         instance,
-                                         *scatter,
-                                         {scratch.y, expert_mask_mem.batch},
-                                         {final_hidden_states_mem_ptr},
-                                         {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
-                                         {1, lws_size},
-                                         true /*instance.needs_completion_event()*/);
+            result_event = exec_resident_expert(result_event, stream, instance, scratch, expert_no, n_token, true);
         }
 
         return result_event;

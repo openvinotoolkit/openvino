@@ -1129,6 +1129,9 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 
 #else
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [token_num * REDUCE_COUNT, HIDDEN_SIZE]
+#    if LES_EXPERT_ORDER
+                                                                           const __global int* expert_order,
+#    endif
                                                                              __global MOE_DTYPE* y) {      // [token_num, HIDDEN_SIZE]
     // gws={token_num, HIDDEN_SIZE}, lws={1, largest multiple of SUBGROUP_SIZE that divides HIDDEN_SIZE and is <= min(max_wgs, 1024)}
     int token_idx = get_global_id(0);
@@ -1140,7 +1143,13 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 #    endif
     half sum[REDUCE_COUNT] = {0};
     __attribute__((opencl_unroll_hint(REDUCE_COUNT))) for (int i = 0; i < REDUCE_COUNT; i++) {
-        sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + (token_idx * REDUCE_COUNT + i) * HIDDEN_SIZE + n)));
+        int pair = i;
+    #    if LES_EXPERT_ORDER
+        if (i < MAX_TOPK) {
+            pair = expert_order[token_idx * MAX_TOPK + i];
+        }
+    #    endif
+        sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + (token_idx * REDUCE_COUNT + pair) * HIDDEN_SIZE + n)));
     }
     for (int i = 1; i < REDUCE_COUNT; i++) {
         sum[0] += sum[i];

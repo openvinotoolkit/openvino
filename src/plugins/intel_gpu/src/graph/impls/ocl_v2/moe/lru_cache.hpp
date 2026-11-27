@@ -17,6 +17,8 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
+std::vector<std::pair<size_t, size_t>> plan_expert_waves(const std::vector<uint32_t>& experts, size_t capacity);
+
 class ExpertSlotReservations {
 public:
     struct Ticket {
