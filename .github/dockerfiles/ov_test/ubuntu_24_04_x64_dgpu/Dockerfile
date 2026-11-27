@@ -55,15 +55,15 @@ RUN add-apt-repository -y ppa:kobuk-team/intel-graphics && \
     apt-get update && apt-get install ocl-icd-libopencl1 libze-dev libze1 && \
     mkdir drivers && \
     cd drivers && \
-    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-core-2_2.32.7+21184_amd64.deb && \
-    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-opencl-2_2.32.7+21184_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-ocloc-dbgsym_26.14.37833.4-0_amd64.ddeb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-ocloc_26.14.37833.4-0_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-opencl-icd-dbgsym_26.14.37833.4-0_amd64.ddeb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-opencl-icd_26.14.37833.4-0_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libigdgmm12_22.9.0_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libze-intel-gpu1-dbgsym_26.14.37833.4-0_amd64.ddeb && \
-    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libze-intel-gpu1_26.14.37833.4-0_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.40.13/intel-igc-core-2_2.40.13+22418_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.40.13/intel-igc-opencl-2_2.40.13+22418_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/intel-ocloc-dbgsym_26.31.39395.13-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/intel-ocloc_26.31.39395.13-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/intel-opencl-icd-dbgsym_26.31.39395.13-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/intel-opencl-icd_26.31.39395.13-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/libigdgmm12_22.10.0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/libze-intel-gpu1-dbgsym_26.31.39395.13-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.31.39395.13/libze-intel-gpu1_26.31.39395.13-0_amd64.deb && \
     dpkg -i *.deb && cd .. && rm -rf drivers
 
 # Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
