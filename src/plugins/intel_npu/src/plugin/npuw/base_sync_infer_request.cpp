@@ -508,8 +508,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
         const auto& g_port = m_npuw_model->inputs()[param_idx];
         const auto& g_tnsr = get_tensor(g_port);
-        const auto& s_port = request->get_inputs()[sub_in_idx];
-        LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
+        LOG_DEBUG("Processing " << g_port << " -> function parameter " << sub_in_idx << "...");
         LOG_BLOCK();
 
         if (is_spatial_param(sub_in_idx)) {
@@ -525,6 +524,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (bind_behavior_input(idx, real_idx, sub_in_idx, g_tnsr, request)) {
             continue;
         } else {
+            // Only here: with a runtime behavior, the function parameter index may not be an input of the request
+            // (e.g. block KV HFA has more parameters than its tile model has inputs)
+            const auto& s_port = request->get_inputs()[sub_in_idx];
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);
             // Input parameter is non-spatial, do normal handling

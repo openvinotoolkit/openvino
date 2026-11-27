@@ -2773,9 +2773,34 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         return m_dev_list.size() == 1 || !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
     };
 
-    auto no_subgraph_behavior_concern = [&]() {
+    // PROTOTYPE: with execution lists, UnfoldInferRequest runs HFA (host flash attention) calls itself, with
+    // requests of their own for every tile. Their K/V tiles must be bound without host copies: as whole KV blocks or
+    // as strided views of the KV cache.
+    auto unfold_runs_hfa = [&](std::size_t idx) {
+        const auto& desc = m_compiled_submodels[idx];
+        const auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context);
+        if (hfa == nullptr || !hfa->is_valid()) {
+            return false;
+        }
+        if (!hfa->_can_use_tensor_view && !hfa->is_block_mode()) {
+            LOG_WARN("Subgraph[" << idx << "] HFA K/V tiles need host copies (no strided views), unfold can't be done");
+            return false;
+        }
+        // The tile requests take the function parameters only, every call must be without weights
+        for (std::size_t call_idx = 0u; call_idx < m_compiled_submodels.size(); call_idx++) {
+            const auto& call = m_compiled_submodels[call_idx];
+            if (call.replaced_by.value_or(call_idx) == idx && !call.closure.get().closure.empty()) {
+                LOG_WARN("Subgraph[" << call_idx << "] HFA call has a closure, unfold can't be done");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    auto no_subgraph_behavior_concern = [&](bool allow_hfa) {
         for (std::size_t idx = 0u; idx < m_compiled_submodels.size(); idx++) {
-            if (m_compiled_submodels[idx].pipeline.runtime_behavior.has_value()) {
+            if (m_compiled_submodels[idx].pipeline.runtime_behavior.has_value() &&
+                !(allow_hfa && unfold_runs_hfa(idx))) {
                 LOG_WARN("Subgraph[" << idx << "] has a runtime behavior, unfold can't be done");
                 return false;
             }
@@ -2794,7 +2819,7 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
     if (exec_list) {
         const bool spatial_unpack_ok = no_spatial_unpack();
         const bool failsafe_ok = no_failsafe_concern();
-        const bool behavior_ok = no_subgraph_behavior_concern();
+        const bool behavior_ok = no_subgraph_behavior_concern(true);
         if (!spatial_unpack_ok || !failsafe_ok || !behavior_ok) {
             LOG_EXEC(m_name << ": EXEC_LIST requested but unfold is not possible (spatial/unpack ok="
                             << spatial_unpack_ok << ", failsafe ok=" << failsafe_ok
@@ -2804,7 +2829,7 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
 
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
     if ((m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || exec_list) && no_spatial_unpack() && no_failsafe_concern() &&
-        no_subgraph_behavior_concern()) {
+        no_subgraph_behavior_concern(exec_list)) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
