@@ -9,6 +9,7 @@ for more information.
 ## Available Custom Actions
 
 * [Python Setup](#python-setup)
+* [Hugging Face Proxy Setup](#hugging-face-proxy-setup)
 * [System Info Print](#system-info-print)
 * Smart CI (see details: [feature documentation](./smart_ci.md))
 * OpenVINO Provider (see details: [documentation](./openvino_provider.md))
@@ -28,6 +29,11 @@ Under the hood it uses the GitHub-provided `actions/setup-python`, and community
 Since `actions/setup-python` does not work on the Linux ARM64 machines,
 `deadsnakes-action` is used instead.
 
+On Windows x64, Python 3.15 and 3.15t use the official CPython NuGet packages,
+pinned to 3.15.2, to avoid the machine-wide installer. The action adds the selected
+interpreter to `PATH` and exports `PYTHON315_EXECUTABLE` or `PYTHON315T_EXECUTABLE`
+for builds that need explicit paths; these installs are not registered with `py`.
+
 ### Usage
 ```yaml
   - name: Setup Python ${{ env.PYTHON_VERSION }}
@@ -43,6 +49,21 @@ where:
 * `pip-cache-path` - the path to the `pip` cache on the mounted share. Read more in the [shares and caches](./caches.md) documentation
 * `set-pip-install-path` - indicates whether the action should set up the `PIP_CACHE_DIR` and `PIP_INSTALL_PATH` environment variables for later usage
 * `self-hosted-runner` - indicates whether the runner is self-hosted. Learn more about [available runners](./runners.md)
+
+## Hugging Face Proxy Setup
+
+The `setup_hf_proxy` action configures the Hugging Face proxy, disables Xet,
+and creates a local cache under `runner.temp` for subsequent steps. It preserves
+existing authentication settings, including `HF_TOKEN_PATH`. Check out the action
+and ensure `python3` is available before calling it:
+
+```yaml
+  - name: Setup Hugging Face proxy
+    uses: ./.github/actions/setup_hf_proxy
+```
+
+See [Hugging Face model cache](./caches.md#hugging-face-model-cache)
+for endpoint reachability and disk-space requirements.
 
 ## System Info Print
 

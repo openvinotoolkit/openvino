@@ -5,6 +5,7 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -629,6 +630,14 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (multimodal_positions || !genai.attention_context_input.empty()) {
         // Spatial coordinates can repeat or decrease; causality follows token order.
         q_pos = make_shared<v8::Slice>(key_positions, past_len, kv_len, one_1, one_1);
+    } else {
+        // Callers may number positions from any origin (HF Gemma3 VLMs start at 1). Align the last
+        // query, which left padding never covers, with its key so masks ignore a constant offset.
+        auto minus_one = v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto end = v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()});
+        auto last_query = make_shared<v8::Slice>(q_pos, minus_one, end, one_1, one_1);
+        auto last_key = make_shared<v8::Slice>(key_positions, minus_one, end, one_1, one_1);
+        q_pos = make_shared<v1::Add>(q_pos, make_shared<v1::Subtract>(last_key, last_query));
     }
     auto q_pos_col = as_query_col(q_pos);
     auto k_row = as_key_row(key_positions);

@@ -125,6 +125,37 @@ available. Use the same mount point as the existing workflows for the target run
 
 To add new resources, contact a member of the CI team for assistance.
 
+### Hugging Face Model Cache
+
+Hugging Face model-test jobs call `setup_hf_proxy` after checking out the action
+and making `python3` available:
+
+```yaml
+steps:
+  - name: Setup Hugging Face proxy
+    uses: ./.github/actions/setup_hf_proxy
+```
+
+The action exports `HF_ENDPOINT=http://hf-proxy.hf-proxy.svc.cluster.local`
+and `HF_HUB_DISABLE_XET=1`. It sets `HF_HOME` to `${{ runner.temp }}/hf-home`
+and both `HF_HUB_CACHE` and `HUGGINGFACE_HUB_CACHE` to
+`${{ runner.temp }}/hf-home/hub`, overriding shared-cache settings for subsequent
+steps. Call it in each reusable workflow that needs the proxy; reusable workflows
+do not inherit the caller's environment.
+
+Runner selection and existing Hugging Face authentication settings are unchanged.
+DMZ GPU runners retain the original Hugging Face endpoint and shared cache at
+`/mnt/caches/huggingface`. GPU RoPE tests do not call `setup_hf_proxy`. LLM accuracy
+tests use the proxy only when the caller sets `use-hf-proxy: true`, independently
+of `use-pip-proxy`. The AKS CPU job opts in; the DMZ GPU jobs use the default
+of `false`.
+
+Runners using `setup_hf_proxy` must be able to resolve and reach this cluster-local
+endpoint. There is no
+direct-download fallback if the proxy is unreachable. Models occupy local runner
+disk even when served from the proxy cache. The proxy covers Hugging Face Hub
+clients, not other model hosts such as Kaggle or torchvision.
+
 ### Remote Storage Compiler Cache
 
 Builds can share compiled objects through ccache's remote storage on the shared drive

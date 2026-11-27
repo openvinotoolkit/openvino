@@ -8,7 +8,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <limits>
+#include <map>
 #include <set>
 #include <sstream>
 #include <tuple>
@@ -1318,9 +1320,197 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm3RejectsMissingRequiredMetadataAndWeig
     }
 }
 
+namespace {
+struct GgufKeyValue {
+    std::string key;
+    uint32_t type;
+    std::vector<uint8_t> value;
+};
+
+// Rewrites GGUF metadata while preserving tensor infos and tensor data.
+std::vector<uint8_t> rewrite_gguf_metadata(const std::vector<uint8_t>& bytes,
+                                           const std::function<void(std::vector<GgufKeyValue>&)>& edit) {
+    size_t pos = 0;
+    const auto read = [&](auto& value) {
+        OPENVINO_ASSERT(pos + sizeof(value) <= bytes.size(), "truncated GGUF");
+        std::memcpy(&value, bytes.data() + pos, sizeof(value));
+        pos += sizeof(value);
+    };
+    const auto read_string = [&] {
+        uint64_t size = 0;
+        read(size);
+        OPENVINO_ASSERT(pos + size <= bytes.size(), "truncated GGUF");
+        std::string value(bytes.begin() + pos, bytes.begin() + pos + size);
+        pos += size;
+        return value;
+    };
+    const auto scalar_size = [](uint32_t type) -> size_t {
+        static const std::map<uint32_t, size_t>
+            sizes{{0, 1}, {1, 1}, {2, 2}, {3, 2}, {4, 4}, {5, 4}, {6, 4}, {7, 1}, {10, 8}, {11, 8}, {12, 8}};
+        const auto it = sizes.find(type);
+        OPENVINO_ASSERT(it != sizes.end(), "unexpected GGUF value type ", type);
+        return it->second;
+    };
+    const auto skip_value = [&](uint32_t type) {
+        if (type == 8) {
+            read_string();
+        } else if (type == 9) {
+            uint32_t element_type = 0;
+            uint64_t count = 0;
+            read(element_type);
+            read(count);
+            for (uint64_t i = 0; i < count; ++i) {
+                if (element_type == 8) {
+                    read_string();
+                } else {
+                    pos += scalar_size(element_type);
+                }
+            }
+        } else {
+            pos += scalar_size(type);
+        }
+        OPENVINO_ASSERT(pos <= bytes.size(), "truncated GGUF");
+    };
+
+    uint32_t magic = 0, version = 0;
+    uint64_t tensors = 0, kv_count = 0;
+    read(magic);
+    read(version);
+    read(tensors);
+    read(kv_count);
+    std::vector<GgufKeyValue> kvs;
+    uint64_t alignment = 32;
+    for (uint64_t i = 0; i < kv_count; ++i) {
+        GgufKeyValue kv;
+        kv.key = read_string();
+        read(kv.type);
+        const auto begin = pos;
+        skip_value(kv.type);
+        kv.value.assign(bytes.begin() + begin, bytes.begin() + pos);
+        if (kv.key == "general.alignment") {
+            uint32_t value = 0;
+            std::memcpy(&value, kv.value.data(), sizeof(value));
+            alignment = value;
+        }
+        kvs.push_back(std::move(kv));
+    }
+    const auto infos_begin = pos;
+    for (uint64_t i = 0; i < tensors; ++i) {
+        read_string();
+        uint32_t dims = 0;
+        read(dims);
+        pos += dims * sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
+    }
+    const auto infos_end = pos;
+    const auto data_begin = (infos_end + alignment - 1) / alignment * alignment;
+    OPENVINO_ASSERT(data_begin <= bytes.size(), "truncated GGUF");
+
+    edit(kvs);
+
+    std::vector<uint8_t> out;
+    const auto write = [&](const auto& value) {
+        const auto* raw = reinterpret_cast<const uint8_t*>(&value);
+        out.insert(out.end(), raw, raw + sizeof(value));
+    };
+    write(magic);
+    write(version);
+    write(tensors);
+    write(static_cast<uint64_t>(kvs.size()));
+    for (const auto& kv : kvs) {
+        write(static_cast<uint64_t>(kv.key.size()));
+        out.insert(out.end(), kv.key.begin(), kv.key.end());
+        write(kv.type);
+        out.insert(out.end(), kv.value.begin(), kv.value.end());
+    }
+    out.insert(out.end(), bytes.begin() + infos_begin, bytes.begin() + infos_end);
+    out.resize((out.size() + alignment - 1) / alignment * alignment, 0);
+    out.insert(out.end(), bytes.begin() + data_begin, bytes.end());
+    return out;
+}
+
+GgufKeyValue gguf_u32(const std::string& key, uint32_t value) {
+    const auto* raw = reinterpret_cast<const uint8_t*>(&value);
+    return {key, 4, std::vector<uint8_t>(raw, raw + sizeof(value))};
+}
+
+GgufKeyValue gguf_string(const std::string& key, const std::string& value) {
+    GgufKeyValue kv{key, 8, {}};
+    const uint64_t size = value.size();
+    const auto* raw = reinterpret_cast<const uint8_t*>(&size);
+    kv.value.assign(raw, raw + sizeof(size));
+    kv.value.insert(kv.value.end(), value.begin(), value.end());
+    return kv;
+}
+
+void set_gguf_value(std::vector<GgufKeyValue>& kvs, const GgufKeyValue& value) {
+    const auto it = std::find_if(kvs.begin(), kvs.end(), [&](const GgufKeyValue& kv) {
+        return kv.key == value.key;
+    });
+    if (it == kvs.end()) {
+        kvs.push_back(value);
+    } else {
+        *it = value;
+    }
+}
+}  // namespace
+
+TEST(GGUFEmbeddingAccuracy, NoncausalLfm2RejectsUnsupportedConfigurations) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/lfm2-encoder.npz");
+    const auto& model = ov_gguf_test::npz_array(arrays, "model");
+    const std::vector<uint8_t> original(model.data<uint8_t>(), model.data<uint8_t>() + model.num_vals);
+    using Edit = std::function<void(std::vector<GgufKeyValue>&)>;
+    for (const auto& [name, edit, diagnostic] : std::vector<std::tuple<std::string, Edit, std::string>>{
+             {"lfm2moe",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  for (auto& kv : kvs) {
+                      if (kv.key.rfind("lfm2.", 0) == 0) {
+                          kv.key = "lfm2moe." + kv.key.substr(5);
+                      }
+                  }
+                  set_gguf_value(kvs, gguf_string("general.architecture", "lfm2moe"));
+              },
+              "noncausal attention is supported only for lfm2, not lfm2moe"},
+             {"sliding_window",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  set_gguf_value(kvs, gguf_u32("lfm2.attention.sliding_window", 4));
+              },
+              "does not support sliding-window attention"},
+             {"decision_heads",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  set_gguf_value(kvs, gguf_u32("lfm2.decision.block_count", 1));
+              },
+              "decision heads are not supported"},
+             {"even_kernel",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  set_gguf_value(kvs, gguf_u32("lfm2.shortconv.l_cache", 4));
+              },
+              "centered short convolution requires an odd kernel"},
+             {"kernel_mismatch",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  set_gguf_value(kvs, gguf_u32("lfm2.shortconv.l_cache", 5));
+              },
+              "weight width does not match shortconv.l_cache"}}) {
+        SCOPED_TRACE(name);
+        const auto bytes = rewrite_gguf_metadata(original, edit);
+        cnpy::NpyArray patched({bytes.size()}, sizeof(uint8_t), false);
+        std::copy(bytes.begin(), bytes.end(), patched.data<uint8_t>());
+        const ov_gguf_test::TemporaryGguf temporary(patched);
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)), ov::Exception, testing::HasSubstr(diagnostic));
+    }
+}
+
 TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
-    for (const auto* family :
-         {"llama-embed", "llama-embed-noncausal", "llama-embed-mean", "llama-embed-cls", "llama-embed-last"}) {
+    for (const auto* family : {"llama-embed",
+                               "llama-embed-noncausal",
+                               "llama-embed-mean",
+                               "llama-embed-cls",
+                               "llama-embed-last",
+                               "lfm2-encoder",
+                               "lfm2-embed-mean",
+                               "lfm2-embed-cls",
+                               "lfm2-embed-last",
+                               "lfm2-colbert"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -1364,7 +1554,7 @@ TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
             request.infer();
             auto output = request.get_tensor("embeddings");
             const auto& expected = ov_gguf_test::npz_array(arrays, "embeddings");
-            const bool pooled = std::string(family) != "llama-embed" && std::string(family) != "llama-embed-noncausal";
+            const bool pooled = expected.shape.front() == 1;
             ASSERT_EQ(output.get_shape(), (ov::Shape{pooled ? 1 : count, expected.shape.back()}));
             if (compare_reference || std::string(family) == "llama-embed") {
                 ov_gguf_test::expect_nmse_below(
@@ -1377,6 +1567,53 @@ TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
         infer(2, false);
         infer(3, true);
     }
+}
+
+TEST(GGUFArchitectureAccuracy, Lfm3D1WholePromptMatchesLlamaCPU) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/lfm3-d1.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(temporary.path));
+    for (const auto mode : {ov::frontend::gguf::pass::AdaptToGenAI::InputMode::IDS_TO_LOGITS,
+                            ov::frontend::gguf::pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}) {
+        ov::frontend::gguf::pass::AdaptToGenAI adapter(mode);
+        EXPECT_FALSE(adapter.run_on_model(model));
+    }
+    const auto& expected = ov_gguf_test::npz_array(arrays, "logits");
+    ASSERT_EQ(expected.shape.size(), 2);
+    const size_t count = expected.shape[0];
+    const size_t vocab = expected.shape[1];
+    ASSERT_EQ(count, 6);
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::hint::dynamic_quantization_group_size(0));
+    auto request = compiled.create_infer_request();
+    EXPECT_TRUE(request.query_state().empty());
+    for (const auto& input : compiled.inputs()) {
+        const auto name = input.get_any_name();
+        if (name == "self_kq_mask_swa") {
+            // The fixture's window is 2: sliding layers stay causal, full-attention layers are bidirectional.
+            ov::Tensor mask(ov::element::f32, {1, 1, count, count});
+            for (size_t q = 0; q < count; ++q)
+                for (size_t k = 0; k < count; ++k)
+                    mask.data<float>()[q * count + k] = k <= q && q - k < 2 ? 0.f : -INFINITY;
+            request.set_tensor(name, mask);
+        } else {
+            ASSERT_TRUE(name == "inp_tokens" || name == "inp_pos" || name == "inp_out_ids") << name;
+            ov::Tensor values(ov::element::i32, {1, 1, 1, count});
+            for (size_t i = 0; i < count; ++i)
+                values.data<int32_t>()[i] = static_cast<int32_t>(i) + (name == "inp_tokens" ? 1 : 0);
+            request.set_tensor(name, values);
+        }
+    }
+    request.infer();
+    auto output = request.get_output_tensor(0);
+    ASSERT_EQ(output.get_size(), count * vocab);
+    ov_gguf_test::expect_nmse_below(
+        ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+        1e-5);
 }
 
 TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {

@@ -16,10 +16,11 @@ audio branch. Built-in entries come from `projector_catalog` in
 | Vision | `gemma3`, `idefics3`, `janus_pro` | SigLIP; fused QKV and legacy FFN names |
 | Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors |
 | Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
-| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
+| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045; dimension-gated legacy FFN weight/bias names |
 | Vision | `gemma3nv` | MobileNet stem, UIR, attention and multiscale feature branches; vision-only support |
 | Vision | `minicpmv4_6` | window attention, two-stage merging |
 | Vision | `minicpmv4_7` | window-attention and direct 2x2 merging; packed-patch GenAI layout |
+| Vision | `minicpm_ocr_1_0` | MiniCPM-V 4.6 encoder graph; direct 2x2 merging in the published `-4x` projector |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
 | Vision | `pixtral` | 2D RoPE, patch merger, row separators |
 | Vision | `phi4` | dynamic resolution, resized positions |
@@ -37,6 +38,9 @@ audio branch. Built-in entries come from `projector_catalog` in
 | Generated audio | `lfm3a_gen` | depthformer, feedback and codec components |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
+For `resampler`, legacy FFN names are swapped only when the dimensions distinguish the layout;
+square FFNs keep the canonical order.
+
 The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
@@ -45,7 +49,8 @@ The LFM2.5 vocoder is a separate `lfm2.audio_vocoder` architecture.
 Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `llama4`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
-`granite4_vision`. An unsupported projector fails conversion of the whole file.
+`granite4_vision`, `cohere2v`. A file with both encoders still converts when only one of them is
+supported; see [files with vision and audio encoders](#files-with-vision-and-audio-encoders).
 
 ## Validation coverage
 
@@ -56,6 +61,11 @@ Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `llama4`,
   [nightly](../../../../tests/model_hub_tests/gguf/gguf_mmproj_nightly) lists run real
   checkpoints with generated inputs. Per-checkpoint relaxations and skips are recorded in those
   lists.
+- `minicpm_ocr_1_0` needs llama.cpp `604cc43` or later. The model-hub oracle is pinned to an
+  older revision, so this projector is not in the model-hub lists. MiniCPM-OCR-1.0
+  `mmproj-model-f16-4x.gguf` (revision `0133ad8d`) was checked manually against
+  `mmproj_oracle` at `604cc43` on CPU with f32 inference precision at 448×448 and 280×420:
+  NMSE 8.1e-5 and 1.1e-4 on the BF16 file, 7.7e-7 and 6.7e-7 on its represented-F32 copy.
 - Encoder tests do not validate media preprocessing, media insertion or complete VLM/audio
   generation. A catalog entry is not a claim of coverage for every checkpoint, resolution,
   quantization or device.
@@ -72,16 +82,18 @@ both. Conversion builds the file's supported encoders into one model:
 2. Each encoder takes its projector from the global `clip.projector_type`, or else from
    `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
    per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
-   (Qwen2.5 VL vision, Qwen2 audio). An unsupported projector fails conversion of the whole file,
-   except for the combined Gemma3n `gemma3nv` vision / `gemma3na` audio pair. As in the reference,
-   this pair builds only vision when no registered extension handles its audio branch.
+   (Qwen2.5 VL vision, Qwen2 audio). An encoder whose projector has no matching builder is skipped
+   with a notice on stderr; a builder declines an unsupported variant through its `match`
+   predicate. An error thrown while building a matched projector, such as a missing tensor, still
+   fails conversion. For example, a combined Gemma3n `gemma3nv` / `gemma3na` file builds only
+   vision unless an extension handles its audio branch. A file with no convertible encoder or
+   supported speech generation fails and lists each skipped encoder.
 3. The encoders become disconnected branches of the same graph. Vision reads `v.*` tensors and
    `vision.*` inputs and produces `vision.embeddings`; audio reads `a.*` tensors and `audio.*`
    inputs and produces `audio.embeddings`.
 4. `gguf_mmproj` rt_info records each encoder's `<modality>.projector` and `<modality>.merge`.
-   The omitted Gemma3n audio branch retains `audio.projector=gemma3na` and
-   `audio.supported=false`; both fields survive serialization, and GenAI adaptation skips the
-   unsupported audio branch while returning the vision encoder.
+   A skipped encoder keeps its `<modality>.projector` and adds `<modality>.supported=false`;
+   both fields survive serialization, and GenAI adaptation returns only the built encoders.
 
 Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
 turns it into one encoder; apply it to a clone per modality to obtain both.
@@ -110,9 +122,16 @@ random pixels/features and is not a media preprocessor.
 ## Runtime metadata
 
 Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds derived values such as
-`<modality>.projector`, `<modality>.merge`, `vision.patch_size` and `vision.genai_layout`. Values
+`<modality>.projector`, `<modality>.merge`, `vision.patch_size` and `vision.genai_layout`. A
+skipped encoder has no output, keeps its source `clip.has_<modality>_encoder` flag and is marked
+with `<modality>.supported=false`. Values
 are strings: numeric arrays are comma-separated, and string arrays use `length:value` entries
 flagged by a `<key>.encoding` companion. The metadata survives IR serialization and adaptation.
+
+Learned `v.image_newline`, `v.view_seperator` and `model.image_newline` weights, when present, are
+also preserved as comma-separated values under their source tensor names in `gguf_mmproj`.
+Consumers can use them to assemble image features outside the graph; DeepSeek OCR encoders already
+incorporate their separators into the native graph.
 
 ## Using the encoders and a language model
 
