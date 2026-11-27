@@ -67,10 +67,16 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         int batchDim = 0, featureDim = 0, yDim = 0, xDim = 0;
         // if calcWgDimInputIdx is greater than -1, take dimension from input
         if (calcWgDimInputIdx >= 0) {
-            xDim = GetDim(inputDims[inputDims.size() - 1]);
-            yDim = dims.size() > 1 ? GetDim(inputDims[inputDims.size() - 2]) : 0;
-            featureDim = dims.size() > 2 ? GetDim(inputDims[inputDims.size() - 3]) : 0;
-            batchDim = dims.size() > 3 ? GetDim(inputDims[inputDims.size() - 4]) : 0;
+            const auto rank = inputDims.size();
+            const auto offset = rank > 4 ? rank - 4 : 0;
+            // BFYX layouts pad missing trailing axes with singleton dimensions.
+            const auto input_dim = [&](size_t axis) {
+                return offset + axis < rank ? GetDim(inputDims[offset + axis]) : 1;
+            };
+            batchDim = input_dim(0);
+            featureDim = input_dim(1);
+            yDim = input_dim(2);
+            xDim = input_dim(3);
         } else {
             batchDim = (dims.size() > 0) ? GetDim(dims[0]) : 1;
             featureDim = (dims.size() > 1) ? GetDim(dims[1]) : 1;
