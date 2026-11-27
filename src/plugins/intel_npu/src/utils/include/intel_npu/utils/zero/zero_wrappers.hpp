@@ -94,9 +94,14 @@ public:
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
     void updateMutableCommandList(uint32_t index, const void* data) const;
+    void updateMutableCommandList(uint32_t index, const void* data, uint64_t command_id) const;
     void updateMutableCommandListWithStrides(uint32_t index,
                                              const void* data,
                                              const std::vector<size_t>& strides) const;
+    void updateMutableCommandListWithStrides(uint32_t index,
+                                             const void* data,
+                                             const std::vector<size_t>& strides,
+                                             uint64_t command_id) const;
     void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;
@@ -105,6 +110,20 @@ public:
     inline ze_command_list_handle_t handle() const {
         return _handle;
     }
+
+    /**
+     * @brief Returns the mutable command id fetched when the command list was created, which belongs to the first
+     * mutable command appended to the list.
+     */
+    inline uint64_t commandId() const {
+        return _command_id;
+    }
+
+    /**
+     * @brief Fetches the mutable command id of the next command appended to the list. Used when the list holds
+     * more than one mutable command.
+     */
+    uint64_t getNextCommandId() const;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;

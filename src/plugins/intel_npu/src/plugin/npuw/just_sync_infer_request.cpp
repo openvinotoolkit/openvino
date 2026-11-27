@@ -21,6 +21,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
 #include "pyramid_attention.hpp"
+#include "util.hpp"
 #include "v1/elements/failsafe.hpp"
 #include "weights_bank.hpp"
 
@@ -760,6 +761,7 @@ bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
 }
 
 void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
+    exec_trace(idx, m_subrequests[idx], "start_async()");
     m_subrequests[idx]->start_async();
 }
 
@@ -1000,9 +1002,11 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
         auto& r = m_subrequests[real_idx];
+        exec_trace(idx, r, "start_async()");
         r->start_async();
         f();  // expect noexcept
         r->wait();
+        exec_trace(idx, r, "wait() returned");
     } else {
         // Spatial or HFA: Run f asynchronously while executing spatial/HFA inference
         auto future = std::async(std::launch::async, f);
@@ -1070,7 +1074,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
         }  // for(outputs)
 
         // Now run the part
-        r->infer();
+        run_blocking(real_idx, r, " [spatial offset=" + std::to_string(offset) + "]");
     }  // for(full_nway_times)
 
     // Now process the tail, if required
@@ -1097,7 +1101,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
         }  // for(outputs)
 
         // Now run the tail infer
-        r->infer();
+        run_blocking(real_idx, r, " [spatial tail offset=" + std::to_string(offset) + "]");
 
         // Now copy the views from the output full-nway tensor to the output tensors
         for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
@@ -1116,13 +1120,19 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
     }
 }
 
+void ov::npuw::JustInferRequest::run_blocking(std::size_t idx, const RqPtr& request, const std::string& extra) {
+    exec_trace(idx, request, "infer()", extra);
+    request->infer();
+    exec_trace(idx, request, "infer() returned", extra);
+}
+
 void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
     } else {
-        r->infer();  // Run normally
+        run_blocking(idx, r);  // Run normally
     }
 }
 

@@ -25,6 +25,10 @@ public:
 
     void cancel() override;
 
+    const std::shared_ptr<InferRequest>& get_infer_request() const {
+        return _inferRequest;
+    }
+
     ~AsyncInferRequest();
 
 private:

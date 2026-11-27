@@ -4,11 +4,55 @@
 
 #include "remote_context.hpp"
 
+#include "async_infer_request.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "zero_execution_list.hpp"
 
 using namespace ov::intel_npu;
 
 namespace intel_npu {
+
+namespace {
+
+// Maps the requests the application holds to the plugin's requests and keeps them alive while they are in the list
+class ExecutionList final : public IExecutionList {
+public:
+    ExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const void* queue_owner)
+        : _list(init_structs, queue_owner) {}
+
+    void append(const std::shared_ptr<ov::IAsyncInferRequest>& request) override {
+        const auto async_request = std::dynamic_pointer_cast<AsyncInferRequest>(request);
+        OPENVINO_ASSERT(async_request != nullptr, "The request was not created by the NPU plugin");
+        const auto zero_request = std::dynamic_pointer_cast<ZeroInferRequest>(async_request->get_infer_request());
+        OPENVINO_ASSERT(zero_request != nullptr, "The request is not supported by the execution list");
+
+        _list.append(zero_request);
+        _requests.push_back(request);
+    }
+
+    void prepare() override {
+        _list.prepare();
+    }
+
+    void start_async() override {
+        _list.start_async();
+    }
+
+    void wait() override {
+        _list.wait();
+    }
+
+    void reset() override {
+        _list.reset();
+        _requests.clear();
+    }
+
+private:
+    ZeroExecutionList _list;
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> _requests;
+};
+
+}  // namespace
 
 RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend,
                                      const ov::AnyMap& remote_properties)
@@ -103,6 +147,10 @@ ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::
 
 const std::string& RemoteContextImpl::get_device_name() const {
     return _device_name;
+}
+
+std::shared_ptr<IExecutionList> RemoteContextImpl::create_execution_list(const void* queue_owner) {
+    return std::make_shared<ExecutionList>(_init_structs, queue_owner);
 }
 
 std::shared_ptr<ov::IRemoteContext> RemoteContextImpl::get_this_shared_ptr() {

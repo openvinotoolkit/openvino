@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstdlib>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -198,6 +199,46 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
+}
+
+namespace {
+bool env_flag(const char* name, bool default_value = false) {
+    const char* opt = std::getenv(name);
+    if (!opt) {
+        return default_value;
+    }
+    const std::string str(opt);
+    return str == "YES" || str == "ON" || str == "1";
+}
+
+// PROTOTYPE default: execution lists are on for both stages, one list for the whole infer()
+constexpr bool kExecListDefault = true;
+
+bool ends_with(const std::string& str, const std::string& suffix) {
+    return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+// The prefill models: GQACompiledModel names them "<name>_gqa_prefill<N>", LLMCompiledModel "<name>_prefill"
+bool is_prefill(const std::string& model_name) {
+    return model_name.find("_gqa_prefill") != std::string::npos || ends_with(model_name, "_prefill");
+}
+
+// The generate models: GQACompiledModel names them "<name>_gqa_generate<N>", LLMCompiledModel names each generate
+// variant "<name>_kv<N>". The LM head ("<name>_lm_head") is neither.
+bool is_generate(const std::string& model_name) {
+    if (model_name.find("_gqa_generate") != std::string::npos) {
+        return true;
+    }
+    const auto pos = model_name.rfind("_kv");
+    return pos != std::string::npos && pos + 3 < model_name.size() &&
+           model_name.find_first_not_of("0123456789", pos + 3) == std::string::npos;
+}
+}  // namespace
+
+bool ov::npuw::util::exec_list_enabled_for(const std::string& model_name) {
+    static const bool prefill = env_flag("OPENVINO_NPUW_EXEC_LIST", kExecListDefault);
+    static const bool generate = env_flag("OPENVINO_NPUW_EXEC_LIST_GENERATE", kExecListDefault);
+    return (prefill && is_prefill(model_name)) || (generate && is_generate(model_name));
 }
 
 bool ov::npuw::util::contains_ignore_case(const std::string& str, const std::string& substr) {

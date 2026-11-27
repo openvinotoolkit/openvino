@@ -6,6 +6,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
@@ -85,6 +86,14 @@ public:
     std::size_t get_run_iteration() const {
         return m_run_iter;
     }
+
+    // OPENVINO_NPUW_EXEC_TRACE: logs one OV API call (`api`) made on Subgraph[idx]'s
+    // infer request, stamped with the time elapsed since the current infer() began.
+    // Public so subgraph behaviors (e.g. HFA tiles) can report their own submissions.
+    void exec_trace(std::size_t idx,
+                    const ov::SoPtr<ov::IAsyncInferRequest>& request,
+                    const char* api,
+                    const std::string& extra = {});
 
     bool should_copy_subgraph_input(std::size_t idx) const {
         return needs_copy(idx);
@@ -227,6 +236,13 @@ protected:
     std::string iter_path_suffix(std::size_t idx) const;
     mutable std::optional<bool> m_iter_suffix_required;
     std::size_t m_run_iter = 0u;
+
+    // OPENVINO_NPUW_EXEC_TRACE bookkeeping; see exec_trace().
+    void exec_trace_begin(const char* request_kind);
+    void exec_trace_end();
+    std::size_t m_exec_iter = 0u;
+    std::size_t m_exec_submits = 0u;
+    std::chrono::steady_clock::time_point m_exec_t0;
 
     bool needs_copy(std::size_t idx) const;
     bool needs_copy(std::size_t idx, std::size_t cidx) const;

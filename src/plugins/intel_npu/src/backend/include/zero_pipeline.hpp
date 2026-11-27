@@ -42,11 +42,11 @@ public:
 
     virtual ~IPipeline() = default;
 
-protected:
-    // Helper function handling strides for Zero Pipeline and ZeroDynamicPipeline. Stateless regarding pipeline
-    // instances, hence static
+    // Helper function handling strides for Zero Pipeline, ZeroDynamicPipeline and ZeroExecutionList. Stateless
+    // regarding pipeline instances, hence static
     static std::vector<size_t> get_strides(const ov::ITensor& tensor, bool reverse_order = false);
 
+protected:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
@@ -106,6 +106,38 @@ private:
     std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
+};
+
+/**
+ * @brief Pipeline of a request that is executed by an execution list. The list records and submits the graph itself,
+ * reading the request's tensors directly, so this pipeline neither records nor submits anything.
+ */
+class ExternalPipeline final : public IPipeline {
+public:
+    ExternalPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                     const std::shared_ptr<IGraph>& graph,
+                     const Config& config)
+        : IPipeline(init_structs, graph, 1, config, "ExternalPipeline") {}
+
+    void push() override {
+        OPENVINO_THROW("The request is executed by an execution list and can't be started on its own");
+    }
+    void pull() override {
+        OPENVINO_THROW("The request is executed by an execution list and can't be waited for on its own");
+    }
+    void reset() const override {}
+
+    // The execution list detects changed tensor addresses itself
+    void update_graph_arguments(uint32_t, const std::shared_ptr<ZeroTensor>&, const std::shared_ptr<ov::ITensor>&)
+        override {}
+    void update_graph_arguments(uint32_t,
+                                const std::shared_ptr<ZeroTensor>&,
+                                size_t,
+                                const std::shared_ptr<ov::ITensor>&) override {}
+
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
 };
 
 }  // namespace intel_npu

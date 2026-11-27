@@ -152,31 +152,7 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
         zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
     try {
-        uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
-        if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
-            ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
-
-            mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
-
-            if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 1)) {
-                mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
-            } else {
-                mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
-            };
-
-            auto result = zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id);
-            if (result == ZE_RESULT_ERROR_INVALID_ENUMERATION) {
-                // If ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS is not supported by the driver, try again with
-                // ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED
-                mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
-
-                THROW_ON_FAIL_FOR_LEVELZERO(
-                    "zeCommandListGetNextCommandIdExp",
-                    zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id));
-            } else {
-                THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result);
-            }
-        }
+        _command_id = getNextCommandId();
     } catch (...) {
         auto result = zeCommandListDestroy(_handle);
         _handle = nullptr;
@@ -186,6 +162,38 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
 
         throw;
     }
+}
+uint64_t CommandList::getNextCommandId() const {
+    uint64_t command_id = 0;
+
+    uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
+    if (mutable_command_list_ext_version < ZE_MAKE_VERSION(1, 0)) {
+        return command_id;
+    }
+
+    ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
+
+    mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
+
+    if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 1)) {
+        mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
+    } else {
+        mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+    };
+
+    auto result = zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &command_id);
+    if (result == ZE_RESULT_ERROR_INVALID_ENUMERATION) {
+        // If ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS is not supported by the driver, try again with
+        // ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED
+        mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+
+        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
+                                    zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &command_id));
+    } else {
+        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result);
+    }
+
+    return command_id;
 }
 void CommandList::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListReset", zeCommandListReset(_handle));
@@ -231,12 +239,15 @@ CommandList::~CommandList() {
     }
 }
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
+    updateMutableCommandList(index, data, _command_id);
+}
+void CommandList::updateMutableCommandList(uint32_t index, const void* data, uint64_t command_id) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
     desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
-    desc.commandId = _command_id;
+    desc.commandId = command_id;
     desc.argIndex = index;
     desc.pArgValue = data;
 
@@ -250,12 +261,18 @@ void CommandList::updateMutableCommandList(uint32_t index, const void* data) con
 void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                                       const void* data,
                                                       const std::vector<size_t>& strides) const {
+    updateMutableCommandListWithStrides(index, data, strides, _command_id);
+}
+void CommandList::updateMutableCommandListWithStrides(uint32_t index,
+                                                      const void* data,
+                                                      const std::vector<size_t>& strides,
+                                                      uint64_t command_id) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
     desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
-    desc.commandId = _command_id;
+    desc.commandId = command_id;
     desc.argIndex = index;
     desc.pArgValue = data;
 

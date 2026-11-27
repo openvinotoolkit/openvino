@@ -43,6 +43,14 @@ bool starts_with(const std::string& str, const std::string& prefix);
 // Case-insensitive substring search.
 bool contains_ignore_case(const std::string& str, const std::string& substr);
 
+// PROTOTYPE: run all subgraphs of an infer() as one NPU execution list (one command list, one submission),
+// selected per stage by model name:
+//   - OPENVINO_NPUW_EXEC_LIST for the prefill models: GQA "<name>_gqa_prefill<N>", LLM "<name>_prefill";
+//   - OPENVINO_NPUW_EXEC_LIST_GENERATE for the generate models: GQA "<name>_gqa_generate<N>", LLM generate
+//     variants "<name>_kv<N>".
+// On by default for both stages; set the variable to NO to turn a stage off. Other models (e.g. the LLM head
+// "<name>_lm_head") are not affected.
+bool exec_list_enabled_for(const std::string& model_name);
 // Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
 // consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,
 // including an empty string or 0.

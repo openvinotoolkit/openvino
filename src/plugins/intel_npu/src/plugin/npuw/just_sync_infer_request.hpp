@@ -139,6 +139,8 @@ protected:
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void legacy_infer(std::size_t real_idx, std::size_t idx);
+    // Blocking run of one subrequest, traced for OPENVINO_NPUW_EXEC_TRACE
+    void run_blocking(std::size_t idx, const RqPtr& request, const std::string& extra = {});
     ov::npuw::v1::subgraphs::InferContext make_behavior_context(std::size_t real_idx, std::size_t idx);
     const ov::npuw::v1::subgraphs::RuntimeBehaviorSpec* get_runtime_behavior_spec(std::size_t idx) const;
     ov::npuw::v1::subgraphs::ISubgraphBehavior* get_subgraph_behavior(std::size_t idx) const;

@@ -13,7 +13,7 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
 namespace {
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+// Not gated by NPU_PLUGIN_DEVELOPER_BUILD: exec_trace_enabled() is available in release builds too.
 const char* get_env(const std::vector<std::string>& list_to_try) {
     for (auto&& key : list_to_try) {
         const char* pstr = std::getenv(key.c_str());
@@ -22,7 +22,6 @@ const char* get_env(const std::vector<std::string>& list_to_try) {
     }
     return nullptr;
 }
-#endif
 }  // anonymous namespace
 
 ov::npuw::LogLevel ov::npuw::get_log_level() {
@@ -65,6 +64,22 @@ bool ov::npuw::debug_groups() {
     });
 #endif
     return do_debug_groups;
+}
+
+bool ov::npuw::exec_trace_enabled() {
+    // Intentionally available in all builds (no NPU_PLUGIN_DEVELOPER_BUILD gate).
+    static bool do_exec_trace = false;
+    static std::once_flag flag;
+
+    std::call_once(flag, []() {
+        const auto* trace_opt = get_env({"OPENVINO_NPUW_EXEC_TRACE"});
+        if (!trace_opt) {
+            return;
+        }
+        const std::string trace_str(trace_opt);
+        do_exec_trace = (trace_str == "YES" || trace_str == "ON" || trace_str == "1");
+    });
+    return do_exec_trace;
 }
 
 bool ov::npuw::profiling_enabled() {

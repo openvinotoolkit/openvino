@@ -633,6 +633,10 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
     m_present_to_past_param_names = find_present_to_past_param_names(m_outer_model);
+    LOG_EXEC("GQACompiledModel@" << this << " '" << m_outer_model->get_friendly_name() << "' wraps NPUW CompiledModel@"
+                                 << m_inner_compiled_model.get() << " (static KV capacity "
+                                 << m_effective_max_context_len << ", " << m_dynamic_kv_cache_axes.size()
+                                 << " dynamic KV/bias inputs)");
 }
 
 // Used by import_model() to wrap a deserialized inner compiled model with the rebuilt
@@ -661,6 +665,9 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
     // from the original compile, where the real model was available.
     m_total_seq_len_param_name = std::move(total_seq_len_param_name);
     m_present_to_past_param_names = std::move(present_to_past_param_names);
+    LOG_EXEC("GQACompiledModel@" << this << " (imported) wraps NPUW CompiledModel@" << m_inner_compiled_model.get()
+                                 << " (static KV capacity " << m_effective_max_context_len << ", "
+                                 << m_dynamic_kv_cache_axes.size() << " dynamic KV/bias inputs)");
 }
 
 // Hand-rolled port serialization instead of ov::pass::Serialize: the IR writer recomputes
@@ -924,6 +931,8 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
     if (m_inner_request == nullptr) {
         m_inner_request = m_compiled_model->m_inner_compiled_model->create_infer_request();
         OPENVINO_ASSERT(m_inner_request != nullptr, "GQA infer request requires a valid inner request");
+        LOG_EXEC("GQAInferRequest@" << this << " of GQACompiledModel@" << m_compiled_model.get()
+                                    << ": inner create_infer_request() -> ireq@" << m_inner_request.get());
         [[maybe_unused]] const auto& inner_model = m_compiled_model->m_inner_compiled_model;
         GQA_TRACE("ensure_inner_request_locked(): created inner infer request @ "
                   << m_inner_request.get() << ", inner model has " << inner_model->inputs().size() << " inputs, "
@@ -1014,6 +1023,8 @@ void ov::npuw::GQAInferRequest::infer() {
     trace_sequence_length_inputs_locked();
     trace_attention_mask_stats_locked();
     GQA_TRACE("GQAInferRequest::infer() -> delegating to inner request @ " << m_inner_request.get());
+    LOG_EXEC("GQAInferRequest@" << this << " infer#" << m_exec_iter << ": inner ireq@" << m_inner_request.get()
+                                << "->infer()");
     // TODO: enclose with try/catch only when tracing is enabled.
     try {
         m_inner_request->infer();
@@ -1028,6 +1039,7 @@ void ov::npuw::GQAInferRequest::infer() {
     }
     GQA_TRACE("GQAInferRequest::infer() -> inner request infer() returned");
     refresh_present_tensors_locked();
+    LOG_EXEC("GQAInferRequest@" << this << " infer#" << m_exec_iter++ << " done");
 }
 
 // Reads the live value of the GQA op's TOTAL_SEQUENCE_LENGTH Parameter from the inner

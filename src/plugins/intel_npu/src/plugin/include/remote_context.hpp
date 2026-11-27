@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "intel_npu/common/execution_list.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -17,7 +18,7 @@
 
 namespace intel_npu {
 
-class RemoteContextImpl : public ov::IRemoteContext {
+class RemoteContextImpl : public ov::IRemoteContext, public IExecutionListFactory {
 public:
     RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend, const ov::AnyMap& remote_properties = {});
 
@@ -55,6 +56,12 @@ public:
      * @return A tensor instance with device friendly memory.
      */
     ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+
+    /**
+     * @brief Proof of concept, see docs/execution-list-proposal.md.
+     * Creates a list that submits requests created from compiled models of this context as a single command list.
+     */
+    std::shared_ptr<IExecutionList> create_execution_list(const void* queue_owner) override;
 
 private:
     std::shared_ptr<ov::IRemoteContext> get_this_shared_ptr();

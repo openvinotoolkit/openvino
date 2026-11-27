@@ -458,6 +458,13 @@ void ZeroInferRequest::setup_pipeline() {
 }
 
 void ZeroInferRequest::create_pipeline_impl() {
+    if (_executedByExecutionList) {
+        // The execution list records and submits the graph, a pipeline of its own would never be used
+        _logger.debug("create_pipeline_impl - the request is executed by an execution list");
+        _pipeline = std::make_unique<ExternalPipeline>(_initStructs, _graph, _config);
+        return;
+    }
+
     _logger.debug("create_pipeline_impl - constructing pipeline");
     auto batchSize = _graph->get_batch_size();
     // Construct pipeline
@@ -1168,6 +1175,15 @@ void ZeroInferRequest::get_result() {
     _logger.debug("get_result - started");
     _pipeline->pull();
 
+    update_user_outputs();
+
+    OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
+    _pipeline->reset();
+    _logger.debug("get_result - finished");
+}
+
+void ZeroInferRequest::update_user_outputs() {
+    OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "update_user_outputs");
     size_t outputIndex = 0;
     for (const auto& userTensor : _userOutputTensors) {
         const IODescriptor& outputDescriptor = _metadata.outputs.at(outputIndex);
@@ -1231,10 +1247,6 @@ void ZeroInferRequest::get_result() {
             }
         }
     }
-
-    OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
-    _pipeline->reset();
-    _logger.debug("get_result - finished");
 }
 
 void ZeroInferRequest::check_tensor(const ov::Output<const ov::Node>& port,

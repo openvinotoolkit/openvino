@@ -45,6 +45,8 @@ private:
     std::shared_ptr<const GQACompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
+    // infer() counter for OPENVINO_NPUW_EXEC_TRACE.
+    std::size_t m_exec_iter = 0u;
     // Outer-facing tensor for dynamic KV-cache/attention-bias ports, keyed by port name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_tensors;
     // Static-capacity fallback buffers, allocated only when inference needs padding.
