@@ -154,7 +154,6 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 ExecutionConfig::ExecutionConfig() = default;
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
-    les_predictor_ir = other.les_predictor_ir;
     m_user_properties = other.m_user_properties;
     m_is_finalized = other.m_is_finalized;
     for (const auto& kv : other.m_options_map) {
@@ -163,7 +162,6 @@ ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig
 }
 
 ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
-    les_predictor_ir = other.les_predictor_ir;
     m_user_properties = other.m_user_properties;
     m_is_finalized = other.m_is_finalized;
     for (const auto& kv : other.m_options_map) {

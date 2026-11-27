@@ -81,16 +81,6 @@ ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& con
     return ctx;
 }
 
-void set_compile_properties(ov::intel_gpu::ExecutionConfig& config, ov::AnyMap& properties) {
-    const auto predictor = properties.find(ov::intel_gpu::les_predictor.name());
-    if (predictor != properties.end() && predictor->second.is<std::shared_ptr<ov::Model>>()) {
-        config.les_predictor_ir = predictor->second.as<std::shared_ptr<ov::Model>>();
-        OPENVINO_ASSERT(config.les_predictor_ir, "GPU_LES_PREDICTOR model must not be null");
-        properties.erase(predictor);
-    }
-    config.set_user_property(properties, ov::OptionVisibility::RELEASE);
-}
-
 }  // namespace
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -310,7 +300,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
-    set_compile_properties(config, user_config);
+    config.set_user_property(user_config, ov::OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
@@ -342,7 +332,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
-    set_compile_properties(config, user_config);
+    config.set_user_property(user_config, ov::OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
@@ -510,7 +500,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     auto weight_sharing_context = extract_weight_sharing_context(_orig_config);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    set_compile_properties(config, _orig_config);
+    config.set_user_property(_orig_config, ov::OptionVisibility::RELEASE);
     config.apply_weightless_options();
 
     ov::CacheMode cache_mode = config.get_cache_mode();
@@ -922,6 +912,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::moe_lookahead_prefetch.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::les_predictor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
     };
 

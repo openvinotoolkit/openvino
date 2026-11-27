@@ -29,7 +29,6 @@ struct ExecutionConfig : public ov::PluginConfig {
     ExecutionConfig(const ExecutionConfig& other);
     ExecutionConfig& operator=(const ExecutionConfig& other);
     ExecutionConfig clone() const;
-    std::shared_ptr<ov::Model> les_predictor_ir;
 
     void finalize(cldnn::engine& engine);
     using ov::PluginConfig::finalize;
