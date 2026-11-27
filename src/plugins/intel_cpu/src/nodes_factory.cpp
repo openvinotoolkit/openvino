@@ -125,10 +125,13 @@
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/paged_attn.h"
-#    include "nodes/paged_qsa_indexer.h"
 #    include "nodes/qkv_proj.h"
-#    include "nodes/qsa_indexer.h"
 #    include "nodes/rms_norm.h"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/paged_qsa_indexer.h"
+#    include "nodes/qsa_indexer.h"
 #    include "nodes/sparse_pa.h"
 #    include "nodes/sparse_sdpa.h"
 #endif

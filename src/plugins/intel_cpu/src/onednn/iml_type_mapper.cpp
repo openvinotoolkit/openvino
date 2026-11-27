@@ -101,6 +101,7 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(gemm_avx2);
     CASE(gemm_avx);
     CASE(gemm_sse42);
+    CASE(jit);
     CASE(jit_gemm);
     CASE(jit_avx512_winograd);
     CASE(jit_avx512);
@@ -113,6 +114,10 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_avx_1x1);
     CASE(jit_sse42_1x1);
     CASE(jit_uni_1x1);
+    CASE(jit_1x1);
+    CASE(jit_dw);
+    CASE(brgconv_1x1);
+    CASE(brgconv_dw);
     CASE(jit_avx512_dw);
     CASE(jit_avx2_dw);
     CASE(jit_avx_dw);
@@ -122,6 +127,7 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_avx512_amx_1x1);
     CASE(jit_avx512_amx_dw);
     CASE(jit_avx2_1x1_dw);
+    CASE(brgconv);
     CASE(brgconv_avx512);
     CASE(brgconv_avx2);
     CASE(brgconv_avx);
