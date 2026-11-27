@@ -21,6 +21,7 @@
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
 #include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/gguf/extension/weight_normalization.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/util/file_util.hpp"
@@ -49,6 +50,7 @@ struct FrontEnd::Impl {
     // default (stateless) SetRows lowering for an alternative (e.g. a backend stateful lowering).
     std::vector<DecoderTransformationExtension::Ptr> transformation_extensions;
     std::shared_ptr<GenAIExtension> genai_extension;
+    std::shared_ptr<WeightNormalizationExtension> weight_normalization;
     TelemetryExtension::Ptr telemetry;
     // Per-instance catalog: runtime registrations do not affect other frontends.
     ArchRegistry arch_registry;
@@ -118,7 +120,10 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
             }
             conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
         }
-        TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
+        TranslateSession translate_session(conversion_input,
+                                           ops,
+                                           m_impl->transformation_extensions,
+                                           m_impl->weight_normalization);
         converted_model = translate_session.get_converted_model();
     }
     // TODO: Remove this compatibility path once GenAI no longer uses GenAIExtension.
@@ -156,6 +161,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& genai = std::dynamic_pointer_cast<GenAIExtension>(extension)) {
         FRONT_END_GENERAL_CHECK(!m_impl->genai_extension, "GenAIExtension is already registered");
         m_impl->genai_extension = genai;
+    } else if (const auto& weights = std::dynamic_pointer_cast<WeightNormalizationExtension>(extension)) {
+        FRONT_END_GENERAL_CHECK(!m_impl->weight_normalization, "Weight normalization extension already registered");
+        m_impl->weight_normalization = weights;
     } else if (const auto& transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_impl->transformation_extensions.push_back(transformation);
     } else if (const auto& arch_ext = std::dynamic_pointer_cast<ArchitectureExtension>(extension)) {

@@ -1,0 +1,45 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "d0e7bf37c6b81f7e903548097c60e7838d072a611410c0287168f38511aa5725",
+      "ops": [
+        ["Add","opset1",297],
+        ["Concat","opset1",1],
+        ["Constant","opset1",374],
+        ["Convolution","opset1",2],
+        ["FloorMod","opset1",2],
+        ["GGUFPlannedWeight","gguf",497],
+        ["Gather","opset8",2],
+        ["Gelu","opset7",34],
+        ["MVN","opset6",66],
+        ["MatMul","opset1",196],
+        ["Multiply","opset1",99],
+        ["Pad","opset1",1],
+        ["Parameter","opset1",2],
+        ["Reshape","opset1",134],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",32],
+        ["ShapeOf","opset3",1],
+        ["Squeeze","opset1",2],
+        ["Subtract","opset1",1],
+        ["Swish","opset4",2],
+        ["Tile","opset1",2],
+        ["Transpose","opset1",129],
+        ["Unsqueeze","opset1",1]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",196]
+      ],
+      "totals": {
+        "edges": 2009,
+        "inputs": 2,
+        "nodes": 1878,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1878
+      }
+    }
+  },
+  "projectors": ["audio.meralion"],
+  "version": 3
+}

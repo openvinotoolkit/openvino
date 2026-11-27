@@ -1,0 +1,51 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "a2b9049405f2dad3ec1b36ece1382ebcbd80e6a6efe3cbc93d1013e42aef9671",
+      "ops": [
+        ["Add","opset1",14],
+        ["Assign","opset6",4],
+        ["Concat","opset1",6],
+        ["Constant","opset1",98],
+        ["Convert","opset1",3],
+        ["GGUFPlannedWeight","gguf",21],
+        ["Gather","opset8",8],
+        ["GroupConvolution","opset1",2],
+        ["MatMul","opset1",5],
+        ["Multiply","opset1",15],
+        ["Parameter","opset1",4],
+        ["Power","opset1",10],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",4],
+        ["ReduceMean","opset1",5],
+        ["Reshape","opset1",36],
+        ["Result","opset1",1],
+        ["SelectiveSSM","extension",2],
+        ["ShapeOf","opset3",3],
+        ["Slice","opset8",4],
+        ["SoftPlus","opset4",2],
+        ["Sqrt","opset1",5],
+        ["Squeeze","opset1",5],
+        ["Subtract","opset1",1],
+        ["Swish","opset4",4],
+        ["Transpose","opset1",8],
+        ["Unsqueeze","opset1",12],
+        ["VariadicSplit","opset1",4]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:0/group:1/weight:f32",1],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",4]
+      ],
+      "totals": {
+        "edges": 336,
+        "inputs": 4,
+        "nodes": 287,
+        "outputs": 1,
+        "states": 4,
+        "top_level_nodes": 287
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

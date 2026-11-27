@@ -1,0 +1,36 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "e87114baf698114fa74ca628f9cd870e48a9b265d29b33d8d0754943f558d78b",
+      "ops": [
+        ["Add","opset1",245],
+        ["Constant","opset1",268],
+        ["Convolution","opset1",1],
+        ["GGUFPlannedWeight","gguf",393],
+        ["Gelu","opset7",25],
+        ["MVN","opset6",49],
+        ["MatMul","opset1",146],
+        ["Multiply","opset1",73],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",97],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",24],
+        ["Squeeze","opset1",1],
+        ["Transpose","opset1",97]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",146]
+      ],
+      "totals": {
+        "edges": 1516,
+        "inputs": 1,
+        "nodes": 1421,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1421
+      }
+    }
+  },
+  "projectors": ["vision.janus_pro"],
+  "version": 3
+}

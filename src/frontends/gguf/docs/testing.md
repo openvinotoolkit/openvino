@@ -76,9 +76,19 @@ python3 src/frontends/gguf/tests/gen_arch_fixtures.py --fetch
 
 This fetches/builds the pinned llama.cpp generator and writes headers plus the manifest under
 `tests/test_data/arch_fixtures`. Review manifest changes. `--llama-src /path/to/llama.cpp` uses an
-existing checkout; see the script's pinned revision and prerequisites. The optional Python
-fingerprint suite also skips unless `GGUF_FINGERPRINT_MODELS=name=path[=hash];...` is set.
-Fingerprints are structural checks, not proof of numerical equivalence.
+existing checkout; see the script's pinned revision and prerequisites.
+
+The offline [structural regression catalog](../tests/graph_regressions/README.md) replaces
+the optional local-model fingerprint gate. It captures all named models returned by
+`adapt_to_genai` for the selected modes in one reference file per case at original dimensions,
+without allocating weight payloads. Text-only decoders are checked in token-ID mode;
+multimodal decoders also check embedding-input mode and its auxiliary embedding graphs. Every projector and
+audio-generation graph is checked. Cases without GenAI adaptation require an explicit
+`native_only` reason in the catalog and retain a native stateful snapshot.
+References are compact Git JSON and updates require selected case IDs and reviewer-assessed
+real-model performance evidence. Every registered handler and projector, and every
+checkpoint in the model hub lists, must have a catalog case.
+Structural snapshots are not proof of numerical equivalence or runtime performance.
 
 Regenerate numerical fixtures using their own contracts and reference revisions:
 

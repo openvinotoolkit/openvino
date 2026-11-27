@@ -1,0 +1,67 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "10e09f80c57ba96403446b317d1eb7b9f7b2cfc97bcd0d2e63f1eb2d801402c2",
+      "ops": [
+        ["Add","opset1",283],
+        ["Assign","opset6",56],
+        ["Broadcast","opset3",112],
+        ["Clamp","opset1",28],
+        ["Concat","opset1",286],
+        ["Constant","opset1",2507],
+        ["Convert","opset1",120],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",28],
+        ["GGUFPlannedWeight","gguf",338],
+        ["Gather","opset8",204],
+        ["GatherElements","opset6",28],
+        ["GatherMatmul","extension",84],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",141],
+        ["Multiply","opset1",595],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",226],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",56],
+        ["ReduceMean","opset1",113],
+        ["ReduceSum","opset1",56],
+        ["Reshape","opset1",712],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",115],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Softmax","opset8",28],
+        ["Sqrt","opset1",113],
+        ["Squeeze","opset1",30],
+        ["Subtract","opset1",3],
+        ["Swish","opset4",28],
+        ["Tile","opset1",28],
+        ["TopK","opset11",28],
+        ["Transpose","opset1",505],
+        ["Unsqueeze","opset1",143],
+        ["VariadicSplit","opset1",56]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",28],
+        ["MatMul","4","f32","ggml:12/group:32/weight:u32",98],
+        ["MatMul","4","f32","ggml:14/group:16/weight:i8",14]
+      ],
+      "totals": {
+        "edges": 8464,
+        "inputs": 4,
+        "nodes": 7093,
+        "outputs": 1,
+        "states": 56,
+        "top_level_nodes": 7093
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

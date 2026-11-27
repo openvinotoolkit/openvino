@@ -1,0 +1,40 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "001f4f36bd59dec8e411070b5db15dc52a608dffc41ae39227055f9dbaecb406",
+      "ops": [
+        ["Add","opset1",274],
+        ["AvgPool","opset1",1],
+        ["Constant","opset1",310],
+        ["Convolution","opset1",1],
+        ["GGUFPlannedWeight","gguf",439],
+        ["Gelu","opset7",27],
+        ["MVN","opset6",55],
+        ["MatMul","opset1",163],
+        ["Multiply","opset1",84],
+        ["Parameter","opset1",1],
+        ["Power","opset1",2],
+        ["ReduceMean","opset1",1],
+        ["Reshape","opset1",111],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",27],
+        ["Sqrt","opset1",1],
+        ["Squeeze","opset1",1],
+        ["Transpose","opset1",112]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",163]
+      ],
+      "totals": {
+        "edges": 1719,
+        "inputs": 1,
+        "nodes": 1611,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1611
+      }
+    }
+  },
+  "projectors": ["vision.gemma3"],
+  "version": 3
+}

@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "omitted_metadata": [],
+  "metadata": {
+    "general.architecture": ["str", "this model cannot be used as LLM, use it via --model-vocoder in TTS examples"],
+    "depthformer_n_layer": ["u32", 6],
+    "depthformer_n_embd": ["u32", 1024]
+  },
+  "tensors": [
+    ["emb.emb.weight", "Q4_0", [16384, 512]],
+    ["istft.window", "F32", [1280]],
+    ["audio_embedding.embedding.weight", "Q4_0", [16392, 2048]],
+    ["audio_embedding.embedding_norm.weight", "F32", [2048]],
+    ["audio_embedding.to_logits.weight", "Q4_0", [16392, 2048]],
+    ["depth_embeddings.{}.embedding.weight", "Q4_0", [2049, 1024], "0-7"],
+    ["depth_embeddings.{}.embedding_norm.weight", "F32", [1024], "0-7"],
+    ["depth_embeddings.{}.to_logits.weight", "Q4_0", [2049, 1024], "0-7"],
+    ["depth_linear.bias", "F32", [8192]],
+    ["depth_linear.weight", "Q4_0", [8192, 2048]],
+    ["depthformer.layers.{}.feed_forward.w1.weight", "Q4_0", [2816, 1024], "0-5"],
+    ["depthformer.layers.{}.feed_forward.w2.weight", "Q4_0", [1024, 2816], "0-5"],
+    ["depthformer.layers.{}.feed_forward.w3.weight", "Q4_0", [2816, 1024], "0-5"],
+    ["depthformer.layers.{}.ffn_norm.weight", "F32", [1024], "0-5"],
+    ["depthformer.layers.{}.operator.attention.k_layernorm.weight", "F32", [32], "0-5"],
+    ["depthformer.layers.{}.operator.attention.q_layernorm.weight", "F32", [32], "0-5"],
+    ["depthformer.layers.{}.operator.out_proj.weight", "Q4_0", [1024, 1024], "0-5"],
+    ["depthformer.layers.{}.operator.qkv_proj.weight", "Q4_0", [1536, 1024], "0-5"],
+    ["depthformer.layers.{}.operator_norm.weight", "F32", [1024], "0-5"]
+  ]
+}

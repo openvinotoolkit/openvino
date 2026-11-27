@@ -1,0 +1,70 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "4227e9460d071d3eedbb1eb3566644aa7cfd86122c978fa14971a154698a35ba",
+      "ops": [
+        ["Add","opset1",285],
+        ["Assign","opset6",56],
+        ["BitwiseAnd","opset13",4],
+        ["Broadcast","opset3",113],
+        ["Clamp","opset1",29],
+        ["Concat","opset1",287],
+        ["Constant","opset1",2517],
+        ["Convert","opset1",120],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",29],
+        ["GGUFPlannedWeight","gguf",339],
+        ["Gather","opset8",204],
+        ["GatherElements","opset6",28],
+        ["GatherMatmul","extension",84],
+        ["Greater","opset1",1],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",141],
+        ["Maximum","opset1",1],
+        ["Multiply","opset1",598],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",226],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",56],
+        ["ReduceMean","opset1",113],
+        ["ReduceSum","opset1",56],
+        ["Reshape","opset1",712],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["Select","opset1",2],
+        ["ShapeOf","opset3",115],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Softmax","opset8",28],
+        ["Sqrt","opset1",113],
+        ["Squeeze","opset1",30],
+        ["Subtract","opset1",7],
+        ["Swish","opset4",28],
+        ["Tile","opset1",28],
+        ["TopK","opset11",28],
+        ["Transpose","opset1",505],
+        ["Unsqueeze","opset1",149],
+        ["VariadicSplit","opset1",56]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",28],
+        ["MatMul","4","f32","ggml:12/group:32/weight:u32",98],
+        ["MatMul","4","f32","ggml:14/group:16/weight:i8",14]
+      ],
+      "totals": {
+        "edges": 8518,
+        "inputs": 4,
+        "nodes": 7130,
+        "outputs": 1,
+        "states": 56,
+        "top_level_nodes": 7130
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

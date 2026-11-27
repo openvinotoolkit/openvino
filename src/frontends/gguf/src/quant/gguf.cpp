@@ -374,11 +374,21 @@ GgufWeight::GgufWeight(const ov::Tensor& tensor) : data(tensor), shape(tensor.ge
     OPENVINO_THROW("Unsupported generated GGUF weight element type ", tensor.get_element_type());
 }
 
-WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape) {
+WeightTensors allocate_gguf_weight(const GgufWeight& source,
+                                   const ov::Shape& shape,
+                                   const WeightTensorAllocator& allocator) {
     WeightTensors result;
+    const auto allocate = [&](const ov::element::Type& type, const ov::Shape& tensor_shape) {
+        if (!allocator)
+            return ov::Tensor(type, tensor_shape);
+        auto tensor = allocator(type, tensor_shape);
+        OPENVINO_ASSERT(tensor && tensor.get_element_type() == type && tensor.get_shape() == tensor_shape,
+                        "GGUF weight allocator returned an incompatible tensor");
+        return tensor;
+    };
     const auto layout = quant_layout(source.qtype, source.source_name);
     if (!layout) {
-        result.weight = ov::Tensor(source.data.get_element_type(), shape);
+        result.weight = allocate(source.data.get_element_type(), shape);
         return result;
     }
     OPENVINO_ASSERT(!shape.empty() && shape.back() % layout->group_size == 0 && shape.back() % layout->weight_div == 0,
@@ -388,10 +398,10 @@ WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& sh
     weight_shape.back() /= layout->weight_div;
     auto scale_shape = shape;
     scale_shape.back() /= layout->group_size;
-    result.weight = ov::Tensor(layout->weight_type, weight_shape);
-    result.scales = ov::Tensor(layout->scale_type, scale_shape);
+    result.weight = allocate(layout->weight_type, weight_shape);
+    result.scales = allocate(layout->scale_type, scale_shape);
     if (layout->asymmetric)
-        result.zero_point = ov::Tensor(gguf_zero_point_type(source.source_name, source.qtype), scale_shape);
+        result.zero_point = allocate(gguf_zero_point_type(source.source_name, source.qtype), scale_shape);
     return result;
 }
 

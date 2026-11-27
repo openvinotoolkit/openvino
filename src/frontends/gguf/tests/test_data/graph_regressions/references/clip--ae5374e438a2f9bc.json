@@ -1,0 +1,47 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "e002282f6026eee7b41268b71af2102d9263c92b63b579e9284ef57ddbc970df",
+      "ops": [
+        ["Add","opset1",289],
+        ["Concat","opset1",9],
+        ["Constant","opset1",420],
+        ["Convert","opset1",11],
+        ["Convolution","opset1",1],
+        ["Divide","opset1",1],
+        ["Equal","opset1",1],
+        ["GGUFPlannedWeight","gguf",459],
+        ["Gather","opset8",14],
+        ["Gelu","opset7",29],
+        ["MVN","opset6",58],
+        ["MatMul","opset1",170],
+        ["Multiply","opset1",88],
+        ["Parameter","opset1",5],
+        ["Range","opset4",1],
+        ["Reshape","opset1",129],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["ScatterUpdate","opset3",1],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",3],
+        ["Slice","opset8",9],
+        ["Squeeze","opset1",24],
+        ["Transpose","opset1",115],
+        ["Unsqueeze","opset1",13]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",170]
+      ],
+      "totals": {
+        "edges": 2028,
+        "inputs": 5,
+        "nodes": 1880,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1880
+      }
+    }
+  },
+  "projectors": ["vision.minicpmv4_7"],
+  "version": 3
+}

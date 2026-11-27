@@ -1,0 +1,67 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "cc0b5f821828c9233560d8d1836a175dbe3465ca9019d3c58e81e9df93db4c7e",
+      "ops": [
+        ["Add","opset1",22],
+        ["Assign","opset6",3],
+        ["Broadcast","opset3",1],
+        ["Clamp","opset1",1],
+        ["Concat","opset1",17],
+        ["Constant","opset1",153],
+        ["Convert","opset1",16],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",28],
+        ["Gather","opset8",18],
+        ["GatherElements","opset6",1],
+        ["GatherMatmul","extension",3],
+        ["GroupConvolution","opset1",1],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",13],
+        ["Multiply","opset1",38],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",14],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",3],
+        ["ReduceMean","opset1",7],
+        ["ReduceSum","opset1",2],
+        ["Reshape","opset1",42],
+        ["Result","opset1",1],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",7],
+        ["Sigmoid","opset1",1],
+        ["Sin","opset1",1],
+        ["Slice","opset8",5],
+        ["Softmax","opset8",1],
+        ["Sqrt","opset1",7],
+        ["Squeeze","opset1",9],
+        ["Subtract","opset1",4],
+        ["Swish","opset4",2],
+        ["Tanh","opset1",1],
+        ["TopK","opset11",1],
+        ["Transpose","opset1",23],
+        ["Unsqueeze","opset1",14],
+        ["VariadicSplit","opset1",3]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:0/group:1/weight:f32",3],
+        ["MatMul","4","f32","computed",2],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",8]
+      ],
+      "totals": {
+        "edges": 582,
+        "inputs": 4,
+        "nodes": 475,
+        "outputs": 1,
+        "states": 3,
+        "top_level_nodes": 475
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

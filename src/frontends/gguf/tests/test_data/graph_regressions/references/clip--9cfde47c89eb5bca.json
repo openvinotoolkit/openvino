@@ -1,0 +1,51 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "f20a70bc33fbfe348d9fac8e36f18eae57a95bb713b29a3f4f00d272b21325d5",
+      "ops": [
+        ["Add","opset1",434],
+        ["Broadcast","opset3",17],
+        ["Concat","opset1",17],
+        ["Constant","opset1",738],
+        ["Convolution","opset1",3],
+        ["GGUFPlannedWeight","gguf",647],
+        ["Gather","opset8",51],
+        ["GatherElements","opset6",17],
+        ["Gelu","opset7",1],
+        ["GroupConvolution","opset1",19],
+        ["MVN","opset6",86],
+        ["MatMul","opset1",241],
+        ["Multiply","opset1",188],
+        ["Pad","opset1",17],
+        ["Parameter","opset1",2],
+        ["Range","opset4",17],
+        ["Relu","opset1",3],
+        ["Reshape","opset1",171],
+        ["Result","opset1",1],
+        ["ShapeOf","opset3",51],
+        ["Sigmoid","opset1",17],
+        ["Softmax","opset8",17],
+        ["Squeeze","opset1",18],
+        ["Subtract","opset1",34],
+        ["Swish","opset4",51],
+        ["Transpose","opset1",138],
+        ["Unsqueeze","opset1",36],
+        ["VariadicSplit","opset1",17]
+      ],
+      "projections": [
+        ["MatMul","4","f32","computed",51],
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",190]
+      ],
+      "totals": {
+        "edges": 3285,
+        "inputs": 2,
+        "nodes": 3049,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 3049
+      }
+    }
+  },
+  "projectors": ["audio.lfm2a"],
+  "version": 3
+}

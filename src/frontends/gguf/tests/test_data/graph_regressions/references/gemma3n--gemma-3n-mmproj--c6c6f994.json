@@ -1,0 +1,45 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "1077724488a61d8925bb83f376dbf10bbedb8c84786701407979668dbe079c9d",
+      "ops": [
+        ["Add","opset1",267],
+        ["AvgPool","opset1",1],
+        ["Concat","opset1",1],
+        ["Constant","opset1",1676],
+        ["Convolution","opset1",237],
+        ["GGUFPlannedWeight","gguf",550],
+        ["Gather","opset8",1],
+        ["Gelu","opset7",56],
+        ["GroupConvolution","opset1",45],
+        ["Interpolate","opset4",1],
+        ["MatMul","opset1",1],
+        ["Multiply","opset1",486],
+        ["Parameter","opset1",1],
+        ["Power","opset1",372],
+        ["ReduceMean","opset1",186],
+        ["Reshape","opset1",215],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",33],
+        ["ShapeOf","opset3",1],
+        ["Sqrt","opset1",186],
+        ["Squeeze","opset1",1],
+        ["Transpose","opset1",633],
+        ["Unsqueeze","opset1",45]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",1]
+      ],
+      "totals": {
+        "edges": 5329,
+        "inputs": 1,
+        "nodes": 4996,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 4996
+      }
+    }
+  },
+  "projectors": ["audio.gemma3na","vision.gemma3nv"],
+  "version": 3
+}

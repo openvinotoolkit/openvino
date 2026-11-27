@@ -1,0 +1,71 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "3df407547ee3b4746f67496f62ae24557e55e551cd680b1e0e1796181b761cde",
+      "ops": [
+        ["Add","opset1",241],
+        ["Assign","opset6",40],
+        ["Broadcast","opset3",118],
+        ["Clamp","opset1",19],
+        ["Concat","opset1",262],
+        ["Constant","opset1",2078],
+        ["Convert","opset1",88],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",19],
+        ["GGUFPlannedWeight","gguf",318],
+        ["Gather","opset8",182],
+        ["GatherElements","opset6",19],
+        ["GatherMatmul","extension",57],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",160],
+        ["Multiply","opset1",444],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",162],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",40],
+        ["ReduceMean","opset1",81],
+        ["ReduceSum","opset1",57],
+        ["Reshape","opset1",577],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",20],
+        ["ScatterElementsUpdate","opset3",19],
+        ["Select","opset1",20],
+        ["ShapeOf","opset3",156],
+        ["Sigmoid","opset1",19],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Sqrt","opset1",81],
+        ["Squeeze","opset1",61],
+        ["Subtract","opset1",3],
+        ["Swish","opset4",39],
+        ["Tile","opset1",19],
+        ["TopK","opset11",57],
+        ["Transpose","opset1",355],
+        ["Unsqueeze","opset1",178],
+        ["VariadicSplit","opset1",80]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:12/group:32/weight:u32",2],
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",21],
+        ["MatMul","3","f32","ggml:8/group:32/weight:i8",18],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",19],
+        ["MatMul","4","f32","ggml:13/group:32/weight:i8",80],
+        ["MatMul","4","f32","ggml:14/group:16/weight:i8",11],
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",9]
+      ],
+      "totals": {
+        "edges": 7385,
+        "inputs": 4,
+        "nodes": 6083,
+        "outputs": 1,
+        "states": 40,
+        "top_level_nodes": 6083
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

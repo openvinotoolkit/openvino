@@ -1,0 +1,38 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "c64d18232e628e0e51cafc3491ed7d05e864803ebd738c65610b105e0f4e21c7",
+      "ops": [
+        ["Add","opset1",123],
+        ["Constant","opset1",142],
+        ["Convolution","opset1",1],
+        ["GGUFPlannedWeight","gguf",198],
+        ["Gather","opset8",1],
+        ["Gelu","opset7",12],
+        ["MVN","opset6",25],
+        ["MatMul","opset1",73],
+        ["Multiply","opset1",37],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",50],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",12],
+        ["Squeeze","opset1",3],
+        ["Transpose","opset1",49],
+        ["Unsqueeze","opset1",1]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",73]
+      ],
+      "totals": {
+        "edges": 776,
+        "inputs": 1,
+        "nodes": 729,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 729
+      }
+    }
+  },
+  "projectors": ["vision.idefics3"],
+  "version": 3
+}

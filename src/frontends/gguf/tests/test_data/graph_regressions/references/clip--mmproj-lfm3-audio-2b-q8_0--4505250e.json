@@ -1,0 +1,167 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "3dfdf1f81a6aed6eb40770119c875d24d66b15df21b8c2f6fb8db28dae124ed2",
+      "ops": [
+        ["Add","opset1",132],
+        ["Broadcast","opset3",14],
+        ["Clamp","opset1",3],
+        ["Concat","opset1",41],
+        ["Constant","opset1",732],
+        ["Convert","opset1",15],
+        ["Convolution","opset1",3],
+        ["Cos","opset1",14],
+        ["CumSum","opset3",2],
+        ["GGUFPlannedWeight","gguf",176],
+        ["Gather","opset8",7],
+        ["Gelu","opset7",1],
+        ["GroupConvolution","opset1",12],
+        ["MVN","opset6",1],
+        ["MatMul","opset1",102],
+        ["Multiply","opset1",273],
+        ["Pad","opset1",3],
+        ["Parameter","opset1",29],
+        ["Power","opset1",98],
+        ["ReduceMean","opset1",49],
+        ["Reshape","opset1",115],
+        ["Result","opset1",29],
+        ["ScaledDotProductAttention","opset13",7],
+        ["ShapeOf","opset3",7],
+        ["Sin","opset1",14],
+        ["Slice","opset8",37],
+        ["Sqrt","opset1",49],
+        ["Squeeze","opset1",1],
+        ["Subtract","opset1",1],
+        ["Swish","opset4",20],
+        ["Transpose","opset1",122],
+        ["Unsqueeze","opset1",16],
+        ["VariadicSplit","opset1",24]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",102]
+      ],
+      "totals": {
+        "edges": 2441,
+        "inputs": 29,
+        "nodes": 2149,
+        "outputs": 29,
+        "states": 0,
+        "top_level_nodes": 2149
+      }
+    },
+    "audio_generation_codec": {
+      "graph_sha256": "364d814870f6e43fd511ddfdd951ee7540a56ccd3c9963c6f92ec0100b8cd2eb",
+      "ops": [
+        ["Add","opset1",71],
+        ["Broadcast","opset3",7],
+        ["Concat","opset1",28],
+        ["Constant","opset1",431],
+        ["Convert","opset1",6],
+        ["Cos","opset1",6],
+        ["GGUFPlannedWeight","gguf",100],
+        ["Gather","opset8",15],
+        ["GroupConvolution","opset1",5],
+        ["MatMul","opset1",52],
+        ["Multiply","opset1",153],
+        ["Parameter","opset1",15],
+        ["Power","opset1",78],
+        ["ReduceMean","opset1",39],
+        ["ReduceSum","opset1",1],
+        ["Reshape","opset1",63],
+        ["Result","opset1",14],
+        ["ScaledDotProductAttention","opset13",3],
+        ["ShapeOf","opset3",4],
+        ["Sigmoid","opset1",3],
+        ["Sin","opset1",6],
+        ["Slice","opset8",15],
+        ["Sqrt","opset1",39],
+        ["Squeeze","opset1",12],
+        ["Swish","opset4",8],
+        ["Tile","opset1",1],
+        ["Transpose","opset1",53],
+        ["Unsqueeze","opset1",23],
+        ["VariadicSplit","opset1",12]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",1],
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",51]
+      ],
+      "totals": {
+        "edges": 1429,
+        "inputs": 15,
+        "nodes": 1263,
+        "outputs": 14,
+        "states": 0,
+        "top_level_nodes": 1263
+      }
+    },
+    "audio_generation_depthformer": {
+      "graph_sha256": "30dea9aca22eedc594591efb6448f9da609aa24e0ccfde16fe861bd739a5a19a",
+      "ops": [
+        ["Add","opset1",69],
+        ["Broadcast","opset3",6],
+        ["Concat","opset1",28],
+        ["Constant","opset1",413],
+        ["Convert","opset1",6],
+        ["Cos","opset1",6],
+        ["GGUFPlannedWeight","gguf",42],
+        ["Gather","opset8",12],
+        ["MatMul","opset1",37],
+        ["Multiply","opset1",149],
+        ["Parameter","opset1",3],
+        ["Power","opset1",50],
+        ["ReduceMean","opset1",25],
+        ["Reshape","opset1",55],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",3],
+        ["Sigmoid","opset1",3],
+        ["Sin","opset1",6],
+        ["Slice","opset8",24],
+        ["Sqrt","opset1",25],
+        ["Squeeze","opset1",24],
+        ["Swish","opset4",3],
+        ["Transpose","opset1",42],
+        ["Unsqueeze","opset1",18],
+        ["VariadicSplit","opset1",10]
+      ],
+      "projections": [
+        ["MatMul","4","f32","computed",12],
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",25]
+      ],
+      "totals": {
+        "edges": 1251,
+        "inputs": 3,
+        "nodes": 1060,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1060
+      }
+    },
+    "audio_generation_feedback": {
+      "graph_sha256": "9f2321f3b7a0bc54ea625562add02afaa39fe266b60ff6a6ca7e36abe5fffa39",
+      "ops": [
+        ["Add","opset1",23],
+        ["Constant","opset1",62],
+        ["GGUFPlannedWeight","gguf",1],
+        ["Gather","opset8",12],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",12],
+        ["Result","opset1",1],
+        ["Squeeze","opset1",12],
+        ["Unsqueeze","opset1",12],
+        ["VariadicSplit","opset1",1]
+      ],
+      "projections": [],
+      "totals": {
+        "edges": 158,
+        "inputs": 1,
+        "nodes": 137,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 137
+      }
+    }
+  },
+  "projectors": ["audio.lfm3a","audio_generation.lfm3a_gen"],
+  "version": 3
+}

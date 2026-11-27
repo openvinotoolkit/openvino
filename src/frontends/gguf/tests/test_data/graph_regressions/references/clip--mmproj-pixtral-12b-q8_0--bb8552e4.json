@@ -1,0 +1,50 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "4cf26e904887f3d7ef0eb24164dc07dfdfef5e2fccdd9267ab22ab428dd865a3",
+      "ops": [
+        ["Add","opset1",196],
+        ["Broadcast","opset3",192],
+        ["Concat","opset1",146],
+        ["Constant","opset1",1871],
+        ["Convert","opset1",96],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",96],
+        ["GGUFPlannedWeight","gguf",223],
+        ["Gather","opset8",1],
+        ["Gelu","opset7",1],
+        ["MatMul","opset1",170],
+        ["Multiply","opset1",819],
+        ["Parameter","opset1",3],
+        ["Power","opset1",98],
+        ["ReduceMean","opset1",49],
+        ["Reshape","opset1",483],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",24],
+        ["ShapeOf","opset3",1],
+        ["Sin","opset1",96],
+        ["Slice","opset8",2],
+        ["Split","opset1",96],
+        ["Sqrt","opset1",49],
+        ["Squeeze","opset1",1],
+        ["Swish","opset4",24],
+        ["Transpose","opset1",195],
+        ["Unsqueeze","opset1",192],
+        ["VariadicSplit","opset1",48]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",170]
+      ],
+      "totals": {
+        "edges": 5870,
+        "inputs": 3,
+        "nodes": 5174,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 5174
+      }
+    }
+  },
+  "projectors": ["vision.pixtral"],
+  "version": 3
+}

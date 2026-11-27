@@ -1,0 +1,87 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "c93b6fb3032c04252f33b7966c47acc91ab95b04cec1c44e38049dfd38998598",
+      "ops": [
+        ["Add","opset1",1],
+        ["Concat","opset1",1],
+        ["Constant","opset1",3],
+        ["GGUFPlannedWeight","gguf",3],
+        ["MatMul","opset1",1],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",1],
+        ["Result","opset1",1],
+        ["Unsqueeze","opset1",2]
+      ],
+      "projections": [
+        ["MatMul","2","f32","computed",1]
+      ],
+      "totals": {
+        "edges": 13,
+        "inputs": 1,
+        "nodes": 14,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 14
+      }
+    },
+    "vision_embeddings_merger": {
+      "graph_sha256": "63c751e8178b4a55b4a11abbe6df56942cfc78f96c88713c3a26ae3fe0f2bff4",
+      "ops": [
+        ["Add","opset1",291],
+        ["Concat","opset1",49],
+        ["Constant","opset1",802],
+        ["Convert","opset1",49],
+        ["Cos","opset1",48],
+        ["GGUFPlannedWeight","gguf",294],
+        ["Gather","opset8",50],
+        ["Gelu","opset7",25],
+        ["MVN","opset6",49],
+        ["MatMul","opset1",98],
+        ["Multiply","opset1",457],
+        ["Parameter","opset1",3],
+        ["Reshape","opset1",146],
+        ["Result","opset1",1],
+        ["Round","opset5",1],
+        ["ScaledDotProductAttention","opset13",24],
+        ["Sin","opset1",48],
+        ["Squeeze","opset1",2],
+        ["Transpose","opset1",144],
+        ["Unsqueeze","opset1",98],
+        ["VariadicSplit","opset1",72]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",98]
+      ],
+      "totals": {
+        "edges": 3304,
+        "inputs": 3,
+        "nodes": 2751,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 2751
+      }
+    },
+    "vision_embeddings_pos": {
+      "graph_sha256": "0cb872e4f8cfdbfb17226fa691cab8f69d5d981c401477c2ff1cc85f1f9ac5d8",
+      "ops": [
+        ["Constant","opset1",1],
+        ["GGUFPlannedWeight","gguf",1],
+        ["Gather","opset8",1],
+        ["Parameter","opset1",1],
+        ["Result","opset1",1]
+      ],
+      "projections": [],
+      "totals": {
+        "edges": 4,
+        "inputs": 1,
+        "nodes": 5,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 5
+      }
+    }
+  },
+  "projectors": ["vision.qwen3vl_merger"],
+  "version": 3
+}

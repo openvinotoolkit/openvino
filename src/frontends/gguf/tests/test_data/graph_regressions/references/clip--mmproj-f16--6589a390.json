@@ -1,0 +1,109 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "0e29fa2596e64783ea73d74407e35d38eff01039ae9476088f86b81bbf316171",
+      "ops": [
+        ["Add","opset1",187],
+        ["Broadcast","opset3",13],
+        ["Clamp","opset1",3],
+        ["Concat","opset1",12],
+        ["Constant","opset1",857],
+        ["Convert","opset1",2],
+        ["Convolution","opset1",2],
+        ["CumSum","opset3",1],
+        ["GGUFPlannedWeight","gguf",752],
+        ["Gather","opset8",25],
+        ["GatherElements","opset6",12],
+        ["GroupConvolution","opset1",12],
+        ["MVN","opset6",2],
+        ["MatMul","opset1",171],
+        ["Maximum","opset1",240],
+        ["Minimum","opset1",240],
+        ["Multiply","opset1",333],
+        ["Pad","opset1",12],
+        ["Parameter","opset1",2],
+        ["Power","opset1",218],
+        ["ReduceMean","opset1",109],
+        ["ReduceSum","opset1",1],
+        ["Relu","opset1",2],
+        ["Reshape","opset1",109],
+        ["Result","opset1",2],
+        ["ShapeOf","opset3",25],
+        ["Sigmoid","opset1",12],
+        ["Slice","opset8",2],
+        ["Softmax","opset8",12],
+        ["Sqrt","opset1",109],
+        ["Squeeze","opset1",1],
+        ["Subtract","opset1",1],
+        ["Swish","opset4",36],
+        ["Tanh","opset1",12],
+        ["Transpose","opset1",93],
+        ["Unsqueeze","opset1",1],
+        ["VariadicSplit","opset1",12]
+      ],
+      "projections": [
+        ["MatMul","4","f32","computed",36],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",1],
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",134]
+      ],
+      "totals": {
+        "edges": 3900,
+        "inputs": 2,
+        "nodes": 3635,
+        "outputs": 2,
+        "states": 0,
+        "top_level_nodes": 3635
+      }
+    },
+    "vision_embeddings": {
+      "graph_sha256": "dba3245e0d49e6315efb4b850d9b7aa0c7b255a7ac46735f1fe950c203ab1dca",
+      "ops": [
+        ["Add","opset1",277],
+        ["AvgPool","opset1",1],
+        ["Concat","opset1",99],
+        ["Constant","opset1",1353],
+        ["Convert","opset1",67],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",64],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",659],
+        ["Gather","opset8",5],
+        ["GreaterEqual","opset1",1],
+        ["MatMul","opset1",113],
+        ["Maximum","opset1",224],
+        ["Minimum","opset1",224],
+        ["Multiply","opset1",853],
+        ["Parameter","opset1",2],
+        ["Power","opset1",226],
+        ["ReduceMax","opset1",1],
+        ["ReduceMean","opset1",113],
+        ["ReduceSum","opset1",1],
+        ["Reshape","opset1",136],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",16],
+        ["ShapeOf","opset3",1],
+        ["Sigmoid","opset1",16],
+        ["Sin","opset1",64],
+        ["Slice","opset8",3],
+        ["Sqrt","opset1",113],
+        ["Squeeze","opset1",7],
+        ["Transpose","opset1",388],
+        ["Unsqueeze","opset1",2],
+        ["VariadicSplit","opset1",97]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",113]
+      ],
+      "totals": {
+        "edges": 6035,
+        "inputs": 2,
+        "nodes": 5129,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 5129
+      }
+    }
+  },
+  "projectors": ["audio.gemma4a","vision.gemma4v"],
+  "version": 3
+}

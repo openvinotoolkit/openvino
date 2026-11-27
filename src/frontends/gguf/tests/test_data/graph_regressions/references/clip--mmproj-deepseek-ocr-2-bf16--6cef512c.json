@@ -1,0 +1,56 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "483ae081b90e2a2ea5d6dbe30164dc0e4c57f5a1d05fab358a34dd2992dd2706",
+      "ops": [
+        ["Add","opset1",386],
+        ["Broadcast","opset3",48],
+        ["Concat","opset1",199],
+        ["Constant","opset1",2369],
+        ["Convert","opset1",48],
+        ["Convolution","opset1",5],
+        ["Cos","opset1",48],
+        ["Divide","opset1",16],
+        ["FloorMod","opset1",8],
+        ["GGUFPlannedWeight","gguf",473],
+        ["Gather","opset8",284],
+        ["Gelu","opset7",12],
+        ["Interpolate","opset4",25],
+        ["MVN","opset6",26],
+        ["MatMul","opset1",241],
+        ["Multiply","opset1",612],
+        ["Pad","opset1",8],
+        ["Parameter","opset1",8],
+        ["Power","opset1",98],
+        ["ReduceMean","opset1",49],
+        ["Reshape","opset1",374],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",36],
+        ["ShapeOf","opset3",153],
+        ["Sin","opset1",48],
+        ["Slice","opset8",44],
+        ["Sqrt","opset1",49],
+        ["Squeeze","opset1",30],
+        ["Subtract","opset1",32],
+        ["Swish","opset4",24],
+        ["Transpose","opset1",494],
+        ["Unsqueeze","opset1",50],
+        ["VariadicSplit","opset1",60]
+      ],
+      "projections": [
+        ["MatMul","4","f32","computed",24],
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",217]
+      ],
+      "totals": {
+        "edges": 7403,
+        "inputs": 8,
+        "nodes": 6358,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 6358
+      }
+    }
+  },
+  "projectors": ["vision.deepseekocr2"],
+  "version": 3
+}

@@ -1,0 +1,41 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "f53b7037b598ad7cadddd9d27a557137dbc345536ecc1241291670c959a536e5",
+      "ops": [
+        ["Add","opset1",187],
+        ["Constant","opset1",214],
+        ["Convolution","opset1",3],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",302],
+        ["Gelu","opset7",22],
+        ["MVN","opset6",37],
+        ["MatMul","opset1",111],
+        ["Multiply","opset1",55],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",80],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",18],
+        ["ShapeOf","opset3",2],
+        ["Slice","opset8",1],
+        ["Squeeze","opset1",1],
+        ["Tile","opset1",1],
+        ["Transpose","opset1",74]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",1],
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",110]
+      ],
+      "totals": {
+        "edges": 1184,
+        "inputs": 1,
+        "nodes": 1111,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1111
+      }
+    }
+  },
+  "projectors": ["audio.qwen3a"],
+  "version": 3
+}

@@ -1,0 +1,68 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "397b3c23dc605f244e3b00812eb38b16e13a03e537c703e71d9f1828978668ce",
+      "ops": [
+        ["Add","opset1",413],
+        ["Assign","opset6",48],
+        ["BitwiseAnd","opset13",4],
+        ["Broadcast","opset3",97],
+        ["Clamp","opset1",49],
+        ["Concat","opset1",247],
+        ["Constant","opset1",2188],
+        ["Convert","opset1",128],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",459],
+        ["Gather","opset8",320],
+        ["GatherElements","opset6",24],
+        ["GatherMatmul","extension",72],
+        ["Greater","opset1",1],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",121],
+        ["Maximum","opset1",1],
+        ["Multiply","opset1",418],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",98],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",48],
+        ["ReduceMean","opset1",49],
+        ["ReduceSum","opset1",24],
+        ["Reshape","opset1",780],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",24],
+        ["Select","opset1",2],
+        ["ShapeOf","opset3",243],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Softmax","opset8",24],
+        ["Sqrt","opset1",49],
+        ["Squeeze","opset1",26],
+        ["Subtract","opset1",7],
+        ["Swish","opset4",24],
+        ["TopK","opset11",24],
+        ["Transpose","opset1",409],
+        ["Unsqueeze","opset1",106],
+        ["VariadicSplit","opset1",48]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:8/group:32/weight:i8",1],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",24],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",96]
+      ],
+      "totals": {
+        "edges": 7908,
+        "inputs": 4,
+        "nodes": 6590,
+        "outputs": 1,
+        "states": 48,
+        "top_level_nodes": 6590
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

@@ -1,0 +1,55 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "39ec614296c56048e230f75f74fdf6327244d1fac474cae39876ffb12458e2ae",
+      "ops": [
+        ["Add","opset1",33],
+        ["Assign","opset6",4],
+        ["Concat","opset1",13],
+        ["Constant","opset1",104],
+        ["Convert","opset1",22],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["GGUFPlannedWeight","gguf",36],
+        ["Gather","opset8",12],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MVN","opset6",5],
+        ["MatMul","opset1",17],
+        ["Multiply","opset1",39],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",4],
+        ["Relu","opset1",2],
+        ["Reshape","opset1",31],
+        ["Result","opset1",1],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",2],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Softmax","opset8",2],
+        ["Squeeze","opset1",14],
+        ["Subtract","opset1",3],
+        ["Tanh","opset1",3],
+        ["Transpose","opset1",27],
+        ["Unsqueeze","opset1",15],
+        ["VariadicSplit","opset1",4]
+      ],
+      "projections": [
+        ["MatMul","4","f32","computed",4],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",13]
+      ],
+      "totals": {
+        "edges": 511,
+        "inputs": 4,
+        "nodes": 407,
+        "outputs": 1,
+        "states": 4,
+        "top_level_nodes": 407
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

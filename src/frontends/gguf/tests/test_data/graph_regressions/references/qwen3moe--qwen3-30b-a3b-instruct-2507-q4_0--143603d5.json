@@ -1,0 +1,66 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "093ce82af2ffc0ef1527ddf47f506bbcdf1c5432251a81d686b0d681a9c839d3",
+      "ops": [
+        ["Add","opset1",483],
+        ["Assign","opset6",96],
+        ["Broadcast","opset3",192],
+        ["Clamp","opset1",48],
+        ["Concat","opset1",486],
+        ["Constant","opset1",4267],
+        ["Convert","opset1",200],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",48],
+        ["GGUFPlannedWeight","gguf",579],
+        ["Gather","opset8",344],
+        ["GatherElements","opset6",48],
+        ["GatherMatmul","extension",144],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",241],
+        ["Multiply","opset1",1015],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",386],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",96],
+        ["ReduceMean","opset1",193],
+        ["ReduceSum","opset1",96],
+        ["Reshape","opset1",1212],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",48],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",195],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Softmax","opset8",48],
+        ["Sqrt","opset1",193],
+        ["Squeeze","opset1",50],
+        ["Subtract","opset1",3],
+        ["Swish","opset4",48],
+        ["Tile","opset1",48],
+        ["TopK","opset11",48],
+        ["Transpose","opset1",865],
+        ["Unsqueeze","opset1",243],
+        ["VariadicSplit","opset1",96]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",48],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",192]
+      ],
+      "totals": {
+        "edges": 14404,
+        "inputs": 4,
+        "nodes": 12074,
+        "outputs": 1,
+        "states": 96,
+        "top_level_nodes": 12074
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

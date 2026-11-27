@@ -1,0 +1,82 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "c5954b9f9756778d8c349527da49d06f7fe4ec4751589d83cd65bf433a927e18",
+      "ops": [
+        ["Add","opset1",293],
+        ["AvgPool","opset1",1],
+        ["Constant","opset1",365],
+        ["Convolution","opset1",2],
+        ["GGUFPlannedWeight","gguf",489],
+        ["Gather","opset8",1],
+        ["Gelu","opset7",34],
+        ["MVN","opset6",65],
+        ["MatMul","opset1",193],
+        ["Multiply","opset1",97],
+        ["Parameter","opset1",2],
+        ["Reshape","opset1",133],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",32],
+        ["Squeeze","opset1",2],
+        ["Transpose","opset1",131],
+        ["Unsqueeze","opset1",1]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",193]
+      ],
+      "totals": {
+        "edges": 1969,
+        "inputs": 2,
+        "nodes": 1842,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1842
+      }
+    },
+    "vision_embeddings": {
+      "graph_sha256": "573a5b5723dccabc1ed1ff1e1fc317b343b9c66676fda3927792fc7d5038eadf",
+      "ops": [
+        ["Add","opset1",483],
+        ["Concat","opset1",65],
+        ["Constant","opset1",1341],
+        ["Convert","opset1",64],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",64],
+        ["GGUFPlannedWeight","gguf",519],
+        ["Gather","opset8",94],
+        ["Gelu","opset7",1],
+        ["MatMul","opset1",226],
+        ["Multiply","opset1",678],
+        ["Parameter","opset1",5],
+        ["Power","opset1",130],
+        ["ReduceMean","opset1",65],
+        ["Reshape","opset1",195],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",32],
+        ["ShapeOf","opset3",28],
+        ["Sin","opset1",64],
+        ["Slice","opset8",28],
+        ["Sqrt","opset1",65],
+        ["Squeeze","opset1",5],
+        ["Swish","opset4",32],
+        ["Transpose","opset1",193],
+        ["Unsqueeze","opset1",130],
+        ["VariadicSplit","opset1",64]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",32],
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",194]
+      ],
+      "totals": {
+        "edges": 5427,
+        "inputs": 5,
+        "nodes": 4573,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 4573
+      }
+    }
+  },
+  "projectors": ["audio.qwen2a","vision.qwen2.5vl_merger"],
+  "version": 3
+}

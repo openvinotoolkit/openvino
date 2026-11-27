@@ -1,0 +1,132 @@
+{
+  "models": {
+    "embeds/language": {
+      "graph_sha256": "9e3a542eda69e59adcddc247ff281f1cd37beda0fd15e2aa1272c9ae0bc89416",
+      "ops": [
+        ["Add","opset1",311],
+        ["Assign","opset6",56],
+        ["Broadcast","opset3",112],
+        ["Concat","opset1",201],
+        ["Constant","opset1",1332],
+        ["Convert","opset1",119],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["GGUFPlannedWeight","gguf",338],
+        ["Gather","opset8",92],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",197],
+        ["Multiply","opset1",427],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",114],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",56],
+        ["ReduceMean","opset1",57],
+        ["Reshape","opset1",403],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",31],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Sqrt","opset1",57],
+        ["Squeeze","opset1",57],
+        ["Subtract","opset1",3],
+        ["Swish","opset4",28],
+        ["Transpose","opset1",337],
+        ["Unsqueeze","opset1",117],
+        ["VariadicSplit","opset1",56]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","3","f32","ggml:2/group:32/weight:i4",56],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",140]
+      ],
+      "totals": {
+        "edges": 5633,
+        "inputs": 4,
+        "nodes": 4544,
+        "outputs": 1,
+        "states": 56,
+        "top_level_nodes": 4544
+      }
+    },
+    "embeds/text_embeddings": {
+      "graph_sha256": "2be287b1d916638d3b728905a4188674e7164922468791f4d561644a4f2d0caa",
+      "ops": [
+        ["Constant","opset1",5],
+        ["Convert","opset1",1],
+        ["GGUFPlannedWeight","gguf",1],
+        ["Gather","opset8",1],
+        ["Parameter","opset1",1],
+        ["Result","opset1",1],
+        ["Squeeze","opset1",2],
+        ["Unsqueeze","opset1",2]
+      ],
+      "projections": [],
+      "totals": {
+        "edges": 13,
+        "inputs": 1,
+        "nodes": 14,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 14
+      }
+    },
+    "ids/language": {
+      "graph_sha256": "d84240ade8cc2fa27d2f7eaeed601c83ea32d2038e2dab9297be07c4ced14969",
+      "ops": [
+        ["Add","opset1",311],
+        ["Assign","opset6",56],
+        ["Broadcast","opset3",112],
+        ["Concat","opset1",202],
+        ["Constant","opset1",1332],
+        ["Convert","opset1",120],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["GGUFPlannedWeight","gguf",339],
+        ["Gather","opset8",92],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",197],
+        ["Multiply","opset1",427],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",114],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",56],
+        ["ReduceMean","opset1",57],
+        ["Reshape","opset1",404],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",31],
+        ["Sin","opset1",1],
+        ["Slice","opset8",2],
+        ["Sqrt","opset1",57],
+        ["Squeeze","opset1",58],
+        ["Subtract","opset1",3],
+        ["Swish","opset4",28],
+        ["Transpose","opset1",337],
+        ["Unsqueeze","opset1",117],
+        ["VariadicSplit","opset1",56]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","3","f32","ggml:2/group:32/weight:i4",56],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",140]
+      ],
+      "totals": {
+        "edges": 5640,
+        "inputs": 4,
+        "nodes": 4549,
+        "outputs": 1,
+        "states": 56,
+        "top_level_nodes": 4549
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

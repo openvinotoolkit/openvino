@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "omitted_metadata": ["general.name", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
+  "metadata": {
+    "general.architecture": ["str", "qwen2"],
+    "qwen2.block_count": ["u32", 28],
+    "qwen2.context_length": ["u32", 32768],
+    "qwen2.embedding_length": ["u32", 3584],
+    "qwen2.feed_forward_length": ["u32", 18944],
+    "qwen2.attention.head_count": ["u32", 28],
+    "qwen2.attention.head_count_kv": ["u32", 4],
+    "qwen2.rope.freq_base": ["f32", 1000000.0],
+    "qwen2.attention.layer_norm_rms_epsilon": ["f32", 9.999999974752427e-07],
+    "general.file_type": ["u32", 2],
+    "tokenizer.ggml.model": ["str", "gpt2"],
+    "tokenizer.ggml.pre": ["str", "qwen2"],
+    "tokenizer.ggml.bos_token_id": ["u32", 151644],
+    "tokenizer.ggml.eos_token_id": ["u32", 151645],
+    "tokenizer.ggml.unknown_token_id": ["u32", 128244],
+    "tokenizer.ggml.padding_token_id": ["u32", 0],
+    "general.quantization_version": ["u32", 2]
+  },
+  "tensors": [
+    ["token_embd.weight", "Q4_0", [151666, 3584]],
+    ["blk.{}.attn_norm.weight", "F32", [3584], "0-27"],
+    ["blk.{}.ffn_down.weight", "Q4_0", [3584, 18944], "0-27"],
+    ["blk.{}.ffn_gate.weight", "Q4_0", [18944, 3584], "0-27"],
+    ["blk.{}.ffn_up.weight", "Q4_0", [18944, 3584], "0-27"],
+    ["blk.{}.ffn_norm.weight", "F32", [3584], "0-27"],
+    ["blk.{}.attn_k.bias", "F32", [512], "0-27"],
+    ["blk.{}.attn_k.weight", "Q4_0", [512, 3584], "0-27"],
+    ["blk.{}.attn_output.weight", "Q4_0", [3584, 3584], "0-27"],
+    ["blk.{}.attn_q.bias", "F32", [3584], "0-27"],
+    ["blk.{}.attn_q.weight", "Q4_0", [3584, 3584], "0-27"],
+    ["blk.{}.attn_v.bias", "F32", [512], "0-27"],
+    ["blk.{}.attn_v.weight", "Q4_0", [512, 3584], "0-27"],
+    ["output_norm.weight", "F32", [3584]],
+    ["output.weight", "Q6_K", [151666, 3584]]
+  ]
+}

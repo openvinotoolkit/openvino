@@ -1,0 +1,53 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "67cda914d718293962c6e015238f518ee2d4f426431c4e59b29871eacf323cce",
+      "ops": [
+        ["Add","opset1",464],
+        ["AvgPool","opset1",1],
+        ["Concat","opset1",165],
+        ["Constant","opset1",2255],
+        ["Convert","opset1",111],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",108],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",356],
+        ["Gather","opset8",5],
+        ["GreaterEqual","opset1",1],
+        ["MatMul","opset1",190],
+        ["Multiply","opset1",1437],
+        ["Parameter","opset1",2],
+        ["Power","opset1",380],
+        ["ReduceMax","opset1",1],
+        ["ReduceMean","opset1",190],
+        ["ReduceSum","opset1",1],
+        ["Reshape","opset1",224],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",27],
+        ["ShapeOf","opset3",1],
+        ["Sigmoid","opset1",27],
+        ["Sin","opset1",108],
+        ["Slice","opset8",3],
+        ["Sqrt","opset1",190],
+        ["Squeeze","opset1",7],
+        ["Subtract","opset1",1],
+        ["Transpose","opset1",652],
+        ["Unsqueeze","opset1",2],
+        ["VariadicSplit","opset1",163]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",190]
+      ],
+      "totals": {
+        "edges": 8586,
+        "inputs": 2,
+        "nodes": 7075,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 7075
+      }
+    }
+  },
+  "projectors": ["vision.gemma4v"],
+  "version": 3
+}

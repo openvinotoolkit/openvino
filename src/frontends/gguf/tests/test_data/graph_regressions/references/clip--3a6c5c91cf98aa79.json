@@ -1,0 +1,44 @@
+{
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "8a13e59ad6908fec211e120a202e2b7377eab525f43ec2ae4e522e4055fcaf69",
+      "ops": [
+        ["Add","opset1",451],
+        ["Concat","opset1",65],
+        ["Constant","opset1",1034],
+        ["Convert","opset1",64],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",64],
+        ["GGUFPlannedWeight","gguf",520],
+        ["Gather","opset8",65],
+        ["Gelu","opset7",1],
+        ["MVN","opset6",65],
+        ["MatMul","opset1",194],
+        ["Multiply","opset1",673],
+        ["Parameter","opset1",3],
+        ["Reshape","opset1",195],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",32],
+        ["Sigmoid","opset1",32],
+        ["Sin","opset1",64],
+        ["Squeeze","opset1",3],
+        ["Transpose","opset1",193],
+        ["Unsqueeze","opset1",129],
+        ["VariadicSplit","opset1",64]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:8/group:32/weight:i8",194]
+      ],
+      "totals": {
+        "edges": 4647,
+        "inputs": 3,
+        "nodes": 3913,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 3913
+      }
+    }
+  },
+  "projectors": ["vision.qwen2vl_merger"],
+  "version": 3
+}

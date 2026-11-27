@@ -527,6 +527,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       model_scope: 'precommit'
+      run-structural-regression: ${{ github.event_name == 'pull_request' && fromJSON(needs.smart_ci.outputs.changed_components).GGUF_FE }}
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
   GGUF_Models_Tests_Nightly:
@@ -537,6 +538,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly'
+      run-structural-regression: false
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
   GGUF_GenAI_Validation:
