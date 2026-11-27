@@ -95,7 +95,8 @@ GroupedMatMulPattern::GroupedMatMulPattern()
 
               using ov::pass::operator|;
               return wrap_type<v17::GroupedMatMul>({lhs, weights, offsets}) |
-                     wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale, zero_point});
+                     wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale, zero_point}) |
+                     wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale});
           }(),
           ConvertGroupedMatMul()) {}
 

@@ -79,6 +79,11 @@ TEST_P(GroupedMatMulCompressedMlirTest, Inference) {
     if (group_size == -1 || group_size == 32) {
         GTEST_SKIP() << "Unsupported yet: decompression group size " << group_size;
     }
+    const auto weights_type = std::get<2>(params);
+    const auto zp_type = std::get<6>(params);
+    if (zp_type == DecompressionType::empty && weights_type.bitwidth() == 4) {
+        GTEST_SKIP() << "Unsupported yet: " << weights_type << " weights without a zero point";
+    }
     run();
 }
 
@@ -97,7 +102,7 @@ INSTANTIATE_TEST_SUITE_P(mlir_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(ov::element::f16),                                   // decompression
                                             ::testing::Values(ov::element::f16),                                   // scale
                                             ::testing::Values(DecompressionType::full),                            // multiply
-                                            ::testing::Values(DecompressionType::full),                            // subtract (zp)
+                                            ::testing::Values(DecompressionType::full, DecompressionType::empty),  // subtract (zp)
                                             ::testing::Values(true),                                               // reshape on decompression
                                             ::testing::Values(-1, 32, 64),                                         // group size (-1 = per-N)
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
