@@ -1320,6 +1320,7 @@ struct Sub128Shifts {
     std::size_t generate = 0;
     std::size_t lm_head = 0;
     std::size_t generate_models = 0;
+    std::size_t lm_head_models = 0;
 };
 
 class LLMCompiledModelSharedVocabularyTest : public LLMCompiledModelFactoryOptionsTest {
@@ -1349,6 +1350,7 @@ protected:
                 ++shifts.generate_models;
             } else if (name.find("_lm_head") != std::string::npos) {
                 shifts.lm_head += count;
+                ++shifts.lm_head_models;
             }
         }
         return shifts;
@@ -1522,7 +1524,8 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsNotShiftedIfHeadHa
 // Where the vocabulary closure options are set: for all stages or in the config of one stage.
 enum class VocabOptionScope { AllStages, Prefill, Generate, LmHead };
 
-struct VocabClosureOptions {
+struct VocabGateOptions {
+    bool shared_head;  // NPUW_LLM_SHARED_HEAD
     VocabOptionScope scope;
     bool fold;
     bool funcall_for_all;
@@ -1530,17 +1533,22 @@ struct VocabClosureOptions {
     bool explicit_shared;  // NPUW_LLM_VOCAB_ASYM_SHARED=YES set by the user
 };
 
-class LLMCompiledModelVocabClosureOptionsTest
-    : public LLMCompiledModelSharedVocabularyTest,
-      public ::testing::WithParamInterface<std::tuple<VocabOptionScope, bool, bool, bool, bool>> {
+using VocabGateParam = std::tuple<bool, VocabOptionScope, bool, bool, bool, bool>;
+
+class LLMCompiledModelVocabGateOptionsTest : public LLMCompiledModelSharedVocabularyTest,
+                                             public ::testing::WithParamInterface<VocabGateParam> {
 protected:
-    static VocabClosureOptions options(const std::tuple<VocabOptionScope, bool, bool, bool, bool>& param) {
-        return {std::get<0>(param), std::get<1>(param), std::get<2>(param), std::get<3>(param), std::get<4>(param)};
+    static VocabGateOptions options(const VocabGateParam& param) {
+        return {std::get<0>(param),
+                std::get<1>(param),
+                std::get<2>(param),
+                std::get<3>(param),
+                std::get<4>(param),
+                std::get<5>(param)};
     }
 
 public:
-    static std::string getTestCaseName(
-        const ::testing::TestParamInfo<std::tuple<VocabOptionScope, bool, bool, bool, bool>>& info) {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<VocabGateParam>& info) {
         const auto opts = options(info.param);
         static const std::map<VocabOptionScope, std::string> scope_names = {{VocabOptionScope::AllStages, "AllStages"},
                                                                             {VocabOptionScope::Prefill, "Prefill"},
@@ -1550,19 +1558,19 @@ public:
             return value ? "YES" : "NO";
         };
         std::ostringstream name;
-        name << scope_names.at(opts.scope) << "_Fold" << yes_no(opts.fold) << "_FuncallForAll"
-             << yes_no(opts.funcall_for_all) << "_HostGather" << yes_no(opts.host_gather)
-             << (opts.explicit_shared ? "_ExplicitShared" : "");
+        name << "SharedHead" << yes_no(opts.shared_head) << "_" << scope_names.at(opts.scope) << "_Fold"
+             << yes_no(opts.fold) << "_FuncallForAll" << yes_no(opts.funcall_for_all) << "_HostGather"
+             << yes_no(opts.host_gather) << (opts.explicit_shared ? "_ExplicitShared" : "");
         return name.str();
     }
 };
 
-// The vocabulary is shared only if it is a closure in every stage: NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and
-// NPUW_HOST_GATHER in the prefill, generate and LM head configs. Any of them turned off, for all stages or
-// in one stage config, keeps the Sub128 shifts out of every stage, also with an explicit
-// NPUW_LLM_VOCAB_ASYM_SHARED=YES. Otherwise all three stages are shifted: the LM head alone would keep the
-// u8 embedding table next to the i8 one and save no memory.
-TEST_P(LLMCompiledModelVocabClosureOptionsTest, ShiftsAllStagesOrNone) {
+// The vocabulary is shared only with a separate LM head model (NPUW_LLM_SHARED_HEAD) and only if it is a
+// closure in every stage: NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and NPUW_HOST_GATHER in the prefill, generate and
+// LM head configs. Any of them turned off, for all stages or in one stage config, keeps the Sub128 shifts out
+// of every stage, also with an explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES. Otherwise all three stages are
+// shifted: the LM head alone would keep the u8 embedding table next to the i8 one and save no memory.
+TEST_P(LLMCompiledModelVocabGateOptionsTest, ShiftsAllStagesOrNone) {
     const auto opts = options(GetParam());
     const auto yes_no = [](bool value) {
         return value ? "YES" : "NO";
@@ -1570,10 +1578,10 @@ TEST_P(LLMCompiledModelVocabClosureOptionsTest, ShiftsAllStagesOrNone) {
     const ov::AnyMap closure_options = {{"NPUW_FOLD", yes_no(opts.fold)},
                                         {"NPUW_FUNCALL_FOR_ALL", yes_no(opts.funcall_for_all)},
                                         {"NPUW_HOST_GATHER", yes_no(opts.host_gather)}};
-    ov::AnyMap props;
+    ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", yes_no(opts.shared_head)}};
     switch (opts.scope) {
     case VocabOptionScope::AllStages:
-        props = closure_options;
+        props.insert(closure_options.begin(), closure_options.end());
         break;
     case VocabOptionScope::Prefill:
         props["++NPUW_LLM_PREFILL_CONFIG"] = closure_options;
@@ -1589,10 +1597,13 @@ TEST_P(LLMCompiledModelVocabClosureOptionsTest, ShiftsAllStagesOrNone) {
         props["NPUW_LLM_VOCAB_ASYM_SHARED"] = "YES";
     }
 
-    const auto shifts = compile_llm(props);
+    // compile_llm() always sets NPUW_LLM_SHARED_HEAD=YES, so the model is compiled directly.
+    const auto shifts =
+        compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
 
+    ASSERT_EQ(shifts.lm_head_models, opts.shared_head ? 1u : 0u);
     ASSERT_GE(shifts.generate_models, 1u);
-    if (opts.fold && opts.funcall_for_all && opts.host_gather) {
+    if (opts.shared_head && opts.fold && opts.funcall_for_all && opts.host_gather) {
         EXPECT_EQ(shifts.lm_head, 2u);
         EXPECT_EQ(shifts.prefill, 2u);
         EXPECT_EQ(shifts.generate, 2u * shifts.generate_models);
@@ -1604,8 +1615,9 @@ TEST_P(LLMCompiledModelVocabClosureOptionsTest, ShiftsAllStagesOrNone) {
 }
 
 INSTANTIATE_TEST_SUITE_P(StagesAndOptions,
-                         LLMCompiledModelVocabClosureOptionsTest,
-                         ::testing::Combine(::testing::Values(VocabOptionScope::AllStages,
+                         LLMCompiledModelVocabGateOptionsTest,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Values(VocabOptionScope::AllStages,
                                                               VocabOptionScope::Prefill,
                                                               VocabOptionScope::Generate,
                                                               VocabOptionScope::LmHead),
@@ -1613,7 +1625,7 @@ INSTANTIATE_TEST_SUITE_P(StagesAndOptions,
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool()),
-                         LLMCompiledModelVocabClosureOptionsTest::getTestCaseName);
+                         LLMCompiledModelVocabGateOptionsTest::getTestCaseName);
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
     auto model = build_whisper_decoder_model();
