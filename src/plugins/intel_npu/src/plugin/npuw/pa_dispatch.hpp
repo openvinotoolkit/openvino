@@ -36,9 +36,26 @@ struct Dispatch {
 // 0 skips the block-table coverage check.
 void validate_dispatch(const Dispatch& dispatch, std::size_t block_size, std::size_t dispatch_idx);
 
-// True when the dispatch runs chunked over the variants: some subsequence fills
-// a multi-token variant, or it is a single-sequence decode. A decode batch or a
-// short prefill stays one 1:1 infer, which chunking would only serialize.
-bool variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes);
+// Consecutive tokens of one subsequence.
+struct Segment {
+    int64_t seq = 0;
+    int64_t offset = 0;  // from the start of the subsequence
+    int64_t tokens = 0;
+};
+
+// One infer of the variant with chunk_size tokens, or of the dynamic model when
+// chunk_size is 0.
+struct Call {
+    std::size_t chunk_size = 0u;
+    std::vector<Segment> segments;
+};
+
+// The calls that run a dispatch over the variants, in order. Every subsequence
+// is cut into the largest multi-token variants that fit. The single tokens left
+// over, decodes among them, fill the multi-token variants as one-token
+// subsequences, and the last one takes the 1-token variant. The rest runs last,
+// in one call of the dynamic model. Empty when no variant would run: the
+// dispatch is then one 1:1 infer.
+std::vector<Call> plan_calls(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes);
 
 }  // namespace ov::npuw::pa

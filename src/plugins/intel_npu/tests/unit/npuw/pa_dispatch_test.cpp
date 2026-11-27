@@ -18,8 +18,8 @@
 namespace {
 
 using ov::npuw::pa::Dispatch;
+using ov::npuw::pa::plan_calls;
 using ov::npuw::pa::validate_dispatch;
-using ov::npuw::pa::variants_serve;
 
 // A well-formed two-subsequence dispatch: 4 + 2 scheduled tokens on top of
 // 0 / 6 past tokens, a covering block table (block_size 4) and one sampled
@@ -169,7 +169,7 @@ TEST(PADispatchContract, ViolationNamesTheDispatch) {
 }
 
 // A dispatch shaped as N subsequences of the given scheduled lengths; only the
-// fields variants_serve reads are populated.
+// fields plan_calls reads are populated.
 Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
     Dispatch d;
     d.subsequence_begins = {0};
@@ -180,34 +180,68 @@ Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
     return d;
 }
 
-const std::vector<std::size_t> kChunkSizes = {1024u, 128u, 1u};
-
-TEST(PADispatchRouting, SingleSequenceDecodeServedByTheOneTokenVariant) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kChunkSizes));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1}), {1024u, 128u}));
+// The plan as text: "128[s0:0+128] 4[s1:0+1,s2:0+1,s3:0+1,s4:0+1] dyn[s0:128+2]".
+std::string plan_of(const std::vector<int32_t>& seq_lens, const std::vector<std::size_t>& chunk_sizes) {
+    std::string text;
+    for (const auto& call : plan_calls(make_dispatch_of(seq_lens), chunk_sizes)) {
+        text += (text.empty() ? "" : " ") + (call.chunk_size ? std::to_string(call.chunk_size) : "dyn") + "[";
+        for (const auto& seg : call.segments) {
+            text += (text.back() == '[' ? "s" : ",s") + std::to_string(seg.seq) + ":" + std::to_string(seg.offset) +
+                    "+" + std::to_string(seg.tokens);
+        }
+        text += "]";
+    }
+    return text;
 }
 
-TEST(PADispatchRouting, DecodeBatchRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kChunkSizes));
+const std::vector<std::size_t> kChunkSizes = {1024u, 128u, 8u, 4u, 1u};
+
+TEST(PADispatchPlan, SingleSequenceDecodeTakesTheOneTokenVariant) {
+    EXPECT_EQ(plan_of({1}, kChunkSizes), "1[s0:0+1]");
+    EXPECT_EQ(plan_of({1}, {1024u, 128u}), "");
 }
 
-TEST(PADispatchRouting, ShortPrefillRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kChunkSizes));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kChunkSizes));
+TEST(PADispatchPlan, DecodeBatchFillsTheMultiTokenVariants) {
+    EXPECT_EQ(plan_of({1, 1, 1, 1}, kChunkSizes), "4[s0:0+1,s1:0+1,s2:0+1,s3:0+1]");
+    EXPECT_EQ(plan_of({1, 1, 1, 1, 1}, kChunkSizes), "4[s0:0+1,s1:0+1,s2:0+1,s3:0+1] 1[s4:0+1]");
+    EXPECT_EQ(plan_of({1, 1, 1, 1, 1, 1}, kChunkSizes), "4[s0:0+1,s1:0+1,s2:0+1,s3:0+1] dyn[s4:0+1,s5:0+1]");
+    EXPECT_EQ(plan_of(std::vector<int32_t>(13, 1), kChunkSizes),
+              "8[s0:0+1,s1:0+1,s2:0+1,s3:0+1,s4:0+1,s5:0+1,s6:0+1,s7:0+1] "
+              "4[s8:0+1,s9:0+1,s10:0+1,s11:0+1] 1[s12:0+1]");
 }
 
-TEST(PADispatchRouting, LongPrefillIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kChunkSizes));
-    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kChunkSizes));
+TEST(PADispatchPlan, DecodeBatchTooSmallForAVariantRunsOneToOne) {
+    EXPECT_EQ(plan_of({1, 1}, kChunkSizes), "");
+    EXPECT_EQ(plan_of({1, 1, 1}, kChunkSizes), "");
+    EXPECT_EQ(plan_of({1, 1, 1, 1}, {1024u, 128u, 1u}), "");
 }
 
-TEST(PADispatchRouting, MixedDispatchWithOneLongSubsequenceIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kChunkSizes));
+TEST(PADispatchPlan, PrefillTooShortForAVariantRunsOneToOne) {
+    EXPECT_EQ(plan_of({3}, kChunkSizes), "");
+    EXPECT_EQ(plan_of({2, 3}, kChunkSizes), "");
+    EXPECT_EQ(plan_of({127}, {1024u, 128u, 1u}), "");
 }
 
-TEST(PADispatchRouting, NoVariantsOrNoTokensRunOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({7638}), {}));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kChunkSizes));
+TEST(PADispatchPlan, PrefillIsCutIntoTheLargestVariantsThatFit) {
+    EXPECT_EQ(plan_of({128}, kChunkSizes), "128[s0:0+128]");
+    EXPECT_EQ(plan_of({1300}, kChunkSizes),
+              "1024[s0:0+1024] 128[s0:1024+128] 128[s0:1152+128] 8[s0:1280+8] 8[s0:1288+8] 4[s0:1296+4]");
+    EXPECT_EQ(plan_of({130}, kChunkSizes), "128[s0:0+128] dyn[s0:128+2]");
+    EXPECT_EQ(plan_of({129}, kChunkSizes), "128[s0:0+128] 1[s0:128+1]");
+}
+
+TEST(PADispatchPlan, LeftoversOfAllSubsequencesShareOneDynamicCall) {
+    EXPECT_EQ(plan_of({6, 1, 130}, kChunkSizes), "4[s0:0+4] 128[s2:0+128] 1[s1:0+1] dyn[s0:4+2,s2:128+2]");
+    EXPECT_EQ(plan_of({129, 2, 1}, kChunkSizes), "128[s0:0+128] dyn[s0:128+1,s1:0+2,s2:0+1]");
+}
+
+TEST(PADispatchPlan, LastTokensOfPrefillsJoinTheDecodeBatch) {
+    EXPECT_EQ(plan_of({129, 1, 5, 1}, kChunkSizes), "128[s0:0+128] 4[s2:0+4] 4[s0:128+1,s1:0+1,s2:4+1,s3:0+1]");
+}
+
+TEST(PADispatchPlan, NoVariantsOrNoTokensRunOneToOne) {
+    EXPECT_EQ(plan_of({7638}, {}), "");
+    EXPECT_EQ(plan_of({}, kChunkSizes), "");
 }
 
 }  // namespace

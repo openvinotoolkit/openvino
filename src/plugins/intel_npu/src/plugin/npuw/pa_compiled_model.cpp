@@ -54,7 +54,8 @@ std::size_t pa_block_size(const std::string& device, const ov::SoPtr<ov::ICompil
     OPENVINO_THROW("PA: the model has no value cache input");
 }
 
-constexpr std::array<std::size_t, 3> kChunkSizes = {1024u, 128u, 1u};
+// The 8- and 4-token variants also take decode batches, one token per sequence.
+constexpr std::array<std::size_t, 5> kChunkSizes = {1024u, 128u, 8u, 4u, 1u};
 
 // The PA op takes its controls as i32; the lm_head gather index is i64.
 template <typename T>
@@ -70,7 +71,28 @@ ov::SoPtr<ov::ITensor> make_vec_tensor(const std::vector<T>& vals) {
     return tensor;
 }
 
-// The inputs run_chunk can rebase per chunk. A model with any other input
+// Element ranges [first, first + count) of a 1-D tensor.
+using Runs = std::vector<std::pair<int64_t, int64_t>>;
+
+// The runs of a 1-D tensor, back to back.
+ov::SoPtr<ov::ITensor> concat_runs(const ov::SoPtr<ov::ITensor>& tensor, const Runs& runs) {
+    std::size_t total = 0u;
+    for (const auto& run : runs) {
+        total += static_cast<std::size_t>(run.second);
+    }
+    const auto elem_size = tensor->get_element_type().size();
+    auto out = ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), ov::Shape{total}));
+    const auto* src = static_cast<const uint8_t*>(tensor->data());
+    auto* dst = static_cast<uint8_t*>(out->data());
+    for (const auto& [first, count] : runs) {
+        const auto bytes = static_cast<std::size_t>(count) * elem_size;
+        std::memcpy(dst, src + static_cast<std::size_t>(first) * elem_size, bytes);
+        dst += bytes;
+    }
+    return out;
+}
+
+// The inputs run_call can rebase per call. A model with any other input
 // (embeddings, M-RoPE, per-layer block tables, eviction) runs every dispatch 1:1.
 bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
     static const std::unordered_set<std::string> supported = {"input_ids",
@@ -348,7 +370,7 @@ ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompil
         m_inputs_by_name.emplace(input.get_any_name(), input);
     }
 
-    // One request per variant plus a dynamic one for residual chunks.
+    // One request per variant plus one of the dynamic model for what they leave.
     const auto make_chunk_request = [](const auto& compiled) {
         ChunkRequest chunk;
         chunk.request = compiled->create_infer_request();
@@ -405,12 +427,9 @@ ov::npuw::pa::Dispatch ov::npuw::PAInferRequest::parse_dispatch() const {
     return d;
 }
 
-void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
-                                         const pa::Dispatch& d,
-                                         int64_t seq,
-                                         int64_t seq_offset,
-                                         int64_t n_chunk_tokens) {
-    const auto global_start = d.subsequence_begins[seq] + seq_offset;
+void ov::npuw::PAInferRequest::run_call(ChunkRequest& chunk,
+                                        const pa::Dispatch& d,
+                                        const std::vector<pa::Segment>& segments) {
     const auto set = [&](const char* name, const ov::SoPtr<ov::ITensor>& tensor) {
         auto it = chunk.inputs.find(name);
         OPENVINO_ASSERT(it != chunk.inputs.end(), "PA chunk model has no '", name, "' input");
@@ -420,23 +439,33 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
         return m_inner_request->get_tensor(m_inputs_by_name.at(name));
     };
 
-    // The caller's tensors outlive this infer, so the chunk can view them.
-    const auto slice = [&](const char* name, int64_t start, int64_t n) {
-        return ov::npuw::util::view(inner(name), 0, static_cast<std::size_t>(start), static_cast<std::size_t>(n));
-    };
+    // Each segment is a subsequence of the call, past its first offset tokens,
+    // with its full block table.
+    Runs token_runs;
+    Runs seq_runs;
+    std::vector<int32_t> past_lens;
+    std::vector<int32_t> subsequence_begins = {0};
+    std::vector<int32_t> block_indices;
+    std::vector<int32_t> block_indices_begins = {0};
+    for (const auto& seg : segments) {
+        token_runs.emplace_back(d.subsequence_begins[seg.seq] + seg.offset, seg.tokens);
+        seq_runs.emplace_back(seg.seq, 1);
+        past_lens.push_back(static_cast<int32_t>(d.past_lens[seg.seq] + seg.offset));
+        subsequence_begins.push_back(static_cast<int32_t>(subsequence_begins.back() + seg.tokens));
+        block_indices.insert(block_indices.end(),
+                             d.block_indices.begin() + d.block_indices_begins[seg.seq],
+                             d.block_indices.begin() + d.block_indices_begins[seg.seq + 1]);
+        block_indices_begins.push_back(static_cast<int32_t>(block_indices.size()));
+    }
 
-    set("input_ids", slice("input_ids", global_start, n_chunk_tokens));
-    set("position_ids", slice("position_ids", global_start, n_chunk_tokens));
-
-    // One subsequence, past its first seq_offset tokens, with its full block table.
-    set("past_lens", make_vec_tensor<int32_t>({static_cast<int32_t>(d.past_lens[seq] + seq_offset)}));
-    set("subsequence_begins", make_vec_tensor<int32_t>({0, static_cast<int32_t>(n_chunk_tokens)}));
-    const auto blocks_begin = d.block_indices_begins[seq];
-    const auto n_seq_blocks = d.block_indices_begins[seq + 1] - blocks_begin;
-    set("block_indices", slice("block_indices", blocks_begin, n_seq_blocks));
-    set("block_indices_begins", make_vec_tensor<int32_t>({0, n_seq_blocks}));
+    set("input_ids", concat_runs(inner("input_ids"), token_runs));
+    set("position_ids", concat_runs(inner("position_ids"), token_runs));
+    set("past_lens", make_vec_tensor(past_lens));
+    set("subsequence_begins", make_vec_tensor(subsequence_begins));
+    set("block_indices", make_vec_tensor(block_indices));
+    set("block_indices_begins", make_vec_tensor(block_indices_begins));
     if (m_inputs_by_name.count("score_aggregation_window") > 0) {
-        set("score_aggregation_window", slice("score_aggregation_window", seq, 1));
+        set("score_aggregation_window", concat_runs(inner("score_aggregation_window"), seq_runs));
     }
 
     set("max_context_len", inner("max_context_len"));
@@ -446,14 +475,19 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
         }
     }
 
-    // Sampled rows in this chunk, with their row in the caller's output.
+    // Sampled rows in this call, with their row in the caller's output.
     std::vector<int64_t> local_sti;
     std::vector<std::size_t> out_rows;
     for (std::size_t i = 0; i < d.sampled_tokens_indices.size(); ++i) {
         const auto g = d.sampled_tokens_indices[i];
-        if (g >= global_start && g < global_start + n_chunk_tokens) {
-            local_sti.push_back(g - global_start);
-            out_rows.push_back(i);
+        int64_t local = 0;
+        for (const auto& [first, count] : token_runs) {
+            if (g >= first && g < first + count) {
+                local_sti.push_back(local + g - first);
+                out_rows.push_back(i);
+                break;
+            }
+            local += count;
         }
     }
     set("sampled_tokens_indices", make_vec_tensor<int64_t>(local_sti));
@@ -478,7 +512,7 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
     }
 }
 
-void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
+void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d, const std::vector<pa::Call>& plan) {
     const auto& logits_port = get_outputs().front();
     const auto& lshape = logits_port.get_partial_shape();
     m_chunked_logits = ov::get_tensor_impl(ov::Tensor(logits_port.get_element_type(),
@@ -486,37 +520,23 @@ void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
                                                                 static_cast<std::size_t>(lshape[1].get_length()),
                                                                 static_cast<std::size_t>(lshape[2].get_length())}));
 
-    const bool verbose = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose;
-    std::ostringstream plan;
-
-    for (int64_t s = 0; s < d.sequences(); ++s) {
-        const auto seq_len = d.subsequence_begins[s + 1] - d.subsequence_begins[s];
-        int64_t off = 0;
-        if (verbose) {
-            plan << (s ? "; " : "") << "seq" << s << "=";
-        }
-        while (off < seq_len) {
-            const auto remaining = seq_len - off;
-            // Largest variant that fits; the 1-token one only for a single
-            // remaining token. Anything else goes to the dynamic model.
-            std::size_t pick = 0u;
-            for (const auto& [chunk_size, _] : m_chunk_requests) {
-                if (static_cast<int64_t>(chunk_size) <= remaining && (chunk_size > 1u || remaining == 1)) {
-                    pick = chunk_size;
-                    break;
-                }
-            }
-            auto& chunk = pick ? m_chunk_requests.at(pick) : m_tail_request;
-            const auto n = pick ? static_cast<int64_t>(pick) : remaining;
-            if (verbose) {
-                plan << (off ? "+" : "") << (pick ? "" : "dyn:") << n;
-            }
-            run_chunk(chunk, d, s, off, n);
-            off += n;
-        }
+    for (const auto& call : plan) {
+        run_call(call.chunk_size ? m_chunk_requests.at(call.chunk_size) : m_tail_request, d, call.segments);
     }
-    if (verbose) {
-        LOG_VERB("PA dispatch #" << m_dispatch_idx << ": chunked " << plan.str());
+
+    if (ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose) {
+        // E.g. "128[s0:0+128] 4[s1:0+1,s2:0+1,s3:0+1,s4:0+1] dyn[s0:128+2]".
+        std::ostringstream text;
+        for (const auto& call : plan) {
+            text << (&call == &plan.front() ? "" : " ")
+                 << (call.chunk_size ? std::to_string(call.chunk_size) : std::string("dyn")) << "[";
+            for (const auto& seg : call.segments) {
+                text << (&seg == &call.segments.front() ? "" : ",") << "s" << seg.seq << ":" << seg.offset << "+"
+                     << seg.tokens;
+            }
+            text << "]";
+        }
+        LOG_VERB("PA dispatch #" << m_dispatch_idx << ": chunked " << text.str());
     }
 }
 
@@ -540,8 +560,9 @@ void ov::npuw::PAInferRequest::infer() {
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");
-    if (pa::variants_serve(dispatch, m_chunk_sizes)) {
-        infer_chunked(dispatch);
+    const auto plan = pa::plan_calls(dispatch, m_chunk_sizes);
+    if (!plan.empty()) {
+        infer_chunked(dispatch, plan);
         m_serve_chunked_logits = true;
     } else {
         m_serve_chunked_logits = false;

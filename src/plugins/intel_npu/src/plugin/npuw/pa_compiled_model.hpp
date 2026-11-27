@@ -100,8 +100,8 @@ private:
     pa::Dispatch parse_dispatch() const;
     void log_dispatch_io(bool outputs) const;
 
-    void infer_chunked(const pa::Dispatch& d);
-    void run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, int64_t seq, int64_t seq_offset, int64_t n_chunk_tokens);
+    void infer_chunked(const pa::Dispatch& d, const std::vector<pa::Call>& plan);
+    void run_call(ChunkRequest& chunk, const pa::Dispatch& d, const std::vector<pa::Segment>& segments);
 
     ov::SoPtr<ov::IAsyncInferRequest> m_inner_request;
     std::size_t m_block_size = 0u;
