@@ -1064,7 +1064,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     // stateless_kv picks both outputs from its Result in realloc_outputs_for_stateless_kv().
-    if (!get_node().is_type<stateless_kv>() && users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+    // Other multi-output nodes allocate their outputs below: only _outputs[0] could take the user's memory.
+    if (!get_node().is_type<stateless_kv>() && actual_layouts.size() == 1 && users.size() == 1 && users.front()->get_node().is_type<reorder>() &&
+        users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
@@ -1093,7 +1095,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // ext_block memory directly so this node's kernel writes into it, achieving
     // zero-copy.  This handles arbitrary-depth chains like:
     //   ComputeNode -> Reshape(opt) -> Reorder(opt) -> Result(opt, ext_block)
-    {
+    // Only _outputs[0] is bound, so multi-output nodes allocate their outputs below.
+    if (actual_layouts.size() == 1) {
         auto* cursor = this;
         while (cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
             auto* next = cursor->get_user_insts().front();
@@ -1640,6 +1643,11 @@ bool primitive_inst::use_async_compilation() {
 
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1) {
+                compile_fc_impls = false;
+            }
+            // The TernOCL shape-agnostic impl already runs the right kernel for every M. Other u2 impls keep async compilation.
+            if (weights_dt == data_types::u2 && get_node().get_selected_impl() != nullptr &&
+                get_node().get_selected_impl()->get_kernel_name() == "ternocl_int2") {
                 compile_fc_impls = false;
             }
         } else {
@@ -2542,6 +2550,11 @@ void primitive_inst::reset_flags() {
     _impl_params->flags.reset();
 }
 
+static bool has_non_constant_weights(const program_node& node) {
+    const bool weightable = node.is_type<fully_connected>() || node.is_type<convolution>() || node.is_type<deconvolution>();
+    return weightable && !node.get_dependency(node.get_primitive()->input.size()).is_constant();
+}
+
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle(id() + "::prepare"));
     const auto& primitive_id = id();
@@ -2565,6 +2578,7 @@ void primitive_inst::prepare_primitive() {
         (_remote_permute_output_alias && !get_network().is_output_remote_memory(*_remote_permute_output_alias));
     _output_reallocation_requested = false;
     bool outputs_reallocated = false;
+    const bool refresh_weights = is_dynamic() && has_non_constant_weights(get_node());
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
@@ -2661,6 +2675,11 @@ void primitive_inst::prepare_primitive() {
             }
         }
 
+        if (refresh_weights && !get_flag(ExecutionFlags::IMPL_CHANGED)) {
+            // A cached layout does not guarantee that runtime weight contents are unchanged.
+            update_weights();
+        }
+
         // StatelessKV uses following result's memory, which may change due to SetOutput or other reason.
         // So call realloc to update memory even if the input shapes haven't been changed
         if (get_node().is_type<stateless_kv>() && !get_flag(ExecutionFlags::IMPL_CHANGED)) {
@@ -2711,7 +2730,8 @@ void primitive_inst::prepare_primitive() {
     bool need_args_update = get_flag(ExecutionFlags::IMPL_CHANGED) || get_flag(ExecutionFlags::MEMORY_CHANGED);
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
+    if ((is_dynamic() && (need_args_update || refresh_weights)) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) ||
+        _use_shared_kernels) {
         // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
         set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
         set_arguments();
@@ -3106,6 +3126,7 @@ void primitive_inst::update_weights() {
     }
 
     auto weights_idx = get_node().get_primitive()->input.size();
+    const bool constant_weights = !has_non_constant_weights(get_node());
     auto original_weights_memory = dep_memory_ptr(weights_idx);
     const auto& original_layout = original_weights_memory->get_layout();
 
@@ -3122,11 +3143,10 @@ void primitive_inst::update_weights() {
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         auto cached_weights_memory = _reordered_weights_cache.get(expected_layout);
-        if (cached_weights_memory &&
+        if (constant_weights && cached_weights_memory &&
             // WA: for custom format, we need to check traits to know what it really represents
             (expected_layout.format != cldnn::format::custom || expected_layout.format.traits() == cached_weights_memory->get_layout().format.traits()) &&
-            (!requires_imad_isv4_padding_initialization(expected_layout) ||
-             !engine.is_the_same_buffer(*cached_weights_memory, *original_weights_memory))) {
+            (!requires_imad_isv4_padding_initialization(expected_layout) || !engine.is_the_same_buffer(*cached_weights_memory, *original_weights_memory))) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
@@ -3169,12 +3189,12 @@ void primitive_inst::update_weights() {
 
         auto& stream = get_network().get_stream();
 
-        bool can_reuse = false;
-        memory::ptr weights_memory = nullptr;
-        if (_reordered_weights_cache.is_full()) {
+        memory::ptr weights_memory = cached_weights_memory;
+        if (!weights_memory && _reordered_weights_cache.is_full()) {
             weights_memory = _reordered_weights_cache.get_lru_element().second;
-            can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
         }
+        const bool can_reuse =
+            weights_memory && weights_memory->size() >= expected_layout.bytes_count() && weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr();
 
         if (can_reuse) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights memory for new layout " << expected_layout.to_short_string() << std::endl;
@@ -3195,7 +3215,14 @@ void primitive_inst::update_weights() {
 
         auto* reorder_impl = reorder_inst->get_impl();
         reorder_impl->set_arguments(*reorder_inst, args);
-        add_dep_event(reorder_impl->execute({}, *reorder_inst));
+        std::vector<event::ptr> reorder_events;
+        if (!constant_weights) {
+            const auto weights_event = _deps[weights_idx].first->get_impl_params()->out_event;
+            if (weights_event) {
+                reorder_events.push_back(weights_event);
+            }
+        }
+        add_dep_event(reorder_impl->execute(reorder_events, *reorder_inst));
 
         GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() || !get_config().get_average_counters().empty()) {
             stream.wait_for_events(_impl_params->dep_events);
