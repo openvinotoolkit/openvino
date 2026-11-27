@@ -352,6 +352,26 @@ TEST_P(MoECompressedOffloadTest, Inference) {
     run();
 }
 
+class MoELearnedPredictorSetupTest : public MoECompressedOffloadTest {};
+
+TEST_P(MoELearnedPredictorSetupTest, ValidatesPredictorBeforeInference) {
+    configuration["GPU_LES_PREDICTOR"] = function;
+    configuration["GPU_MOE_LOOKAHEAD_PREFETCH"] = false;
+    auto compiled = core->compile_model(function, targetDevice, configuration);
+    std::stringstream blob;
+    compiled.export_model(blob);
+
+    configuration["GPU_MOE_LOOKAHEAD_PREFETCH"] = true;
+    const auto missing_heads = testing::HasSubstr("LES predictor: no les_experts.<layer> outputs");
+    OV_EXPECT_THROW(core->compile_model(function, targetDevice, configuration), ov::Exception, missing_heads);
+    OV_EXPECT_THROW(core->import_model(blob, targetDevice, configuration), ov::Exception, missing_heads);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU,
+                         MoELearnedPredictorSetupTest,
+                         ::testing::Values(MoECompressedOffloadParams{50, ov::element::u4, ov::test::utils::DecompressionType::full, true}),
+                         MoECompressedOffloadTest::getTestCaseName);
+
 // An offloaded layer supports a single stream: more streams are rejected at compilation, not at the first inference
 TEST_P(MoECompressedOffloadTest, SingleStream) {
     auto explicit_streams = configuration;

@@ -56,12 +56,11 @@ void LookaheadContext::build_once(cldnn::network& network) {
                            << static_cast<int>(link.chain.status) << " router=" << static_cast<int>(link.status) << " " << link.rejection_reason
                            << std::endl;
         }
-        const auto& predictor_path = network.get_config().get_les_predictor();
-        const auto& predictor_ir = network.get_config().les_predictor_ir;
+        const auto& predictor = network.get_config().get_les_predictor();
         std::optional<LesPredictorModel> predictor_model;
-        if (predictor_ir || !predictor_path.empty()) {
+        if (predictor) {
             // The predictor replaces the next-layer router, so only the plain chain topology is required.
-            predictor_model = load_les_predictor_model(predictor_ir ? predictor_ir : ov::Core().read_model(predictor_path));
+            predictor_model = load_les_predictor_model(predictor);
             for (const auto& id : network.get_input_ids()) {
                 if (id == "parameter:les_prev_hidden" && network.get_program()->get_node(id).get_users().empty()) {
                     m_previous_input = id;
@@ -166,7 +165,7 @@ bool LookaheadContext::prediction_enabled(const cldnn::primitive_id& id, size_t 
     }
     m_last_checked_layer = layer;
     if (!m_has_past || !m_previous_converter) {
-        return m_has_past && tokens == 1;
+        return m_has_past && (tokens == 1 || m_predictor != nullptr);
     }
     const auto input = m_network.get_primitive(m_previous_input)->output_memory_ptr();
     return input && input->get_layout().get_shape().at(1) == 1;
@@ -223,7 +222,6 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
             stream.enqueue_barrier({ready});
             const size_t bytes = size_t{head->hidden} * sizeof(ov::float16);
             const size_t tokens = hidden->get_layout().count() / head->hidden;
-            auto packed = head->packed_input(tokens);
             if (m_previous_converter) {
                 if (m_previous_epoch != m_epoch) {
                     const auto input = m_network.get_primitive(m_previous_input)->output_memory_ptr();
@@ -241,12 +239,9 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
                     stream.enqueue_barrier({m_previous_ready});
                 }
                 const auto row = m_previous_rows.at(m_predictor_layers.at(target));
-                for (size_t token = 0; token < tokens; ++token)
-                    packed->copy_from(stream, *m_previous_values, row * bytes, (2 * token + 1) * bytes, bytes, false);
+                head->previous->copy_from(stream, *m_previous_values, row * bytes, 0, bytes, false);
             }
-            for (size_t token = 0; token < tokens; ++token)
-                packed->copy_from(stream, *hidden, token * bytes, 2 * token * bytes, bytes, false);
-            return head->execute(packed, stream.enqueue_marker({}, true), tokens * m_predictor->top_k());
+            return head->execute(hidden, stream.enqueue_marker({}, true), tokens * m_predictor->top_k());
         }
         return m_routers.at(target)->enqueue(hidden, ready);
     }();
@@ -303,7 +298,7 @@ void LookaheadContext::update_previous(const cldnn::primitive_id& id,
     auto& stream = m_network.get_stream();
     stream.enqueue_barrier(dependencies);
     // The last row is the newest token of a prefill chunk.
-    head->input->copy_from(stream, *hidden, layout.count() * sizeof(ov::float16) - row_bytes, row_bytes, row_bytes, false);
+    head->previous->copy_from(stream, *hidden, layout.count() * sizeof(ov::float16) - row_bytes, 0, row_bytes, false);
 }
 
 void LookaheadContext::prefetch(const cldnn::primitive_inst* current_moe) {

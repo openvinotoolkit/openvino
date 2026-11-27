@@ -8,6 +8,7 @@
 #include <atomic>
 #include <unordered_map>
 
+#include "intel_gpu/graph/les_context.hpp"
 #include "lookahead_router.hpp"
 #include "les_predictor.hpp"
 #include "moe_lookahead_prefetcher.hpp"
@@ -99,11 +100,6 @@ private:
     };
     std::unordered_map<size_t, Recall> m_recall;
     std::unique_ptr<ExpertPrefetcher> m_prefetcher;
-};
-
-class LookaheadRegistry {
-public:
-    static std::shared_ptr<LookaheadContext> acquire(cldnn::network& network);
 };
 
 }

@@ -109,7 +109,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     uint32_t requirements_version = 0;
     ib >> requirements_version;
     if (requirements_version == external_les_requirements_version) {
-        OPENVINO_ASSERT(m_config.les_predictor_ir || !m_config.get_les_predictor().empty(),
+        OPENVINO_ASSERT(m_config.get_les_predictor(),
                         "[GPU] Importing this compiled blob requires GPU_LES_PREDICTOR");
     } else if (requirements_version != runtime_requirements_version) {
         OPENVINO_THROW("[GPU] Unsupported compatibility descriptor version ", requirements_version,
@@ -250,7 +250,7 @@ void CompiledModel::export_model(std::ostream& model) const {
     // Compatibility-descriptor block (see blob format above).
     const uint64_t requirements_magic = runtime_requirements_magic;
     ob << requirements_magic;
-    const uint32_t requirements_version = m_config.les_predictor_ir || !m_config.get_les_predictor().empty()
+    const uint32_t requirements_version = m_config.get_les_predictor()
                                               ? external_les_requirements_version
                                               : runtime_requirements_version;
     ob << requirements_version;

@@ -28,6 +28,8 @@ using ov::intel_gpu::ocl::moe::RoutedWeightViews;
 #    include <algorithm>
 #    include <array>
 #    include <chrono>
+#    include <cstdio>
+#    include <cstdlib>
 #    include <cstdint>
 #    include <cstdio>
 #    include <cstdlib>
@@ -1916,9 +1918,9 @@ public:
 
         const bool demand_les = _les_owner && predict && _weight_provider->is_offloaded() &&
                     _weight_provider->resident_capacity() > 0;
-        const auto* multi_token_waves = std::getenv("MOE_LES_MULTITOKEN_WAVES");
-        const bool split_les = demand_les && (token_num == 1 ||
-                       (multi_token_waves && std::string_view(multi_token_waves) == "1"));
+        const auto* multi_token_waves_env = std::getenv("MOE_LES_MULTITOKEN_WAVES");
+        const std::string_view multi_token_waves = multi_token_waves_env ? multi_token_waves_env : "1";
+        const bool split_les = demand_les && (token_num == 1 || multi_token_waves == "1");
         const bool compare = demand_les && moe_otd::les_prediction_compare_enabled();
         std::vector<uint32_t> experts;
         if (split_les) {
@@ -1949,7 +1951,16 @@ public:
         if (!split_les) {
             if (demand_les) {
                 _lookahead->demand_partitioned(instance.id());
-                _lookahead->prefetcher().drain();
+                static const bool time_drain = std::getenv("MOE_LES_TIME_VERIFIER_DRAIN") != nullptr;
+                if (time_drain && token_num > 1) {
+                    const auto start = std::chrono::steady_clock::now();
+                    _lookahead->prefetcher().drain();
+                    const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start);
+                    std::fprintf(stderr, "LES_VERIFIER_DRAIN layer=%s rows=%zu ns=%lld\n", instance.id().c_str(),
+                                 static_cast<size_t>(token_num), static_cast<long long>(elapsed.count()));
+                } else {
+                    _lookahead->prefetcher().drain();
+                }
             }
             batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
             if (predict) {
