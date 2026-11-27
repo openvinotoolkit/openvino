@@ -1916,9 +1916,9 @@ public:
 
         const bool demand_les = _les_owner && predict && _weight_provider->is_offloaded() &&
                     _weight_provider->resident_capacity() > 0;
-        const auto* multi_token_waves = std::getenv("MOE_LES_MULTITOKEN_WAVES");
-        const bool split_les = demand_les && (token_num == 1 ||
-                       !multi_token_waves || std::string_view(multi_token_waves) == "1");
+        const auto* multi_token_waves_env = std::getenv("MOE_LES_MULTITOKEN_WAVES");
+        const std::string_view multi_token_waves = multi_token_waves_env ? multi_token_waves_env : "1";
+        const bool split_les = demand_les && (token_num == 1 || multi_token_waves == "1");
         const bool compare = demand_les && moe_otd::les_prediction_compare_enabled();
         std::vector<uint32_t> experts;
         if (split_les) {
