@@ -4,9 +4,6 @@
 
 #include "reverseprop_resolver.hpp"
 
-#include <memory>
-#include <utility>
-
 #include "helper_ops/gather_assign.hpp"
 #include "helper_ops/internal_op.hpp"
 #include "helper_ops/slice_assign.hpp"
@@ -30,6 +27,8 @@ using namespace ov::pass;
 using namespace ov::op;
 
 ReversepropResolver::ReversepropResolver() {
+    // GraphRewrite refreshes shapes before later mutations use them.
+    m_enable_shape_inference = true;
     auto reverse_op = pattern::wrap_type<InternalReverseOperation>();
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -107,7 +106,7 @@ ReversepropResolver::ReversepropResolver() {
 
     auto m =
         std::make_shared<ov::pass::pattern::Matcher>(reverse_op, "ov::frontend::pytorch::pass::ReversepropResolver");
-    this->register_matcher(m, callback);
+    add_matcher(std::make_shared<ov::pass::MatcherPass>(m, callback));
 };
 
 }  // namespace ov::frontend::pytorch::pass

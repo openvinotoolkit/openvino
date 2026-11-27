@@ -1,0 +1,232 @@
+{
+  "models": [
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+      "filename": "Ternary-Bonsai-2-27B-F16.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+      "filename": "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+      "filename": "Ternary-Bonsai-2-27B-PTQ1_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+      "filename": "Ternary-Bonsai-2-27B-mmproj-BF16.gguf",
+      "kind": "mmproj"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+      "filename": "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
+      "kind": "mmproj"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-27B-gguf",
+      "revision": "f10afb355f104535e3e3e98cf7ab7795c72bd292",
+      "filename": "Bonsai-27B-F16.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-27B-gguf",
+      "revision": "f10afb355f104535e3e3e98cf7ab7795c72bd292",
+      "filename": "Bonsai-27B-Q1_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-27B-gguf",
+      "revision": "f10afb355f104535e3e3e98cf7ab7795c72bd292",
+      "filename": "Bonsai-27B-dspark-Q4_1.gguf",
+      "kind": "dspark"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-27B-gguf",
+      "revision": "f10afb355f104535e3e3e98cf7ab7795c72bd292",
+      "filename": "Bonsai-27B-dspark-bf16.gguf",
+      "kind": "dspark"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-27B-gguf",
+      "revision": "f10afb355f104535e3e3e98cf7ab7795c72bd292",
+      "filename": "Bonsai-27B-mmproj-BF16.gguf",
+      "kind": "mmproj"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-27B-gguf",
+      "revision": "f10afb355f104535e3e3e98cf7ab7795c72bd292",
+      "filename": "Bonsai-27B-mmproj-Q8_0.gguf",
+      "kind": "mmproj"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-F16.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-PQ2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-Q2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-Q2_g64.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-dspark-Q4_1.gguf",
+      "kind": "dspark"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-dspark-bf16.gguf",
+      "kind": "dspark"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-mmproj-BF16.gguf",
+      "kind": "mmproj"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-27B-gguf",
+      "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+      "filename": "Ternary-Bonsai-27B-mmproj-Q8_0.gguf",
+      "kind": "mmproj"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-8B-gguf",
+      "revision": "48516770dd04643643e9f9019a2a349cf26c5dbd",
+      "filename": "Bonsai-8B-Q1_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-8B-gguf",
+      "revision": "48516770dd04643643e9f9019a2a349cf26c5dbd",
+      "filename": "Bonsai-8B.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-8B-gguf",
+      "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
+      "filename": "Ternary-Bonsai-8B-F16.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-8B-gguf",
+      "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
+      "filename": "Ternary-Bonsai-8B-PQ2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-8B-gguf",
+      "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
+      "filename": "Ternary-Bonsai-8B-Q2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-8B-gguf",
+      "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
+      "filename": "Ternary-Bonsai-8B-Q2_0_g64.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-1.7B-gguf",
+      "revision": "210a9e99f79cb184909d49595906526eb2b3dd9a",
+      "filename": "Bonsai-1.7B-Q1_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-1.7B-gguf",
+      "revision": "210a9e99f79cb184909d49595906526eb2b3dd9a",
+      "filename": "Bonsai-1.7B.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-1.7B-gguf",
+      "revision": "983b5dec2ff16aab79990711ba0f828a499a7e6a",
+      "filename": "Ternary-Bonsai-1.7B-F16.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-1.7B-gguf",
+      "revision": "983b5dec2ff16aab79990711ba0f828a499a7e6a",
+      "filename": "Ternary-Bonsai-1.7B-PQ2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-1.7B-gguf",
+      "revision": "983b5dec2ff16aab79990711ba0f828a499a7e6a",
+      "filename": "Ternary-Bonsai-1.7B-Q2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-1.7B-gguf",
+      "revision": "983b5dec2ff16aab79990711ba0f828a499a7e6a",
+      "filename": "Ternary-Bonsai-1.7B-Q2_0_g64.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-4B-gguf",
+      "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
+      "filename": "Ternary-Bonsai-4B-F16.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-4B-gguf",
+      "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
+      "filename": "Ternary-Bonsai-4B-PQ2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-4B-gguf",
+      "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
+      "filename": "Ternary-Bonsai-4B-Q2_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-4B-gguf",
+      "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
+      "filename": "Ternary-Bonsai-4B-Q2_0_g64.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-4B-gguf",
+      "revision": "78f2c2bacd0904ffaba24b4873ed975e5818354a",
+      "filename": "Bonsai-4B-Q1_0.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Bonsai-4B-gguf",
+      "revision": "78f2c2bacd0904ffaba24b4873ed975e5818354a",
+      "filename": "Bonsai-4B.gguf",
+      "kind": "decoder"
+    },
+    {
+      "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf-dev",
+      "revision": "2a263ef827a2e215f3ddd14c9871a5bd1800fcbc",
+      "filename": "Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf",
+      "kind": "decoder"
+    }
+  ]
+}

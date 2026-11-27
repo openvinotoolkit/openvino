@@ -73,7 +73,7 @@ KernelData kernel_selector_base::get_best_kernel(const Params& params) const {
     return kernels[0];
 }
 
-KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params) const {
+KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params) {
     KernelsData kernelsData;
     std::string kernelName;
 
@@ -127,7 +127,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
 
         for (const auto& implementation : allImplementations) {
             // TODO: make sure kernel names are unique.
-            if (implementation->GetName().compare(cachedkernelName) == 0) {
+            if (implementation->GetName() == cachedkernelName) {
                 KernelsData kds = implementation->GetTunedKernelsDataByIndex(params, autoTuneIndex);
                 if (!kds.empty() && !kds[0].kernels.empty()) {
                     kernelsData = kds;
@@ -148,7 +148,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
 
 std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string& kernel_name) const {
     for (const auto& impl : implementations) {
-        if (impl->GetName().compare(kernel_name) == 0) {
+        if (impl->GetName() == kernel_name) {
             return impl;
         }
     }

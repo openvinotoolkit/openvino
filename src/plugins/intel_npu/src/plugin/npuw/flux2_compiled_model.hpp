@@ -69,7 +69,9 @@ private:
         ov::AnyMap properties;
     };
 
-    static PreparedState prepare(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
+    static PreparedState prepare(const std::shared_ptr<ov::Model>& model,
+                                 const std::shared_ptr<const ov::IPlugin>& plugin,
+                                 const ov::AnyMap& properties);
 
     Flux2CompiledModel(PreparedState prepared,
                        const std::shared_ptr<const ov::IPlugin>& plugin,

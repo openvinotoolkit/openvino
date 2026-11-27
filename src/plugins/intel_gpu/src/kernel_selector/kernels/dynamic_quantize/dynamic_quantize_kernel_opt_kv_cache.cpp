@@ -89,6 +89,7 @@ static size_t get_per_iter_elements_number(const dynamic_quantize_params& params
 ParamsKey DynamicQuantizeKernelKVCache::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT4);

@@ -133,7 +133,7 @@ ov::pass::RemoveConcatSliceAfterLoopSSM::RemoveConcatSliceAfterLoopSSM() {
 
     auto restored_root = restored_output | restored_state;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
         auto loop_node = m.get_pattern_map().at(loop);
@@ -200,7 +200,7 @@ ov::pass::FuseSSMLoop::FuseSSMLoop(size_t& fused_count) {
                                                               init_state,
                                                               pattern::any_input()});  // output accumulator buffer
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &fused_count](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &fused_count](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
 

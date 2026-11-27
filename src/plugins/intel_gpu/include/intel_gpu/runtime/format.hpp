@@ -250,6 +250,9 @@ struct format {
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
+        is_os_yx_isv16_ternary,                       ///< u2 fully connected weights for the TernOCL int2 impl: K blocked by 16 into one
+                                                      ///< dword per (K/16, N), values re-encoded from codes {0,1,2} (zero point 1)
+                                                      ///< to 2-bit two's complement {-1,0,+1}
 
         format_num,  ///< number of format types
         custom,      ///< means that this format is created based on custom format traits and may have no corresponding label
@@ -302,12 +305,9 @@ struct format {
         }
         const auto internal_order = fmt.traits().internal_order;
         const auto weights_chars = { "o", "i" };
-        for (const auto& c : weights_chars) {
-            if (internal_order.find_first_of(c) != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
+        return std::any_of(weights_chars.begin(), weights_chars.end(), [&internal_order](const char* c) {
+            return internal_order.find_first_of(c) != std::string::npos;
+        });
     }
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(const format& fmt) {
@@ -341,7 +341,7 @@ struct format {
 
     static format adjust_to_rank(format fmt, size_t new_rank);
 
-    static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
+    static std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
     static format find_format(const std::vector<size_t>& order,
                               const std::vector<std::pair<size_t, int>>& block_sizes,
@@ -392,7 +392,9 @@ struct format {
     /// @brief Checks if @p format is of image type
     bool is_image() const { return is_image(*this); }
     /// @brief Checks if @p format is blocked format
-    bool is_blocked() { return is_blocked(*this); }
+    bool is_blocked() const {
+        return is_blocked(*this);
+    }
     /// @brief Checks if @p format is a nv12 format
     bool is_nv12() const { return is_nv12(*this); }
 

@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 
+#include "eltwise/eltwise_kernel_blocked_opt.h"
 #include "eltwise/eltwise_kernel_vload8.h"
 #include "eltwise_inst.h"
 #include "intel_gpu/runtime/layout.hpp"
@@ -1487,15 +1488,23 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     }
 }
 
-TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
+struct eltwise_dynamic_broadcast_params {
+    format::type input_format;
+    std::vector<float> expected_output;
+};
+
+class eltwise_gpu_f32_dynamic_kernel_broadcast : public ::testing::TestWithParam<eltwise_dynamic_broadcast_params> {};
+
+TEST_P(eltwise_gpu_f32_dynamic_kernel_broadcast, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
     ov::Shape in1_shape = {2, 2, 2, 2};
     ov::Shape in2_shape = {1, 2, 1, 1};
-    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
-    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
-    auto in1_mem_layout = layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
-    auto in2_mem_layout = layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx};
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, p.input_format};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, p.input_format};
+    auto in1_mem_layout = layout{ov::PartialShape(in1_shape), data_types::f32, p.input_format};
+    auto in2_mem_layout = layout{ov::PartialShape(in2_shape), data_types::f32, p.input_format};
     auto input1 = engine.allocate_memory(in1_mem_layout);
     auto input2 = engine.allocate_memory(in2_mem_layout);
 
@@ -1530,18 +1539,33 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-
-    float answers[16] = { 1.5f,  0.5f, 5.5f, 2.f,
-                          1.5f, -0.5f, 5.5f, 4.7f,
-                          3.5f,  1.0f, 7.5f, 12.5f,
-                          3.5f, -1.0f, 7.5f, 7.5f };
+    ASSERT_EQ(output->get_layout().format, p.input_format);
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++) {
-        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i])) << "i=" << i;
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(eltwise_gpu_f32,
+                         eltwise_gpu_f32_dynamic_kernel_broadcast,
+                         ::testing::Values(eltwise_dynamic_broadcast_params{format::bfyx,
+                                                                            {1.5f,  0.5f, 5.5f, 2.f,
+                                                                             1.5f, -0.5f, 5.5f, 4.7f,
+                                                                             3.5f,  1.0f, 7.5f, 12.5f,
+                                                                             3.5f, -1.0f, 7.5f, 7.5f}},
+                                           // byxf buffer order: features are innermost, so input2 is added alternately
+                                           eltwise_dynamic_broadcast_params{format::byxf,
+                                                                            {1.5f, -0.5f, 5.5f, 1.f,
+                                                                             2.5f, -0.5f, 6.5f, 4.7f,
+                                                                             3.5f,  0.f,  7.5f, 11.5f,
+                                                                             4.5f, -1.0f, 8.5f, 7.5f}}),
+                         [](const ::testing::TestParamInfo<eltwise_dynamic_broadcast_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
+
 
 TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_3d_2d) {
     auto& engine = get_test_engine();
@@ -2960,6 +2984,82 @@ TEST(eltwise_gpu_int, div_gather_fusing) {
         if (rem != 0 && (gather_expected_results[i] < 0) != (input_3_vec[i] < 0))
             expected -= 1;
         ASSERT_EQ(expected, output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_int, python_division) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{4, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{4, 1, 1, 1}});
+
+    set_values(input1, {-5, 5, -5, 5});
+    set_values(input2, {2, -2, -2, 2});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise",
+                         {input_info("input1"), input_info("input2")},
+                         eltwise_mode::div,
+                         std::vector<float>(0),
+                         data_types::i32,
+                         DEFAULT_BROADCAST_SPEC,
+                         true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<int32_t> expected = {-3, -3, 2, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_int, python_division_i16) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::i16, format::bfyx, tensor{4, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i16, format::bfyx, tensor{4, 1, 1, 1}});
+
+    set_values(input1, {int16_t(-5), int16_t(5), int16_t(-5), int16_t(5)});
+    set_values(input2, {int16_t(2), int16_t(-2), int16_t(-2), int16_t(2)});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise",
+                         {input_info("input1"), input_info("input2")},
+                         eltwise_mode::div,
+                         std::vector<float>(0),
+                         data_types::i16,
+                         DEFAULT_BROADCAST_SPEC,
+                         true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<int16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<int16_t> expected = {int16_t(-3), int16_t(-3), 2, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
     }
 }
 
@@ -5037,6 +5137,422 @@ TEST(eltwise_gpu, vload8_rejects_spatial_broadcast) {
 TEST(eltwise_gpu, vload8_rejects_blocked_feature_broadcast) {
     skip_if_no_fp16();
     test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, false, false, format::b_fs_yx_fsv16);
+}
+
+namespace {
+template <typename OutputT>
+void test_generic_ref_zeros_feature_padding_of_single_element_output(data_types output_type) {
+    // A single-element b_fs_yx_fsv16 output has one valid feature lane and 15 padding lanes. The padding-reset
+    // work-items of generic_eltwise_ref must store to their own lanes. OUTPUT_GET_INDEX of a single-element tensor is
+    // folded to the first element offset, so storing through it made every padding lane overwrite the result.
+    constexpr size_t feature_block_size = 16;
+    auto& engine = get_test_engine();
+
+    const layout in_layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::b_fs_yx_fsv16};
+    auto input = engine.allocate_memory(in_layout);
+    std::vector<float> input_data(in_layout.get_linear_size(), 0.0f);
+    input_data[0] = 3.0f;
+    set_values(input, input_data);
+    auto scale = engine.allocate_memory({ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx});
+    set_values(scale, {0.5f});
+
+    topology topology(input_layout("input", in_layout),
+                      data("scale", scale),
+                      eltwise("eltwise", {input_info("input"), input_info("scale")}, eltwise_mode::prod, output_type));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"eltwise", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+    }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    ASSERT_NE(network.get_primitive_info("eltwise").find("generic_eltwise_ref"), std::string::npos);
+
+    // Fill the output with a dirty value to check that the padding lanes are reset.
+    auto eltwise_output = network.get_primitive("eltwise")->output_memory_ptr();
+    ASSERT_EQ(eltwise_output->get_layout().get_linear_size(), feature_block_size);
+    set_values(eltwise_output, std::vector<OutputT>(feature_block_size, OutputT(7.0f)));
+
+    auto outputs = network.execute();
+    auto output = outputs.at("eltwise").get_memory();
+    ASSERT_TRUE(engine.is_the_same_buffer(*eltwise_output, *output));
+    cldnn::mem_lock<OutputT, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(static_cast<float>(output_ptr[0]), 1.5f);
+    for (size_t lane = 1; lane < feature_block_size; ++lane) {
+        ASSERT_EQ(static_cast<float>(output_ptr[lane]), 0.0f) << "padding lane " << lane;
+    }
+}
+}  // namespace
+
+TEST(eltwise_gpu, generic_ref_zeros_feature_padding_of_single_element_output_f32) {
+    test_generic_ref_zeros_feature_padding_of_single_element_output<float>(data_types::f32);
+}
+
+TEST(eltwise_gpu, generic_ref_zeros_feature_padding_of_single_element_output_f16) {
+    skip_if_no_fp16();
+    test_generic_ref_zeros_feature_padding_of_single_element_output<ov::float16>(data_types::f16);
+}
+
+namespace {
+template <typename T>
+void verify_fsv16_output_and_padding(const memory::ptr& ref_mem, const memory::ptr& opt_mem) {
+    const auto layout = opt_mem->get_layout();
+    ASSERT_EQ(layout, ref_mem->get_layout());
+    const size_t batch_size = layout.batch();
+    const size_t feature_size = layout.feature();
+    const size_t y_size = layout.spatial(1);
+    const size_t x_size = layout.spatial(0);
+    constexpr size_t fsv = 16U;
+    const size_t f_blocks = (feature_size + fsv - 1U) / fsv;
+
+    cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+    for (size_t b = 0; b < batch_size; ++b) {
+        for (size_t fb = 0; fb < f_blocks; ++fb) {
+            for (size_t y = 0; y < y_size; ++y) {
+                for (size_t x = 0; x < x_size; ++x) {
+                    const size_t base_offset = (((b * f_blocks + fb) * y_size + y) * x_size + x) * fsv;
+                    for (size_t lane = 0; lane < fsv; ++lane) {
+                        const size_t f = fb * fsv + lane;
+                        if (f < feature_size) {
+                            ASSERT_EQ(opt_ptr[base_offset + lane], ref_ptr[base_offset + lane])
+                                << "Mismatch at b=" << b << " f=" << f << " y=" << y << " x=" << x;
+                        } else {
+                            ASSERT_EQ(static_cast<float>(opt_ptr[base_offset + lane]), 0.0F)
+                                << "Non-zero padding at b=" << b << " f=" << f << " y=" << y << " x=" << x;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
+TEST(eltwise_gpu, blocked_opt_dynamic_fsv16_multi_shape_and_broadcast) {
+    skip_if_no_fp16();
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const layout dyn_layout{ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16};
+    topology topo(input_layout("input0", dyn_layout),
+                  input_layout("input1", dyn_layout),
+                  eltwise("eltwise", {input_info("input0"), input_info("input1")}, eltwise_mode::prod));
+
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"eltwise", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+    }));
+    network ref_net(engine, topo, ref_config);
+
+    ExecutionConfig opt_config = get_test_default_config(engine);
+    opt_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network opt_net(engine, topo, opt_config);
+
+    const auto* opt_impl = opt_net.get_primitive("eltwise")->get_impl();
+    ASSERT_NE(opt_impl, nullptr);
+    ASSERT_TRUE(opt_impl->is_dynamic());
+    ASSERT_EQ(opt_impl->get_kernel_name(), "eltwise_blocked_opt");
+
+    const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapes = {
+        {{1, 32, 16, 16}, {1, 32, 1, 1}},
+        {{2, 20, 7, 5}, {2, 20, 1, 1}},
+        {{2, 1, 8, 6}, {1, 10, 8, 6}},
+        {{1, 16, 8, 8}, {1, 1, 8, 8}},
+        {{1, 5, 4, 4}, {1, 5, 4, 4}},
+        {{1, 8, 4, 4}, {1, 8, 4, 4}},
+        {{1, 1, 3, 3}, {1, 1, 3, 3}},
+    };
+
+    for (const auto& [shape0, shape1] : shapes) {
+        const layout mem_layout0{shape0, data_types::f16, format::b_fs_yx_fsv16};
+        const layout mem_layout1{shape1, data_types::f16, format::b_fs_yx_fsv16};
+        auto mem0 = engine.allocate_memory(mem_layout0);
+        auto mem1 = engine.allocate_memory(mem_layout1);
+        set_values(mem0, rg.generate_random_1d<ov::float16>(mem_layout0.get_linear_size(), -4, 4, 4));
+        set_values(mem1, rg.generate_random_1d<ov::float16>(mem_layout1.get_linear_size(), -4, 4, 4));
+
+        ref_net.set_input_data("input0", mem0);
+        ref_net.set_input_data("input1", mem1);
+        auto ref_out = ref_net.execute().at("eltwise").get_memory();
+
+        opt_net.set_input_data("input0", mem0);
+        opt_net.set_input_data("input1", mem1);
+        auto opt_out = opt_net.execute().at("eltwise").get_memory();
+
+        verify_fsv16_output_and_padding<ov::float16>(ref_out, opt_out);
+    }
+}
+
+TEST(eltwise_gpu, blocked_opt_dynamic_fsv16_static_channel_se_mul_and_cache) {
+    skip_if_no_fp16();
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const layout dyn_in0{ov::PartialShape{-1, 32, -1, -1}, data_types::f16, format::b_fs_yx_fsv16};
+    const layout dyn_in1{ov::PartialShape{-1, 32, 1, 1}, data_types::f16, format::b_fs_yx_fsv16};
+    topology topo(input_layout("input0", dyn_in0),
+                  input_layout("input1", dyn_in1),
+                  eltwise("eltwise", {input_info("input0"), input_info("input1")}, eltwise_mode::prod));
+
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"eltwise", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+    }));
+    network ref_net(engine, topo, ref_config);
+
+    ExecutionConfig opt_config = get_test_default_config(engine);
+    opt_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto opt_net = get_network(engine, topo, opt_config, get_test_stream_ptr(), true);
+
+    const auto* opt_impl = opt_net->get_primitive("eltwise")->get_impl();
+    ASSERT_NE(opt_impl, nullptr);
+    ASSERT_TRUE(opt_impl->is_dynamic());
+    ASSERT_EQ(opt_impl->get_kernel_name(), "eltwise_blocked_opt");
+
+    const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapes = {
+        {{1, 32, 20, 18}, {1, 32, 1, 1}},
+        {{3, 32, 8, 12}, {3, 32, 1, 1}},
+    };
+
+    for (const auto& [shape0, shape1] : shapes) {
+        const layout mem_layout0{shape0, data_types::f16, format::b_fs_yx_fsv16};
+        const layout mem_layout1{shape1, data_types::f16, format::b_fs_yx_fsv16};
+        auto mem0 = engine.allocate_memory(mem_layout0);
+        auto mem1 = engine.allocate_memory(mem_layout1);
+        set_values(mem0, rg.generate_random_1d<ov::float16>(mem_layout0.get_linear_size(), -4, 4, 4));
+        set_values(mem1, rg.generate_random_1d<ov::float16>(mem_layout1.get_linear_size(), -4, 4, 4));
+
+        ref_net.set_input_data("input0", mem0);
+        ref_net.set_input_data("input1", mem1);
+        auto ref_out = ref_net.execute().at("eltwise").get_memory();
+
+        opt_net->set_input_data("input0", mem0);
+        opt_net->set_input_data("input1", mem1);
+        auto opt_out = opt_net->execute().at("eltwise").get_memory();
+
+        verify_fsv16_output_and_padding<ov::float16>(ref_out, opt_out);
+    }
+}
+
+TEST(eltwise_gpu, blocked_opt_dynamic_fsv16_static_scalar_and_fallbacks) {
+    skip_if_no_fp16();
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto make_opt_config = [&engine]() {
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        return cfg;
+    };
+
+    // Dynamic fsv16 + static bfyx scalar (also with lower-X padding) should select dynamic eltwise_blocked_opt
+    {
+        auto scale = engine.allocate_memory({ov::PartialShape{1, 1, 1, 1}, data_types::f16, format::bfyx});
+        set_values(scale, {ov::float16(2.5F)});
+        auto padded_scale = engine.allocate_memory(layout{ov::PartialShape{1, 1, 1, 1}, data_types::f16, format::bfyx, padding({0, 0, 0, 1}, {0, 0, 0, 0})});
+        set_values(padded_scale, {ov::float16(100.0F), ov::float16(2.5F)});
+
+        for (const auto& scale_mem : {scale, padded_scale}) {
+            auto make_topo = [&scale_mem]() {
+                return topology(input_layout("input0", layout{ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16}),
+                                data("scale", scale_mem),
+                                eltwise("eltwise", {input_info("input0"), input_info("scale")}, eltwise_mode::prod));
+            };
+
+            ExecutionConfig ref_config = make_opt_config();
+            ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"eltwise", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+            }));
+            network ref_net(engine, make_topo(), ref_config);
+            network opt_net(engine, make_topo(), make_opt_config());
+
+            const auto* opt_impl = opt_net.get_primitive("eltwise")->get_impl();
+            ASSERT_NE(opt_impl, nullptr);
+            ASSERT_TRUE(opt_impl->is_dynamic());
+            ASSERT_EQ(opt_impl->get_kernel_name(), "eltwise_blocked_opt");
+
+            const layout mem_layout{ov::PartialShape{1, 10, 6, 4}, data_types::f16, format::b_fs_yx_fsv16};
+            auto mem0 = engine.allocate_memory(mem_layout);
+            set_values(mem0, rg.generate_random_1d<ov::float16>(mem_layout.get_linear_size(), -4, 4, 4));
+
+            ref_net.set_input_data("input0", mem0);
+            auto ref_out = ref_net.execute().at("eltwise").get_memory();
+            opt_net.set_input_data("input0", mem0);
+            auto opt_out = opt_net.execute().at("eltwise").get_memory();
+            verify_fsv16_output_and_padding<ov::float16>(ref_out, opt_out);
+        }
+    }
+
+    // Unsupported vector mode (eq) must fall back to generic_eltwise_ref
+    {
+        const layout dyn_layout{ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16};
+        topology topo(input_layout("input0", dyn_layout),
+                      input_layout("input1", dyn_layout),
+                      eltwise("eltwise", {input_info("input0"), input_info("input1")}, eltwise_mode::eq));
+        network net(engine, topo, make_opt_config());
+        const auto* impl = net.get_primitive("eltwise")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+        ASSERT_EQ(impl->get_kernel_name(), "generic_eltwise_ref");
+    }
+
+    // Dynamic bfyx second input mixed with dynamic fsv16 must fall back to generic_eltwise_ref
+    {
+        topology topo(input_layout("input0", layout{ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16}),
+                      input_layout("input1", layout{ov::PartialShape::dynamic(4), data_types::f16, format::bfyx}),
+                      eltwise("eltwise", {input_info("input0"), input_info("input1")}, eltwise_mode::sum));
+        network net(engine, topo, make_opt_config());
+        const auto* impl = net.get_primitive("eltwise")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+        ASSERT_EQ(impl->get_kernel_name(), "generic_eltwise_ref");
+    }
+}
+
+TEST(eltwise_gpu, blocked_opt_dynamic_fsv16_fused_per_channel) {
+    skip_if_no_fp16();
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto make_config = []() {
+        ExecutionConfig cfg = get_test_default_config(get_test_engine());
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        return cfg;
+    };
+
+    // The per-channel fused input is reordered to fsv16, so the partial vector (C=10) still reads within its feature block
+    for (const int64_t channels : {16, 10}) {
+        const layout dyn_layout{ov::PartialShape{-1, channels, -1, -1}, data_types::f16, format::b_fs_yx_fsv16};
+        const layout scale_layout{ov::PartialShape{1, channels, 1, 1}, data_types::f16, format::bfyx};
+        topology topo(input_layout("input0", dyn_layout),
+                      input_layout("input1", dyn_layout),
+                      input_layout("scale", scale_layout),
+                      eltwise("eltwise", {input_info("input0"), input_info("input1")}, eltwise_mode::sum),
+                      eltwise("eltwise_fused", {input_info("eltwise"), input_info("scale")}, eltwise_mode::prod),
+                      reorder("out", input_info("eltwise_fused"), format::bfyx, data_types::f32));
+
+        ExecutionConfig ref_config = make_config();
+        ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"eltwise", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+        }));
+        network ref_net(engine, topo, ref_config);
+        network opt_net(engine, topo, make_config());
+
+        const auto opt_inst = opt_net.get_primitive("eltwise");
+        const auto& fused_prims = opt_inst->get_node().get_fused_primitives();
+        ASSERT_EQ(fused_prims.size(), 1U) << "channels=" << channels;
+        ASSERT_EQ(opt_inst->get_node().get_dependency(fused_prims[0].outer_dep_start_idx).get_output_layout().format, format::b_fs_yx_fsv16);
+        const auto* opt_impl = opt_inst->get_impl();
+        ASSERT_NE(opt_impl, nullptr);
+        ASSERT_TRUE(opt_impl->is_dynamic());
+        ASSERT_EQ(opt_impl->get_kernel_name(), "eltwise_blocked_opt") << "channels=" << channels;
+
+        const layout mem_layout{ov::PartialShape{2, channels, 5, 3}, data_types::f16, format::b_fs_yx_fsv16};
+        auto mem0 = engine.allocate_memory(mem_layout);
+        auto mem1 = engine.allocate_memory(mem_layout);
+        auto scale = engine.allocate_memory(scale_layout);
+        set_values(mem0, rg.generate_random_1d<ov::float16>(mem_layout.get_linear_size(), -4, 4, 4));
+        set_values(mem1, rg.generate_random_1d<ov::float16>(mem_layout.get_linear_size(), -4, 4, 4));
+        set_values(scale, rg.generate_random_1d<ov::float16>(static_cast<size_t>(channels), -4, 4, 4));
+
+        for (auto* net : {&ref_net, &opt_net}) {
+            net->set_input_data("input0", mem0);
+            net->set_input_data("input1", mem1);
+            net->set_input_data("scale", scale);
+        }
+        auto ref_out = ref_net.execute().at("out").get_memory();
+        auto opt_out = opt_net.execute().at("out").get_memory();
+
+        cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> opt_ptr(opt_out, get_test_stream());
+        ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            ASSERT_EQ(opt_ptr[i], ref_ptr[i]) << "channels=" << channels << " i=" << i;
+        }
+    }
+}
+
+class eltwise_kernel_blocked_opt_for_test : public kernel_selector::EltwiseKernel_blocked_opt {
+public:
+    using EltwiseKernel_blocked_opt::Validate;
+};
+
+namespace {
+// Like convert_data_tensor(), only explicit padding is stored as pad (the size-based constructor also stores block alignment there)
+kernel_selector::DataTensor make_blocked_opt_fsv16_tensor(size_t channels, size_t pad_before = 0, size_t pad_after = 0) {
+    namespace ks = kernel_selector;
+    constexpr size_t x = 3;
+    constexpr size_t y = 5;
+    constexpr size_t batch = 2;
+    return ks::DataTensor({ks::Tensor::Dim(x, 1),
+                           ks::Tensor::Dim(y, x),
+                           ks::Tensor::Dim(channels, x * y, ks::Tensor::Pad(pad_before, pad_after)),
+                           ks::Tensor::Dim(batch, x * y * (pad_before + channels + pad_after))},
+                          ks::Datatype::F16,
+                          ks::DataLayout::b_fs_yx_fsv16);
+}
+}  // namespace
+
+TEST(eltwise_gpu, blocked_opt_dynamic_rejects_unaligned_fused_vector) {
+    namespace ks = kernel_selector;
+    const auto make_params = [](size_t channels, const ks::DataTensor& fused_tensor) {
+        ks::eltwise_params params;
+        params.is_shape_agnostic = true;
+        const auto tensor = make_blocked_opt_fsv16_tensor(channels);
+        params.inputs = {tensor, tensor};
+        params.outputs = {tensor};
+        params.operations.push_back({{ks::eltwise_params::InputType::Buffer(0), ks::eltwise_params::InputType::Buffer(1)}, ks::EltwiseMode::ADD});
+        ks::fused_operation_desc fused_op;
+        fused_op.op_params = std::make_shared<ks::eltwise_fuse_params>(ks::EltwiseMode::MUL, false);
+        fused_op.dep_idx_start = 2;
+        fused_op.dep_size = 1;
+        fused_op.op_id = 0;
+        fused_op.tensors = {fused_tensor};
+        params.fused_ops.push_back(fused_op);
+        return params;
+    };
+    const auto planar = [](size_t channels) {
+        return ks::DataTensor(std::vector<size_t>{1, 1, channels, 1}, ks::Datatype::F16, ks::DataLayout::bfyx);
+    };
+
+    eltwise_kernel_blocked_opt_for_test kernel;
+    ASSERT_TRUE(kernel.Validate(make_params(16, planar(16))));
+    // vload8 of the second vector would read past a 10-element planar tensor
+    ASSERT_FALSE(kernel.Validate(make_params(10, planar(10))));
+    // A blocked fused tensor is padded to 16 features, so the second vector stays in bounds
+    ASSERT_TRUE(kernel.Validate(make_params(10, ks::DataTensor(std::vector<size_t>{1, 1, 10, 1}, ks::Datatype::F16, ks::DataLayout::b_fs_yx_fsv16))));
+    // Lower-X padding makes the planar features non-contiguous
+    const ks::DataTensor padded_planar({ks::Tensor::Dim(1, 1, ks::Tensor::Pad(1, 0)), ks::Tensor::Dim(1, 2), ks::Tensor::Dim(16, 2), ks::Tensor::Dim(1, 32)},
+                                       ks::Datatype::F16,
+                                       ks::DataLayout::bfyx,
+                                       1);
+    ASSERT_FALSE(kernel.Validate(make_params(16, padded_planar)));
+    // A lower feature pad of 4 makes the second vector of a blocked fused tensor cross into the next feature block
+    ASSERT_FALSE(kernel.Validate(make_params(16, make_blocked_opt_fsv16_tensor(16, 4, 0))));
+    ASSERT_TRUE(kernel.Validate(make_params(16, make_blocked_opt_fsv16_tensor(16, 8, 0))));
+}
+
+TEST(eltwise_gpu, blocked_opt_dynamic_rejects_feature_padded_output) {
+    namespace ks = kernel_selector;
+    const auto make_params = [](const ks::DataTensor& output) {
+        ks::eltwise_params params;
+        params.is_shape_agnostic = true;
+        params.inputs = {make_blocked_opt_fsv16_tensor(10), make_blocked_opt_fsv16_tensor(10)};
+        params.outputs = {output};
+        params.operations.push_back({{ks::eltwise_params::InputType::Buffer(0), ks::eltwise_params::InputType::Buffer(1)}, ks::EltwiseMode::ADD});
+        return params;
+    };
+
+    eltwise_kernel_blocked_opt_for_test kernel;
+    ASSERT_TRUE(kernel.Validate(make_params(make_blocked_opt_fsv16_tensor(10))));
+    // A pad that is not a multiple of 16 leaves the upper lanes of the last block outside the dispatch
+    ASSERT_FALSE(kernel.Validate(make_params(make_blocked_opt_fsv16_tensor(10, 8, 0))));
+    // Tail-lane zeroing would overwrite upper padding that may hold another tensor's data
+    ASSERT_FALSE(kernel.Validate(make_params(make_blocked_opt_fsv16_tensor(10, 0, 6))));
 }
 
 struct eltwise_layout_test_params {

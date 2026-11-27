@@ -7,7 +7,8 @@
 'category: build':
 - 'cmake/**/*'
 - '**/CMakeLists.txt'
-- '**/*.cmake'
+- any: ['**/*.cmake',
+        '!**/sources.cmake']
 
 'category: C API':
 - 'src/bindings/c/**/*'

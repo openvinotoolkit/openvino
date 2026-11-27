@@ -50,6 +50,8 @@ Xbyak_aarch64::Reg to_xbyak_reg(const snippets::Reg& reg);
 std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::set<snippets::Reg>& regs);
 std::vector<Xbyak_aarch64::Reg> to_xbyak_regs(const std::vector<snippets::Reg>& regs);
 
+[[nodiscard]] bool is_reserved_gpr(size_t idx);
+
 inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
     std::vector<Xbyak_aarch64::XReg> regs;
     regs.reserve(idxs.size());
@@ -60,7 +62,7 @@ inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std:
 }
 
 /**
- * @brief Find multiple available registers from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`
+ * @brief Find multiple available registers excluding runtime parameters, reserved registers and `used_gpr_idxs`
  * @param used_gpr_idxs current used gpr register indexes
  * @param count number of auxiliary registers needed (default: 3)
  * @return vector of registers

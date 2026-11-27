@@ -19,7 +19,7 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ComparisonLayerCPUTestParamSet> &obj) {
-    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets] = obj.param;
+    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets, i32Window] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -37,13 +37,17 @@ std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     result << "modelPrc=" << modelPrc.to_string() << "_";
     result << "inferPrc=" << inferPrc.to_string() << "_";
     result << "_enforceSnippets=" << enforceSnippets;
+    if (i32Window) {
+        result << "_i32Window=" << static_cast<int64_t>(i32Window->start_from) << "_" << i32Window->range;
+    }
 
     return result.str();
 }
 
 void ComparisonLayerCPUTest::SetUp() {
-    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets] = this->GetParam();
+    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets, window] = this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
+    i32Window = window;
 
     // we have to change model precision as well, otherwise inference precision won't affect single-node graph
     // due to enforce inference precision optimization for the eltwise as first node of the model
@@ -67,7 +71,12 @@ void ComparisonLayerCPUTest::SetUp() {
 
     std::shared_ptr<ov::Node> secondInput;
     if (ov::test::utils::InputLayerType::CONSTANT == secondInType) {
-        auto tensor = ov::test::utils::create_and_fill_tensor(currModelPrc, targetStaticShapes[0][1]);
+        auto tensor = i32Window && currModelPrc == ov::element::i32
+                          ? ov::test::utils::create_and_fill_tensor(
+                                currModelPrc,
+                                targetStaticShapes[0][1],
+                                ov::test::utils::InputGenerateData(i32Window->start_from, i32Window->range, 1, 2))
+                          : ov::test::utils::create_and_fill_tensor(currModelPrc, targetStaticShapes[0][1]);
         secondInput = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
         auto param = std::make_shared<ov::op::v0::Parameter>(currModelPrc, inputDynamicShapes[1]);
@@ -77,6 +86,26 @@ void ComparisonLayerCPUTest::SetUp() {
     const auto comparison_node = ov::test::utils::make_comparison(params[0], secondInput, comparisonType);
 
     function = create_ov_model(currModelPrc, params, comparison_node, "Comparison");
+}
+
+void ComparisonLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    if (!i32Window) {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        return;
+    }
+
+    // Values from a narrow window, so that both inputs are often equal or differ by 1. A different seed per input
+    // keeps the inputs from being identical.
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    for (size_t i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        ov::test::utils::InputGenerateData inData(i32Window->start_from, i32Window->range, 1, static_cast<int32_t>(i + 1));
+        inputs.insert({funcInput.get_node_shared_ptr(),
+                       ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                               targetInputStaticShapes[i],
+                                                               inData)});
+    }
 }
 
 std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type, ov::element::Type modelType) const {

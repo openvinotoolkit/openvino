@@ -40,8 +40,8 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
     }
 
     if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
-        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
-                        << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << node.id() << " skipped at runtime: token count " << input_batch << " <= dynamic_quantization_threshold "
+                                           << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
         return true;
     }
 

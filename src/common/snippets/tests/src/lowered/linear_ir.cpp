@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "snippets/lowered/linear_ir.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/result.hpp"
-#include "snippets/op/scalar.hpp"
-#include "snippets/op/reshape.hpp"
-#include "snippets/op/result.hpp"
-#include "snippets/op/online_softmax.hpp"
+#include "lir_test_utils.hpp"
 #include "openvino/op/parameter.hpp"
-
-#include "snippets/lowered/linear_ir.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/broadcastmove.hpp"
-
-#include "lir_test_utils.hpp"
+#include "snippets/op/online_softmax.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
+#include "snippets/op/scalar.hpp"
 
 namespace ov {
 namespace test {

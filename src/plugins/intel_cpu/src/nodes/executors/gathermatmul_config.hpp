@@ -4,11 +4,15 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "executor_config.hpp"
 
 namespace ov::intel_cpu {
 
-struct GatherMatmulAttrs {};
+struct GatherMatmulAttrs {
+    uint64_t dynamicQuantizationGroupSize = 0;
+};
 
 using GatherMatmulConfig = executor::Config<GatherMatmulAttrs>;
 

@@ -11,6 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/set_rows_op.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -53,6 +54,8 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
 
         res->set_friendly_name(set_rows->get_friendly_name());
         ov::copy_runtime_info(set_rows, res);
+        if (ov::as_type_ptr<ov::op::v0::Parameter>(dst.get_node_shared_ptr()))
+            res->get_rt_info()[kv_cache_write_key()] = true;
         ov::replace_node(set_rows, res);
         return true;
     };

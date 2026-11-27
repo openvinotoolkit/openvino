@@ -40,7 +40,7 @@ EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
     auto hidden_states = any_input();
     auto mul_gate = wrap_type<v1::Multiply>({hidden_states, shift});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         const auto& gated = pm.at(hidden_states);
         // The mask's scale/shift are compile-time constants, so the real gate is the branch that is not

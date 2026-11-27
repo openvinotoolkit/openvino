@@ -7,6 +7,7 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <cstdio>
 #include <vector>
 
 #include "CL/cl.h"
@@ -202,8 +203,9 @@ void set_arguments_impl(ocl_kernel_type& kernel, const arguments_desc& args, con
 }
 
 std::shared_ptr<device_clock_sync> make_device_clock(const ocl_engine& engine, const ExecutionConfig& config) {
-    if (!config.get_enable_profiling())
+    if (!config.get_enable_profiling()) {
         return nullptr;
+    }
 
     auto clock = std::make_shared<device_clock_sync>(engine.get_cl_device());
     return clock->is_valid() ? clock : nullptr;
@@ -316,14 +318,39 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
         ocl::rethrow(err, _engine.get_device_info());
     }
 
+    // Diagnostic: force per-kernel completion so CL_OUT_OF_RESOURCES surfaces at the exact cldnn OCL kernel.
+    GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_finish_after_enqueue()) {
+        try {
+            _command_queue.finish();
+        } catch (cl::Error const& err) {
+            std::string kname;
+            try { kname = kern.getInfo<CL_KERNEL_FUNCTION_NAME>(); } catch (...) {}
+            std::fprintf(stderr, "[FINISH_AFTER_ENQUEUE][cldnn] kernel='%s' finish err=%d\n", kname.c_str(), err.err());
+            std::fflush(stderr);
+            ocl::rethrow(err, _engine.get_device_info());
+        }
+    }
+
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
-void ocl_stream::enqueue_barrier() {
-    try {
-        _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
-    } catch (const cl::Error& err) {
-        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+void ocl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    if (deps.empty()) {
+        try {
+            _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+        } catch (const cl::Error& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
+    } else {
+        auto dep_events = utils::get_cl_events(deps);
+        if (dep_events.empty()) {
+            return;
+        }
+        try {
+            _command_queue.enqueueBarrierWithWaitList(&dep_events, nullptr);
+        } catch (const cl::Error& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 
@@ -376,14 +403,6 @@ event::ptr ocl_stream::create_base_event() {
     cl::Event ret_ev;
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
-
-#ifdef ENABLE_MLIR_FOR_GPU
-event::ptr ocl_stream::create_base_event(void* handle) {
-    cl::Event ret_ev;
-    ret_ev = reinterpret_cast<cl_event>(handle);
-    return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
-}
-#endif
 
 std::unique_ptr<surfaces_lock> ocl_stream::create_surfaces_lock(const std::vector<memory::ptr>& mem) const {
     return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, *this));
@@ -448,7 +467,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 
     if (!clevents.empty()) {
-        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), &clevents[0]);
+        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), clevents.data());
         if (err != CL_SUCCESS) {
             OPENVINO_THROW("[GPU] clWaitForEvents failed with ", err, " code");
         }

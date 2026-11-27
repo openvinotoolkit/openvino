@@ -96,7 +96,7 @@ ov::pass::RestoreTracedBatch::RestoreTracedBatch() {
     const auto p_rebuild_target = wrap_type<v0::Concat>({p_input_batch, any_input(), any_input()}, axis_zero);
     const auto p_rebuild = wrap_type<v1::Reshape>({p_shift, p_rebuild_target});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& matcher) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
         // An absent optional Convert leaves no record, so the batch is read from the matched target.
         const auto batch = pattern_map.at(p_rebuild_target).get_node()->input_value(0);

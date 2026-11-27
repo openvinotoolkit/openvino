@@ -11,6 +11,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiler_adapter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/igraph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iprofiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iparser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/itt.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/network_metadata.hpp

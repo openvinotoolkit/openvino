@@ -4,6 +4,8 @@
 
 #include "graph/include/primitive_inst.h"
 #include "test_utils.h"
+#include "intel_gpu/plugin/custom_layer_source.hpp"
+#include "openvino/op/parameter.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
@@ -933,3 +935,72 @@ TEST(custom_gpu_primitive_f32, documented_pitch_indexing_reads_non_contiguous_in
     for (size_t i = 0; i < expected.size(); i++)
         ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }
+
+namespace custom_gpu_primitive_source_test {
+
+class CustomSourceOp : public ov::op::Op {
+public:
+    OPENVINO_OP("CustomSourceOp", "gpu_test");
+
+    CustomSourceOp(const ov::Output<ov::Node>& input, float alpha) : Op({input}), m_alpha(alpha) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        visitor.on_attribute("alpha", m_alpha);
+        return true;
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<CustomSourceOp>(inputs.at(0), m_alpha);
+    }
+
+private:
+    float m_alpha;
+};
+
+class SourceCacheCustomLayer : public ov::intel_gpu::CustomLayer {
+public:
+    SourceCacheCustomLayer() {
+        m_layerName = "CustomSourceOp";
+        m_kernelSource = "__kernel void custom_source(__global float* x) { x[0] *= ALPHA; }";
+        KernelDefine alpha;
+        alpha.name = "ALPHA";
+        alpha.param = "alpha";
+        alpha.default_value = "1";
+        m_defines.push_back(alpha);
+    }
+};
+
+TEST(custom_gpu_primitive_source, friendly_names_do_not_change_generated_source) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
+    auto first = std::make_shared<CustomSourceOp>(input, 1.0f);
+    auto second = std::make_shared<CustomSourceOp>(input, 1.0f);
+    first->set_friendly_name("first_instance");
+    second->set_friendly_name("second_instance");
+    SourceCacheCustomLayer layer;
+
+    const auto first_source = ov::intel_gpu::make_custom_layer_source(first, layer);
+    const auto second_source = ov::intel_gpu::make_custom_layer_source(second, layer);
+    ASSERT_EQ(first_source, second_source);
+}
+
+TEST(custom_gpu_primitive_source, different_defines_keep_generated_source_distinct) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
+    auto first = std::make_shared<CustomSourceOp>(input, 1.0f);
+    auto second = std::make_shared<CustomSourceOp>(input, 2.0f);
+    // Hold the name equal so this control checks the attribute-derived define.
+    first->set_friendly_name("same_instance_name");
+    second->set_friendly_name("same_instance_name");
+    SourceCacheCustomLayer layer;
+
+    const auto first_source = ov::intel_gpu::make_custom_layer_source(first, layer);
+    const auto second_source = ov::intel_gpu::make_custom_layer_source(second, layer);
+    ASSERT_NE(first_source, second_source);
+}
+
+}  // namespace custom_gpu_primitive_source_test

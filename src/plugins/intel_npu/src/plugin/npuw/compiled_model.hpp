@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <optional>
 
 #include "attention.hpp"
@@ -155,6 +156,7 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
     friend class CompiledModelDescSerializationAccess;
+    friend class GQACompiledModel;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -245,6 +247,16 @@ private:
         m_submodels_input_to_prev_output;
 
     DeviceProperties m_meta_devices;
+
+    // set_property() updates m_meta_devices and m_non_npuw_props at runtime, while failsafe
+    // fallback compilation, infer request creation, get_property() and export may read them
+    // concurrently. m_props_mutex guards both maps and is held only for short map accesses, never
+    // while calling into the submodels: failsafe calls back into compile_submodel() under its own
+    // lock, so the lock order is m_set_property_mutex -> failsafe lock -> m_props_mutex.
+    mutable std::mutex m_props_mutex;
+    // Serializes set_property() calls so the submodels and the configs end up with the same values
+    std::mutex m_set_property_mutex;
+    ov::AnyMap non_npuw_props() const;
 
     DevList m_dev_list;
 

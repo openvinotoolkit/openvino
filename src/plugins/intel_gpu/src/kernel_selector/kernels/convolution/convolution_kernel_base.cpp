@@ -19,10 +19,10 @@ bool ConvolutionKernelBase::Validate(const Params& p) const {
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -127,7 +127,7 @@ bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::Dispatc
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int /*unused*/) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -279,7 +279,7 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
     properPadding &= reqDesc.X().pad.after <= params.inputs[0].X().pad.after && reqDesc.Y().pad.after <= params.inputs[0].Y().pad.after &&
                      reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after && reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
 
-    properPadding &= ((params.padding_begin.x == 0 && params.padding_begin.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
+    properPadding &= ((params.padding_begin.x == 0 && params.padding_begin.y == 0) || params.inputs[0].GetPaddedVal() == 0.F);
 
     return properPadding;
 }
@@ -299,9 +299,9 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     const auto inputLimitY = (cp.outputs[0].Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
     const auto inputLimitZ = (cp.outputs[0].Z().v - 1) * cp.stride.z + (cp.filterSize.z - 1) * cp.dilation.z + 1;
 
-    pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
-    pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), static_cast<int>(0));
-    pad[2].after = (size_t)std::max(static_cast<int>(inputLimitZ) - static_cast<int>(t.Z().v) - static_cast<int>(pad[2].before), static_cast<int>(0));
+    pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), 0);
+    pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), 0);
+    pad[2].after = (size_t)std::max(static_cast<int>(inputLimitZ) - static_cast<int>(t.Z().v) - static_cast<int>(pad[2].before), 0);
 
     Tensor::NDims dims(ndims);
     const Tensor::NDims& orgDims = cp.inputs[0].GetDims();
@@ -391,21 +391,27 @@ JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolu
     return {};
 }
 
-Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) const {
+Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) {
     if (dt == Datatype::UINT8) {
-        return pack_size == 4 ? Datatype::UINT32 : pack_size == 2 ? Datatype::UINT16 : dt;
+        if (pack_size == 4) {
+            return Datatype::UINT32;
+        }
+        return pack_size == 2 ? Datatype::UINT16 : dt;
     }
     if (dt == Datatype::INT8) {
-        return pack_size == 4 ? Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
+        if (pack_size == 4) {
+            return Datatype::INT32;
+        }
+        return pack_size == 2 ? Datatype::INT16 : dt;
     }
     return dt;
 }
 
-Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params) const {
+Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params) {
     return GetPackedType(params.inputs[0].GetDType());
 }
 
-Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params, size_t pack_size) const {
+Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params, size_t pack_size) {
     return GetPackedType(params.outputs[0].GetDType(), pack_size);
 }
 
@@ -437,7 +443,7 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
     return GetUnitType(params);
 }
 
-Datatype ConvolutionKernelBase::GetAccumulatorType(const convolution_params& params) const {
+Datatype ConvolutionKernelBase::GetAccumulatorType(const convolution_params& params) {
     if (params.quantization != QuantizationType::NONE) {
         return Datatype::INT32;
     }

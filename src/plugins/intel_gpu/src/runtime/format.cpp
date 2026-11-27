@@ -202,6 +202,7 @@ static const std::map<format::type, format_traits> format_traits_map{
     FMT_TRAITS(gi_yxs_os_yxsv2_osv16, 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{0, 16}}, {{1, 16}}),                                       // NOLINT
     FMT_TRAITS(giy_xs_os_xsv2_osv8__ao32, 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{2, 2}, {0, 8}}, {{4, 2}, {1, 8}}),                     // NOLINT
     FMT_TRAITS(giy_xs_os_xsv2_osv16__ao32, 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{2, 2}, {0, 16}}, {{4, 2}, {1, 16}}),                  // NOLINT
+    FMT_TRAITS(is_os_yx_isv16_ternary, 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy", {{1, 16}}, {{1, 16}}),                                               // NOLINT
 };
 
 const format_traits& format::traits(type fmt) {
@@ -331,7 +332,7 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
 }
 
 // First : block_idx, Second : block_size
-const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt) {
+std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt) {
     std::vector<std::pair<size_t, int>> sizes_for_dims;
     for (const auto& block : fmt.block_sizes()) {
         auto it = std::find_if(sizes_for_dims.begin(), sizes_for_dims.end(), [&block](const std::pair<size_t, int>& ele) {

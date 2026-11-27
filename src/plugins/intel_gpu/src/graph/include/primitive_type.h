@@ -24,8 +24,7 @@ struct ImplementationManager;
 struct primitive_type {
     virtual ~primitive_type() = default;
 
-    virtual std::shared_ptr<program_node> create_node(program& program,
-                                                      const std::shared_ptr<primitive> prim) const = 0;
+    virtual std::shared_ptr<program_node> create_node(program& program, std::shared_ptr<primitive> prim) const = 0;
     virtual std::shared_ptr<primitive_inst> create_instance(network& network,
                                                             const program_node& node) const = 0;
 
@@ -48,6 +47,7 @@ struct primitive_type {
     virtual layout calc_output_layout(const program_node& node, const kernel_impl_params& params) const = 0;
     virtual std::vector<layout> calc_output_layouts(const program_node& node, const kernel_impl_params& impl_param) const = 0;
     virtual kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const = 0;
+    virtual bool has_fake_alignment() const = 0;
     virtual std::string to_string(const program_node& node) const = 0;
 };
 }  // namespace cldnn

@@ -50,9 +50,9 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     for (int64_t h = 0; h < layer_height; ++h) {
         for (int64_t w = 0; w < layer_width; ++w) {
             float center_x, center_y;
-            if (argument.step_width == 0.f || argument.step_height == 0.f) {
-                center_x = (w + 0.5f) * step_w;
-                center_y = (h + 0.5f) * step_h;
+            if (argument.step_width == 0.F || argument.step_height == 0.F) {
+                center_x = (w + 0.5F) * step_w;
+                center_y = (h + 0.5F) * step_h;
             } else {
                 center_x = (w + offset) * step_w;
                 center_y = (h + offset) * step_h;
@@ -65,13 +65,13 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                     box_height = argument.heights[s];
                     idx = h * layer_width * num_priors * 4 + w * num_priors * 4 + s * 4;
                     // xmin
-                    out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
+                    out_ptr[idx++] = (dtype)((center_x - box_width / 2.F) / img_width);
                     // ymin
-                    out_ptr[idx++] = (dtype)((center_y - box_height / 2.f) / img_height);
+                    out_ptr[idx++] = (dtype)((center_y - box_height / 2.F) / img_height);
                     // xmax
-                    out_ptr[idx++] = (dtype)((center_x + box_width / 2.f) / img_width);
+                    out_ptr[idx++] = (dtype)((center_x + box_width / 2.F) / img_width);
                     // ymax
-                    out_ptr[idx++] = (dtype)((center_y + box_height / 2.f) / img_height);
+                    out_ptr[idx++] = (dtype)((center_y + box_height / 2.F) / img_height);
                 }
                 continue;
             }
@@ -88,16 +88,16 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 
                         for (size_t r = 0; r < density; ++r) {
                             for (size_t c = 0; c < density; ++c) {
-                                float tmp_center_x = center_x - fixed_size / 2.f + shift / 2.f + c * shift;
-                                float tmp_center_y = center_y - fixed_size / 2.f + shift / 2.f + r * shift;
+                                float tmp_center_x = center_x - fixed_size / 2.F + shift / 2.F + c * shift;
+                                float tmp_center_y = center_y - fixed_size / 2.F + shift / 2.F + r * shift;
                                 // xmin
-                                out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.f) / img_width);
+                                out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.F) / img_width);
                                 // ymin
-                                out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.f) / img_height);
+                                out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.F) / img_height);
                                 // xmax
-                                out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.f) / img_width);
+                                out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.F) / img_width);
                                 // ymax
-                                out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.f) / img_height);
+                                out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.F) / img_height);
                             }
                         }
                     }
@@ -106,16 +106,16 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 
                     for (size_t r = 0; r < density; ++r) {
                         for (size_t c = 0; c < density; ++c) {
-                            float tmp_center_x = center_x - fixed_size / 2.f + shift / 2.f + c * shift;
-                            float tmp_center_y = center_y - fixed_size / 2.f + shift / 2.f + r * shift;
+                            float tmp_center_x = center_x - fixed_size / 2.F + shift / 2.F + c * shift;
+                            float tmp_center_y = center_y - fixed_size / 2.F + shift / 2.F + r * shift;
                             // xmin
-                            out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.f) / img_width);
+                            out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.F) / img_width);
                             // ymin
-                            out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.f) / img_height);
+                            out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.F) / img_height);
                             // xmax
-                            out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.f) / img_width);
+                            out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.F) / img_width);
                             // ymax
-                            out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.f) / img_height);
+                            out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.F) / img_height);
                         }
                     }
 
@@ -129,16 +129,16 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 
                         for (size_t r = 0; r < density; ++r) {
                             for (size_t c = 0; c < density; ++c) {
-                                float tmp_center_x = center_x - fixed_size / 2.f + shift / 2.f + c * shift;
-                                float tmp_center_y = center_y - fixed_size / 2.f + shift / 2.f + r * shift;
+                                float tmp_center_x = center_x - fixed_size / 2.F + shift / 2.F + c * shift;
+                                float tmp_center_y = center_y - fixed_size / 2.F + shift / 2.F + r * shift;
                                 // xmin
-                                out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.f) / img_width);
+                                out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.F) / img_width);
                                 // ymin
-                                out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.f) / img_height);
+                                out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.F) / img_height);
                                 // xmax
-                                out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.f) / img_width);
+                                out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.F) / img_width);
                                 // ymax
-                                out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.f) / img_height);
+                                out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.F) / img_height);
                             }
                         }
                     }
@@ -150,26 +150,26 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                 // first prior: aspect_ratio = 1, size = min_size
                 box_width = box_height = min_size;
                 // xmin
-                out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
+                out_ptr[idx++] = (dtype)((center_x - box_width / 2.F) / img_width);
                 // ymin
-                out_ptr[idx++] = (dtype)((center_y - box_height / 2.f) / img_height);
+                out_ptr[idx++] = (dtype)((center_y - box_height / 2.F) / img_height);
                 // xmax
-                out_ptr[idx++] = (dtype)((center_x + box_width / 2.f) / img_width);
+                out_ptr[idx++] = (dtype)((center_x + box_width / 2.F) / img_width);
                 // ymax
-                out_ptr[idx++] = (dtype)((center_y + box_height / 2.f) / img_height);
+                out_ptr[idx++] = (dtype)((center_y + box_height / 2.F) / img_height);
 
                 if (!argument.max_sizes.empty()) {
                     float max_size_ = argument.max_sizes[s];
                     // second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
                     box_width = box_height = sqrtf(min_size * max_size_);
                     // xmin
-                    out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
+                    out_ptr[idx++] = (dtype)((center_x - box_width / 2.F) / img_width);
                     // ymin
-                    out_ptr[idx++] = (dtype)((center_y - box_height / 2.f) / img_height);
+                    out_ptr[idx++] = (dtype)((center_y - box_height / 2.F) / img_height);
                     // xmax
-                    out_ptr[idx++] = (dtype)((center_x + box_width / 2.f) / img_width);
+                    out_ptr[idx++] = (dtype)((center_x + box_width / 2.F) / img_width);
                     // ymax
-                    out_ptr[idx++] = (dtype)((center_y + box_height / 2.f) / img_height);
+                    out_ptr[idx++] = (dtype)((center_y + box_height / 2.F) / img_height);
                 }
 
                 if (argument.scale_all_sizes || (!argument.scale_all_sizes && (s == argument.min_sizes.size() - 1))) {
@@ -183,13 +183,13 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                         box_width = min_size * sqrtf(ar);
                         box_height = min_size / sqrtf(ar);
                         // xmin
-                        out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
+                        out_ptr[idx++] = (dtype)((center_x - box_width / 2.F) / img_width);
                         // ymin
-                        out_ptr[idx++] = (dtype)((center_y - box_height / 2.f) / img_height);
+                        out_ptr[idx++] = (dtype)((center_y - box_height / 2.F) / img_height);
                         // xmax
-                        out_ptr[idx++] = (dtype)((center_x + box_width / 2.f) / img_width);
+                        out_ptr[idx++] = (dtype)((center_x + box_width / 2.F) / img_width);
                         // ymax
-                        out_ptr[idx++] = (dtype)((center_y + box_height / 2.f) / img_height);
+                        out_ptr[idx++] = (dtype)((center_y + box_height / 2.F) / img_height);
                     }
                 }
             }
@@ -199,7 +199,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     // clip the prior's coordinate such that it is within [0, 1]
     if (argument.clip) {
         for (int d = 0; d < dim; ++d) {
-            out_ptr[d] = (dtype)std::min(std::max(static_cast<float>(out_ptr[d]), 0.f), 1.f);
+            out_ptr[d] = (dtype)std::min(std::max(static_cast<float>(out_ptr[d]), 0.F), 1.F);
         }
     }
 

@@ -7,7 +7,6 @@ from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
-import collections.abc
 import openvino._op_base
 import openvino._pyopenvino
 __all__: list[str] = ['Callable', 'Op', 'PartialShape', 'PostponedConstant', 'Shape', 'Tensor', 'TensorVector', 'Type', 'make_postponed_constant']

@@ -120,9 +120,13 @@ class MultiMethod(object):
                     break
         elif len(arg_types) == 0 and len(kwarg_types) != 0:
             for key, func in self.typemap.items():
-                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
-                # if kwargs of called function are subset of overloaded function, we use this overload
-                if kwarg_types.keys() <= func_signature.keys():
+                params = signature(func).parameters
+                # parameters without a default, *args and **kwargs excluded
+                required = {n for n, p in params.items()
+                            if p.default is p.empty and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)}
+                # if kwargs of called function are subset of overloaded function
+                # and cover its required parameters, we use this overload
+                if kwarg_types.keys() <= params.keys() and required <= kwarg_types.keys():
                     key_matched = key
                     break
         elif len(arg_types) != 0 and len(kwarg_types) != 0:

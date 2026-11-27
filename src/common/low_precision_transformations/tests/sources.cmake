@@ -68,6 +68,7 @@ set(LP_TRANSFORMATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/mat_mul_with_constant_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/max_pool_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/move_dequantization_after_transformation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/move_dequantization_before_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/move_fake_quantize_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/multiply_partial_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/multiply_to_group_convolution_transformation.cpp

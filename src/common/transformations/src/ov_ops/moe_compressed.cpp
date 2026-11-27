@@ -170,7 +170,10 @@ void MOECompressed::validate_and_infer_types() {
 }
 
 bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
+    // The parent class MOE has its own m_config. After visiting its attributes, copy the MOE::Config fields into
+    // MOECompressed::m_config.
     MOE::visit_attributes(visitor);
+    static_cast<MOE::Config&>(m_config) = MOE::get_config();
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("inter_size", m_config.inter_size);
     visitor.on_attribute("num_expert", m_config.num_expert);

@@ -28,6 +28,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/gather_matmul.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
@@ -79,10 +80,12 @@ struct MOE2GEMMPatternNodes {
     std::shared_ptr<ov::Node> reduce_sum;
 };
 
-MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
+MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types,
+                                         const std::vector<ov::element::Type>& supported_activation_types) {
     MOE2GEMMPatternNodes p;
 
-    p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
+    p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()},
+                                                      pattern::type_matches_any(supported_activation_types));
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(1));
     p.gate_up_matmul = pattern::wrap_type<v0::MatMul>(
@@ -154,10 +157,11 @@ struct MOE3GEMMPatternNodes {
     std::shared_ptr<ov::Node> reduce_sum;
 };
 
-MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
+MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types,
+                                         const std::vector<ov::element::Type>& supported_activation_types) {
     MOE3GEMMPatternNodes p;
 
-    p.experts_input = pattern::any_input();
+    p.experts_input = pattern::any_input(pattern::type_matches_any(supported_activation_types));
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(2));
 
@@ -215,12 +219,13 @@ using ov::op::internal::GatherMatmul;
 // ============================================================================
 
 ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
-    const std::vector<ov::element::Type>& supported_weights_types) {
+    const std::vector<ov::element::Type>& supported_weights_types,
+    const std::vector<ov::element::Type>& supported_activation_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo2GatherMatmuls);
 
-    auto p = build_2gemm_pattern(supported_weights_types);
+    auto p = build_2gemm_pattern(supported_weights_types, supported_activation_types);
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -322,12 +327,13 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
 }
 
 ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
-    const std::vector<ov::element::Type>& supported_weights_types) {
+    const std::vector<ov::element::Type>& supported_weights_types,
+    const std::vector<ov::element::Type>& supported_activation_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo3GatherMatmuls);
 
-    auto p = build_3gemm_pattern(supported_weights_types);
+    auto p = build_3gemm_pattern(supported_weights_types, supported_activation_types);
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

@@ -18,7 +18,7 @@ bool PermuteKernelBase::Validate(const Params& p) const {
         }
     }
 
-    auto supported_dyn_layouts = {DataLayout::bfyx, DataLayout::bfzyx, DataLayout::bfwzyx, DataLayout::bfuwzyx, DataLayout::bfvuwzyx};
+    auto supported_dyn_layouts = {DataLayout::bfyx, DataLayout::byxf, DataLayout::bfzyx, DataLayout::bfwzyx, DataLayout::bfuwzyx, DataLayout::bfvuwzyx};
     if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts))) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -26,7 +26,7 @@ bool PermuteKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, const CommonDispatchData&) const {
+JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, const CommonDispatchData& /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     return jit;
 }

@@ -52,7 +52,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
             _scratchpad_md = _pd.scratchpad_desc();
 
-            GPU_DEBUG_IF(config.get_verbose() >= 4) {
+            GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_verbose() >= 4) {
                 if (_scratchpad_md.get_size() > 0) {
                     static std::atomic_llong total{0};
                     int64_t size = _scratchpad_md.get_size() / 1048576;
@@ -411,7 +411,9 @@ protected:
         return PrimType(_pd, cache_blob);
     }
 
-    virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
+    virtual bool optimized_out(typed_primitive_inst<PType>& /*unused*/) const {
+        return false;
+    }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
         auto& engine = instance.get_network().get_engine();
@@ -443,6 +445,7 @@ protected:
                 case onednn_post_op_type::binary_add:
                 case onednn_post_op_type::binary_sub:
                 case onednn_post_op_type::binary_mul:
+                case onednn_post_op_type::binary_mul_inplace:
                 case onednn_post_op_type::binary_max:
                 case onednn_post_op_type::binary_min:
                 case onednn_post_op_type::binary_div:
@@ -550,7 +553,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
+    void init_kernels(const kernels_cache& /*unused*/, const kernel_impl_params& /*unused*/) override {}
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized()) {
@@ -595,7 +598,18 @@ protected:
 #endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                OPENVINO_THROW(err.what());
+                OPENVINO_THROW("[", instance.id(), "] ", err.what());
+            }
+
+            // Diagnostic: onednn primitives execute directly on the onednn stream and never pass through
+            // ocl_stream::enqueue_kernel, so force completion here too to surface async errors
+            // (e.g. CL_OUT_OF_RESOURCES) at this exact onednn primitive/layer.
+            GPU_DEBUG_IF(network.get_config().get_finish_after_enqueue()) {
+                try {
+                    stream.finish();
+                } catch (std::exception& err) {
+                    OPENVINO_THROW("[FINISH_AFTER_ENQUEUE][onednn] [", instance.id(), "] ", err.what());
+                }
             }
 
             if (_enable_profiling) {
@@ -619,12 +633,14 @@ protected:
                     event = stream.enqueue_marker({});
                 }
             }
+        } else if (instance.needs_completion_event()) {
+            event = stream.enqueue_marker({});
         }
 
         return event;
     }
 
-    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& /*unused*/) const override {
         if (_scratchpad_md.get_size() == 0) {
             return {};
         }

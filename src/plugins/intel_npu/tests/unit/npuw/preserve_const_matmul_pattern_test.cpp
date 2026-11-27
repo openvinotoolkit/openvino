@@ -100,7 +100,7 @@ SubgraphNodes build_asymm_matmul_subgraph(const ov::Shape& weight_shape,
 void run_preserve_pattern(std::shared_ptr<ov::Model>& model, ResultNodes& to_keep) {
     ov::pass::Manager manager;
     using namespace ov::npuw::patterns::opt;
-    Context ctx;
+    Context ctx(model, 0);
     ctx.mm_gate = false;
     manager.register_pass<PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
     manager.run_passes(model);

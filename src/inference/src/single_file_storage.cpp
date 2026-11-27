@@ -35,7 +35,7 @@ void read_version(std::istream& stream, util::Version& version) {
 }
 
 void validate_version(const util::Version& version) {
-    util::is_version_compatible(SingleFileStorage::m_version, version);
+    OPENVINO_ASSERT(util::is_version_compatible(SingleFileStorage::m_version, version), "Incompatible cache format");
 }
 
 void write_tlv_string(std::ostream& stream, const std::string& str) {

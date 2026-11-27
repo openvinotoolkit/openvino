@@ -55,7 +55,7 @@ static void ReshapeInput(ProgramBuilder& p, const std::shared_ptr<ov::op::Op>& o
                 auto input_rank = input_pshape.size();
 
                 auto input_shape = op->get_input_shape(idx);
-                input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
+                input_shape.insert(input_shape.begin(), output_rank - input_rank, 1UL);
 
                 auto target_input_shape = tensor_from_dims(input_shape);
                 auto input_reshape_name = layer_name + "_input_" + std::to_string(idx) + "_reshape";
@@ -152,6 +152,8 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                                          op->get_kv_compressed(),
                                                          op->get_causal_mask_alignment() ==
                                                              op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+    sdpa_prim.sliding_window = op->get_sliding_window_size();
+
     if (scalar_scale) {
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }

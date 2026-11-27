@@ -36,6 +36,10 @@ GGUF_FRONTEND_API ArchitectureDefinition make_decoder_architecture(std::string a
                                                                    RopeMode rope,
                                                                    DecoderOptionsFn options = {});
 
+using DecoderParametersFn = std::function<DecoderParameters(const BuildContext&)>;
+GGUF_FRONTEND_API ArchitectureDefinition make_decoder_architecture(std::string architecture,
+                                                                   DecoderParametersFn parameters);
+
 class GGUF_FRONTEND_API ArchitectureExtension : public ov::Extension {
 public:
     OPENVINO_RTTI("gguf::ArchitectureExtension", "", ov::Extension);

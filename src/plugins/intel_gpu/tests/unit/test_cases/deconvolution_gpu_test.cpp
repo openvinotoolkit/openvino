@@ -12,6 +12,11 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "deconvolution_inst.h"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/parameter.hpp"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -326,6 +331,53 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fu
         21.f, 40.5f, 13.5f
     };
 
+    for (unsigned int i = 0; i < expected_output_vec.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+    }
+}
+
+TEST(deconvolution_f32_fw_gpu, dynamic_byxf_wsiz2x2_in2x2x2x1_stride2_nopad) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ ov::PartialShape{ 1, 2, 2, 2 }, data_types::f32, format::byxf });
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 1, 2, 2, 2 }, data_types::f32, format::oiyx });
+    auto biases = engine.allocate_memory({ ov::PartialShape{ 1, 1, 1, 1 }, data_types::f32, format::bfyx });
+
+    // byxf physical order: features are innermost
+    set_values(input, { 8.f, 1.f, 0.5f, 2.f, 6.f, 3.f, 9.f, 4.f });
+    set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f, 1.f, 0.f, 0.f, 1.f });
+    set_values(biases, { 1.0f });
+
+    topology topology(
+        input_layout("input", { ov::PartialShape{ ov::Dimension::dynamic(), 2, 2, 2 }, data_types::f32, format::byxf }),
+        data("weights", weights),
+        data("biases", biases),
+        deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, { 2, 2 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output_prim = outputs.at("plane_output").get_memory();
+    ASSERT_EQ(output_prim->get_layout().get_partial_shape(), (ov::PartialShape{ 1, 1, 4, 4 }));
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    std::vector<float> expected_output_vec = {
+        -14.f, 5.f, 2.f, 1.25f,
+        29.f, 14.f, 2.75f, 3.75f,
+        -8.f, 4.f, -13.f, 5.5f,
+        22.f, 13.f, 32.5f, 18.5f
+    };
+
+    ASSERT_EQ(output_ptr.size(), expected_output_vec.size());
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
         ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
@@ -2466,6 +2518,239 @@ TEST(export_import_deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv
     test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>(true);
 }
 
+// A stride-1 deconvolution is replaced by a convolution with transposed (180-degree rotated) weights. When the weights
+// are not constant, the rotation has to happen in the weights reorder executed at runtime.
+static void test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types impl_type, uint32_t groups) {
+    auto& engine = get_test_engine();
+    if (impl_type == impl_types::onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
+    const int64_t ifm = 8, ofm = 16, in_size = 5, k = 3, pad = 1;
+    const int64_t ifm_g = ifm / groups, ofm_g = ofm / groups;
+    const int64_t out_size = in_size - 1 - 2 * pad + k;
+
+    layout in_layout{ov::PartialShape{1, ifm, in_size, in_size}, data_types::f16, format::bfyx};
+    layout weights_layout = groups == 1 ? layout{ov::PartialShape{ofm, ifm, k, k}, data_types::f16, format::bfyx}
+                                        : layout{ov::PartialShape{groups, ofm_g, ifm_g, k, k}, data_types::f16, format::bfzyx};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto input = engine.allocate_memory(in_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    topology topology(input_layout("input", in_layout),
+                      input_layout("weights", weights_layout),
+                      deconvolution("deconv", input_info("input"), "weights", "", groups, {1, 1}, {pad, pad}, {1, 1},
+                                    tensor(1, ofm, out_size, out_size), groups > 1),
+                      reorder("out", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc deconv_impl = {format::bfyx, "", impl_type};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"deconv", deconv_impl}}));
+
+    network network(engine, topology, config);
+    auto deconv_inst = network.get_primitive("deconv");
+    ASSERT_TRUE(deconv_inst->get_node().is_type<convolution>());
+    ASSERT_EQ(deconv_inst->get_impl()->is_onednn(), impl_type == impl_types::onednn);
+
+    network.set_input_data("input", input);
+    network.set_input_data("weights", weights);
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({1, static_cast<size_t>(ofm), static_cast<size_t>(out_size), static_cast<size_t>(out_size)}));
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    // out[g * ofm_g + o][y][x] += in[g * ifm_g + i][iy][ix] * w[g][o][i][ky][kx], where y = iy - pad + ky
+    std::vector<float> expected(output->count(), 0.f);
+    for (int64_t g = 0; g < groups; g++) {
+        for (int64_t o = 0; o < ofm_g; o++) {
+            for (int64_t i = 0; i < ifm_g; i++) {
+                for (int64_t iy = 0; iy < in_size; iy++) {
+                    for (int64_t ix = 0; ix < in_size; ix++) {
+                        for (int64_t ky = 0; ky < k; ky++) {
+                            for (int64_t kx = 0; kx < k; kx++) {
+                                const int64_t y = iy - pad + ky;
+                                const int64_t x = ix - pad + kx;
+                                if (y < 0 || y >= out_size || x < 0 || x >= out_size) {
+                                    continue;
+                                }
+                                const auto in_val = static_cast<float>(input_data[((g * ifm_g + i) * in_size + iy) * in_size + ix]);
+                                const auto w_val = static_cast<float>(weights_data[(((g * ofm_g + o) * ifm_g + i) * k + ky) * k + kx]);
+                                expected[((g * ofm_g + o) * out_size + y) * out_size + x] += in_val * w_val;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_NEAR(expected[i], output_ptr[i], 2e-2f) << "i = " << i;
+    }
+}
+
+// A convolution and a stride-1 deconvolution sharing weights need separate weights reorders: only the convolution
+// that replaces the deconvolution needs the weights rotated. The layers are chained in both orders, so that each of
+// them is the first one to get its weights reorder.
+static void test_deconvolution_stride1_weights_shared_with_conv(impl_types impl_type, bool constant_weights, bool deconv_first) {
+    auto& engine = get_test_engine();
+    if (impl_type == impl_types::onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
+    // Both layers keep the shape, so the second one can read the output of the first one
+    const int64_t fm = 16, size = 5, k = 3, pad = 1;
+    layout in_layout{ov::PartialShape{1, fm, size, size}, data_types::f16, format::bfyx};
+    layout weights_layout{ov::PartialShape{fm, fm, k, k}, data_types::f16, format::bfyx};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Inputs from {-1, 0, 1} and weights from {-0.25, 0, 0.25} keep every partial sum of both layers a multiple of 1/16
+    // well below 128, which f16 represents exactly. The OCL kernels accumulate in f16, so with finer values the result
+    // of the second layer would depend on the kernel the device selects and on its accumulation order.
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25, 0.25, 4);
+    auto input = engine.allocate_memory(in_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    const primitive_id first = deconv_first ? "deconv" : "conv";
+    const primitive_id second = deconv_first ? "conv" : "deconv";
+    topology topology(input_layout("input", in_layout));
+    if (constant_weights) {
+        topology.add(data("weights", weights));
+    } else {
+        topology.add(input_layout("weights", weights_layout));
+    }
+    for (const auto& [id, in] : {std::make_pair(first, input_info("input")), std::make_pair(second, input_info(first))}) {
+        if (id == "deconv") {
+            topology.add(deconvolution(id, in, "weights", "", 1, {1, 1}, {pad, pad}, {1, 1}, tensor(1, fm, size, size), false));
+        } else {
+            topology.add(convolution(id, in, "weights", "", 1, {1, 1}, {1, 1}, {pad, pad}, {pad, pad}, false));
+        }
+        topology.add(reorder(id + "_out", input_info(id), format::bfyx, data_types::f32));
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc impl = {format::bfyx, "", impl_type};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", impl}, {"deconv", impl}}));
+
+    network network(engine, topology, config);
+    ASSERT_TRUE(network.get_primitive("deconv")->get_node().is_type<convolution>());
+    for (const auto& id : {first, second}) {
+        ASSERT_EQ(network.get_primitive(id)->get_impl()->is_onednn(), impl_type == impl_types::onednn) << id;
+    }
+
+    network.set_input_data("input", input);
+    if (!constant_weights) {
+        network.set_input_data("weights", weights);
+    }
+    auto outputs = network.execute();
+    auto read_output = [&](const primitive_id& id) {
+        auto output = outputs.at(id + "_out").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        return std::vector<float>(output_ptr.data(), output_ptr.data() + output->count());
+    };
+
+    // The convolution computes out[o][y][x] += in[i][y - pad + ky][x - pad + kx] * w[o][i][ky][kx], and the
+    // deconvolution out[o][y - pad + ky][x - pad + kx] += in[i][y][x] * w[o][i][ky][kx].
+    auto reference = [&](const std::vector<float>& in, bool deconv) {
+        std::vector<float> out(in.size(), 0.f);
+        for (int64_t o = 0; o < fm; o++) {
+            for (int64_t i = 0; i < fm; i++) {
+                for (int64_t y = 0; y < size; y++) {
+                    for (int64_t x = 0; x < size; x++) {
+                        for (int64_t ky = 0; ky < k; ky++) {
+                            for (int64_t kx = 0; kx < k; kx++) {
+                                const int64_t sy = y - pad + ky;
+                                const int64_t sx = x - pad + kx;
+                                if (sy < 0 || sy >= size || sx < 0 || sx >= size) {
+                                    continue;
+                                }
+                                const auto w_val = static_cast<float>(weights_data[((o * fm + i) * k + ky) * k + kx]);
+                                if (deconv) {
+                                    out[(o * size + sy) * size + sx] += in[(i * size + y) * size + x] * w_val;
+                                } else {
+                                    out[(o * size + y) * size + x] += in[(i * size + sy) * size + sx] * w_val;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    };
+
+    // The second layer is checked against the output of the first one, so the f16 error of the first one doesn't add up
+    const std::vector<float> input_f32(input_data.begin(), input_data.end());
+    const auto first_output = read_output(first);
+    const auto second_output = read_output(second);
+    const auto first_expected = reference(input_f32, deconv_first);
+    const auto second_expected = reference(first_output, !deconv_first);
+    for (size_t i = 0; i < first_expected.size(); i++) {
+        ASSERT_NEAR(first_expected[i], first_output[i], 2e-2f) << first << ": i = " << i;
+        ASSERT_NEAR(second_expected[i], second_output[i], 2e-2f) << second << ": i = " << i;
+    }
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::ocl, 1);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_grouped_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::ocl, 2);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, false, false);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, false, true);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_const_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, true, false);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_const_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, true, true);
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(deconvolution_gpu_onednn, stride1_runtime_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::onednn, 1);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_grouped_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::onednn, 2);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, false, false);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, false, true);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_const_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, true, false);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_const_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, true, true);
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 struct deconvolution_random_test_params {
     data_types input_type;
     format::type input_format;
@@ -3006,7 +3291,148 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_extended, deconvolution_random_test, testing::
     .add_all_3d(data_types::u8, data_types::i8, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16)
 ), deconvolution_random_test_params::print_params);
 
+using deconvolution_dynamic_auto_pad_params = std::tuple<ov::op::PadType,  // auto_pad
+                                                         size_t,           // kernel size
+                                                         size_t,           // stride
+                                                         bool,             // output spatial shape is a runtime input
+                                                         impl_types>;
+
+// SAME_UPPER/SAME_LOWER pads depend on the input and output spatial dims. If the spatial dims are dynamic, the pads
+// are calculated at runtime and must be the same as the pads of a static ov::op::v1::ConvolutionBackpropData.
+class deconvolution_dynamic_auto_pad_test : public testing::TestWithParam<deconvolution_dynamic_auto_pad_params> {
+public:
+    static std::string print_params(const testing::TestParamInfo<deconvolution_dynamic_auto_pad_params>& info) {
+        const auto& [auto_pad, kernel, stride, runtime_output_shape, impl_type] = info.param;
+        std::ostringstream name;
+        name << auto_pad << "_k" << kernel << "_s" << stride << (runtime_output_shape ? "_runtime" : "_const")
+             << "_output_shape_" << (impl_type == impl_types::onednn ? "onednn" : "ocl");
+        return name.str();
+    }
+};
+
+TEST_P(deconvolution_dynamic_auto_pad_test, same_as_static_with_explicit_pads) {
+    auto& engine = get_test_engine();
+    const auto& [auto_pad, kernel, stride, runtime_output_shape, impl_type] = GetParam();
+    if (impl_type == impl_types::onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
+    const auto data_type = impl_type == impl_types::onednn ? data_types::f16 : data_types::f32;
+    const int64_t ifm = 8;
+    const int64_t ofm = 16;
+    const auto k = static_cast<int64_t>(kernel);
+    const auto s = static_cast<int64_t>(stride);
+    const ov::Strides strides{stride, stride};
+    const ov::Strides dilations{1, 1};
+    const ov::CoordinateDiff zero_pads{0, 0};
+    // The output spatial shape is the same for both inputs, so the pads change with the input spatial dims
+    const std::vector<int64_t> output_spatial_shape{6 * s + 1, 6 * s + 2};
+    const std::vector<ov::PartialShape> input_shapes{{1, ifm, 7, 7}, {1, ifm, 6, 9}};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto allocate_random_memory = [&](const layout& l) {
+        auto mem = engine.allocate_memory(l);
+        auto values = rg.generate_random_1d<float>(l.count(), -1, 1);
+        if (l.data_type == data_types::f16) {
+            set_values(mem, std::vector<ov::float16>(values.begin(), values.end()));
+        } else {
+            set_values(mem, values);
+        }
+        return mem;
+    };
+    auto weights_mem = allocate_random_memory(layout{ov::PartialShape{ofm, ifm, k, k}, data_type, format::oiyx});
+
+    auto create_topology = [&](const layout& in_layout,
+                               ov::op::PadType pad_type,
+                               const ov::CoordinateDiff& pads_begin,
+                               const ov::CoordinateDiff& pads_end,
+                               bool output_shape_input) {
+        auto deconv_prim = deconvolution("deconv", input_info("input"), "weights", "", 1, strides, pads_begin, dilations,
+                                         pads_begin, pads_end, zero_pads, false);
+        deconv_prim.auto_pad = pad_type;
+        topology topology(input_layout("input", in_layout), data("weights", weights_mem));
+        if (output_shape_input) {
+            topology.add(input_layout("output_shape", layout{ov::PartialShape{2}, data_types::i64, format::bfyx}));
+            deconv_prim.output_shape_id = input_info("output_shape");
+        } else {
+            deconv_prim.output_partial_shape = ov::PartialShape{output_spatial_shape[0], output_spatial_shape[1]};
+        }
+        topology.add(deconv_prim);
+        topology.add(reorder("output", input_info("deconv"), format::bfyx, data_types::f32));
+        return topology;
+    };
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc deconv_impl = {format::bfyx, "", impl_type};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"deconv", deconv_impl}}));
+
+    const layout dynamic_layout{ov::PartialShape{1, ifm, -1, -1}, data_type, format::bfyx};
+    network network_dynamic(engine, create_topology(dynamic_layout, auto_pad, zero_pads, zero_pads, runtime_output_shape), config);
+
+    for (const auto& input_shape : input_shapes) {
+        const auto filters = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ifm, ofm, k, k});
+        const auto ref_op = std::make_shared<ov::op::v1::ConvolutionBackpropData>(
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape),
+            filters,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, output_spatial_shape),
+            strides,
+            zero_pads,
+            zero_pads,
+            dilations,
+            auto_pad);
+
+        const layout static_layout{input_shape, data_type, format::bfyx};
+        auto input_mem = allocate_random_memory(static_layout);
+        network network_static(engine,
+                               create_topology(static_layout, ov::op::PadType::EXPLICIT, ref_op->get_pads_begin(), ref_op->get_pads_end(), false),
+                               config);
+        network_static.set_input_data("input", input_mem);
+        auto output_static = network_static.execute().at("output").get_memory();
+
+        network_dynamic.set_input_data("input", input_mem);
+        if (runtime_output_shape) {
+            auto output_shape_mem = engine.allocate_memory(layout{ov::PartialShape{2}, data_types::i64, format::bfyx});
+            set_values(output_shape_mem, output_spatial_shape);
+            network_dynamic.set_input_data("output_shape", output_shape_mem);
+        }
+        auto output_dynamic = network_dynamic.execute().at("output").get_memory();
+
+        const ov::PartialShape expected_shape{1, ofm, output_spatial_shape[0], output_spatial_shape[1]};
+        ASSERT_EQ(output_static->get_layout().get_partial_shape(), expected_shape);
+        ASSERT_EQ(output_dynamic->get_layout().get_partial_shape(), expected_shape);
+
+        const float tolerance = data_type == data_types::f16 ? 1e-2f : 1e-5f;
+        cldnn::mem_lock<float, mem_lock_type::read> static_ptr(output_static, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> dynamic_ptr(output_dynamic, get_test_stream());
+        for (size_t i = 0; i < output_static->count(); ++i) {
+            ASSERT_NEAR(static_ptr[i], dynamic_ptr[i], tolerance)
+                << "i = " << i << ", input shape " << input_shape << ", pads_begin " << ref_op->get_pads_begin();
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         deconvolution_dynamic_auto_pad_test,
+                         testing::Combine(testing::Values(ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER),
+                                          testing::Values(3, 4),
+                                          testing::Values(1, 2),
+                                          testing::Bool(),
+                                          testing::Values(impl_types::ocl)),
+                         deconvolution_dynamic_auto_pad_test::print_params);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
+INSTANTIATE_TEST_SUITE_P(smoke_onednn,
+                         deconvolution_dynamic_auto_pad_test,
+                         testing::Combine(testing::Values(ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER),
+                                          testing::Values(3, 4),
+                                          testing::Values(1, 2),
+                                          testing::Bool(),
+                                          testing::Values(impl_types::onednn)),
+                         deconvolution_dynamic_auto_pad_test::print_params);
+
+
 TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     //  Filter : 1x1
     //  Input  : 2x2
@@ -3156,6 +3582,86 @@ TEST(deconvolution_gpu_onednn, spatial_1d) {
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_blocked.data()[i]);
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_planar.data()[i]);
+    }
+}
+
+TEST(deconvolution_gpu_onednn, spatial_1d_static_not_reference_impl) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    ov::PartialShape input_pshape = {1, 32, 20};
+    ov::PartialShape weights_pshape = {16, 32, 4};
+    layout in_layout{ input_pshape, data_types::f16, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
+
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto create_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(deconvolution("deconv",
+                                   input_info("input"),
+                                   { "weights" },
+                                   1,
+                                   ov::Strides{2},
+                                   ov::CoordinateDiff{0},
+                                   ov::Strides{1}));
+        topology.add(reorder("reorder", input_info("deconv"), format::bfyx, data_types::f32));
+        return topology;
+    };
+
+    auto topology_test = create_topology();
+    auto topology_ref = create_topology();
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc deconv_impl_test = { format::any, "", impl_types::onednn };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv", deconv_impl_test } }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+    config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc deconv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv", deconv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_test(engine, topology_test, config_test);
+    network network_ref(engine, topology_ref, config_ref);
+
+    // A static 1D deconvolution keeps plain 3D activations, while its weights layout is left to oneDNN. Pinning the weights
+    // to a plain layout leaves only oneDNN's reference implementation.
+    auto deconv_impl = network_test.get_primitive("deconv")->get_impl();
+    ASSERT_NE(deconv_impl, nullptr);
+    ASSERT_TRUE(deconv_impl->is_onednn());
+    const auto impl_info = network_test.get_implementation_info("deconv");
+    ASSERT_EQ(impl_info.find("ref"), std::string::npos) << impl_info;
+
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input_data);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    auto output_memory_test = outputs_test.at("reorder").get_memory();
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 42};
+    ASSERT_EQ(output_memory_test->get_layout().get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_memory_ref->get_layout().get_partial_shape(), expected_shape);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_NEAR(output_ptr_ref.data()[i], output_ptr_test.data()[i], 1e-1f) << "i = " << i;
     }
 }
 

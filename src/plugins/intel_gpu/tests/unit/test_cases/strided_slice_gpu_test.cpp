@@ -398,6 +398,63 @@ public:
         }
     }
 
+    void test_2x2x2x2_single_byxf(bool is_caching_test, bool is_dynamic = false) {
+        auto& engine = get_test_engine();
+        const ov::PartialShape input_shape{2, 2, 2, 2};
+        auto input = engine.allocate_memory({ input_shape, ov::element::from<T>(), format::byxf });
+
+        set_values<T>(input, {
+                0.0f, 4.0f, 1.0f, 5.0f, 2.0f, 6.0f, 3.0f, 7.0f,
+                8.0f, 12.0f, 9.0f, 13.0f, 10.0f, 14.0f, 11.0f, 15.0f
+        });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        set_values<int64_t>(begin, { 1, 0, 1, 1 });
+        set_values<int64_t>(end, { 2, 1, 2, 2 });
+        set_values<int64_t>(strides, { 1, 1, 1, 1 });
+
+        topology topology;
+        const auto in_shape = is_dynamic ? ov::PartialShape::dynamic(4) : input_shape;
+        topology.add(input_layout("input", layout{ in_shape, ov::element::from<T>(), format::byxf }));
+        topology.add(data("begin", begin));
+        topology.add(data("end", end));
+        topology.add(data("strides", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("begin"), input_info("end"), input_info("strides"), {}, {}, {}, {}, {}, {}));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"strided_slice", {format::byxf, "", impl_types::ocl}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto ss_inst = network->get_primitive("strided_slice");
+        ASSERT_EQ(ss_inst->get_input_layout(0).format, format::byxf);
+        ASSERT_NE(ss_inst->get_impl(), nullptr);
+        ASSERT_EQ(ss_inst->get_impl()->is_dynamic(), is_dynamic);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = { 11.f };
+
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
     void test_2x2x4x3_stride(bool is_caching_test) {
         // Input (BFYX): 2x2x4x3
         // Begin (BFYX): 0x0x0x0
@@ -2644,6 +2701,14 @@ TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single) {
 
 TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_single) {
     this->test_2x2x2x2_single(false);
+}
+
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single_byxf) {
+    this->test_2x2x2x2_single_byxf(false);
+}
+
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single_byxf_dynamic) {
+    this->test_2x2x2x2_single_byxf(false, true);
 }
 
 TYPED_TEST(strided_slice_gpu, test_2x2x4x3_stride) {

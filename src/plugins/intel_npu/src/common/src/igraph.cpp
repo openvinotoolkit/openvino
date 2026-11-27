@@ -16,6 +16,10 @@ std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vecto
     OPENVINO_THROW("process_profiling_output not implemented");
 }
 
+bool IGraph::has_profiling_decoder() const {
+    return false;
+}
+
 void IGraph::set_argument_value(uint32_t, const void*) const {
     OPENVINO_THROW("set_argument_value not implemented");
 }

@@ -16,6 +16,15 @@ namespace ov::frontend::gguf::blocks {
 // Each returns the sublayer output tensor name,
 // before the residual add.
 
+std::string swiglu_gate_up(GraphEmitter& e,
+                           const std::string& gate_w,
+                           const std::string& up_w,
+                           const std::string& ffn_norm,
+                           const std::string& gate_name,
+                           const std::string& up_name,
+                           const std::string& glu_name,
+                           bool has_bias);
+
 // Dense SwiGLU FFN (llama/qwen/phi3/minicpm). Supports the fused gate+up projection (phi-3, no
 // ffn_gate.weight) and optional per-projection biases (pangu-embedded), both auto-detected from
 // the weight table.

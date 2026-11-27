@@ -128,10 +128,15 @@ Napi::Value CompiledModelWrap::get_node(
 }
 
 Napi::Value CompiledModelWrap::export_model(const Napi::CallbackInfo& info) {
-    std::stringstream _stream;
-    _compiled_model.export_model(_stream);
-    const auto& exported = _stream.str();
-    return Napi::Buffer<const char>::Copy(info.Env(), exported.c_str(), exported.size());
+    try {
+        std::stringstream _stream;
+        _compiled_model.export_model(_stream);
+        const auto& exported = _stream.str();
+        return Napi::Buffer<const char>::Copy(info.Env(), exported.c_str(), exported.size());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value CompiledModelWrap::set_property(const Napi::CallbackInfo& info) {

@@ -80,7 +80,7 @@ def get_element_type(data_type: NumericType) -> Type:
     if ov_type:
         return ov_type
 
-    raise OVTypeError("Unidentified data type %s", data_type)
+    raise OVTypeError(f"Unidentified data type {data_type}")
 
 
 def get_element_type_str(data_type: NumericType) -> str:
@@ -100,7 +100,7 @@ def get_element_type_str(data_type: NumericType) -> str:
     if ov_type:
         return ov_type
 
-    raise OVTypeError("Unidentified data type %s", data_type)
+    raise OVTypeError(f"Unidentified data type {data_type}")
 
 
 def get_dtype(openvino_type: Type) -> np.dtype:
@@ -113,7 +113,7 @@ def get_dtype(openvino_type: Type) -> np.dtype:
     if np_type:
         return np.dtype(np_type)
 
-    raise OVTypeError("Unidentified data type %s", openvino_type)
+    raise OVTypeError(f"Unidentified data type {openvino_type}")
 
 
 def get_numpy_ctype(openvino_type: Type) -> type:
@@ -126,7 +126,7 @@ def get_numpy_ctype(openvino_type: Type) -> type:
     if np_type:
         return np_type
 
-    raise OVTypeError("Unidentified data type %s", openvino_type)
+    raise OVTypeError(f"Unidentified data type {openvino_type}")
 
 
 def get_ndarray(data: NumericData) -> np.ndarray:

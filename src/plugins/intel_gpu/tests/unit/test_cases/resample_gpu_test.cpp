@@ -1991,6 +1991,10 @@ struct resample_opt_random_test_params {
     format::type out_format;
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
+    resample::InterpolateOp::CoordinateTransformMode coord_trans_mode =
+        resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC;
+    resample::InterpolateOp::NearestMode nearest_mode =
+        resample::InterpolateOp::NearestMode::FLOOR;
 };
 
 struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_test_params>
@@ -2100,10 +2104,13 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         auto prim = resample("resample", input_info("in"), params.output_size, params.num_filter, params.operation_type);
         prim.pads_begin = params.pads_begin;
         prim.pads_end = params.pads_end;
+        prim.coord_trans_mode = params.coord_trans_mode;
+        prim.round_mode = params.nearest_mode;
         topo.add(prim);
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample"}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {origin_format, "resample_ref"}} }));
 
         network net(engine, topo, config);
         net.set_input_data("in", in_mem);
@@ -2118,11 +2125,16 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         auto prim_opt = resample("resample_opt", input_info("in_to_input_type"), params.output_size, params.num_filter, params.operation_type);
         prim_opt.pads_begin = params.pads_begin;
         prim_opt.pads_end = params.pads_end;
+        prim_opt.coord_trans_mode = params.coord_trans_mode;
+        prim_opt.round_mode = params.nearest_mode;
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
 
         ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
+        if (params.operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
+            config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, "resample_opt"}} }));
+        }
 
         cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
@@ -2388,6 +2400,84 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                             }
                         ));
 
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest_modes,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                // upsampling, 13 -> 26
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::CEIL },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::FLOOR },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::SIMPLE },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+
+                                { data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+
+                                { data_types::u8,  {1, 128, 13, 13}, {1, 128, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+
+                                // Small, non-power-of-two-friendly shapes (e.g. ALIGN_CORNERS 2->3) that stress exact
+                                // "x.5" tie-breaking coordinates most, since resample_opt computes
+                                // num * (in/out) [legacy-scale multiply] while the generic (non "is_fast_nearest_case")
+                                // path in resample_ref computes ref_divide(num, out/in) [true-scale division] for the
+                                // same mathematical coordinate: these are different floating-point operations that
+                                // could in principle round differently right at a ROUND_PREFER_FLOOR/CEIL tie point.
+                                { data_types::i8,  {1, 16, 2, 2}, {1, 16, 3, 3}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 16, 2, 2}, {1, 16, 3, 3}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+                                { data_types::i8,  {1, 16, 3, 3}, {1, 16, 2, 2}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 16, 3, 3}, {1, 16, 2, 2}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+                                { data_types::i8,  {1, 16, 2, 2}, {1, 16, 5, 5}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+                                { data_types::i8,  {1, 16, 5, 5}, {1, 16, 2, 2}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+                                { data_types::i8,  {1, 16, 4, 4}, {1, 16, 3, 3}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 16, 2, 2}, {1, 16, 3, 3}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+                                { data_types::i8,  {1, 16, 3, 3}, {1, 16, 2, 2}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL },
+
+                                // downsampling, 26 -> 13 (boundary math differs most from ASYMMETRIC/FLOOR here)
+                                { data_types::i8,  {1, 128, 26, 26}, {1, 128, 13, 13}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::i8,  {1, 128, 26, 26}, {1, 128, 13, 13}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::f16, {1, 128, 26, 26}, {1, 128, 13, 13}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                            }
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_5d_nearest_modes,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL, resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR },
+                            }
+                        ));
+
 INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_padding,
                          resample_opt_random_test,
                          testing::ValuesIn(
@@ -2417,6 +2507,54 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
                                 { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {2, 32, 14, 14},  {2, 32, 28, 28},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32, {}, {}},
                                 { data_types::bf16, {2, 32, 14, 14},  {2, 32, 28, 28},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32, {}, {}},
+                            }
+                        ));
+
+// resample_opt (blocked layouts, picked for static shapes) must compute ALIGN_CORNERS source coordinates bit-exactly
+// like resample_ref (planar layouts, picked for dynamic shapes). For non-trivial ratios a plain fp32 division differs
+// from ref_divide() by an ULP, which at coordinates in the hundreds shifts the interpolation weights by ~1e-5..1e-4
+// (static vs dynamic shape mismatch). Shapes follow the DPT head of Depth-Anything-V2 (x, y order).
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_align_corners,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f32, {1, 16, 19, 19},  {1, 16, 37, 37},   1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {1, 16, 37, 37},  {1, 16, 74, 74},   1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {1, 16, 74, 74},  {1, 16, 148, 148}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {1, 16, 148, 8},  {1, 16, 296, 15},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {1, 16, 296, 8},  {1, 16, 518, 15},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {1, 32, 296, 8},  {1, 32, 518, 15},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {16, 16, 296, 4}, {16, 16, 518, 7},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                // x block of 16 (one coordinate per lane) and of 17 (more than a sub-group, computed per column)
+                                { data_types::f32, {1, 16, 50, 9},   {1, 16, 96, 17},   1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                                { data_types::f32, {1, 16, 26, 5},   {1, 16, 51, 9},    1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
+                            }
+                        ));
+
+// Covers the x block sizes of resample_opt (1, 2, 16 and 17 columns per work-item) with the other coordinate modes.
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_coord_modes,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f16, {1, 16, 26, 5},   {1, 16, 51, 9},    1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL },
+                                { data_types::f16, {1, 16, 50, 9},   {1, 16, 96, 17},   1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL },
+                                { data_types::f16, {1, 16, 19, 19},  {1, 16, 37, 37},   1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN },
+                                { data_types::f16, {1, 32, 296, 8},  {1, 32, 518, 15},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC },
+                                { data_types::f16, {1, 16, 296, 8},  {1, 16, 518, 15},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {},
+                                  resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS },
                             }
                         ));
 

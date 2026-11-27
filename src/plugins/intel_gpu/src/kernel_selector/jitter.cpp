@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cinttypes>
-
 #include "jitter.h"
-#include "kernel_selector_utils.h"
-#include "tensor_type.h"
-#include <string>
+
+#include <activation/activation_kernel_base.h>
+#include <eltwise/eltwise_kernel_base.h>
+#include <quantize/quantize_kernel_params.h>
+
+#include <cinttypes>
 #include <memory>
+#include <string>
 #include <utility>
 
-#include <quantize/quantize_kernel_params.h>
-#include <eltwise/eltwise_kernel_base.h>
-#include <activation/activation_kernel_base.h>
+#include "intel_gpu/op/swoosh.hpp"
+#include "kernel_selector_utils.h"
+#include "tensor_type.h"
 
 namespace {
 class JitTerm {
@@ -123,7 +125,7 @@ JitTerm fabs(const JitTerm& arg) {
     return jit_term;
 }
 
-JitTerm operator"" _jit(const char* str, size_t) {
+JitTerm operator"" _jit(const char* str, size_t /*unused*/) {
     JitTerm jit_term{str};
     return jit_term;
 }
@@ -136,8 +138,12 @@ std::string toCLType(WeightsType wType) {
         case WeightsType::INT4:
         case WeightsType::INT8:
             return GetTypeName<int8_t>();
+        case WeightsType::UINT2:
         case WeightsType::UINT4:
         case WeightsType::UINT8:
+        case WeightsType::F8E4M3:
+        case WeightsType::F8E5M2:
+        case WeightsType::F8E8M0:
             return GetTypeName<uint8_t>();
         case WeightsType::F16:
             return "half";
@@ -157,8 +163,12 @@ std::string toCLType(Datatype dType) {
         case Datatype::INT4:
         case Datatype::INT8:
             return GetTypeName<int8_t>();
+        case Datatype::UINT2:
         case Datatype::UINT4:
         case Datatype::UINT8:
+        case Datatype::F8E4M3:
+        case Datatype::F8E5M2:
+        case Datatype::F8E8M0:
             return GetTypeName<uint8_t>();
         case Datatype::INT16:
             return GetTypeName<int16_t>();
@@ -235,16 +245,18 @@ std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, boo
 }
 
 std::string toCodeString(float val) {
-    if (std::isinf(val))
+    if (std::isinf(val)) {
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
+    }
     // Workaround GCC compiler/STL bug
     snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")/*%.6e*/", *reinterpret_cast<uint32_t*>(&val), val);
     return buf;
 }
 
 std::string toCodeString(double val) {
-    if (std::isinf(val))
+    if (std::isinf(val)) {
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
+    }
     // Workaround GCC compiler/STL bug
     snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")/*%.6e*/", *reinterpret_cast<uint64_t*>(&val), val);
     return buf;
@@ -311,8 +323,9 @@ public:
             std::string offset_str = "(";
             for (size_t i = 0; i < padded_pitches.size(); ++i) {
                 offset_str += padded_pitches[i];
-                if (i < padded_pitches.size() - 1)
+                if (i < padded_pitches.size() - 1) {
                     offset_str += " + ";
+                }
             }
             offset_str += ")";
             definitions.push_back({_name + "_OFFSET", offset_str});
@@ -415,6 +428,35 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                                                       dims_padded.u(),
                                                       dims_padded.v(),
                                                       dims_padded.f()})});
+        } else if (_tensor.GetLayout() == DataLayout::byxf) {
+            definitions.push_back({_name + "_FEATURE_PITCH", "1"});
+            definitions.push_back({_name + "_X_PITCH", dims_padded.f()});
+            definitions.push_back({_name + "_Y_PITCH", toVectorMulString({dims_padded.f(), dims_padded.x()})});
+            definitions.push_back(
+                {_name + "_Z_PITCH", toVectorMulString({dims_padded.f(), dims_padded.x(), dims_padded.y()})});
+            definitions.push_back(
+                {_name + "_W_PITCH",
+                 toVectorMulString({dims_padded.f(), dims_padded.x(), dims_padded.y(), dims_padded.z()})});
+            definitions.push_back(
+                {_name + "_U_PITCH",
+                 toVectorMulString(
+                     {dims_padded.f(), dims_padded.x(), dims_padded.y(), dims_padded.z(), dims_padded.w()})});
+            definitions.push_back(
+                {_name + "_V_PITCH",
+                 toVectorMulString({dims_padded.f(),
+                                    dims_padded.x(),
+                                    dims_padded.y(),
+                                    dims_padded.z(),
+                                    dims_padded.w(),
+                                    dims_padded.u()})});
+            definitions.push_back({_name + "_BATCH_PITCH",
+                                   toVectorMulString({dims_padded.f(),
+                                                      dims_padded.x(),
+                                                      dims_padded.y(),
+                                                      dims_padded.z(),
+                                                      dims_padded.w(),
+                                                      dims_padded.u(),
+                                                      dims_padded.v()})});
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
@@ -668,9 +710,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
         } else {
-            auto f_pad = toCodeString(_tensor.Feature().pad.before);
             auto f_size = toCodeString(_tensor.Feature().v);
-            definitions.push_back({ safe_index_func_name, "((" + offset + " + (f)) % " + f_size + ")" });
+            definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + "))" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f))" });
         }
     } else {
@@ -700,8 +741,9 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
 
         WeightIndexFuncDesc() = default;
         WeightIndexFuncDesc(std::string tensor_name, const WeightsLayout l) {
-            if (tensor_name == "FILTER")
+            if (tensor_name == "FILTER") {
                 return;
+            }
             const auto layout_name = toString(l);
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
@@ -917,31 +959,34 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             }
         }
 
-        static const std::string Cat(std::string name, std::string prefix = "prefix") {
+        static std::string Cat(std::string name, std::string prefix = "prefix") {
             return "CAT(" + prefix + ", " + name + ")";
         }
 
-        static const std::string FuncCall(std::string name, std::initializer_list<std::string> args) {
+        static std::string FuncCall(std::string name, std::initializer_list<std::string> args) {
             std::string args_str;
             size_t counter = 0;
-            for (const auto& arg : args)
+            for (const auto& arg : args) {
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
+            }
             return "FUNC_CALL(" + name + ")(" + args_str + ")";
         }
 
-        static const std::string MacroName(std::string tensor_name, std::string layout_name, std::initializer_list<std::string> args) {
+        static std::string MacroName(std::string tensor_name, std::string layout_name, std::initializer_list<std::string> args) {
             std::string args_str;
             size_t counter = 0;
-            for (const auto& arg : args)
+            for (const auto& arg : args) {
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
+            }
             return "GET_" + tensor_name + "_" + layout_name + "_INDEX(" + args_str + ")";
         }
 
-        static const std::string FuncBody(std::string name, std::initializer_list<std::string> args = {}, std::string body = "return 0;") {
+        static std::string FuncBody(std::string name, std::initializer_list<std::string> args = {}, std::string body = "return 0;") {
             std::string args_str;
             size_t counter = 0;
-            for (const auto& arg : args)
+            for (const auto& arg : args) {
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
+            }
             return "inline uint FUNC(" + name + ")(" + args_str + "){" + body + "}";
         }
     };
@@ -1121,22 +1166,23 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
     // See the comment in the jitter.h regarding `use_type_parameter`.
     // The "CAT" macro is expected to be defined through the inlcusion of
     // 'common.cl' in the kernel.
-    auto type_handler =
-        [use_type_parameter, name](const std::string& prefix,
-                                   const std::string& suffix) -> std::string {
-        if (!use_type_parameter)
+    auto type_handler = [use_type_parameter, name](const std::string& prefix, const std::string& suffix) -> std::string {
+        if (!use_type_parameter) {
             return prefix + name + suffix;
+        }
 
         std::string result = "jit_type";
 
         // Process the prefix first, otherwise when doing "CAT(TO_,
         // CAT(NAME, _TYPE))" the second concatenation will be expanded
         // fully first resulting in something like "TO_float".
-        if (!prefix.empty())
+        if (!prefix.empty()) {
             result = "CAT(" + prefix + ", " + result + ")";
+        }
 
-        if (!suffix.empty())
+        if (!suffix.empty()) {
             result = "CAT(" + result + ", " + suffix + ")";
+        }
 
         return result;
     };
@@ -1337,6 +1383,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }
+        case ActivationFunction::SWOOSH: {
+            auto offset = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            auto bias = disable_type_conversion ? "n"_jit : to_type("n"_jit);
+            const JitTerm shifted = input - offset;
+            const JitTerm softplus = max_func(shifted, zero) + log(one + exp(neg(abs_func(shifted))));
+            const JitTerm slope_literal{std::to_string(ov::intel_gpu::op::swoosh_constants::slope)};
+            const JitTerm slope = disable_type_conversion ? slope_literal : to_type(slope_literal);
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (softplus - slope * input - bias).str()));
+            break;
+        }
         case ActivationFunction::SOFTSIGN: {
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
@@ -1477,6 +1535,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string to_vector_type_sat = "undefined";
     bool is_fp;
     bool is_bf16 = false;
+    bool is_f8 = false;
     switch (dataType) {
         case Datatype::INT8:
             type = "char";
@@ -1630,6 +1689,13 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "0.25f";
             is_fp = false;
             break;
+        case Datatype::UINT3:
+            type = "uchar";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
+            type_size = "0.375f";
+            is_fp = false;
+            break;
         case Datatype::UINT4:
             type = "uchar";
             to_type = "convert_uchar(v)";
@@ -1673,40 +1739,57 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             is_fp = true;
             break;
         case Datatype::F8E4M3:
-            type = "fp8e4m3_t";
-            max_val = "(fp8e4m3_t){as_char((char)0x7E)}"; // 448.0
-            min_val = "(fp8e4m3_t){as_char((char)0xFE)}"; // -448.0
-            val_one = "(fp8e4m3_t){as_char((char)0x38)}";
-            val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
-            to_type = "_convert_fp8e4m3_t(v)";
-            to_type_sat = "_convert_fp8e4m3_t_sat(v)";
-            as_type = "as_fp8e4m3_t(v)";
+            type = "uchar";
+            max_val = "_intel_convert_hf8_to_f16((uchar)0x7E)"; // 448.0
+            min_val = "_intel_convert_hf8_to_f16((uchar)0xFE)"; // -448.0
+            val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
+            val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
+            to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
+            to_type_sat = "_intel_convert_f16_to_hf8_sat(_f8_f32_to_f16_sat(convert_float(v)))";
+            to_vector_type = "CONVERT_F8E4M3_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            to_vector_type_sat = "CONVERT_F8E4M3_AS_UCHAR_SAT(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            compute_type = "half";
+            to_compute_type = "convert_half(v)";
+            decode_compute_type = "_intel_convert_hf8_to_f16(v)";
+            decode_compute_vector_type = "CONVERT_AS_F8E4M3_HALF(v, size)";
             type_size = "1";
             is_fp = true;
+            is_f8 = true;
             break;
         case Datatype::F8E5M2:
-            type = "fp8e5m2_t";
-            max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}"; // 57344.0
-            min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}"; // -57344.0
-            val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
-            val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
-            to_type = "_convert_fp8e5m2_t(v)";
-            to_type_sat = "_convert_fp8e5m2_t_sat(v)";
-            as_type = "as_fp8e5m2_t(v)";
+            type = "uchar";
+            max_val = "_intel_convert_bf8_to_f16((uchar)0x7B)";  // 57344.0
+            min_val = "_intel_convert_bf8_to_f16((uchar)0xFB)";  // -57344.0
+            val_one = "_intel_convert_bf8_to_f16((uchar)0x3C)";
+            val_zero = "_intel_convert_bf8_to_f16((uchar)0x0)";
+            to_type = "_intel_convert_f16_to_bf8(convert_half(v))";
+            to_type_sat = "_intel_convert_f16_to_bf8_sat(_f8_f32_to_f16_sat(convert_float(v)))";
+            to_vector_type = "CONVERT_F8E5M2_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            to_vector_type_sat = "CONVERT_F8E5M2_AS_UCHAR_SAT(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            compute_type = "half";
+            to_compute_type = "convert_half(v)";
+            decode_compute_type = "_intel_convert_bf8_to_f16(v)";
+            decode_compute_vector_type = "CONVERT_AS_F8E5M2_HALF(v, size)";
             type_size = "1";
             is_fp = true;
+            is_f8 = true;
             break;
         case Datatype::F8E8M0:
-            type = "fp8e8m0_t";
-            max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}"; // 2^127
-            min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}"; // 2^(-127)
-            val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
-            val_zero = ""; // There is no representation of zero in FP8E8M0
-            to_type = "_convert_fp8e8m0_t(v)";
-            to_type_sat = "_convert_fp8e8m0_t_sat(v)";
-            as_type = "as_fp8e8m0_t(v)";
+            type = "uchar";
+            max_val = "_intel_convert_e8m0_to_f32((uchar)0xFE)";  // 2^127
+            min_val = "_intel_convert_e8m0_to_f32((uchar)0x00)";  // 2^(-127)
+            val_one = "_intel_convert_e8m0_to_f32((uchar)0x7F)";
+            to_type = "_intel_convert_f32_to_e8m0(convert_float(v))";
+            to_type_sat = "_intel_convert_f32_to_e8m0_sat(convert_float(v))";
+            to_vector_type = "CONVERT_F8E8M0_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v), size)";
+            to_vector_type_sat = "CONVERT_F8E8M0_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v), size)";
+            compute_type = "float";
+            to_compute_type = "convert_float(v)";
+            decode_compute_type = "_intel_convert_e8m0_to_f32(v)";
+            decode_compute_vector_type = "CONVERT_AS_F8E8M0_FLOAT(v, size)";
             type_size = "1";
             is_fp = true;
+            is_f8 = true;
             break;
         default:
             type = "float";
@@ -1727,14 +1810,18 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
     }
 
-    if (compute_type.empty())
+    if (compute_type.empty()) {
         compute_type = type;
-    if (to_compute_type.empty())
+    }
+    if (to_compute_type.empty()) {
         to_compute_type = to_type;
-    if (decode_compute_type.empty())
+    }
+    if (decode_compute_type.empty()) {
         decode_compute_type = "(v)";
-    if (decode_compute_vector_type.empty())
+    }
+    if (decode_compute_vector_type.empty()) {
         decode_compute_vector_type = "(v)";
+    }
 
     return JitConstants{
         MakeJitConstant(macroName + "_TYPE", type),
@@ -1753,6 +1840,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_TYPE_SIZE", type_size),
         MakeJitConstant(macroName + "_IS_FP", is_fp),
         MakeJitConstant(macroName + "_IS_BF16", is_bf16),
+        MakeJitConstant(macroName + "_IS_F8", is_f8),
         MakeJitConstant(macroName + "_COMPUTE_TYPE", compute_type),
         MakeJitConstant("TO_" + macroName + "_COMPUTE_TYPE(v)", to_compute_type),
         MakeJitConstant("DECODE_" + macroName + "_COMPUTE_TYPE(v)", decode_compute_type),
@@ -1773,6 +1861,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
         case WeightsType::UINT2:
             return MakeTypeJitConstants(Datatype::UINT2, macroName);
+        case WeightsType::UINT3:
+            return MakeTypeJitConstants(Datatype::UINT3, macroName);
         case WeightsType::INT4:
             return MakeTypeJitConstants(Datatype::INT4, macroName);
         case WeightsType::UINT4:
@@ -1828,8 +1918,7 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         bool convert_input_to_output_dt) {
     JitConstants res = {};
     if (params.empty()) {
-        return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
-                                          suffix, use_type_parameter, disable_type_conversion);
+        return MakeActivationJitConstants({ActivationFunction::NONE, 0.F, 0.F}, out_dt, suffix, use_type_parameter, disable_type_conversion);
     }
     std::string res_activation;
     std::string activation_params;
@@ -1842,7 +1931,7 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                 nl_m = toCodeString(std::max<float>(params[i].m, std::numeric_limits<signed char>::min()));
                 nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<signed char>::max()));
             } else if (out_dt == Datatype::UINT8) {
-                nl_m = toCodeString(std::max(params[i].m, 0.0f));
+                nl_m = toCodeString(std::max(params[i].m, 0.0F));
                 nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<unsigned char>::max()));
             }
         }
@@ -1912,8 +2001,9 @@ JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount) {
 }
 
 bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) const {
-    if (conf.loop_axes.empty())
+    if (conf.loop_axes.empty()) {
         return true;
+    }
 
     bool can_preload = true;
     // Check that tensor offset doesn't have dependency from the loop dimensions
@@ -1995,8 +2085,9 @@ JitConstants FusedOpsCodeGenerator::MakeLoadJitConstants(const FusedOpsConfigura
     if (desc.GetType() == KernelType::ELTWISE && conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE) {
         std::string sub_group_local_id_str = "get_sub_group_local_id()";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
-        if (found_sub != std::string::npos)
+        if (found_sub != std::string::npos) {
             fused_op_config.bfzyx_idx_order[1].replace(found_sub, sub_group_local_id_str.length(), fused_op_config.shuffle_var_name);
+        }
     }
 
     for (auto op_input_id : GetRequiredInputs()) {
@@ -2045,8 +2136,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         OPENVINO_ASSERT(p != nullptr, "[GPU] Eltwise fuse params can't be nullptr");
 
         if (p->mode == kernel_selector::EltwiseMode::DIV) {
-            if (p->m_pythondiv)
+            if (p->m_pythondiv) {
                 floor_integer_div = true;
+            }
         }
     }
 
@@ -2075,8 +2167,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         floor_integer_div = false;
 
         // If at least one type is BF16, do calculations in F32
-        if (std::find(input_types.begin(), input_types.end(), Datatype::BF16) != input_types.end())
+        if (std::find(input_types.begin(), input_types.end(), Datatype::BF16) != input_types.end()) {
             return Datatype::F32;
+        }
 
         types_prioritized.clear();
         types_prioritized = { Datatype::F32, Datatype::F16 };
@@ -2091,17 +2184,24 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     auto get_input = [&](size_t index) -> std::string {
         const auto dep = dep_data[index];
-        auto input_name = (dep.dep_type == kernel_selector::DepType::ORIGINAL)? in_var :
-                            (dep.dep_type == kernel_selector::DepType::INTERNAL)? GetOutputVarName(in_var, dep.op_id)
-                                : GetInputVarName(dep.op_id, is_shuffled, shuffle_var);
+        auto input_name = [&]() -> std::string {
+            if (dep.dep_type == kernel_selector::DepType::ORIGINAL) {
+                return in_var;
+            }
+            if (dep.dep_type == kernel_selector::DepType::INTERNAL) {
+                return GetOutputVarName(in_var, dep.op_id);
+            }
+            return GetInputVarName(dep.op_id, is_shuffled, shuffle_var);
+        }();
         auto input_type = (dep.dep_type == kernel_selector::DepType::ORIGINAL)? in_type : dep.data_type;
         // Decode bf16 inputs
         input_name = DecodeComputeType(input_name, input_type, vec_size);
         input_type = GetComputeDatatype(input_type);
         auto acc_t = get_acc_t();
 
-        if (input_type != acc_t)
+        if (input_type != acc_t) {
             return ConvertToType(input_name, acc_t, vec_size);
+        }
         return input_name;
     };
 
@@ -2143,8 +2243,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         }
         case KernelType::QUANTIZE: {
             auto p = desc.GetOpParams<quantize_fuse_params>();
-            if (!p)
+            if (!p) {
                 throw std::runtime_error("[clDNN] Quantize fuse params can't be nullptr");
+            }
 
             std::string in_converted = (first_fused_ops_idx < 0) ? in_var : GetOutputVarName(in_var, dep_data[first_fused_ops_idx].op_id);
             Datatype input_type = (first_fused_ops_idx < 0) ? in_type : dep_data[first_fused_ops_idx].data_type;
@@ -2173,22 +2274,26 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + " * " + pre_scale + ";";
 
                 // Input shift
-                if (p->has_pre_shift)
+                if (p->has_pre_shift) {
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
+                }
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
                 OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
-                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
+                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8) {
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
+                }
 
                 // Output scale
-                if (p->has_post_scale)
+                if (p->has_post_scale) {
                     op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " * " + post_scale + ");";
+                }
 
                 // Output shift
-                if (p->has_post_shift)
+                if (p->has_post_shift) {
                     op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
+                }
 
                 // Output range
                 auto out_lo = Broadcast(std::to_string(p->out_lo), tmp_type, vec_size);
@@ -2231,22 +2336,26 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " * " + pre_scale + ";";
 
                 // Input shift
-                if (p->has_pre_shift)
+                if (p->has_pre_shift) {
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
+                }
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
                 OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
-                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
+                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8) {
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
+                }
 
                 // Output scale
-                if (p->has_post_scale)
+                if (p->has_post_scale) {
                     op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " * " + post_scale + ");";
+                }
 
                 // Output shift
-                if (p->has_post_shift)
+                if (p->has_post_shift) {
                     op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
+                }
 
                 // Output conversion with rounding and saturation
                 op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
@@ -2272,7 +2381,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                         nl_m = toCodeString(std::max<float>(activation_p.m, std::numeric_limits<signed char>::min()));
                         nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<signed char>::max()));
                     } else if (out_type == Datatype::UINT8) {
-                        nl_m = toCodeString(std::max(activation_p.m, 0.0f));
+                        nl_m = toCodeString(std::max(activation_p.m, 0.0F));
                         nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<unsigned char>::max()));
                     }
                 }
@@ -2320,11 +2429,13 @@ std::string FusedOpsCodeGenerator::GetOutputTensorName(size_t idx) const {
 }
 
 std::string FusedOpsCodeGenerator::GetInputTypeName(size_t input_id, size_t vec_size) const {
-    if (vec_size == 0 || vec_size > 8)
+    if (vec_size == 0 || vec_size > 8) {
         throw std::invalid_argument("Invalid vector size in jit definitions: " + std::to_string(vec_size));
+    }
     std::string scalar_type = GetInputTensorName(input_id) + "_TYPE";
-    if (vec_size > 1)
+    if (vec_size > 1) {
         return "MAKE_VECTOR_TYPE(" + scalar_type + "," + toCodeString(vec_size) + ")";
+    }
     return scalar_type;
 }
 
@@ -2375,8 +2486,9 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
     }
 
     auto idx = conf.bfzyx_idx_order;
-    if (vec_size == 0 || vec_size > 8)
+    if (vec_size == 0 || vec_size > 8) {
         throw std::invalid_argument("Invalid vector size in jit definitions: " + toCodeString(vec_size));
+    }
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
@@ -2416,8 +2528,9 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
     std::string index_func_call = reuse_index ? reused_idx : GetIdx(input_id, idx_desc{idx, desc.tensors[input_id]}, safe_load);
     if (conf.index_type == FusedOpsConfiguration::IndexType::LINEAR_OFFSET) {
         std::string offset = conf.bfzyx_idx_order[0];
-        if (safe_load)
+        if (safe_load) {
             offset = "(" + offset + " % " + toCodeString(input_tensor.LogicalSize()) + ")";
+        }
         if (vec_size > 1) {
             return "((const __global " + toCLType(input_dt) + toCodeString(vec_size) + "*)(" + GetInputPtrName(input_id) + " + " + offset + "))[0]";
         }
@@ -2430,15 +2543,15 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             std::string vs = vec_size > 1 ? toCodeString(vec_size)  : "";
             std::string block_read;
 
-            if (input_dt == Datatype::F32 || input_dt == Datatype::INT32 || input_dt == Datatype::UINT32) {
+            if (cldnn::one_of(input_dt, {Datatype::F32, Datatype::INT32, Datatype::UINT32})) {
                 block_read = CastToType(" _sub_group_block_read" + vs + "("
                                         + "(const __global uint*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
-            } else if (input_dt == Datatype::F16 || input_dt == Datatype::BF16) {
+            } else if (cldnn::one_of(input_dt, {Datatype::F16, Datatype::BF16})) {
                 block_read = CastToType(" _sub_group_block_read_us" + vs + "("
                                         + "(const __global ushort*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
-            } else if (input_dt == Datatype::UINT8 || input_dt == Datatype::INT8) {
+            } else if (cldnn::one_of(input_dt, {Datatype::UINT8, Datatype::INT8, Datatype::F8E4M3, Datatype::F8E5M2, Datatype::F8E8M0})) {
                 block_read = CastToType(" _sub_group_block_read_uc" + vs + "("
                                         + "(const __global uchar*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
@@ -2487,7 +2600,7 @@ std::string FusedOpsCodeGenerator::GetDecodedInputVarName(size_t input_id, bool 
     return "DECODE_" + GetInputTensorName(input_id) + "_COMPUTE_VECTOR_TYPE(" + GetInputVarName(input_id, is_shuffled, shuffle_var) + ", " + toCodeString(vec_size) + ")";
 }
 
-std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var, size_t op_id) const {
+std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var, size_t op_id) {
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
@@ -2495,9 +2608,10 @@ std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var, size_
     return input_var + "_out_" + toCodeString(op_id);
 }
 
-std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {
-    if (vec_size > 1)
+std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) {
+    if (vec_size > 1) {
         return toCLType(dt) + toCodeString(vec_size);
+    }
     return toCLType(dt);
 }
 
@@ -2505,13 +2619,24 @@ std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size, size_t idx) co
     return GetType(desc.output_tensors[idx].GetDType(), vec_size);
 }
 
-std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) const {
-    if (dt == Datatype::BF16)
-        return "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
-    return "convert_" + GetType(dt, vec_size) + "(" + var + ")";
+std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) {
+    std::string ret = "convert_" + GetType(dt, vec_size) + "(" + var + ")";
+    if (dt == Datatype::BF16) {
+        ret = "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E4M3) {
+        ret = "CONVERT_F8E4M3_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E5M2) {
+        ret = "CONVERT_F8E5M2_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E8M0) {
+        ret = "CONVERT_F8E8M0_AS_UCHAR(convert_" + GetType(Datatype::F32, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+    } else {
+        ret = "convert_" + GetType(dt, vec_size) + "(" + var + ")";
+    }
+
+    return ret;
 }
 
-std::string FusedOpsCodeGenerator::CastToType(std::string var, Datatype dt, size_t vec_size) const {
+std::string FusedOpsCodeGenerator::CastToType(std::string var, Datatype dt, size_t vec_size) {
     return "as_" + GetType(dt, vec_size) + "(" + var + ")";
 }
 
@@ -2519,19 +2644,28 @@ std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t v
     return ConvertToType(var, desc.output_tensors[idx].GetDType(), vec_size);
 }
 
-std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) const {
-    if (dt == Datatype::BF16)
-        return "CONVERT_AS_BFLOAT16_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
-    return var;
+std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) {
+    std::string ret = var;
+    if (dt == Datatype::BF16) {
+        ret = "CONVERT_AS_BFLOAT16_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E4M3) {
+        ret = "CONVERT_AS_F8E4M3_HALF(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E5M2) {
+        ret = "CONVERT_AS_F8E5M2_HALF(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E8M0) {
+        ret = "CONVERT_AS_F8E8M0_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
+    }
+    return ret;
 }
 
-std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_t vec_size) const {
+std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_t vec_size) {
     return "(" + GetType(dt, vec_size) + ")(" + var + ")";
 }
 
 std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size, size_t idx) const {
-    if (desc.output_tensors[idx].GetDType() == Datatype::F32 || desc.output_tensors[idx].GetDType() == Datatype::F16 || desc.output_tensors[idx].GetDType() == Datatype::BF16)
+    if (desc.output_tensors[idx].GetDType() == Datatype::F32 || desc.output_tensors[idx].GetDType() == Datatype::F16 || desc.output_tensors[idx].GetDType() == Datatype::BF16) {
         return ConvertToOutputType(var, vec_size, idx);
+    }
     return "convert_" + GetOutputType(vec_size, idx) + "_sat_rte(" + var + ")";
 }
 
@@ -2546,14 +2680,18 @@ std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {
                     res.push_back(p->in_range_lo_idx);
                     res.push_back(p->in_range_hi_idx);
                 }
-                if (!p->per_tensor_input_scale)
+                if (!p->per_tensor_input_scale) {
                     res.push_back(p->in_scale_idx);
-                if (p->has_pre_shift && !p->per_tensor_input_shift)
+                }
+                if (p->has_pre_shift && !p->per_tensor_input_shift) {
                     res.push_back(p->in_shift_idx);
-                if (p->has_post_scale && !p->per_tensor_output_scale)
+                }
+                if (p->has_post_scale && !p->per_tensor_output_scale) {
                     res.push_back(p->out_scale_idx);
-                if (p->has_post_shift && !p->per_tensor_output_shift)
+                }
+                if (p->has_post_shift && !p->per_tensor_output_shift) {
                     res.push_back(p->out_shift_idx);
+                }
 
                 return res;
             }

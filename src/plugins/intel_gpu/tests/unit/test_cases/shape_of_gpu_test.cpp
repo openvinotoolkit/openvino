@@ -69,11 +69,11 @@ TEST(shape_of_gpu, bfyx_i64) {
     }
 }
 
-void shape_of_cpu_impl_bfyx_i64(bool disable_usm = false);
-void shape_of_cpu_impl_bfyx_i64(bool disable_usm) {
+void shape_of_cpu_impl_bfyx_i64(bool disable_usm = false, data_types input_type = data_types::f32);
+void shape_of_cpu_impl_bfyx_i64(bool disable_usm, data_types input_type) {
     auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
-    auto input = engine->allocate_memory({data_types::f32, format::bfyx, tensor{1, 2, 3, 3}});
+    auto input = engine->allocate_memory({input_type, format::bfyx, tensor{1, 2, 3, 3}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -104,6 +104,15 @@ TEST(shape_of_cpu_impl, bfyx_i64) {
 
 TEST(shape_of_cpu_impl, bfyx_i64_disable_usm) {
     shape_of_cpu_impl_bfyx_i64(true);
+}
+
+// ShapeOf only reads dims, so f8 inputs (e.g. f8 KV caches) are accepted.
+TEST(shape_of_cpu_impl, bfyx_f8e4m3_input) {
+    shape_of_cpu_impl_bfyx_i64(false, data_types::f8e4m3);
+}
+
+TEST(shape_of_cpu_impl, bfyx_f8e5m2_input) {
+    shape_of_cpu_impl_bfyx_i64(false, data_types::f8e5m2);
 }
 
 TEST(shape_of_gpu, yxfb) {
@@ -155,6 +164,51 @@ TEST(shape_of_gpu, bfzyx) {
         ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
+
+class shape_of_gpu_byxf_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(shape_of_gpu_byxf_test, no_reorder) {
+    auto& engine = get_test_engine();
+    const bool is_dynamic = GetParam();
+    const ov::PartialShape shape{1, 2, 3, 4};
+    auto input = engine.allocate_memory({shape, data_types::f32, format::byxf});
+
+    cldnn::topology topology;
+    topology.add(input_layout("input", {is_dynamic ? ov::PartialShape::dynamic(4) : shape, data_types::f32, format::byxf}));
+    topology.add(activation("act", input_info("input"), activation_func::relu));
+    topology.add(shape_of("shape_of", input_info("act"), data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("shape_of");
+    ASSERT_NE(inst->get_impl(), nullptr);
+    ASSERT_EQ(inst->get_impl()->is_dynamic(), is_dynamic);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(network.get_primitive("shape_of")->get_input_layout().format, format::byxf);
+    for (const auto& executed : network.get_executed_primitives()) {
+        ASSERT_FALSE(network.get_primitive(executed.first)->get_node().is_type<reorder>()) << executed.first;
+    }
+
+    auto output = outputs.at("shape_of").get_memory();
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    std::vector<int32_t> expected = {1, 2, 3, 4};
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(shape_of_gpu,
+                         shape_of_gpu_byxf_test,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "dynamic" : "static";
+                         });
 
 TEST(shape_of_gpu, dynamic) {
     auto& engine = get_test_engine();

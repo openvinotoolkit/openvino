@@ -3,27 +3,11 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/resample_utils.cl"
 
 #ifdef RTE_OUTPUT
     #define TO_OUTPUT_COMPUTE_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #endif
-
-inline int FUNC(get_nearest_val)(float num, bool is_downsample)
-{
-#if defined(NEAREST_ROUND_PREFER_FLOOR)
-    return (num == (int)num + 0.5f) ? (int)floor(num) : (int)round(num);
-#elif defined(NEAREST_ROUND_PREFER_CEIL)
-    return (int)round(num);
-#elif defined(NEAREST_FLOOR)
-    return (int)floor(num);
-#elif defined(NEAREST_CEIL)
-    return (int)ceil(num);
-#elif defined(NEAREST_SIMPLE)
-    return is_downsample ? (int)ceil(num) : (int)num;
-#else
-#error [clDNN resample_ref.cl]: nearest mode - not supported
-#endif
-}
 
 inline float FUNC(ref_divide)(float numerator, float denominator)
 {

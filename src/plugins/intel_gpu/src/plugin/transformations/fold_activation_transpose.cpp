@@ -31,7 +31,7 @@ FoldActivationTranspose::FoldActivationTranspose() {
     auto c_order_m = wrap_type<ov::op::v0::Constant>();
     auto c_transpose_m = wrap_type<ov::op::v1::Transpose>({mul_m, c_order_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         // verify that the orders of A and B match and are the inverse of order of C
         auto a_order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(a_order_m).get_node_shared_ptr());

@@ -87,7 +87,7 @@ protected:
         const size_t head_size = key_shape[query_shape.size() - 1].get_length();
         const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
-        const float scale_factor = 1.0f / std::sqrt(static_cast<float>(head_size));
+        const float scale_factor = 1.0F / std::sqrt(static_cast<float>(head_size));
         const size_t cmfla_kv_blk = get_default_kv_blk(head_size);
 
         GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order)
@@ -232,6 +232,11 @@ protected:
 class VLSDPAOptImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::VLSDPAOptImpl)
+
+    // Dispatch is decided by reading cu_seqlens tensor contents on the host
+    bool supports_replay() const override {
+        return false;
+    }
 
     Stage::Ptr vl_sdpa = make_stage<VLSDPAGenerator>();
 

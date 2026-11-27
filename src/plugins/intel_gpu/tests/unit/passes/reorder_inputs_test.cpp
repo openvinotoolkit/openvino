@@ -588,6 +588,17 @@ TEST(reorder_inputs, mvn_across_channels_rejects_blocked_layout) {
     auto last_axis_unaligned = build({3}, ov::PartialShape{1, 8, 64, 64});
     EXPECT_FALSE(supports(last_axis_unaligned, format::b_fs_yx_fsv16));
     EXPECT_TRUE(supports(last_axis_unaligned, format::bfyx));
+
+    // Aligned MVN with a dynamic batch is always reordered to planar by reorder_inputs, so blocked layouts
+    // must not be offered; otherwise format propagation wraps the MVN in a reorder pair.
+    auto last_axis_dyn = build({3}, ov::PartialShape{-1, 24, 24, 256});
+    EXPECT_FALSE(supports(last_axis_dyn, format::b_fs_yx_fsv16));
+    EXPECT_FALSE(supports(last_axis_dyn, format::b_fs_yx_fsv32));
+    EXPECT_TRUE(supports(last_axis_dyn, format::bfyx));
+
+    // A non-reduced spatial axis with max length 1 does not require alignment: blocked stays supported.
+    auto unit_y_dyn = build({3}, ov::PartialShape{-1, 32, 1, 256});
+    EXPECT_TRUE(supports(unit_y_dyn, format::b_fs_yx_fsv16));
 }
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
@@ -673,14 +684,22 @@ TEST(reorder_inputs, dynamic_conv_chain_no_throw) {
     ASSERT_NE(prog, nullptr);
 }
 
-TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
+// There are other rank-changing ops, such as eltwise and broadcast,
+// but we test these two as representative cases.
+enum class rank_changing_op { reshape, gather };
+
+class static_resample_with_rank_changing_user : public ::testing::TestWithParam<rank_changing_op> {};
+
+TEST_P(static_resample_with_rank_changing_user, no_recursion) {
     // Topology:
     //
-    // input -> Resample -> Reshape (Unsqueeze) --+
-    //                                            +-> Concat -> Reduce -> Convolution
-    // skip -------------> Reshape (Unsqueeze) ---+
-    // The downstream format lookup must treat the rank-changing Reshape as an intrinsic plain-format
-    // boundary instead of querying its Resample dependency's preferred format and re-entering the same lookup.
+    // input -> Resample -> RankChange (4D -> 5D) --+
+    //                                              +-> Concat -> Reduce -> Convolution
+    // skip -------------> Reshape (Unsqueeze) -----+
+    //
+    // Resample checks its users via all_users_simple_format_until_output(), which queries the user(RankChange)'s
+    // preferred format. RankChange (Reshape, Gather, ..) changes the rank, so it queries its Resample dependency's
+    // preferred format, which must not restart the user check and recurse endlessly.
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {512, 384, 1, 1}});
 
@@ -701,19 +720,25 @@ TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
                           resample::InterpolateOp::ShapeCalcMode::SCALES,
                           resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC,
                           resample::InterpolateOp::NearestMode::SIMPLE));
-    topology.add(reshape("reshape",
-                         input_info("resample"),
-                         false,
-                         {1},
-                         {1, 1, 384, 40, 40},
-                         reshape::reshape_mode::unsqueeze));
+    switch (GetParam()) {
+    case rank_changing_op::reshape:
+        topology.add(reshape("rank_change", input_info("resample"), false, {1}, {1, 1, 384, 40, 40}, reshape::reshape_mode::unsqueeze));
+        break;
+    case rank_changing_op::gather: {
+        auto indices = engine.allocate_memory(layout{ov::PartialShape{1, 1}, data_types::i32, format::bfyx});
+        set_values<int32_t>(indices, {0});
+        topology.add(data("indices", indices));
+        topology.add(gather("rank_change", input_info("resample"), input_info("indices"), 0, 4, ov::Shape{1, 1, 384, 40, 40}));
+        break;
+    }
+    }
     topology.add(reshape("skip_reshape",
                          input_info("skip"),
                          false,
                          {1},
                          {1, 1, 384, 40, 40},
                          reshape::reshape_mode::unsqueeze));
-    topology.add(concatenation("concat", {input_info("reshape"), input_info("skip_reshape")}, 0));
+    topology.add(concatenation("concat", {input_info("rank_change"), input_info("skip_reshape")}, 0));
     topology.add(reduce("reduce", input_info("concat"), reduce_mode::sum, {0}, false));
     topology.add(convolution("output", input_info("reduce"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("sink", input_info("output"), format::bfyx, data_types::f16));
@@ -729,17 +754,17 @@ TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
     program_wrapper::apply_opt_pass<mark_nodes>(*prog);
     ASSERT_TRUE(prog->is_new_shape_infer());
     ASSERT_FALSE(prog->get_node("resample").is_dynamic());
-    ASSERT_TRUE(prog->get_node("reshape").is_in_data_flow());
-    ASSERT_NE(prog->get_node("reshape").get_input_layout(0).get_rank(),
-              prog->get_node("reshape").get_output_layout().get_rank());
+    ASSERT_TRUE(prog->get_node("rank_change").is_in_data_flow());
+    ASSERT_NE(prog->get_node("rank_change").get_input_layout(0).get_rank(), prog->get_node("rank_change").get_output_layout().get_rank());
     OV_ASSERT_NO_THROW(prog->get_layout_optimizer().get_preferred_format(prog->get_node("resample")));
+    OV_ASSERT_NO_THROW(prog->get_layout_optimizer().get_preferred_format(prog->get_node("rank_change")));
 
     reorder_factory rf;
     OV_ASSERT_NO_THROW(program_wrapper::apply_opt_pass<reorder_inputs>(*prog, rf));
 
     ASSERT_EQ(prog->get_node("resample").get_output_layout().format, format::bfyx);
-    ASSERT_EQ(prog->get_node("reshape").get_input_layout(0).format, format::bfyx);
-    ASSERT_EQ(prog->get_node("reshape").get_output_layout().format, format::bfzyx);
+    ASSERT_EQ(prog->get_node("rank_change").get_input_layout(0).format, format::bfyx);
+    ASSERT_EQ(prog->get_node("rank_change").get_output_layout().format, format::bfzyx);
     ASSERT_EQ(prog->get_node("reduce").get_output_layout().format, format::bfyx);
 
     auto blocked_prog = program::build_program(engine, topology, config, false, true);
@@ -748,11 +773,21 @@ TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
     blocked_prog->get_layout_optimizer().set_implementation_forcing(
         ov::intel_gpu::ImplForcingMap{{"output", {format::b_fs_yx_fsv16, ""}}});
 
-    // Reshape is a non-recursive plain-format boundary, not a traversal stop. The blocked consumer
+    // The rank-changing user is a traversal pass-through, not a traversal stop. The blocked consumer
     // after it must still prevent the Resample from being forced to a plain format.
     ASSERT_EQ(blocked_prog->get_layout_optimizer().get_preferred_format(blocked_prog->get_node("resample")),
               format::any);
+
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
 }
+
+INSTANTIATE_TEST_SUITE_P(reorder_inputs,
+                         static_resample_with_rank_changing_user,
+                         ::testing::Values(rank_changing_op::reshape, rank_changing_op::gather),
+                         [](const ::testing::TestParamInfo<rank_changing_op>& info) {
+                             return info.param == rank_changing_op::reshape ? "reshape" : "gather";
+                         });
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_inputs, has_reshape_user) {

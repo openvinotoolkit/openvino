@@ -37,7 +37,8 @@ void jit_gdn_kernel<isa>::load(const Vmm& vmm_dst,
     // Typed load helper (src_prc -> dst_prc VMM via jit emitter)
     const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
-        constexpr cpu_isa_t load_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
+        constexpr cpu_isa_t load_isa =
+            ((static_cast<unsigned>(isa) & static_cast<unsigned>(zmm_bit)) != 0) ? avx512_core : isa;
         emitters[seed] =
             std::make_unique<jit_load_emitter>(this, load_isa, src_prc, dst_prc, elt_num, dst_prc, fill, "float_min");
     }
@@ -57,7 +58,8 @@ void jit_gdn_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
     // Typed store helper (src_prc VMM -> dst_prc via jit emitter)
     const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
-        constexpr cpu_isa_t store_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
+        constexpr cpu_isa_t store_isa =
+            ((static_cast<unsigned>(isa) & static_cast<unsigned>(zmm_bit)) != 0) ? avx512_core : isa;
         emitters[seed] = std::make_unique<jit_store_emitter>(this, store_isa, src_prc, dst_prc, elt_num);
     }
     emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},

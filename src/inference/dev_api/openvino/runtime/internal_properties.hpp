@@ -119,6 +119,17 @@ static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformation
 static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignment{"CACHE_HEADER_ALIGNMENT"};
 
 /**
+ * @brief Read-only property reporting whether a plugin's export_model() emits the HSM container format
+ * (see openvino/runtime/hsm_format.hpp) instead of the legacy format Core itself prepends
+ * ov::CompiledBlobHeader for. true = HSM, false/unreported = legacy - existing plugins need no change.
+ *
+ * @note Temporary, transition-only property: remove once all in-tree plugins emit HSM and Core drops
+ * the legacy ov::CompiledBlobHeader write/read path.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> emit_hsm_format{"EMIT_HSM_FORMAT"};
+
+/**
  * @brief Enum to define possible cache quant schema hints.
  */
 enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };

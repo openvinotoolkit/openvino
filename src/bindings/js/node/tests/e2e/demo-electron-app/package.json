@@ -5,7 +5,7 @@
     "start": "electron --disable-gpu --no-sandbox ."
   },
   "devDependencies": {
-    "electron": "42.11.4"
+    "electron": "42.11.16"
   },
   "dependencies": {
     "openvino-node": ".."

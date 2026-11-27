@@ -235,32 +235,27 @@ TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
     ASSERT_EQ(4.0f, output_ptr[3]);
 }
 
-TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
-    //  Brief test description.
-    //
-    //  Pool window: 3x3
-    //  Pool stride: 1x1
-    //  Pool mode: max
-    //  Padding: none
-    //
-    //  Input data:
-    //  [-0.5,  1.0,  0.5]
-    //  [ 2.0,  1.5, -0.5]
-    //  [ 0.0, -1.0,  0.5]
-    //
-    //  Expected output:
-    //  [ 2.0]
+struct pooling_max_format_test_params {
+    format input_format;
+    int feature_num;
+    std::vector<float> input_values;
+    std::vector<float> expected_values;
+};
 
+struct pooling_max_format_test : public testing::TestWithParam<pooling_max_format_test_params> {};
+
+TEST_P(pooling_max_format_test, wsiz3x3_wstr1x1_i3x3_nopad) {
     auto& engine = get_test_engine();
+    const auto& params = GetParam();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,  format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, params.input_format, { 1, params.feature_num, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
     topology.add(pooling("pool_prim", input_info("input_prim"), pooling_mode::max, { 3, 3 }, { 1, 1 }));
 
     network network(engine, topology, get_test_default_config(engine));
-    set_values(input_prim, { -0.5f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f, 0.0f, -1.0f, 0.5f });
+    set_values(input_prim, params.input_values);
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
@@ -268,11 +263,29 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
     ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output_prim->get_layout().format, params.input_format);
+    ASSERT_EQ(output_prim->get_layout().get_partial_shape(),
+              (ov::PartialShape{ 1, params.feature_num, 1, 1 }));
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    ASSERT_EQ(2.0f, output_ptr[0]);
+    ASSERT_EQ(output_ptr.size(), params.expected_values.size());
+    for (size_t i = 0; i < params.expected_values.size(); ++i)
+        ASSERT_EQ(params.expected_values[i], output_ptr[i]) << i;
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    pooling_max_formats,
+    pooling_max_format_test,
+    testing::Values(
+        pooling_max_format_test_params{ format::yxfb, 1,
+                                        { -0.5f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f, 0.0f, -1.0f, 0.5f },
+                                        { 2.0f } },
+        pooling_max_format_test_params{ format::byxf, 2,
+                                        { -0.5f, -1.0f, 1.0f, -2.0f, 0.5f, -3.0f,
+                                          2.0f, -4.0f, 1.5f, -5.0f, -0.5f, -6.0f,
+                                          0.0f, -7.0f, -1.0f, -8.0f, 0.5f, -9.0f },
+                                        { 2.0f, -1.0f } }));
 
 TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 

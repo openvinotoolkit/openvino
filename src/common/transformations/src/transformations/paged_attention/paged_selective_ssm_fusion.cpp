@@ -26,7 +26,6 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::optional;
 using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
@@ -86,7 +85,7 @@ PagedSelectiveSSMFusion::PagedSelectiveSSMFusion(ov::pass::paged_attention::PaPa
 
     auto cache_param = any_input();
     auto read_value = wrap_type<ov::op::util::ReadValueBase>({cache_param});
-    auto gathered_state = optional<ov::op::util::GatherBase>({read_value, any_input(), any_input()});
+    auto gathered_state = ov::pass::pattern::optional<ov::op::util::GatherBase>({read_value, any_input(), any_input()});
     auto ssm = wrap_type<ov::op::internal::SelectiveSSM>({a, dt, b, x, c, gathered_state});
 
     ov::matcher_pass_callback callback =

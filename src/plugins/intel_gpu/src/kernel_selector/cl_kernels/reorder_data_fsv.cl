@@ -5,8 +5,6 @@
 // Converts between b_fs_{yx,zyx}_fsv{4,8,16,32} formats with different fsv sizes.
 // Both input and output are blocked only on the feature dimension.
 
-#include "include/batch_headers/fetch_data.cl"
-
 #ifdef FSV_VECTORIZED
     #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 	#define INPUT_VEC_COMPUTE_TYPE  MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, VEC_SIZE)

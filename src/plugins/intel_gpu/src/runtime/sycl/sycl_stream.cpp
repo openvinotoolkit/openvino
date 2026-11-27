@@ -7,6 +7,7 @@
 #include "sycl_stream.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_event.hpp"
+#include "sycl_user_event.hpp"
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "sycl_base_kernel.hpp"
@@ -56,7 +57,11 @@ sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& confi
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& sycl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+#if defined(OV_GPU_VENDOR_INTEL)
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+#elif defined(OV_GPU_VENDOR_NVIDIA)
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == NVIDIA_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-NVIDIA devices");
+#endif
     if (!_onednn_stream) {
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::sycl_interop::make_stream(_engine.get_onednn_engine(), _command_queue));
     }
@@ -130,7 +135,8 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
     return std::make_shared<sycl_event>(ret_ev, _command_queue, ++_queue_counter);
 }
 
-void sycl_stream::enqueue_barrier() {
+void sycl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    OPENVINO_ASSERT(deps.empty(), "sycl_stream::enqueue_barrier implements only global barrier");
     try {
         _command_queue.ext_oneapi_submit_barrier();
     } catch (::sycl::exception const& err) {
@@ -141,11 +147,11 @@ void sycl_stream::enqueue_barrier() {
 event::ptr sycl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     // Wait for all previously enqueued tasks if deps list is empty
     if (deps.empty()) {
+        // Unlike an OCL marker, this barrier also blocks subsequently submitted commands.
+        // The queue stamp is left 0, same as the OCL runtime.
         ::sycl::event ret_ev;
         try {
-            ret_ev = _command_queue.submit([&](::sycl::handler &cgh) {
-                cgh.single_task([]() {});
-            });
+            ret_ev = _command_queue.ext_oneapi_submit_barrier();
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
@@ -187,8 +193,9 @@ event::ptr sycl_stream::group_events(std::vector<event::ptr> const& deps) {
 }
 
 event::ptr sycl_stream::create_user_event(bool set) {
-    OPENVINO_ASSERT(set, "[GPU] create user event with set=false is not supported in SYCL runtime");
-    return std::make_shared<sycl_event>(::sycl::event(), _command_queue);
+    // SYCL has no native user event, so the completion state is kept on the host side.
+    // See sycl_user_event for the implications.
+    return std::make_shared<sycl_user_event>(set);
 }
 
 event::ptr sycl_stream::create_base_event() {

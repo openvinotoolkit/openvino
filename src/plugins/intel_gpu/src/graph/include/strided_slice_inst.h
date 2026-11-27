@@ -39,7 +39,7 @@ public:
     static layout calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(strided_slice_node const& node);
 
-    typed_primitive_inst(network& network, strided_slice_node const& desc);
+    typed_primitive_inst(network& network, const strided_slice_node& node);
 
     void update_output_memory() override;
 

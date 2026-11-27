@@ -41,6 +41,31 @@ def get_request_tensor(
         raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
 
 
+def _to_bf16_view(value: np.ndarray) -> np.ndarray:
+    """Convert numeric values (other than 2-byte ones) to bf16, as the float16 view used by bf16 Tensor.data.
+
+    Rounds the same way as ov::bfloat16 (round_to_nearest_even in bfloat16.hpp).
+    """
+    bits = np.ascontiguousarray(value, dtype=np.float32).view(np.uint32)
+    bits = (bits + ((bits & np.uint32(0x10000)) >> 1)) >> 16
+    return bits.astype(np.uint16).view(np.float16)
+
+
+def _is_bf16_convertible(value: np.ndarray) -> bool:
+    """Bool, integer and float arrays are converted to bf16 by value, except 2-byte ones (taken as raw bf16 bits)."""
+    return value.dtype.itemsize != 2 and value.dtype.kind in "biuf"
+
+
+def _is_bf16_bits(value: np.ndarray) -> bool:
+    """float16, int16 and uint16 arrays hold raw bf16 bits."""
+    return value.dtype.itemsize == 2 and value.dtype.kind in "iuf"
+
+
+def _bf16_bits_view(value: np.ndarray) -> np.ndarray:
+    """Return the raw bf16 bits of a 2-byte array in native byte order, as the float16 view used by bf16 Tensor.data."""
+    return value.astype(value.dtype.newbyteorder("="), copy=False).view(np.float16)
+
+
 @singledispatch
 def value_to_tensor(
     value: Union[Tensor, np.ndarray, ScalarTypes, str],
@@ -96,9 +121,15 @@ def _(
         else:
             return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
     # WA for FP16-->BF16 edge-case, always copy.
+    # 2-byte data (float16, int16, uint16) is taken as raw bf16 bits, other numeric values are converted.
     if tensor_type == Type.bf16:
         tensor = Tensor(tensor_type, value.shape)
-        tensor.data[:] = value.view(tensor_dtype)
+        if _is_bf16_convertible(value):
+            tensor.data[:] = _to_bf16_view(value)
+        elif _is_bf16_bits(value):
+            tensor.data[:] = _bf16_bits_view(value)
+        else:
+            tensor.data[:] = value.view(tensor_dtype)
         return tensor
     # WA for "not writeable" edge-case, always copy.
     if value.flags["WRITEABLE"] is False:
@@ -342,6 +373,10 @@ def _(
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
             tensor.bytes_data = inputs
+        elif tensor.element_type == Type.bf16 and _is_bf16_convertible(inputs):
+            tensor.data[:] = _to_bf16_view(inputs)
+        elif tensor.element_type == Type.bf16 and _is_bf16_bits(inputs):
+            tensor.data[:] = _bf16_bits_view(inputs)
         else:
             tensor.data[:] = inputs[:]
     else:
@@ -357,8 +392,9 @@ def _(
 @update_tensor.register(float)
 @update_tensor.register(int)
 @update_tensor.register(str)
+@update_tensor.register(bytes)
 def _(
-    inputs: Union[ScalarTypes, str],
+    inputs: Union[ScalarTypes, str, bytes],
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
@@ -373,7 +409,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
     """Helper function to prepare inputs for inference.
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
-    if the item is of type `np.ndarray`, `np.number`, `int`, `float` or has numpy __array__ attribute.
+    if the item is of type `np.ndarray`, `np.number`, `int`, `float`, `str`, `bytes` or has numpy __array__ attribute.
     If value is of type `list`, create a Tensor based on it, copy will occur in the Tensor constructor.
     """
     # Create new temporary dictionary.
@@ -385,7 +421,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
             raise TypeError(f"Incompatible key type for input: {key}")
         # Copy numpy arrays to already allocated Tensors.
         # If value object has __array__ attribute, load it to Tensor using np.array
-        if isinstance(value, (np.ndarray, np.number, int, float, str)) or hasattr(value, "__array__"):
+        if isinstance(value, (np.ndarray, np.number, int, float, str, bytes)) or hasattr(value, "__array__"):
             update_tensor(value, request, key)
         elif isinstance(value, list):
             new_inputs[key] = Tensor(value)

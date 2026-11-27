@@ -33,7 +33,8 @@ protected:
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs) const override;
+                        const std::vector<size_t>& pool_gpr_idxs,
+                        const std::vector<size_t>& pool_fp_gpr_idxs) const override;
 
     ov::intel_cpu::jit_snippets_compile_args jcp{};
     // gpr's used to store data pointers, track them to apply offsets in Kernel

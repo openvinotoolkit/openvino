@@ -24,11 +24,17 @@ inline size_t get_target_seq_len_block_size() {
     return block_size;
 }
 
+// The finalization stage keeps one value per key partition in local memory
+inline size_t get_max_partitions_num() {
+    constexpr size_t max_partitions_num = 128;
+    return max_partitions_num;
+}
+
 inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type) {
     constexpr size_t subgroup_size = 16;
     const size_t optimal_scale_factor = 2;
     if (kernel_type == SDPAStage::MULTI_TOKENS) {
-        if (head_size % subgroup_size == 0 && head_size * optimal_scale_factor <= info.max_work_group_size) {
+        if ((head_size % subgroup_size == 0) && (head_size * optimal_scale_factor <= info.max_work_group_size)) {
             return optimal_scale_factor;
         }
     } else if (kernel_type == SDPAStage::SINGLE_TOKEN) {

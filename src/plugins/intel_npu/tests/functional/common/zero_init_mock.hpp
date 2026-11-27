@@ -28,6 +28,7 @@ inline constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABL
 inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
 inline constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION =
     ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
+inline constexpr uint32_t TARGET_ZE_DEVICE_LUID_EXT_VERSION = ZE_DEVICE_LUID_EXT_VERSION_1_0;
 }  // namespace test_constants
 
 struct ZeroInitStructsMock {
@@ -66,26 +67,21 @@ private:
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
 
-    std::map<std::string, uint32_t> _driver_extension_properties;
+    std::map<std::string, uint32_t, std::less<>> _supported_extensions;
     std::unique_ptr<ze_graph_dditable_ext_decorator> _graph_dditable_ext_decorator;
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> _command_queue_npu_dditable_ext_decorator;
     std::unique_ptr<ze_graph_profiling_dditable_ext_decorator> _graph_profiling_npu_dditable_ext_decorator;
     std::unique_ptr<ze_driver_npu_dditable_ext_decorator> _driver_npu_dditable_ext_decorator;
     std::unique_ptr<ze_context_npu_dditable_ext_decorator> _context_npu_dditable_ext_decorator;
 
-    ze_driver_properties_t _driver_properties = {};
-    uint32_t _mutable_command_list_ext_version = 0;
-
     ze_api_version_t _ze_drv_api_version = {};
-
+    ze_driver_properties_t _driver_properties = {};
     std::optional<ze_device_graph_properties_t> _compiler_properties = std::nullopt;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
-    bool _command_queue_set_priority_supported = false;
-
+    
     uint32_t _context_options = 0;
-
     uint32_t _command_queue_group_ordinal = 0;
 
     ZeroMemPool _zero_mem_pool;

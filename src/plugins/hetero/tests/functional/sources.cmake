@@ -8,6 +8,7 @@ set(OV_HETERO_FUNC_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/hetero_synthetic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hetero_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hetero_tests.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/hsm_blob_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/import_model_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/properties_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/query_model_tests.cpp

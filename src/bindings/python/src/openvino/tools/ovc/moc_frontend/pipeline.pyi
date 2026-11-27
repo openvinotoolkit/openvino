@@ -18,7 +18,6 @@ import argparse as argparse
 import logging as log
 import numpy
 import numpy as np
-import openvino._pyopenvino
 import openvino.frontend.frontend
 import os as os
 import sys as sys

@@ -177,6 +177,10 @@ volumes/options (shared drive, sccache) consistent with sibling jobs. GPU → Do
   route through `env:`.
 * **Over-broad `permissions:`** — especially `write` scopes at workflow level.
 * **Job that ignores Smart CI** — burns limited self-hosted/GPU capacity on unaffected PRs.
+* **Automation-only PR runs product CI** — the shared allowlist in `smart-ci/smart_ci.py` must cover
+  agentic workflow support files as well as sources/locks. A single uncovered schema, script or config
+  defeats file-based skipping; `CI`/`github_actions` labels then request full scope. Keep exceptions
+  narrow and test mixed product/build-workflow changes still run.
 * **Smart CI condition mismatch across a dependency chain** — a step skipped by a Smart CI `if:` whose
   dependent step/job lacks the same condition runs against missing outputs/artifacts. Gate the whole
   chain consistently.

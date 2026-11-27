@@ -21,35 +21,35 @@ public:
 
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            const std::shared_ptr<ov::op::util::Variable>& past_variable,
             int64_t concat_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
+            ov::element::Type output_type = ov::element::dynamic);
 
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
             const Output<Node>& beam_idx,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            const std::shared_ptr<ov::op::util::Variable>& past_variable,
             int64_t concat_axis,
             int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
+            ov::element::Type output_type = ov::element::dynamic);
 
     /// KVCache with seq_len trimming
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
             const Output<Node>& past_seq_len,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            const std::shared_ptr<ov::op::util::Variable>& past_variable,
             int64_t concat_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
+            ov::element::Type output_type = ov::element::dynamic);
 
     /// KVCache with seq_len trimming and beam_idx
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
             const Output<Node>& beam_idx,
             const Output<Node>& past_seq_len,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            const std::shared_ptr<ov::op::util::Variable>& past_variable,
             int64_t concat_axis,
             int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
+            ov::element::Type output_type = ov::element::dynamic);
 
     /// KVCache with update&trimming for tree-based speculative decoding
     KVCache(const Output<Node>& past,
@@ -57,9 +57,9 @@ public:
             const Output<Node>& past_seq_len,
             const Output<Node>& dst_idx,
             const Output<Node>& update_data,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            const std::shared_ptr<ov::op::util::Variable>& past_variable,
             int64_t concat_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
+            ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -90,12 +90,12 @@ public:
 
 protected:
     KVCache(const OutputVector& inputs,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            const std::shared_ptr<ov::op::util::Variable>& past_variable,
             bool indirect,
             bool trim,
             int64_t concat_axis,
             int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
+            ov::element::Type output_type = ov::element::dynamic);
 
     int64_t m_concat_axis = 0;
     int64_t m_gather_axis = 0;

@@ -4,6 +4,7 @@
 
 #include "openvino/op/floor_mod.hpp"
 
+#include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/reference/floor_mod.hpp"
@@ -79,6 +80,17 @@ bool FloorMod::has_evaluate() const {
     default:
         return false;
     }
+}
+
+bool FloorMod::evaluate_lower(TensorVector& outputs) const {
+    // Remainders are not monotonic, and interval endpoints may include a zero divisor.
+    return get_input_tensor(0).has_and_set_bound() && get_input_tensor(1).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, outputs);
+}
+
+bool FloorMod::evaluate_upper(TensorVector& outputs) const {
+    return get_input_tensor(0).has_and_set_bound() && get_input_tensor(1).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, outputs);
 }
 }  // namespace v1
 }  // namespace op

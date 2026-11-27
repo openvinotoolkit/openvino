@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "plugin/transformations/fuse_hadamard_fc.hpp"
 
 namespace ov {
 namespace op {
@@ -41,7 +42,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     auto activation_zero_point_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
     auto activation_precomputed_reduction = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
 
-    float zp_value = 0.0f;
+    float zp_value = 0.0F;
     bool has_scalar_zp = false;
     if (!zp_name.empty()) {
         auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
@@ -51,7 +52,6 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
         }
     }
 
-    // The decompression zp node should be kept for onednn FC.
     auto fc = cldnn::fully_connected(primitive_name,
                                      cldnn::input_info(input_name),
                                      weights_name,
@@ -64,10 +64,22 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size(),
-                                     op->get_transpose_b());
+                                     op->get_transpose_b(),
+                                     op->get_transpose_b_scale(),
+                                     op->get_transpose_b_zp(),
+                                     op->get_weights_layout());
 
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;
+    }
+
+    // Input rotation absorbed by FuseHadamardIntoFC.
+    const auto& rt = op->get_rt_info();
+    if (auto it = rt.find(int2_hadamard_block_key); it != rt.end()) {
+        fc.hadamard_block = static_cast<size_t>(it->second.as<int64_t>());
+        if (auto st = rt.find(int2_hadamard_signs_key); st != rt.end()) {
+            fc.hadamard_signs = st->second.as<std::vector<int8_t>>();
+        }
     }
 
     p.add_primitive(*op, fc);
@@ -123,7 +135,8 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          rank_a,
                                          rank_b,
-                                         op->get_transpose_b());
+                                         op->get_transpose_b(),
+                                         op->get_weights_layout());
     p.add_primitive(*op, fcPrim);
 
     if (shape_a.size() > 3 && !p.use_new_shape_infer()) {

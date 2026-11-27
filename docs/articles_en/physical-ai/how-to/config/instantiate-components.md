@@ -1,10 +1,6 @@
 # Instantiate Components
 
-> **Preview:** The config system (`physicalai.config`) is a planned API. The examples below document the target design. Currently, `ComponentSpec` lives in `physicalai.inference.manifest`.
-
-A component spec describes one instantiable object.
-
-The most explicit form uses a class path.
+A `Config` recipe points at one class and the arguments for its constructor.
 
 ```yaml
 class_path: physicalai.capture.UVCCamera
@@ -14,43 +10,49 @@ init_args:
   height: 480
 ```
 
-The shorter form uses a registry name.
+## Build from a recipe
 
-```yaml
-type: uvc
-device: /dev/video0
-width: 640
-height: 480
-```
-
-You can construct and instantiate the same spec from Python.
+`Config.instantiate()` creates a new object from a trusted local recipe. It runs
+`__init__` only—you still call `connect()`, `run()`, or similar yourself.
 
 ```python
-from physicalai.inference.manifest import ComponentSpec
-from physicalai.inference.component_factory import instantiate_component
+from physicalai.config import Config
 
-spec = ComponentSpec(
-    class_path="physicalai.capture.UVCCamera",
-    init_args={"device": "/dev/video0", "width": 640, "height": 480},
-)
-
-camera = instantiate_component(spec)
+config = Config.from_dict({
+    "class_path": "physicalai.capture.UVCCamera",
+    "init_args": {"device": "/dev/video0", "width": 640, "height": 480},
+})
+camera = config.instantiate()
+camera.connect()
 ```
 
-Nested component specs are instantiated recursively.
+## Save how an object was created
 
-```yaml
-class_path: physicalai.runtime.PolicyRuntime
-init_args:
-  robot:
-    class_path: physicalai.robot.so101.SO101
-    init_args:
-      port: /dev/ttyACM0
-  cameras:
-    wrist:
-      class_path: physicalai.capture.UVCCamera
-      init_args:
-        device: /dev/video0
+Add `@export_config` to a class so Physical AI can record the constructor
+arguments you actually passed (omitted defaults stay omitted).
+
+```python
+from physicalai.capture import UVCCamera
+from physicalai.config import Config
+
+camera = UVCCamera(device="/dev/video0", width=640, height=480)
+config = Config.from_instance(camera)
 ```
 
-`ComponentSpec` describes what should be built. Instantiation is the separate step that creates the live object.
+Nested components use the same recipe shape inside `init_args`. Values must be
+JSON-friendly: paths become strings, tuples become lists, and invalid floats are
+rejected.
+
+```python
+Config.from_instance(camera).save("camera.yaml")
+```
+
+## Safety
+
+`class_path` loads and runs Python code on your machine. Use your own config
+files or other sources you trust. Skip instantiation for metadata or messages
+that came from another process or the network.
+
+Inference **manifests** (policy exports) use a separate format with aliases and
+artifact paths. Use `Config` for runtime construction YAML; use manifest APIs
+when loading an exported policy package.

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,8 +152,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const convolution_params& params,
-                                                                       int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const convolution_params& params, int /*autoTuneIndex*/) const {
     DispatchData dispatchData;
 
     const auto& output = params.outputs[0];

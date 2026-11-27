@@ -21,7 +21,7 @@ std::string lora_inst::to_string(const lora_node& node) {
     lora_info.add("state_a", node.input(2).id());
     lora_info.add("state_alpha", node.input(3).id());
     lora_info.add("state_b", node.input(4).id());
-    lora_info.add("lora_count", (node.get_inputs_count() - 2ul) / 3ul);
+    lora_info.add("lora_count", (node.get_inputs_count() - 2UL) / 3UL);
 
     node_info->add("lora_info", lora_info);
     node_info->dump(primitive_description);

@@ -26,9 +26,12 @@
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/grouped_matmul.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "dynamic_quantize_inst.h"
 #include "grouped_matmul_inst.h"
 #include "fully_connected_inst.h"
+#include "paged_attention_inst.h"
 
 #include <list>
 #include <set>
@@ -79,11 +82,11 @@ std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
 
 namespace ov::intel_gpu {
 
-Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id, ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, weight_sharing_ctx);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());
@@ -94,6 +97,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     profilingIDs = program_builder->profiling_ids;
     perfMap = program_builder->perfMap;
     m_input_layouts = program_builder->get_input_layouts();
+    m_weight_sharing_source_buffers = program_builder->get_weight_sharing_source_buffers();
 }
 
 Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
@@ -152,7 +156,8 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
         , prevPrimitiveIDs(graph->prevPrimitiveIDs)
         , perfMap(graph->perfMap)
         , profilingIDs(graph->profilingIDs)
-        , m_input_layouts(graph->m_input_layouts) {
+        , m_input_layouts(graph->m_input_layouts)
+        , m_paged_attention_block_size(graph->m_paged_attention_block_size) {
     build(graph->get_network()->get_program());
 }
 
@@ -217,6 +222,22 @@ Graph::~Graph() {
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
 
+    for (const auto& node : program->get_processing_order()) {
+        if (node->is_type<cldnn::paged_attention>()) {
+            auto pa_prim = node->as<cldnn::paged_attention>().get_primitive();
+            size_t current_bs = pa_prim->get_block_size();
+            if (!m_paged_attention_block_size) {
+                m_paged_attention_block_size = current_bs;
+            } else {
+                OPENVINO_ASSERT(m_paged_attention_block_size.value() == current_bs,
+                                "[GPU] All PagedAttention layers must agree on the same block size, got ",
+                                m_paged_attention_block_size.value(),
+                                " vs ",
+                                current_bs);
+            }
+        }
+    }
+
     auto* external_queue = m_context->get_external_queue();
     if (external_queue) {
         OPENVINO_ASSERT(m_config.get_num_streams() == 1, "[GPU] Throughput streams can't be used with shared queue!");
@@ -225,6 +246,25 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     } else {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
+
+    std::vector<cldnn::tensor_conversion_key> conversion_keys;
+    for (const auto& variable : m_network->get_variables_info()) {
+        const auto& info = variable.second;
+        const bool special_kv_state = std::any_of(info.m_primitives.begin(), info.m_primitives.end(),
+            [](const cldnn::primitive* primitive) {
+                const auto* kv = dynamic_cast<const cldnn::kv_cache*>(primitive);
+                return kv != nullptr && (kv->compressed || kv->indirect);
+            });
+        if (special_kv_state) {
+            continue;
+        }
+
+        const auto source_type = info.m_user_specified_type == ov::element::dynamic
+                                     ? info.m_layout.data_type
+                                     : static_cast<ov::element::Type_t>(info.m_user_specified_type);
+        conversion_keys.emplace_back(source_type, info.m_layout.data_type);
+    }
+    program->prepare_tensor_conversions(conversion_keys);
 
     std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
     std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");
@@ -509,6 +549,10 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                             info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
                         }
                     }
+                } else if (node.is_type<cldnn::paged_attention>()) {
+                    auto pa_prim = node.as<cldnn::paged_attention>().get_primitive();
+                    size_t block_size = pa_prim->get_block_size();
+                    info["block_size"] = std::to_string(block_size);
                 }
             }
         }
@@ -587,7 +631,11 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         create_ov_node(pi);
     }
 
-    return std::make_shared<ov::Model>(results, params, "runtime_gpu_graph");
+    auto runtime_model = std::make_shared<ov::Model>(results, params, "runtime_gpu_graph");
+    if (auto pa_block_size = getPagedAttentionBlockSize()) {
+        runtime_model->get_rt_info()[ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE] = *pa_block_size;
+    }
+    return runtime_model;
 }
 
 // Cache blob format:

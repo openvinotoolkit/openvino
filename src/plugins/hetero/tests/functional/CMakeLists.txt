@@ -28,9 +28,13 @@ ov_add_test_target(
             OV HETERO
 )
 
-target_sources(${TARGET_NAME} PRIVATE
-    $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src/blob_serialization.cpp
-)
+if(BUILD_SHARED_LIBS)
+    # In a static build openvino_hetero_plugin is linked directly into this target and already
+    # provides these symbols; compiling the source again here would violate the ODR at link time.
+    target_sources(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src/blob_serialization.cpp
+    )
+endif()
 
 if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)

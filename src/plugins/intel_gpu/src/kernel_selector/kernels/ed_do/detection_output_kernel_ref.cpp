@@ -30,7 +30,7 @@ ParamsKey ExperimentalDetectronDetectionOutputKernelRef::GetSupportedKey() const
     return k;
 }
 
-KernelsPriority ExperimentalDetectronDetectionOutputKernelRef::GetKernelsPriority(const Params&) const {
+KernelsPriority ExperimentalDetectronDetectionOutputKernelRef::GetKernelsPriority(const Params& /*unused*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

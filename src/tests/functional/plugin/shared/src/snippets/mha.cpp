@@ -247,6 +247,10 @@ void MHA::init_thresholds() {
         rel_threshold = 0.01f;
         abs_threshold = 0.0078125f;
     }
+    // Bf16 rounding requires looser threshold
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::bf16) {
+        abs_threshold = 0.05f;
+    }
 }
 
 void MHAConstB::init_thresholds() {
@@ -275,6 +279,26 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithBroadcast::get_subgraph() const {
                                                               with_mul,
                                                               is_with_reshape,
                                                               is_with_reshape);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfBroadcast::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              false,
+                                                              true,
+                                                              true);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfReshape::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              true,
+                                                              false,
+                                                              true);
 }
 
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -394,6 +418,14 @@ TEST_P(MHAWithBroadcast, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
+}
+
+TEST_P(MHAWithShapeOfBroadcast, CompareWithRefImpl) {
+    run();
+}
+
+TEST_P(MHAWithShapeOfReshape, CompareWithRefImpl) {
+    run();
 }
 
 TEST_P(MHASelect, CompareWithRefImpl) {

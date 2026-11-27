@@ -19,9 +19,6 @@ namespace ocl {
 class ocl_stream : public stream {
 public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
-#ifdef ENABLE_MLIR_FOR_GPU
-    void* get_native_handle() const override { return static_cast<void*>(get_cl_queue().get()); }
-#endif
 
     ocl_stream(const ocl_engine& engine, const ExecutionConfig& config);
     ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle);
@@ -49,12 +46,9 @@ public:
     event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) override;
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
-    void enqueue_barrier() override;
+    void enqueue_barrier(const std::vector<event::ptr>& deps) override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
-#ifdef ENABLE_MLIR_FOR_GPU
-    event::ptr create_base_event(void* handle) override;
-#endif
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }

@@ -185,6 +185,24 @@ private:
     ov::Extensions::Cpu::CacheSpec m_spec;
 };
 
+// KV cache state whose internal buffer is kept in the plain BHLS order (B, H, L, S), float precision only.
+// It is used by the sparse attention node, whose kernels require contiguous rows along L. The base class
+// get_state() / set_state_impl() assume the LBHS order and the beam table, so they are overridden here
+// instead of being generalized: VariableStateKVcache stays untouched.
+// The internal buffer may have a capacity larger than the logical length along L; the capacity is
+// carried by the strides of the internal memory descriptor.
+class VariableStateKVcacheBHLS : public VariableStateKVcache {
+public:
+    using VariableStateKVcache::VariableStateKVcache;
+
+    // ov::IVariableState
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+private:
+    // ov::intel_cpu::VariableStateBase
+    void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
+};
+
 using MemStatePtr = std::shared_ptr<IVariableState>;
 using MemStateCPtr = std::shared_ptr<const IVariableState>;
 }  // namespace ov::intel_cpu

@@ -72,8 +72,8 @@ protected:
         auto input_md = onednn::layout_to_memory_desc_blocked(input_layout, dnnl::memory::format_tag::undef);
         auto output_md = onednn::layout_to_memory_desc_blocked(output_layout, dnnl::memory::format_tag::undef);
 
-        float p = 0.f;
-        float eps = 0.f;
+        float p = 0.F;
+        float eps = 0.F;
         dnnl::algorithm alg;
         switch (prim->mode) {
             case reduce_mode::mean: alg = dnnl::algorithm::reduction_mean; break;
@@ -83,15 +83,15 @@ protected:
             case reduce_mode::prod: alg = dnnl::algorithm::reduction_mul; break;
             case reduce_mode::sum_square:
                 alg = dnnl::algorithm::reduction_norm_lp_power_p_sum;
-                p = 2.0f;
+                p = 2.0F;
                 break;
             case reduce_mode::l1:
                 alg = dnnl::algorithm::reduction_norm_lp_sum;
-                p = 1.0f;
+                p = 1.0F;
                 break;
             case reduce_mode::l2:
                 alg = dnnl::algorithm::reduction_norm_lp_sum;
-                p = 2.0f;
+                p = 2.0F;
                 break;
             default: throw std::runtime_error("unsupported reduce mode");
         }
@@ -138,14 +138,7 @@ public:
         float p, eps;
         ib >> p >> eps;
 
-        auto prim_desc = std::make_shared<dnnl::reduction::primitive_desc>(
-            ib.get_engine().get_onednn_engine(),
-            alg,
-            input_md,
-            output_md,
-            p,
-            eps,
-            *_attrs.get());
+        auto prim_desc = std::make_shared<dnnl::reduction::primitive_desc>(ib.get_engine().get_onednn_engine(), alg, input_md, output_md, p, eps, *_attrs);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;

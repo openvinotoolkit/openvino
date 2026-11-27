@@ -1,8 +1,49 @@
 # Running converted GGUF models
 
-`convert()` returns a stateless graph with llama.cpp-style inputs. A caller-registered `GenAIExtension`
-turns a language model into a stateful model with the OpenVINO GenAI interface. Multimodal projector
+`convert()` returns a stateless graph with llama.cpp-style inputs. `adapt_to_genai()` turns a
+converted model into the stateful models with the OpenVINO GenAI interface. Multimodal projector
 files use their own [encoder contract](mmproj.md#graph-boundary).
+
+## Split GGUF files
+
+The native frontend loads split models directly without writing a merged GGUF. Pass any shard
+with the standard `model-00001-of-00003.gguf` filename; the loader reads `split.count` and
+`split.no` and opens the other expected shards in the same directory. All shards of the
+chosen quantization must be available locally.
+
+```python
+from openvino.frontend import FrontEndManager
+
+frontend = FrontEndManager().load_by_framework("gguf")
+model = frontend.convert(frontend.load(
+    "Q4_K_M/Qwen3.5-122B-A10B-Q4_K_M-00001-of-00003.gguf"
+))
+```
+
+For renamed shards or files in different directories, supply a complete list of string paths.
+List order does not matter; the loader uses `split.no` to select shard zero's model metadata.
+
+```python
+model = frontend.convert(frontend.load([
+    "/models/part-a.gguf", "/other-disk/part-b.gguf", "/models/part-c.gguf"
+]))
+```
+
+C++ accepts a `std::vector<std::string>` or `std::vector<std::filesystem::path>`, and also
+separate path arguments to `load()`:
+
+```cpp
+auto input = frontend->load(std::vector<std::string>{
+    "/models/part-a.gguf", "/other-disk/part-b.gguf", "/models/part-c.gguf"});
+auto model = frontend->convert(input);
+```
+
+An explicit list must contain every shard; the loader does not fill in omitted entries.
+Inputs must belong to one split model. Missing shards,
+duplicate shard indices or tensor names, conflicting metadata and inconsistent total tensor
+counts produce load errors. Each shard keeps its own mapping; quantized weights use the same
+repacking as single-file inputs. This avoids a merged disk copy but does not reduce conversion
+or compilation memory requirements or extend architecture and quantization coverage.
 
 ## Stateless contract
 
@@ -23,40 +64,55 @@ below have no Python bindings, and `DecoderTransformationExtension` cannot be co
 
 ## Stateful and GenAI conversion
 
-Register `GenAIExtension` before `convert()`. The frontend creates stateful caches before
-stateless cache lowering, completes normalization (including recurrent-operation fusion), then
-adapts the normalized graph to GenAI. Callers do not register or order individual passes.
+Convert without GenAI-specific extensions, then pass the result to
+[`adapt_to_genai()`](../include/openvino/frontend/gguf/adapt_to_genai.hpp). It returns the named
+models GenAI uses; callers do not register or order individual passes. The same call adapts a
+[projector file](mmproj.md#using-the-encoders-and-a-language-model).
 
 ```cpp
-#include <openvino/frontend/gguf/extension/genai.hpp>
+#include <openvino/frontend/gguf/adapt_to_genai.hpp>
 #include <openvino/frontend/manager.hpp>
 
 using namespace ov::frontend::gguf;
 ov::frontend::FrontEndManager manager;
 auto frontend = manager.load_by_framework("gguf");
-frontend->add_extension(std::make_shared<GenAIExtension>());
-auto model = frontend->convert(frontend->load("model.gguf"));
+auto models = adapt_to_genai(frontend->convert(frontend->load("model.gguf")));
+auto language = models.at("language");
 ```
 
+`adapt_to_genai()` modifies and returns the converted decoder as `language`, and throws for a
+model that is already adapted. `GenAIExtension` is deprecated: it calls `adapt_to_genai()` at
+the end of `convert()` and returns `language`.
+
 Internally, [`GGUFMakeStateful`](../include/openvino/frontend/gguf/make_stateful.hpp) replaces each KV cache
-Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. Sliding-window
+Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. It accepts both
+the frontend's cache-write operation and its lowered stateless form, so it runs on a converted model. Sliding-window
 caches can be left stateless with `skip_caches`. Recurrent states are declared through the
 `gguf_recurrent_states` rt_info key.
 
-[`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) requires a stateful model and
-exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
+[`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) then exposes GenAI's
+interface. Select the mode with `GenAIAdaptOptions::input`:
 
 | Mode | Inputs | Output |
 |---|---|---|
-| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
-| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
+| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,N,vocab]` |
+| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,N,vocab]` |
 
+`EMBEDS_TO_LOGITS` also returns the token lookup as `text_embeddings` and, for architectures with
+per-layer token embeddings, `text_embeddings_per_layer`.
+
+- The number of output rows `N` depends on the model and attention backend. Standard SDPA decoders
+  generally select the last token per sequence; PagedAttention can expose a row for each token.
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
+  A scalar output scale is moved to the activation input when the head has no other consumers;
+  softcap output chains remain recognizable without expanding compressed weights.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
-- Gated-DeltaNet states (`qwen35`, `qwen35moe`) get a dynamic batch, follow `beam_idx` and mask
+  Noncausal sliding-window attention is not supported by GenAI adaptation.
+- Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
+  (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.

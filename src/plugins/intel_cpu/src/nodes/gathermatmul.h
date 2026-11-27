@@ -43,7 +43,7 @@ public:
                                                size_t OC,
                                                size_t G,
                                                const Config& config) noexcept;
-    static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes();
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
 private:

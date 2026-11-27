@@ -120,6 +120,7 @@ enum class KernelType {
 enum class Datatype {
     UNSUPPORTED,
     UINT2,
+    UINT3,
     UINT4,
     INT4,
     INT8,
@@ -148,6 +149,7 @@ enum class WeightsType {
     INT8,
     UINT8,
     UINT2,
+    UINT3,
     UINT4,
     INT4,
     INT32,
@@ -208,7 +210,8 @@ enum class ActivationFunction {
     GELU_TANH,
     ROUND_HALF_TO_EVEN,
     ROUND_HALF_AWAY_FROM_ZERO,
-    ERFINV
+    ERFINV,
+    SWOOSH
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -253,6 +253,13 @@ bool isRegularCrossGroupConsumerCase(const std::unordered_map<std::shared_ptr<Re
 
                 std::vector<bool> mask;
                 for (auto&& output_desc : layer_ptr->outputs()) {
+                    // This check decides only if F16IC can be used. F16IC converts only f32 ports
+                    // to f16. Ports of other types (f16, i64, boolean, ...) keep their type,
+                    // so a mismatch on them does not affect F16IC.
+                    if (output_desc.get_element_type() != ov::element::f32) {
+                        mask.push_back(false);
+                        continue;
+                    }
                     bool has_external = false;
                     for (auto&& r : output_desc.get_target_inputs()) {
                         auto reader_ptr = r.get_node()->shared_from_this();
@@ -767,6 +774,7 @@ void Snapshot::earlyRegroup() {
                 HNDL_MOE(Qwen3Router);
                 HNDL_MOE(Gemma4Expert);
                 HNDL_MOE(Gemma4Router);
+                HNDL_MOE(BatchedExpert);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
@@ -1677,9 +1685,9 @@ bool Snapshot::isRegularIOCase() const {
         return false;
     }
 
-    // Checks that cross-group (non-Result) consumer patterns are symmetric across all
-    // instances of each repeated block. F16IC inserts Convert nodes only on cross-group
-    // connections, so asymmetric connectivity (e.g. KV-sharing in Gemma4 where non-head
+    // Checks that f32 cross-group (non-Result) consumer patterns are symmetric across all
+    // instances of each repeated block. F16IC inserts Convert nodes only on f32 cross-group
+    // connections, so asymmetric f32 connectivity (e.g. KV-sharing in Gemma4 where non-head
     // layers have no external consumer for an output that head layers forward to K/V
     // projection) would produce different Convert counts per instance and break folding.
     if (!isRegularCrossGroupConsumerCase(reptag_to_gset, node_id_cache, m_layer_matches)) {

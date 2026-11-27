@@ -36,7 +36,7 @@ private:
     std::vector<size_t> get_gpr_regs_to_spill() const;
     std::vector<size_t> get_vec_regs_to_spill() const;
 
-    mutable std::set<snippets::Reg> m_live_regs;
+    mutable std::set<snippets::Reg> m_regs_to_spill;
     mutable Xbyak_riscv::Reg m_call_address_reg{Xbyak_riscv::zero};
     mutable bool m_regs_initialized = false;
 };

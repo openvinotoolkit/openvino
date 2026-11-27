@@ -15,8 +15,7 @@ using namespace ze;
 
 void ze_kernel_builder::init_ocl_builder() const {
     using namespace cldnn::ocl;
-    ocl_device_detector ocl_detector;
-    auto devices = ocl_detector.get_available_devices(nullptr, nullptr);
+    auto devices = ocl_device_detector::get_available_devices(nullptr, nullptr);
     const auto &dev_info = m_device.get_info();
     m_ocl_device = nullptr;
     for (const auto& [key, dev] : devices) {
@@ -27,8 +26,9 @@ void ze_kernel_builder::init_ocl_builder() const {
         }
     }
     OPENVINO_ASSERT(m_ocl_device != nullptr, "[GPU] Level Zero kernel builder was not able to find matching OCL device");
-    if (!m_ocl_device->is_initialized())
+    if (!m_ocl_device->is_initialized()) {
         m_ocl_device->initialize();
+    }
     m_ocl_builder = std::make_shared<ocl_kernel_builder>(*m_ocl_device);
 }
 
@@ -39,7 +39,7 @@ bool ze_kernel_builder::check_ze_build_support() const {
     std::lock_guard lock(m);
     const char src[] = R"(__kernel void k(){})";
     auto src_bytes = sizeof(src);
-    auto dev_handle = m_device.get_device().handle();
+    auto* dev_handle = m_device.get_device().handle();
     if (cache.find(dev_handle) != cache.end()) {
         return cache.at(dev_handle);
     }
@@ -81,8 +81,8 @@ void ze_kernel_builder::build_kernels_ze(const void *src, size_t src_bytes, Kern
     }
     ze_module_handle_t module_handle;
     ze_module_build_log_handle_t log_handle;
-    auto ctx_handle = m_device.get_context().handle();
-    auto device_handle = m_device.get_device().handle();
+    auto* ctx_handle = m_device.get_context().handle();
+    auto* device_handle = m_device.get_device().handle();
     ze_result_t build_result = ze::zeModuleCreate(ctx_handle, device_handle, &module_desc, &module_handle, &log_handle);
     ze_module_build_log_resource build_log_holder(log_handle);
     if (build_result != ZE_RESULT_SUCCESS) {
@@ -104,7 +104,7 @@ void ze_kernel_builder::build_kernels_ocl(const void *src, size_t src_bytes, Ker
     OPENVINO_ASSERT(m_ocl_builder != nullptr, "[GPU] Level Zero kernel builder expected initialized OCL builder");
     std::vector<kernel::ptr> tmp;
     m_ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
-    OPENVINO_ASSERT(tmp.size() > 0, "[GPU] Level Zero kernel builder expected non-empty module");
+    OPENVINO_ASSERT(!tmp.empty(), "[GPU] Level Zero kernel builder expected non-empty module");
     auto binary = tmp[0]->get_binary();
 
     build_kernels_ze(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, options, out);

@@ -8,11 +8,17 @@
 #include <limits.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
+#include <cstring>
 #include <optional>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "zero_types.hpp"
 
 namespace intel_npu {
@@ -195,13 +201,16 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
     return ov::Any(itrHandle->second).as<Type>();
 }
 
-static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides& strides) {
+static inline size_t get_capacity_size(const ov::element::Type& type,
+                                       const ov::Shape& shape,
+                                       const ov::Strides& strides) {
+    const auto byte_shape = ov::util::get_byte_memory_shape(type, shape);
     size_t capacity = 0;
     const size_t rank = shape.size();
     for (size_t i = 0; i < rank; ++i) {
         if (i == rank - 1) {
             // Last dimension: use shape[i] * stride[i]
-            capacity += shape[i] * strides[i];
+            capacity += byte_shape[i] * strides[i];
         } else {
             // Other dimensions: use (shape[i] - 1) * stride[i]
             capacity += (shape[i] - 1) * strides[i];
@@ -209,6 +218,31 @@ static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides
     }
 
     return capacity;
+}
+
+// Converts byte strides to element strides, accounting for sub-byte element types whose
+// innermost dimension byte stride is a non-addressable placeholder (element stride is always 1).
+static inline ov::Strides byte_strides_to_element_strides(const ov::Strides& byte_strides,
+                                                          const ov::element::Type& type) {
+    const auto bitwidth = type.bitwidth();
+    OPENVINO_ASSERT(bitwidth != 0, "Element bitwidth must be greater than 0");
+
+    ov::Strides element_strides(byte_strides.size());
+    std::transform(byte_strides.begin(), byte_strides.end(), element_strides.begin(), [bitwidth](size_t byte_stride) {
+        OPENVINO_ASSERT((byte_stride * CHAR_BIT) % bitwidth == 0,
+                        "Stride ",
+                        byte_stride,
+                        " bytes is not aligned to element bitwidth ",
+                        bitwidth,
+                        ". Strides must be whole-byte multiples of the element size.");
+        return byte_stride * CHAR_BIT / bitwidth;
+    });
+
+    if (!element_strides.empty() && bitwidth < CHAR_BIT) {
+        element_strides.back() = 1;
+    }
+
+    return element_strides;
 }
 
 static inline uint32_t findCommandQueueGroupOrdinal(
@@ -252,6 +286,54 @@ static inline uint32_t findCommandQueueGroupOrdinal(
 
     // if still don't find compute flag, return 0
     return 0;
+}
+
+static inline bool isExtensionNameMatching(const char* propertyName, const char* extName) {
+    if (strcmp(propertyName, extName) == 0) {
+        return true;
+    }
+
+    // Older drivers use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1
+    if (strcmp(extName, ZE_GRAPH_EXT_NAME) != 0) {
+        return false;
+    }
+
+    const size_t extNameLen = strlen(extName);
+    return strncmp(propertyName, extName, extNameLen) == 0 && propertyName[extNameLen] == '_' &&
+           propertyName[extNameLen + 1] >= '0' && propertyName[extNameLen + 1] <= '9';
+}
+
+static inline std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
+    const char* extName,
+    uint32_t extCurrentVersion,
+    const std::vector<ze_driver_extension_properties_t>& extProps,
+    uint32_t count) {
+    const char* functionExtName = nullptr;
+    uint32_t targetVersion = 0;
+
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto& property = extProps[i];
+
+        if (!isExtensionNameMatching(property.name, extName)) {
+            continue;
+        }
+
+        if (property.version >= extCurrentVersion) {
+            functionExtName = property.name;
+            targetVersion = extCurrentVersion;
+            break;
+        }
+
+        // Use the latest version supported by the driver - We need to go through all the properties for older drivers
+        // that use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1,
+        // ZE_extension_graph_1_2
+        if (property.version > targetVersion) {
+            functionExtName = property.name;
+            targetVersion = property.version;
+        }
+    }
+
+    return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
 
 }  // namespace zeroUtils

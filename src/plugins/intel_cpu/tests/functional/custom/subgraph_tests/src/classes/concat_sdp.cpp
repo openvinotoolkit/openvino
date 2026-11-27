@@ -80,7 +80,7 @@ void ConcatSDPTest::SetUp() {
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
         GTEST_SKIP() << "Host has no native bf16 support.";
     }
-    if (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16()) {
+    if (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16() && !ov::with_cpu_neon_fp16()) {
         GTEST_SKIP() << "Host has no native f16 support.";
     }
 

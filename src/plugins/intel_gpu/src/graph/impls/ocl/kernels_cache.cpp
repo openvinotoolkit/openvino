@@ -44,7 +44,7 @@
 #include <malloc.h>
 #endif
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
@@ -127,6 +127,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
             bool is_cm = kernel_string->language == kernel_language::CM;
+
+            if (!is_cm && options.find("-cl-uniform-work-group-size") == std::string::npos) {
+                options += " -cl-uniform-work-group-size";
+            }
 
             // Order matters for cm options
             if (batch_compilation && !is_cm) {
@@ -231,16 +235,18 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 }
             };
 
-            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
+            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM) {
                 process_batch_includes(b);
+            }
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
             // Partition the kernel cache per runtime: OCL and ZE store incompatible native
             // binaries, so their .cl_cache files must never share a hash (wrong-format load).
             full_code += get_runtime_cache_tag();
-            for (auto& ss : b.source)
+            for (auto& ss : b.source) {
                 full_code += ss;
+            }
 
             b.hash_value = std::hash<std::string>()(full_code);
 
@@ -251,8 +257,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
             if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
-                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/') {
                     current_dump_file_name += '/';
+                }
 
                 current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(b.bucket_id)
                                         + "_part_" + std::to_string(b.batch_id) + "_" + std::to_string(b.hash_value) + ".cl";
@@ -277,6 +284,29 @@ kernels_cache::kernels_cache(engine& engine,
     , _prog_id(prog_id)
     , batch_headers(std::move(batch_headers)) { }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// GRF size in bytes of the device. It is needed to locate the end of the host kernel thread payload when checking that
+// the microkernel registers do not overlap it. Listed explicitly (no default) so that a new architecture is flagged by -Wswitch.
+static int get_grf_bytes(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::gen9:
+    case gpu_arch::gen11:
+    case gpu_arch::xe_lp:
+    case gpu_arch::xe_hp:
+    case gpu_arch::xe_hpg:
+        return 32;
+    case gpu_arch::xe_hpc:
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+    case gpu_arch::xe3p:
+        return 64;
+    case gpu_arch::unknown:
+        break;
+    }
+    OPENVINO_THROW("[GPU] Unknown GRF size for GPU architecture ", static_cast<int>(arch));
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
     bool dump_sources = batch.dump_custom_program;
@@ -292,8 +322,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     std::string current_dump_file_name;
     if (dump_sources) {
         current_dump_file_name = std::move(dump_sources_dir);
-        if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+        if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/') {
             current_dump_file_name += '/';
+        }
 
         // Use .cm extension for CM kernels, .cl for OpenCL kernels
         std::string ext = (batch.language == kernel_language::CM) ? ".cm" : ".cl";
@@ -305,8 +336,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     if (dump_sources) {
         dump_file.open(current_dump_file_name);
         if (dump_file.good()) {
-            for (const auto& s : batch.source)
+            for (const auto& s : batch.source) {
                 dump_file << s;
+            }
         }
     }
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
@@ -332,16 +364,21 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             dump_file << "\n*/\n";
         }
         if (batch.has_microkernels) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
             OPENVINO_ASSERT(batch.kernels_counter == 1 && kernels.size() == 1);
             std::vector<uint8_t> binary = kernels[0]->get_binary();
             kernels.clear();
-            // Update binary and rebuild kernel
-            gemmstone::microkernel::fuse(binary, combined_source.c_str());
+            // Update binary and rebuild kernel.
+            // Passing grfBytes enables validation of the microkernel registers against the host kernel thread payload;
+            // fuse() throws if they overlap. Returns false if the payload could not be checked.
+            const int grf_bytes = get_grf_bytes(_device->get_info().arch);
+            if (!gemmstone::microkernel::fuse(binary, combined_source.c_str(), grf_bytes)) {
+                GPU_DEBUG_LOG << "[GPU] Microkernels were fused, but their registers could not be checked against the host kernel payload" << std::endl;
+            }
             _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
-#else  // ENABLE_ONEDNN_FOR_GPU
+#else  // OV_GPU_WITH_ONEDNN_MICROKERNELS
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS
         }
         if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
@@ -405,8 +442,9 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
 
 void kernels_cache::build_all() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
-    if (!_pending_compilation)
+    if (!_pending_compilation) {
         return;
+    }
 
     std::vector<batch_program> batches;
     {
@@ -601,8 +639,9 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
                                             const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                             bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::compile");
-    if (kernel_sources.empty())
+    if (kernel_sources.empty()) {
         return {};
+    }
 
     kernels_code t_kernels_code;
 

@@ -78,6 +78,11 @@ class PagedAttentionCmImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::PagedAttentionCmImpl)
 
+    // Dispatch is decided by reading sequence-length/block-mapping tensor contents on the host
+    bool supports_replay() const override {
+        return false;
+    }
+
     Stage::Ptr kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
@@ -777,7 +782,7 @@ private:
     std::vector<int32_t> m_xattn_post_wg_map;
     MixedRouteMode m_mixed_route_mode = MixedRouteMode::SPLIT;
 
-    void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
+    static void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
         const auto& input_mem = params.memory_deps;
 
         auto validate_input = [&](size_t idx, const char* name) {

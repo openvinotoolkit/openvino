@@ -14,6 +14,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/runtime/tensor.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 using namespace cldnn;
@@ -24,7 +25,8 @@ namespace {
 enum class broadcast_kinds {
     none,
     batch,
-    feature
+    feature,
+    y   // eltwise input with Y = 1: varies along X only (e.g. a per-column bias)
 };
 struct gemm_test_params {
     std::vector<ov::PartialShape> in_shapes;
@@ -47,6 +49,13 @@ class GemmFusingTest : public ::BaseFusingTest<gemm_test_params> {
 public:
 
     void execute(gemm_test_params& p, bool is_dynamic, bool is_caching_test = false) {
+        // gemm_mmad_int8_slm requires SIMD8 with no wider-SIMD fallback
+        const auto& supported_simd = engine.get_device_info().supported_simd_sizes;
+        if (p.kernel_name == "gemm_mmad_int8_slm" &&
+            std::none_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
+            GTEST_SKIP() << p.kernel_name << " requires SIMD8 which is not supported on this platform";
+        }
+
         cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
@@ -106,6 +115,8 @@ public:
             add_data_shape[0] = 1;
         } else if (p.broadcast_kind == broadcast_kinds::feature) {
             add_data_shape[1] = 1;
+        } else if (p.broadcast_kind == broadcast_kinds::y) {
+            add_data_shape[add_data_shape.size() - 2] = 1;
         }
         add_data_layout.set_partial_shape(add_data_shape);
         return add_data_layout;
@@ -604,7 +615,7 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
         input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255.f)),
-        data("eltwise_data", get_mem(get_output_layout(p))),
+        data("eltwise_data", get_mem(get_eltwise_layout(p))),
         gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
         eltwise("scale", { input_info("gemm_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
         activation("activation", input_info("scale"), activation_func::negative),
@@ -654,8 +665,11 @@ INSTANTIATE_TEST_SUITE_P(
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 6},
         // Reference graph can be fused because force_implementation leads optimize_data(true) in program::set_options()
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8"},
-        // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm" },   // tolerance issue
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt"},
+        // Fused inputs that vary along X: a full-shape eltwise and a per-column one ([1, 1, 1, N])
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm"},
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm", broadcast_kinds::y},
+        gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8", broadcast_kinds::y},
     }));
 
 

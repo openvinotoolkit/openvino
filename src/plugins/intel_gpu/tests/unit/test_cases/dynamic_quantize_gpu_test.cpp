@@ -19,6 +19,7 @@
 #include "fully_connected_inst.h"
 
 #include <cmath>
+#include <limits>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -565,3 +566,309 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs16) {
                                 data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
                                 "dynamic_quantize_gpu_opt");
 }
+
+// For bf16 the input storage type is a raw ushort, so the kernels have to decode bf16 (instead of
+// relying on an implicit type conversion, which would reinterpret the bit pattern, e.g. 0.5 -> 16128).
+// The scale is derived from the decoded group min/max, so it is compared against a value computed on
+// the host from the very same bf16 data (comparing GPU kernels against each other would not catch a
+// decoding bug shared by all of them).
+// With beyond_f16_range some elements exceed the f16 range (only representable for bf16 input), so the
+// kernels must not narrow the decoded bf16 values to half (|x| > 65504 would turn into inf and give inf/NaN
+// scales). The resulting scales (max(|x|) / 127) still fit into the f16 scale storage.
+static void test_scale_is_computed_from_decoded_values(const std::string& impl_name,
+                                                       ov::element::Type input_type,
+                                                       uint64_t group_size,
+                                                       bool beyond_f16_range) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const ov::Shape data_shape = {1, 1, 4096};
+    const bool per_token = group_size == std::numeric_limits<uint64_t>::max();
+    const size_t elements_per_group = per_token ? data_shape.back() : static_cast<size_t>(group_size);
+    const size_t groups_num = ov::shape_size(data_shape) / elements_per_group;
+
+    // Round trip the data through the input precision first so that the host reference below
+    // sees exactly the values the kernel reads
+    auto round_to_input_type = [&](float value) {
+        return input_type == ov::element::bf16 ? static_cast<float>(ov::bfloat16(value))
+                                               : static_cast<float>(ov::float16(value));
+    };
+    std::vector<float> host_values;
+    for (auto value : rg.generate_random_1d<float>(ov::shape_size(data_shape), -16.0f, 20.0f)) {
+        host_values.push_back(round_to_input_type(value));
+    }
+    // Make sure the groups have different maxima so that misaligned scales are detectable
+    for (size_t g = 0; g < groups_num; g++) {
+        host_values[g * elements_per_group] = 1.0f + static_cast<float>(g);
+    }
+    if (beyond_f16_range) {
+        // Put a few values beyond the f16 range (max 65504) into each even-indexed group, with both signs
+        for (size_t g = 0; g < groups_num; g += 2) {
+            const float magnitude = 1.0e5f + 2.0e5f * static_cast<float>(g) / static_cast<float>(groups_num);
+            host_values[g * elements_per_group + 1] = round_to_input_type(magnitude);
+            host_values[g * elements_per_group + elements_per_group - 1] = round_to_input_type(-1.5f * magnitude);
+        }
+    }
+
+    const data_types input_dt = input_type == ov::element::bf16 ? data_types::bf16 : data_types::f16;
+
+    auto input_mem = engine.allocate_memory({data_shape, input_dt, format::bfyx});
+    if (input_type == ov::element::bf16) {
+        std::vector<ov::bfloat16> data;
+        for (auto value : host_values) {
+            data.emplace_back(value);
+        }
+        set_values(input_mem, data);
+    } else {
+        std::vector<ov::float16> data;
+        for (auto value : host_values) {
+            data.emplace_back(value);
+        }
+        set_values(input_mem, data);
+    }
+
+    // Symmetric i8 per-group quantization: one scale per group holding max(|x|) / 127
+    std::vector<float> expected_scales(groups_num, 0.0f);
+    for (size_t g = 0; g < groups_num; g++) {
+        float group_max = 0.0f;
+        for (size_t e = 0; e < elements_per_group; e++) {
+            group_max = std::max(group_max, std::abs(host_values[g * elements_per_group + e]));
+        }
+        expected_scales[g] = group_max / 127.0f;
+    }
+
+    dynamic_quantize::Attributes dq_config;
+    dq_config.quantization_type = QuantizationType::Symmetric;
+    dq_config.quantization_dt = data_types::i8;
+    dq_config.scale_dt = data_types::f16;
+    dq_config.zp_dt = data_types::dynamic;
+    dq_config.group_sizes = {1, 1, group_size};
+    dq_config.scales_zp_output_order = {0, 1, 2};
+    dq_config.output_storage_type = OutputStorageType::Planar;
+
+    topology topology(
+        input_layout("input", layout{data_shape, input_dt, format::bfyx}),
+        dynamic_quantize("dyn_quan_prim", input_info("input"), dq_config),
+        reorder("out_data", input_info("dyn_quan_prim", 0), layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}),
+        reorder("out_scale", input_info("dyn_quan_prim", 1), layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"dyn_quan_prim", { format::bfyx, impl_name, impl_types::ocl }}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_TRUE(outputs.count("out_scale") > 0);
+    ASSERT_TRUE(outputs.count("out_data") > 0);
+    auto scale_mem = outputs.at("out_scale").get_memory();
+    auto data_mem = outputs.at("out_data").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> scale_ptr(scale_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> data_ptr(data_mem, get_test_stream());
+
+    const auto scale_layout = outputs.at("out_scale").get_layout();
+    ASSERT_GE(scale_ptr.size(), groups_num)
+        << "impl: " << impl_name << ", scale layout: " << scale_layout.to_string();
+    ASSERT_EQ(data_ptr.size(), host_values.size());
+    for (size_t g = 0; g < groups_num; g++) {
+        const float actual_scale = static_cast<float>(scale_ptr[g]);
+        ASSERT_TRUE(std::isfinite(actual_scale))
+            << "impl: " << impl_name << ", group: " << g << ", actual: " << actual_scale;
+        ASSERT_NEAR(actual_scale, expected_scales[g], expected_scales[g] * 0.05f)
+            << "impl: " << impl_name << ", group: " << g << ", actual: " << actual_scale
+            << ", expected: " << expected_scales[g];
+        // The quantized values have to match the host values scaled by the expected scale
+        for (size_t e = 0; e < elements_per_group; e++) {
+            const size_t idx = g * elements_per_group + e;
+            ASSERT_NEAR(data_ptr[idx], host_values[idx] / expected_scales[g], 1.0f)
+                << "impl: " << impl_name << ", group: " << g << ", element: " << e;
+        }
+    }
+}
+
+class dynamic_quantization_bf16_input_tests : public dynamic_quantization_gpu_tests,
+                                              public ::testing::WithParamInterface<std::tuple<std::string, ov::element::Type>> {};
+
+TEST_P(dynamic_quantization_bf16_input_tests, scale_is_computed_from_decoded_values) {
+    test_scale_is_computed_from_decoded_values(std::get<0>(GetParam()), std::get<1>(GetParam()), 64, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(bf16_input,
+                         dynamic_quantization_bf16_input_tests,
+                         ::testing::Combine(::testing::Values("dynamic_quantize_gpu_ref", "dynamic_quantize_gpu_opt"),
+                                            ::testing::Values(ov::element::f16, ov::element::bf16)),
+                         [](const ::testing::TestParamInfo<std::tuple<std::string, ov::element::Type>>& info) {
+                             return (std::get<0>(info.param).find("_ref") != std::string::npos ? "ref_" : "opt_") +
+                                    std::get<1>(info.param).get_type_name();
+                         });
+
+// bf16 only: values beyond the f16 range. Group sizes cover the small group, large group and per token
+// paths of the opt kernel.
+class dynamic_quantization_bf16_beyond_f16_range_tests : public dynamic_quantization_gpu_tests,
+                                                         public ::testing::WithParamInterface<std::tuple<std::string, uint64_t>> {};
+
+TEST_P(dynamic_quantization_bf16_beyond_f16_range_tests, scale_is_finite) {
+    test_scale_is_computed_from_decoded_values(std::get<0>(GetParam()), ov::element::bf16, std::get<1>(GetParam()), true);
+}
+
+INSTANTIATE_TEST_SUITE_P(bf16_input,
+                         dynamic_quantization_bf16_beyond_f16_range_tests,
+                         ::testing::Combine(::testing::Values("dynamic_quantize_gpu_ref", "dynamic_quantize_gpu_opt"),
+                                            ::testing::Values(uint64_t{32}, uint64_t{64}, std::numeric_limits<uint64_t>::max())),
+                         [](const ::testing::TestParamInfo<std::tuple<std::string, uint64_t>>& info) {
+                             const auto group_size = std::get<1>(info.param);
+                             return std::string(std::get<0>(info.param).find("_ref") != std::string::npos ? "ref_" : "opt_") +
+                                    (group_size == std::numeric_limits<uint64_t>::max() ? std::string("per_token")
+                                                                                         : "gs" + std::to_string(group_size));
+                         });
+
+// bf16 input with bf16 scales (and fp zero points), as used for the KV cache of bf16 models. bf16 scale/zp
+// buffers are stored as ushort, so the kernels have to encode them as bf16 (not with a numeric cast).
+// Groups alternate between large magnitudes (up to 1e7, f16 scales would overflow or lose all precision)
+// and small ones; scales, zero points and dequantized values are checked against the host data.
+struct dq_bf16_scales_params {
+    std::string impl_name;
+    QuantizationType quantization_type;
+    OutputStorageType storage_type;
+    data_types zp_dt;
+};
+
+class dynamic_quantization_bf16_scales_tests : public dynamic_quantization_gpu_tests,
+                                               public ::testing::WithParamInterface<dq_bf16_scales_params> {};
+
+TEST_P(dynamic_quantization_bf16_scales_tests, scales_and_zp_are_stored_as_bf16) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const bool is_asym = p.quantization_type == QuantizationType::Asymmetric;
+    const bool is_interleaved = p.storage_type == OutputStorageType::InterleavedScalesZP;
+    const bool has_zp_output = is_asym && !is_interleaved;
+
+    const ov::Shape data_shape = {1, 4, 8, 64};
+    const size_t elements_per_group = data_shape.back();
+    const size_t groups_num = ov::shape_size(data_shape) / elements_per_group;
+    const std::vector<float> magnitudes = {1.0e5f, 2.5e5f, 1.0e6f, 7.0e6f, 1.0e7f, 3.0f, 0.5f, 20.0f};
+
+    // Asymmetric groups are shifted, so that the zero point is not trivial
+    std::vector<float> host_values;
+    for (size_t g = 0; g < groups_num; g++) {
+        const float magnitude = magnitudes[g % magnitudes.size()];
+        const float low = is_asym ? -0.5f * magnitude : -magnitude;
+        for (auto value : rg.generate_random_1d<float>(elements_per_group, low, magnitude)) {
+            host_values.push_back(static_cast<float>(ov::bfloat16(value)));
+        }
+    }
+
+    auto input_mem = engine.allocate_memory({data_shape, data_types::bf16, format::bfyx});
+    std::vector<ov::bfloat16> input_data;
+    for (auto value : host_values) {
+        input_data.emplace_back(value);
+    }
+    set_values(input_mem, input_data);
+
+    dynamic_quantize::Attributes dq_config;
+    dq_config.quantization_type = p.quantization_type;
+    dq_config.quantization_dt = data_types::i8;
+    dq_config.scale_dt = data_types::bf16;
+    dq_config.zp_dt = is_asym ? p.zp_dt : data_types::dynamic;
+    dq_config.group_sizes = {1, 1, 1, UINT64_MAX};
+    dq_config.scales_zp_output_order = {0, 1, 2, 3};
+    dq_config.output_storage_type = p.storage_type;
+
+    const auto dyn_f32_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", layout{{-1, 4, -1, 64}, data_types::bf16, format::bfyx}),
+                      dynamic_quantize("dyn_quan_prim", input_info("input"), dq_config),
+                      reorder("out_data", input_info("dyn_quan_prim", 0), dyn_f32_layout),
+                      reorder("out_scale", input_info("dyn_quan_prim", 1), dyn_f32_layout));
+    if (has_zp_output) {
+        topology.add(reorder("out_zp", input_info("dyn_quan_prim", 2), dyn_f32_layout));
+    }
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"dyn_quan_prim", {format::bfyx, p.impl_name, impl_types::ocl}}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto data_mem = outputs.at("out_data").get_memory();
+    auto scale_mem = outputs.at("out_scale").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> data_ptr(data_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> scale_ptr(scale_mem, get_test_stream());
+    ASSERT_EQ(data_ptr.size(), host_values.size());
+    ASSERT_EQ(scale_ptr.size(), groups_num * (is_interleaved ? 2 : 1));
+
+    std::vector<float> zp_values(groups_num, 0.0f);
+    if (has_zp_output) {
+        auto zp_mem = outputs.at("out_zp").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> zp_ptr(zp_mem, get_test_stream());
+        ASSERT_EQ(zp_ptr.size(), groups_num);
+        for (size_t g = 0; g < groups_num; g++) {
+            zp_values[g] = zp_ptr[g];
+        }
+    } else if (is_interleaved) {
+        for (size_t g = 0; g < groups_num; g++) {
+            zp_values[g] = scale_ptr[g * 2 + 1];
+        }
+    }
+
+    for (size_t g = 0; g < groups_num; g++) {
+        float group_min = std::numeric_limits<float>::max();
+        float group_max = std::numeric_limits<float>::lowest();
+        float group_abs_max = 0.0f;
+        for (size_t e = 0; e < elements_per_group; e++) {
+            const float value = host_values[g * elements_per_group + e];
+            group_min = std::min(group_min, value);
+            group_max = std::max(group_max, value);
+            group_abs_max = std::max(group_abs_max, std::abs(value));
+        }
+
+        // Dequantization scale and zero point: x ~= (q - zp) * scale
+        const float expected_scale = is_asym ? (group_max - group_min) / 255.0f : group_abs_max / 127.0f;
+        const float expected_zp = is_asym ? -group_min / expected_scale - 128.0f : 0.0f;
+        const float actual_scale = scale_ptr[is_interleaved ? g * 2 : g];
+        const float actual_zp = zp_values[g];
+
+        ASSERT_TRUE(std::isfinite(actual_scale)) << "group: " << g;
+        // bf16 has an 8 bit mantissa (relative rounding error <= 2^-9)
+        ASSERT_NEAR(actual_scale, expected_scale, expected_scale * 0.01f)
+            << "group: " << g << ", actual: " << actual_scale << ", expected: " << expected_scale;
+        // fp zero points are rounded to bf16 (step 0.5 for |zp| in [64, 128)), i8 zero points to an integer
+        ASSERT_NEAR(actual_zp, expected_zp, 1.0f)
+            << "group: " << g << ", actual: " << actual_zp << ", expected: " << expected_zp;
+
+        for (size_t e = 0; e < elements_per_group; e++) {
+            const size_t idx = g * elements_per_group + e;
+            const float dequantized = (data_ptr[idx] - actual_zp) * actual_scale;
+            ASSERT_NEAR(dequantized, host_values[idx], 2.0f * expected_scale)
+                << "group: " << g << ", element: " << e << ", q: " << data_ptr[idx];
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    bf16_scales,
+    dynamic_quantization_bf16_scales_tests,
+    ::testing::Values(
+        dq_bf16_scales_params{"dynamic_quantize_gpu_kv_cache", QuantizationType::Symmetric, OutputStorageType::Planar, data_types::dynamic},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_kv_cache", QuantizationType::Asymmetric, OutputStorageType::Planar, data_types::bf16},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_kv_cache", QuantizationType::Asymmetric, OutputStorageType::Planar, data_types::i8},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_kv_cache", QuantizationType::Asymmetric, OutputStorageType::InterleavedScalesZP, data_types::bf16},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_ref", QuantizationType::Symmetric, OutputStorageType::Planar, data_types::dynamic},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_ref", QuantizationType::Asymmetric, OutputStorageType::Planar, data_types::bf16},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_ref", QuantizationType::Asymmetric, OutputStorageType::Planar, data_types::i8},
+        dq_bf16_scales_params{"dynamic_quantize_gpu_ref", QuantizationType::Asymmetric, OutputStorageType::InterleavedScalesZP, data_types::bf16}),
+    [](const ::testing::TestParamInfo<dq_bf16_scales_params>& info) {
+        const auto& p = info.param;
+        std::string name = p.impl_name.find("_ref") != std::string::npos ? "ref" : "kv_cache";
+        if (p.quantization_type == QuantizationType::Symmetric) {
+            return name + "_sym";
+        }
+        name += p.storage_type == OutputStorageType::InterleavedScalesZP ? "_asym_interleaved" : "_asym_planar";
+        return name + (p.zp_dt == data_types::i8 ? "_i8_zp" : "_bf16_zp");
+    });

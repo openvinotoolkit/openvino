@@ -24,7 +24,7 @@ namespace ov {
 namespace test {
 namespace intel_gpu {
 
-TEST_F(TransformationTestsF, TranposeSDPAFusion1) {
+TEST_F(TransformationTestsF, TransposeSDPAFusion1) {
     const bool is_causal = true;
     {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, TransformationTestsF) {
     }
 }
 
-TEST_F(TransformationTestsF, TranposeSDPAFusion3) {
+TEST_F(TransformationTestsF, TransposeSDPAFusion3) {
     const bool is_causal = false;
     {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion3) {
     }
 }
 
-TEST_F(TransformationTestsF, TranposeSDPAFusion4) {
+TEST_F(TransformationTestsF, TransposeSDPAFusion4) {
     const bool is_causal = false;
     {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
@@ -166,7 +166,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion4) {
     }
 }
 
-TEST_F(TransformationTestsF, TranposeSDPAFusion5) {
+TEST_F(TransformationTestsF, TransposeSDPAFusion5) {
     const bool is_causal = false;
     {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
@@ -196,6 +196,100 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion5) {
         auto tranpose_c = std::make_shared<ov::op::v1::Transpose>(input_c, tranpose_c_const);
 
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(tranpose_a, tranpose_b, tranpose_c, is_causal);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+// Existing Q order {0,2,1,3} composes with input Transpose {0,2,1,3} to identity.
+TEST_F(TransformationTestsF, TransposeSDPAFusion_QComposed) {
+    const bool is_causal = false;
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto transpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_a = std::make_shared<ov::op::v1::Transpose>(input_a, transpose_a_const);
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+
+        std::vector<int64_t> order_a = {0, 2, 1, 3};
+        std::vector<int64_t> order_b = {0, 1, 2, 3};
+        std::vector<int64_t> order_c = {0, 1, 2, 3};
+        std::vector<int64_t> order_output = {0, 1, 2, 3};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{transpose_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        manager.register_pass<TransposeFusion>();
+    }
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+
+        std::vector<int64_t> order_a = {0, 1, 2, 3};
+        std::vector<int64_t> order_b = {0, 1, 2, 3};
+        std::vector<int64_t> order_c = {0, 1, 2, 3};
+        std::vector<int64_t> order_output = {0, 1, 2, 3};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+// Existing K order {0,2,3,1} composes with input Transpose {0,2,1,3} to {0,1,3,2}; output order kept.
+TEST_F(TransformationTestsF, TransposeSDPAFusion_KComposed) {
+    const bool is_causal = false;
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto transpose_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_b = std::make_shared<ov::op::v1::Transpose>(input_b, transpose_b_const);
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+
+        std::vector<int64_t> order_a = {0, 1, 2, 3};
+        std::vector<int64_t> order_b = {0, 2, 3, 1};
+        std::vector<int64_t> order_c = {0, 1, 2, 3};
+        std::vector<int64_t> order_output = {0, 2, 1, 3};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, transpose_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        manager.register_pass<TransposeFusion>();
+    }
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+
+        std::vector<int64_t> order_a = {0, 1, 2, 3};
+        std::vector<int64_t> order_b = {0, 1, 3, 2};
+        std::vector<int64_t> order_c = {0, 1, 2, 3};
+        std::vector<int64_t> order_output = {0, 2, 1, 3};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         comparator.enable(FunctionsComparator::ATTRIBUTES);

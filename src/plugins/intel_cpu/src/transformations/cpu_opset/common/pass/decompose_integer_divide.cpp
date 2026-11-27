@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "decompose_integer_divide.hpp"
 
@@ -27,11 +28,15 @@ DecomposeIntegerDivide::DecomposeIntegerDivide() {
                              return false;
                          }
 
+                         if (!divide->is_pythondiv()) {
+                             return false;
+                         }
+
                          auto new_divide =
-                             std::make_shared<ov::op::v1::Divide>(divide->input_value(0), divide->input_value(1));
+                             std::make_shared<ov::op::v1::Divide>(divide->input_value(0), divide->input_value(1), true);
                          auto new_floor = std::make_shared<ov::op::v0::Floor>(new_divide);
                          new_floor->set_friendly_name(divide->get_friendly_name());
-                         ov::copy_runtime_info(divide, new_floor);
+                         ov::copy_runtime_info(divide, {new_divide, new_floor});
                          ov::replace_node(divide, new_floor);
                          return true;
                      });

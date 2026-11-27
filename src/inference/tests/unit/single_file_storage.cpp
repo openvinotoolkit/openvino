@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -60,6 +62,21 @@ TEST_F(SingleFileStorageTest, FileHeader) {
 
     util::Version read_version{header_data[0], header_data[1], header_data[2]};
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
+}
+
+TEST_F(SingleFileStorageTest, ConstructorRejectsIncompatibleVersion) {
+    m_storage.reset();
+    const std::array<uint16_t, 3> older_version{0, 0, 1};
+    ASSERT_LT((util::Version{older_version[0], older_version[1], older_version[2]}), SingleFileStorage::m_version);
+    for (const auto header_size : {version_size(), version_size() / 2}) {
+        {
+            std::ofstream stream(m_file_path, std::ios::binary | std::ios::trunc);
+            stream.write(reinterpret_cast<const char*>(older_version.data()), header_size);
+        }
+        OV_EXPECT_THROW(SingleFileStorage{m_file_path},
+                        AssertFailure,
+                        ::testing::HasSubstr("Incompatible cache format"));
+    }
 }
 
 TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {

@@ -4,6 +4,7 @@
 
 #include "moe_executor.hpp"
 
+#include <cstring>
 #include <exception>
 #include <optional>
 
@@ -74,6 +75,7 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
                                                      pool_size);
         } else {
             m_resources.initialize_expert_iterative_mode(m_config, m_allocator, get_device_name(idx, &desc));
+            m_chunk_stats.init(ov::npuw::profiling_enabled());
         }
     } else {
         LOG_DEBUG("Reusing existing shared MoE config and resources");
@@ -360,11 +362,12 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     if (m_resources.sorted_chunk_sizes.empty())
         OPENVINO_THROW("MoE: Sorted chunk sizes cannot be empty");
 
-    // Clear output accumulator before accumulating expert outputs
-    std::memset(m_resources.expert_output_accumulator->data(),
-                0,
-                m_resources.expert_output_accumulator->get_byte_size());
-
+    // expert_output_accumulator is not cleared up front (profiled as too heavy for a buffer this
+    // size). Routing is expected to be dense — every (token, expert_slot) cell gets memcpy'd
+    // exactly once by scatter_expert_outputs() — but is_nonzero() filters out exactly-zero
+    // mixing scores, which can leave a slot unfilled if a top-k expert's score is 0.0f.
+    // token_slot_count (below) tracks exactly which slots that happens to, so instead we do a
+    // targeted clear of only the missing cells after dispatch — see clear_unfilled_accumulator_slots().
     auto expert_input_source = io.expert_input;
 
     // Use the embed_dim already validated against the accumulator buffer during prepare().
@@ -379,11 +382,13 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                     "layout may have changed, update embed_dim derivation");
     }
 
-    // num_tokens and num_experts come from config, validated once during prepare().
-    // The router tensor's token dimension is guaranteed to match input_token_count because
-    // both are derived from the same compiled model structure at prepare() time.
+    // num_tokens, num_experts and num_active_experts come from config, validated once
+    // during prepare(). The router tensor's token dimension is guaranteed to match
+    // input_token_count because both are derived from the same compiled model structure
+    // at prepare() time.
     const size_t num_tokens = m_config.input_token_count;
     const size_t num_experts = m_config.num_experts;
+    const size_t num_active_experts = m_config.num_active_experts;
 
     // Chunk-size selector
     auto select_chunk = [&](size_t remaining) -> size_t {
@@ -502,7 +507,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
             // Shared by both the parse-ahead fast path and the full threshold scan below.
             auto fill_token = [&](size_t token_id) {
                 // The accumulator has only K output slots per token.
-                if (token_slot_count[token_id] >= m_config.num_active_experts) {
+                if (token_slot_count[token_id] >= num_active_experts) {
                     OPENVINO_THROW("MoE Iterative experts: nonzero scores exceed the configured top-k for token ",
                                    token_id);
                 }
@@ -533,8 +538,9 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
             // -- Dispatch: slice tokens into chunks and pipeline NPU execution --
             size_t processed = 0;
             while (processed < cur.tokens.size()) {
-                const size_t cs = select_chunk(cur.tokens.size() - processed);
-                const size_t actual = std::min(cs, cur.tokens.size() - processed);
+                const size_t remaining = cur.tokens.size() - processed;
+                const size_t cs = select_chunk(remaining);
+                const size_t actual = std::min(cs, remaining);
                 const size_t s = global_slot & 1;
                 auto& req = get_req(cs, s);
 
@@ -564,6 +570,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                 m_profile->iterative["NPU Start"].record([&]() {
                     req->start_async();
                 });
+                m_chunk_stats.record_chunk(cs, actual);
                 if (inflight) {
                     do_drain();
                 }
@@ -602,7 +609,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
         if (inflight) {
             do_drain();
         } else {
-            // All mixing scores were finite and zero; the accumulator is clear.
+            // All mixing scores were finite and zero; unfilled slot clearing below will zero the accumulator.
             LOG_WARN("MoE prefill: all router mixing scores are zero for subgraph["
                      << idx << "]; returning zero expert contribution without inference. "
                      << "Check router/backend behavior if this is unexpected.");
@@ -622,8 +629,22 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                 }
             }
         }
+        std::memset(m_resources.expert_output_accumulator->data(),
+                    0,
+                    m_resources.expert_output_accumulator->get_byte_size());
         std::rethrow_exception(original_error);
     }
+
+    // Zero any (token, slot) cells that dense routing was expected to fill but didn't (see
+    // comment above token_slot_count's declaration). No-op in the common case where every
+    // token reached num_active_experts.
+    m_profile->iterative["Clear Unfilled Slots"].record([&]() {
+        ov::npuw::moe::clear_unfilled_accumulator_slots(m_resources.expert_output_accumulator,
+                                                        token_slot_count,
+                                                        num_active_experts,
+                                                        embed_dim,
+                                                        num_tokens);
+    });
 }
 
 void MoEExecutor::set_router_scores(size_t idx,
@@ -721,9 +742,7 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
 
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
 
-        // Check if this weight needs slicing (has num_experts in first dimension)
-        auto closure_shape = closure.get_shape();
-        bool needs_slicing = !closure_shape.empty() && closure_shape[0] == num_experts;
+        const bool needs_slicing = ov::npuw::moe::requires_expert_slice(closure, iport.get_shape(), num_experts);
 
         if (needs_slicing) {
             // Slice expert weight using view (no copy) - returns ov::Tensor object
@@ -809,26 +828,21 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
         const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
 
         auto& batched_closure = desc_closure[closure_idx];
-        const auto& closure_shape = batched_closure.get_shape();
 
         // Check if this parameter has unrolled variants (is in param_mapping)
         auto mapping_it = param_mapping.find(original_param_idx);
-        if (mapping_it == param_mapping.end()) {
-            // If the closure is batched [num_experts,...] but has no param_mapping entry, the
-            // expert-dimension unrolling (UnrollMoEMatMul) failed to fire for this weight.
-            // This is a transformation bug — assert to surface it early.
-            const bool is_batched_nounroll = !closure_shape.empty() && closure_shape[0] == num_experts;
-            NPUW_ASSERT(!is_batched_nounroll &&
-                        "Batched closure has no param_mapping entry — UnrollMoEMatMul did not fire");
-            continue;  // Non-batched shared param not in mapping — skip silently
-        }
+        OPENVINO_ASSERT(mapping_it != param_mapping.end(),
+                        "MoE: closure parameter is missing from the transformed input mapping: ",
+                        original_param_idx);
 
         const auto& unrolled_indices = mapping_it->second;
         NPUW_ASSERT(unrolled_indices.size() == K);
 
-        // Verify this is a batched parameter [num_experts, ...]
-        const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;
-        if (!is_batched) {
+        const bool needs_slicing =
+            ov::npuw::moe::requires_expert_slice(batched_closure,
+                                                 compiled_inputs.at(unrolled_indices.front()).get_shape(),
+                                                 num_experts);
+        if (!needs_slicing) {
             // Shared parameter path - all K unrolled parameters share same weight
             const bool do_copy = m_accessor.needs_copy_closure(idx, closure_idx);
             auto batched_impl = ov::get_tensor_impl(batched_closure);

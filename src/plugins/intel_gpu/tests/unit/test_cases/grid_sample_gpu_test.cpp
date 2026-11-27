@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "intel_gpu/primitives/grid_sample.hpp"
+#include "primitive_inst.h"
 #include "test_utils/test_utils.h"
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
@@ -654,6 +655,133 @@ std::vector<grid_sample_test_inputs<TD, TG>> getParamsToCheckLogic() {
     return all;
 }
 
+template <class TD, class TG>
+std::vector<grid_sample_test_inputs<TD, TG>> getBorderComparisonParams() {
+    auto params = getBilinearParamsOddDimensionsInnerGrids<TD, TG>();
+    auto outer_params = getBilinearParamsOddDimensionsOuterGrids<TD, TG>();
+    auto even_params = getBilinearParamsEvenDimensionsInnerGrids<TD, TG>();
+    std::move(outer_params.begin(), outer_params.end(), std::back_inserter(params));
+    std::move(even_params.begin(), even_params.end(), std::back_inserter(params));
+
+    std::vector<grid_sample_test_inputs<TD, TG>> border_params;
+    for (auto& param : params) {
+        if (param.attributes.padding_mode == GridSampleOp::PaddingMode::BORDER) {
+            border_params.push_back(std::move(param));
+        }
+    }
+
+    for (const bool align_corners : {false, true}) {
+        for (const auto& spatial_shape : std::vector<std::vector<tensor::value_type>>{{1, 1}, {1, 5}, {5, 1}, {3, 5}}) {
+            const auto height = spatial_shape[0];
+            const auto width = spatial_shape[1];
+            grid_sample_test_inputs<TD, TG> param;
+            param.data_shape = {2, 17, height, width};
+            param.grid_shape = {2, 1, 257, 2};
+            param.attributes = {align_corners, GridSampleOp::InterpolationMode::BILINEAR, GridSampleOp::PaddingMode::BORDER};
+            param.test_name = "border_tail_" + std::to_string(height) + "x" + std::to_string(width) +
+                              (align_corners ? "_align" : "_noalign");
+            for (size_t index = 0; index < static_cast<size_t>(2 * 17 * height * width); ++index) {
+                param.data.push_back(TD((static_cast<float>(index % 97) - 48.f) / 16.f));
+            }
+            const std::vector<float> coordinates = {-77.f, -2.f, -1.001f, -1.f, -0.75f, -0.5f, -0.1f,
+                                                     0.f, 0.1f, 0.5f, 0.75f, 1.f, 1.001f, 2.f, 11.5f};
+            for (size_t batch = 0; batch < 2; ++batch) {
+                for (size_t point = 0; point < 257; ++point) {
+                    param.grid.push_back(TG(coordinates[(point + batch) % coordinates.size()]));
+                    param.grid.push_back(TG(coordinates[(point / coordinates.size() + batch) % coordinates.size()]));
+                }
+            }
+            border_params.push_back(std::move(param));
+        }
+    }
+    return border_params;
+}
+
+template <class TD, class TG>
+struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
+    void compare() {
+        const auto& [params, fmt, is_caching_test] = this->GetParam();
+        ASSERT_EQ(params.attributes.mode, GridSampleOp::InterpolationMode::BILINEAR);
+        ASSERT_EQ(params.attributes.padding_mode, GridSampleOp::PaddingMode::BORDER);
+        auto& engine = get_test_engine();
+        const auto data_type = ov::element::from<TD>();
+        const auto grid_type = ov::element::from<TG>();
+        auto data = engine.allocate_memory(layout(data_type, format::bfyx, tensor(format::bfyx, params.data_shape)));
+        auto grid = engine.allocate_memory(layout(grid_type, format::bfyx, tensor(format::bfyx, params.grid_shape)));
+        set_values(data, params.data);
+        set_values(grid, params.grid);
+
+        topology topology;
+        topology.add(input_layout("data", data->get_layout()));
+        topology.add(input_layout("grid", grid->get_layout()));
+        topology.add(reorder("reordered_data", input_info("data"), fmt, data_type));
+        topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_type));
+        topology.add(grid_sample("grid_sample", {input_info("reordered_data"), input_info("reordered_grid")}, params.attributes));
+        const primitive_id output_id = fmt == format::bfyx ? "grid_sample" : "output";
+        if (fmt != format::bfyx) {
+            topology.add(reorder(output_id, input_info("grid_sample"), format::bfyx, data_type));
+        }
+
+        auto execute = [&, fmt = fmt, is_caching_test = is_caching_test](const std::string& kernel_name) {
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"grid_sample", {fmt, kernel_name, impl_types::ocl}}}));
+            auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+            const auto implementation = network->get_primitive("grid_sample")->get_impl();
+            EXPECT_NE(implementation, nullptr);
+            if (implementation != nullptr) {
+                EXPECT_EQ(implementation->get_kernel_name(), kernel_name);
+            }
+            network->set_input_data("data", data);
+            network->set_input_data("grid", grid);
+            const auto outputs = network->execute();
+            auto output = outputs.at(output_id).get_memory();
+            cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, get_test_stream());
+            std::vector<float> values(output_ptr.size());
+            for (size_t index = 0; index < values.size(); ++index) {
+                values[index] = static_cast<float>(output_ptr[index]);
+            }
+            return values;
+        };
+
+        const auto optimized = execute("grid_sample_opt_bilinear");
+        const auto reference = execute("grid_sample_ref");
+        const size_t expected_size = static_cast<size_t>(params.data_shape[0]) * params.data_shape[1] *
+                                     params.grid_shape[1] * params.grid_shape[2];
+        ASSERT_EQ(optimized.size(), expected_size);
+        ASSERT_EQ(reference.size(), expected_size);
+        const float tolerance = data_type == ov::element::f16 ? 0.01f : 0.001f;
+        for (size_t index = 0; index < expected_size; ++index) {
+            ASSERT_NEAR(optimized[index], reference[index], tolerance)
+                << "Output index: " << index << ", optimized: " << optimized[index] << ", reference: " << reference[index];
+        }
+    }
+};
+
+using grid_sample_border_compare_float = grid_sample_border_compare<float, float>;
+TEST_P(grid_sample_border_compare_float, opt_matches_ref) {
+    ASSERT_NO_FATAL_FAILURE(compare());
+}
+
+using grid_sample_border_compare_half = grid_sample_border_compare<ov::float16, ov::float16>;
+TEST_P(grid_sample_border_compare_half, opt_matches_ref) {
+    ASSERT_NO_FATAL_FAILURE(compare());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare,
+                         grid_sample_border_compare_float,
+                         testing::Combine(testing::ValuesIn(getBorderComparisonParams<float, float>()),
+                                          testing::Values(format::bfyx, format::b_fs_yx_fsv16),
+                                          testing::Values(RUN_CACHING_TEST)),
+                         grid_sample_border_compare_float::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare,
+                         grid_sample_border_compare_half,
+                         testing::Combine(testing::ValuesIn(getBorderComparisonParams<ov::float16, ov::float16>()),
+                                          testing::Values(format::bfyx, format::b_fs_yx_fsv16),
+                                          testing::Values(RUN_CACHING_TEST)),
+                         grid_sample_border_compare_half::PrintToStringParamName);
+
 const std::vector<format::type> layout_formats = {
     format::bfyx,
     format::b_fs_yx_fsv16,
@@ -778,5 +906,89 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_dynamic_test,
                          testing::Combine(testing::ValuesIn(dynamicGridSampleTestInputs()),
                                           testing::ValuesIn(dynamic_layout_formats),
                                           testing::Values(false)));
+
+// Kernels of several primitives are built as one OpenCL program (kernel batch), so a kernel template must not leave
+// file-scope declarations that clash with another grid_sample kernel of a different data type or implementation.
+template <class T>
+memory::ptr allocate_bfyx_input(cldnn::engine& engine,
+                                const std::vector<tensor::value_type>& shape,
+                                const std::vector<T>& values) {
+    auto input = engine.allocate_memory(layout(ov::element::from<T>(), format::bfyx, tensor(format::bfyx, shape)));
+    set_values(input, values);
+    return input;
+}
+
+template <class T>
+void check_grid_sample_output(const memory::ptr& output, const std::vector<T>& expected_values) {
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected_values.size());
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_NEAR(expected_values[i], output_ptr[i], getError<T>());
+    }
+}
+
+template <class TD1, class TG1, class TD2, class TG2>
+void test_two_grid_samples_in_one_program(const grid_sample_test_inputs<TD1, TG1>& p1,
+                                          const grid_sample_test_inputs<TD2, TG2>& p2,
+                                          const std::string& expected_impl1 = {},
+                                          const std::string& expected_impl2 = {}) {
+    auto& engine = get_test_engine();
+    auto data1 = allocate_bfyx_input(engine, p1.data_shape, p1.data);
+    auto grid1 = allocate_bfyx_input(engine, p1.grid_shape, p1.grid);
+    auto data2 = allocate_bfyx_input(engine, p2.data_shape, p2.data);
+    auto grid2 = allocate_bfyx_input(engine, p2.grid_shape, p2.grid);
+
+    topology topology;
+    topology.add(input_layout("data1", data1->get_layout()));
+    topology.add(input_layout("grid1", grid1->get_layout()));
+    topology.add(input_layout("data2", data2->get_layout()));
+    topology.add(input_layout("grid2", grid2->get_layout()));
+    topology.add(grid_sample("grid_sample1", {input_info("data1"), input_info("grid1")}, p1.attributes));
+    topology.add(grid_sample("grid_sample2", {input_info("data2"), input_info("grid2")}, p2.attributes));
+
+    network network(engine, topology, get_test_default_config(engine));
+    if (!expected_impl1.empty()) {
+        ASSERT_EQ(network.get_implementation_info("grid_sample1"), expected_impl1);
+    }
+    if (!expected_impl2.empty()) {
+        ASSERT_EQ(network.get_implementation_info("grid_sample2"), expected_impl2);
+    }
+
+    network.set_input_data("data1", data1);
+    network.set_input_data("grid1", grid1);
+    network.set_input_data("data2", data2);
+    network.set_input_data("grid2", grid2);
+    const auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), std::size_t(2));
+    ASSERT_NO_FATAL_FAILURE(check_grid_sample_output(outputs.at("grid_sample1").get_memory(), p1.expected_values));
+    ASSERT_NO_FATAL_FAILURE(check_grid_sample_output(outputs.at("grid_sample2").get_memory(), p2.expected_values));
+}
+
+TEST(grid_sample_gpu_kernel_batch, mixed_precision_in_one_program) {
+    const auto f16_params = getBilinearParamsOddDimensionsInnerGrids<ov::float16, ov::float16>();
+    const auto f32_params = getBilinearParamsOddDimensionsInnerGrids<float, float>();
+    ASSERT_EQ(f16_params.size(), f32_params.size());
+    for (size_t i = 0; i < f16_params.size(); ++i) {
+        SCOPED_TRACE(f16_params[i].test_name);
+        EXPECT_NO_THROW(test_two_grid_samples_in_one_program(f16_params[i], f32_params[i]));
+    }
+}
+
+TEST(grid_sample_gpu_kernel_batch, opt_and_ref_kernels_in_one_program) {
+    const auto f16_params = getBilinearParamsOddDimensionsInnerGrids<ov::float16, ov::float16>();
+    const auto f32_params = getBilinearParamsOddDimensionsInnerGrids<float, float>();
+    // bilinear + zeros selects grid_sample_opt_bilinear_zeros, bilinear + border selects grid_sample_ref
+    ASSERT_EQ(f16_params.at(0).test_name, "bilinear_zeros_noalign_odd_dims_inner");
+    ASSERT_EQ(f16_params.at(2).test_name, "bilinear_border_noalign_odd_dims_inner");
+    EXPECT_NO_THROW(test_two_grid_samples_in_one_program(f16_params.at(0),
+                                                        f16_params.at(2),
+                                                        "grid_sample_opt_bilinear__f16",
+                                                        "grid_sample_opt_bilinear__f16"));
+    EXPECT_NO_THROW(test_two_grid_samples_in_one_program(f32_params.at(0),
+                                                        f32_params.at(2),
+                                                        "grid_sample_opt_bilinear__f32",
+                                                        "grid_sample_opt_bilinear__f32"));
+}
 
 }  // namespace

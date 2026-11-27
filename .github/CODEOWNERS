@@ -89,6 +89,7 @@
 /src/frontends/tensorflow_lite/  @openvinotoolkit/openvino-tf-frontend-maintainers
 /src/frontends/pytorch/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
 /src/frontends/jax/ @openvinotoolkit/openvino-jax-frontend-maintainers
+/src/frontends/gguf/ @openvinotoolkit/openvino-gguf-frontend-maintainers
 
 # OpenVINO ONNX Frontend:
 /src/frontends/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers

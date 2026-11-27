@@ -38,12 +38,9 @@ memory_pool::~memory_pool() = default;
 
 bool memory_pool::has_conflict(const memory_set& mem_cand,
                                const memory_restricter<uint32_t>& restrictions) {
-    for (const auto& mem_usr : mem_cand) {
-        if (restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id))) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(mem_cand.begin(), mem_cand.end(), [&restrictions](const auto& mem_usr) {
+        return restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id));
+    });
 }
 
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
@@ -55,14 +52,22 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
     }
     auto type = mem->get_allocation_type();
     const auto _layout_bytes_count = _layout.bytes_count();
+    const auto get_mem_handle = [](const memory& buffer) {
+        if (memory_capabilities::is_usm_type(buffer.get_allocation_type())) {
+            if (auto* ptr = buffer.buffer_ptr()) {
+                return ptr;
+            }
+        }
+        return buffer.get_internal_params().mem;
+    };
+    auto* const mem_handle = get_mem_handle(*mem);
 
     {
         auto it = _non_padded_pool.lower_bound(_layout_bytes_count);
+        const auto mem_tracker = mem->get_mem_tracker();
 
-        while (it != _non_padded_pool.end()) {
-            if (it->second._network_id == network_id &&
-                it->second._type == type &&
-                it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
+        while (it != _non_padded_pool.end() && (!mem_tracker || it->first <= mem_tracker->size())) {
+            if (it->second._network_id == network_id && it->second._type == type && get_mem_handle(*it->second._memory) == mem_handle) {
                 auto user_it = it->second._users.find({MEM_USER(unique_id, network_id, prim_id, _layout_bytes_count)});
                 // normally there should be only one entry
                 if (user_it != it->second._users.end()) {
@@ -96,9 +101,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             auto list_itr = list.begin();
 
             while (list_itr != list.end()) {
-                if (list_itr->_memory.get()->get_internal_params().mem == mem->get_internal_params().mem &&
-                    list_itr->_network_id == network_id &&
-                    list_itr->_type == type) {
+                if (get_mem_handle(*list_itr->_memory) == mem_handle && list_itr->_network_id == network_id && list_itr->_type == type) {
                     auto user_it = list_itr->_users.find({MEM_USER(unique_id, network_id, prim_id, _layout_bytes_count)});
 
                     // normally there should be only one entry
@@ -133,9 +136,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
         auto iter = std::find_if(_no_reusable_mems.begin(), _no_reusable_mems.end(), [&](const cldnn::memory_record& r) {
-            return (network_id == r._network_id
-                && type == r._type
-                && mem->get_internal_params().mem == r._memory->get_internal_params().mem);
+            return (network_id == r._network_id && type == r._type && mem_handle == get_mem_handle(*r._memory));
         });
         if (iter != _no_reusable_mems.end()) {
             GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
@@ -180,20 +181,18 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
 #endif // ENABLE_ONEDNN_FOR_GPU
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
+        if (is_dynamic && !(layout_bytes_count > it->first * _mem_pool_util_threshold)) {
+            break;
+        }
         const auto& mem_layout = it->second._memory->get_layout();
-        if ((!is_dynamic || (layout_bytes_count > mem_layout.bytes_count() * _mem_pool_util_threshold)) &&
-            (it->second._network_id == network_id &&
-            it->second._type == type &&
-            mem_layout.format != format::fs_b_yx_fsv32 &&
+        if (it->second._network_id == network_id && it->second._type == type && mem_layout.format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
-            ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-             (layout.feature() % 32 == 0)) &&
+            ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) || (layout.feature() % 32 == 0)) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
             (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
-             (mem_layout.format == layout.format &&
-              mem_layout.feature() % f_block_size == layout.feature() % f_block_size)) &&
+             (mem_layout.format == layout.format && mem_layout.feature() % f_block_size == layout.feature() % f_block_size)) &&
 #endif // ENABLE_ONEDNN_FOR_GPU
-            !has_conflict(it->second._users, restrictions))) {
+            !has_conflict(it->second._users, restrictions)) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
             ret_mem->from_memory_pool = true;
@@ -414,8 +413,8 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
     _mem_pool_util_threshold = _config.get_mem_pool_util_threshold();
-    if (_mem_pool_util_threshold < 0.f || _mem_pool_util_threshold > 1.f) {
-        _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.f, 1.f);
+    if (_mem_pool_util_threshold < 0.F || _mem_pool_util_threshold > 1.F) {
+        _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.F, 1.F);
         GPU_DEBUG_INFO << "[WARNING] mem_pool_util_threshold should be in range [0.f, 1.f]. Reset to "
             << _mem_pool_util_threshold << std::endl;
     }
@@ -427,15 +426,15 @@ inline std::string get_mb_size(size_t size) {
     if (size == 0) {
         return "0 MB";
     }
-    return std::to_string(static_cast<float>(size) / (1024.f * 1024.f)) + " MB";
+    return std::to_string(static_cast<float>(size) / (1024.F * 1024.F)) + " MB";
 }
 
 inline float get_utilization(size_t size, size_t total_size) {
-    return (static_cast<float>(size) * 100.0f / static_cast<float>(total_size));
+    return (static_cast<float>(size) * 100.0F / static_cast<float>(total_size));
 }
 #endif
 
-size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
+size_t memory_pool::get_total_mem_pool_size(allocation_type type) const {
 #ifdef GPU_DEBUG_CONFIG
     const auto host_mem_size = mem_size_no_reusable_host + mem_size_non_padded_pool_host + mem_size_padded_pool_host;
     const auto total_mem_size = total_mem_size_no_reusable + total_mem_size_non_padded_pool + total_mem_size_padded_pool;
@@ -502,8 +501,8 @@ void memory_pool::dump_to_screen(uint32_t net_id, int64_t iter) {
         for (auto mem : _non_padded_pool) {
             GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
                 << ", type: " << mem.second._type << ")'s users: " << std::endl;
-            float min_utilization = 100.0f;
-            float max_utilization = 0.f;
+            float min_utilization = 100.0F;
+            float max_utilization = 0.F;
             for (auto user : mem.second._users) {
                 float utilization = get_utilization(user._mem_size, mem.first);
                 min_utilization = std::min(utilization, min_utilization);
@@ -525,8 +524,8 @@ void memory_pool::dump_to_screen(uint32_t net_id, int64_t iter) {
                 size_t mem_size = record._memory->size();
                 GPU_DEBUG_COUT << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
                                 << "MB, type: " << record._type << ")'s users : " << std::endl;
-                float min_utilization = 100.0f;
-                float max_utilization = 0.f;
+                float min_utilization = 100.0F;
+                float max_utilization = 0.F;
                 for (auto user : record._users) {
                     float utilization = get_utilization(user._mem_size, mem_size);
                     min_utilization = std::min(utilization, min_utilization);

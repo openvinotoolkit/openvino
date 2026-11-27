@@ -272,7 +272,7 @@ private:
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& orig_config) const;
     ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& orig_config) const override {
-        return create_compile_config(get_plugin(device_name), orig_config);
+        return create_compile_config(get_plugin(device_name, orig_config), orig_config);
     }
 
     bool is_hidden_device(const std::string& device_name) const;

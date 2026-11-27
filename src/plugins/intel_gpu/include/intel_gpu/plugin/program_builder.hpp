@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <mutex>
 #include <set>
+#include <unordered_set>
 
 #if defined(_WIN32) && !defined(__GNUC__)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
@@ -79,10 +80,14 @@ struct PerfCounter {
 
 class ProgramBuilder final {
 public:
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
-            std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
-            bool innerProgram = false);
+    ProgramBuilder(std::shared_ptr<ov::Model> model,
+                   cldnn::engine& engine,
+                   const ExecutionConfig& config,
+                   std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
+                   std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
+                   bool is_inner_program = false,
+                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
+    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -97,7 +102,8 @@ public:
     std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<size_t, cldnn::layout> inputLayouts;
-    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
+    using IsRemoteWeight = bool;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
@@ -145,6 +151,14 @@ public:
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
     std::shared_ptr<ov::Model> get_model() const { return m_model; }
 
+    ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const { return m_weight_sharing_ctx; }
+    void register_weight_sharing_source_buffer(std::shared_ptr<ov::AlignedBuffer> source);
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
+        return m_weight_sharing_source_buffers;
+    }
+
+    // usm_host buffer of at least the given size that constants pass through on their way to usm_device memory
+    cldnn::memory::ptr get_constant_staging_buffer(size_t bytes);
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -162,6 +176,9 @@ private:
     std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
 
     bool m_is_inner_program = false;
+    ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
+    cldnn::memory::ptr m_constant_staging;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }
@@ -169,21 +186,20 @@ private:
     void prepare_build();
     void cleanup_build();
 
-    std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool innerProgram = false);
+    std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program = false);
 
     void CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op);
 };
 
-void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node, CustomLayerPtr customLayer);
-void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node,
-                          cldnn::activation_func func, cldnn::activation_additional_params params);
+void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer);
+void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::activation_func func, cldnn::activation_additional_params params);
 void CreateElementwiseOp(ProgramBuilder& p,
-                         const std::shared_ptr<ov::Node>& node,
+                         const std::shared_ptr<ov::Node>& op,
                          cldnn::eltwise_mode mode,
                          std::vector<float> coefficients = {},
                          bool pythondiv = true);
 
-void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> possible_inputs_count);
+void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count);
 
 inline bool ends_with(const std::string& value, const std::string& suffix) {
     if (suffix.size() > value.size()) {

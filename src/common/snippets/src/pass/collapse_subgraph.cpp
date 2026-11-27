@@ -23,6 +23,10 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -148,6 +152,9 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
 
     auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node>& n) -> bool {
         return ov::is_type_any_of<ov::op::v1::Add,
+                                  ov::op::v13::BitwiseAnd,
+                                  ov::op::v13::BitwiseOr,
+                                  ov::op::v13::BitwiseXor,
                                   ov::op::v1::Divide,
                                   ov::op::v1::Equal,
                                   ov::op::v1::FloorMod,
@@ -173,6 +180,7 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
 
     auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node>& n) -> bool {
         return ov::is_type_any_of<ov::op::v0::Abs,
+                                  ov::op::v13::BitwiseNot,
                                   ov::op::v0::Clamp,
                                   ov::op::v0::Floor,
                                   ov::op::v0::Ceiling,

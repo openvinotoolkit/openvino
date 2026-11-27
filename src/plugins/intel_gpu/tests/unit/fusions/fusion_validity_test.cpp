@@ -198,6 +198,8 @@ TEST(fused_node, port_from_peer_node) {
     );
 
     ExecutionConfig config = get_test_default_config(engine);
+    // With legacy shape infer the second arg_max_min output stays a 4-byte scalar and the kernel writes past it.
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     ov::intel_gpu::ImplementationDesc eltwise_impl = { format::bfyx, "generic_eltwise_ref", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise1_mul", eltwise_impl } }));

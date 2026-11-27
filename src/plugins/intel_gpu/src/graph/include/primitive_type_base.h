@@ -230,6 +230,10 @@ struct primitive_type_base : primitive_type {
         return typed_primitive_inst<PType>::get_fake_aligned_params(orig_impl_param);
     }
 
+    bool has_fake_alignment() const override {
+        return typed_primitive_inst<PType>::has_fake_alignment();
+    }
+
     std::string to_string(const cldnn::program_node& node) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::to_string: primitive type mismatch");
         return typed_primitive_inst<PType>::to_string(node);

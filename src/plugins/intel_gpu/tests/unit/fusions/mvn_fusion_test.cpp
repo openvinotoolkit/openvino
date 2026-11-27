@@ -117,6 +117,7 @@ public:
 // X is not a multiple of the selected LWS, so the kernel takes its leftover path with fused ops enabled
 #define CASE_MVN_LAST_AXIS_F16_2   { 2, 3, 33, 4 },  { 1, 1, 33, 1 },  data_types::f16, format::bfyx, {3}, true, data_types::f16, format::bfyx
 #define CASE_MVN_LAST_AXIS_F32_1   { 2, 3, 32, 4 },  { 1, 1, 32, 1 },  data_types::f32, format::bfyx, {3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_LAST_AXIS_I8_1    { 2, 3, 32, 4 },  { 1, 1, 32, 1 },  data_types::i8, format::bfyx, {3}, true, data_types::f16, format::bfyx
 // Negative control: same aligned MVN, but the peer broadcasts along the feature axis, which the flatten
 // destroys - fusion must stay disabled.
 #define CASE_MVN_LAST_AXIS_F16_NEG { 2, 3, 32, 4 },  { 1, 3, 1, 1 },   data_types::f16, format::bfyx, {3}, true, data_types::f16, format::bfyx
@@ -391,4 +392,31 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::
     mvn_test_params{ CASE_MVN_5D_LAST_AXIS_ACROSS_CHANNELS_F16, 2, 2, 3 },
     // Peer broadcasts along the feature axis of an aligned MVN - must not fuse
     mvn_test_params{ CASE_MVN_LAST_AXIS_F16_NEG, 3, 3, 3},
+}));
+
+// Same as mvn_eltwise_f16, but the input batch is dynamic. An innermost-axis peer must still be fused.
+class mvn_eltwise_f16_dynamic_batch : public MVNFusingTest {};
+TEST_P(mvn_eltwise_f16_dynamic_batch, basic) {
+    auto p = GetParam();
+    auto in_pshape = get_input_layout(p).get_partial_shape();
+    in_pshape[0] = ov::Dimension::dynamic();
+    create_topologies(
+        input_layout("input", layout{ in_pshape, p.input_type, p.input_format }),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
+        data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
+        eltwise("eltw", { input_info("mvn"), input_info("eltw_data") }, eltwise_mode::sum, data_types::f16),
+        reorder("reorder_bfyx", input_info("eltw"), p.default_format, data_types::f32)
+    );
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    tolerance = 0.1f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16_dynamic_batch, ::testing::ValuesIn(std::vector<mvn_test_params>{
+    mvn_test_params{ CASE_MVN_LAST_AXIS_F16_1, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_LAST_AXIS_F16_2, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_LAST_AXIS_I8_1, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_LAST_AXIS_F16_NEG, 3, 3, 3 },
 }));
