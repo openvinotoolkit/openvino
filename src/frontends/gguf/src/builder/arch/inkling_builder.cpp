@@ -288,7 +288,8 @@ private:
         const auto values = std::make_shared<op::Concat>(states, 2);
         const auto queries = reshape(query, {1, 1, -1, width});
         auto scores = std::make_shared<op::MatMul>(queries, values, false, true);
-        auto probabilities = std::make_shared<op::Softmax>(mul(scores, scalar(1.f / std::sqrt(width))), 3);
+        auto probabilities =
+            std::make_shared<op::Softmax>(mul(scores, scalar(1.f / std::sqrt(static_cast<float>(width)))), 3);
         return std::make_shared<op::MatMul>(probabilities, values);
     }
 
