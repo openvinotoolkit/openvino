@@ -686,7 +686,7 @@ private:
             }
         }
 
-        OPENVINO_THROW("No compiler main schedule found");
+        return std::nullopt;
     }
 
     std::optional<BlobType> extract_blob_type() const override {
