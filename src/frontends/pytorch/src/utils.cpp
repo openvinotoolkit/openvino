@@ -345,6 +345,10 @@ Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port,
         return context.mark_node(
             std::make_shared<v0::Convert>(input_tensor, context.get_attribute<element::Type>("dtype")));
     }
+    if (context.has_attribute("out_dtype")) {
+        return context.mark_node(
+            std::make_shared<v0::Convert>(input_tensor, context.get_attribute<element::Type>("out_dtype")));
+    }
     return input_tensor;
 };
 

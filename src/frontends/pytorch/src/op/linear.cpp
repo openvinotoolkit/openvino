@@ -375,4 +375,18 @@ OutputVector translate_bmm_ext(const NodeContext& context) {
     return {matmul};
 }
 
+OutputVector translate_mm_dtype(const NodeContext& context) {
+    // schema: aten::mm.dtype(Tensor self, Tensor mat2, ScalarType out_dtype) -> Tensor
+    // or aten.mm.dtype in fx
+    num_inputs_check(context, 2, 3);
+    auto lhs = context.get_input(0);
+    auto rhs = context.get_input(1);
+    lhs = apply_optional_dtype(context, 2, lhs);
+    rhs = apply_optional_dtype(context, 2, rhs);
+    align_eltwise_input_types(context, lhs, rhs, false, false);
+    OutputVector res = {context.mark_node(std::make_shared<v0::MatMul>(lhs, rhs))};
+    align_output_types(context, res);
+    return res;
+}
+
 }  // namespace ov::frontend::pytorch::op
