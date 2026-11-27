@@ -89,5 +89,7 @@ class TestTruncateDivExactMultiples(CommonTFLayerTest):
                                           temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Requested activation is not supported for integer type or accuracy issue on GPU")
+        if precision == 'FP16':
+            pytest.skip("FP16 inference precision does not keep these quotients exact")
         self._test(*self.create_truncate_div_net(dtype, divisor, const_divisor),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

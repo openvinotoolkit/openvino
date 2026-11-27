@@ -162,5 +162,7 @@ class TestFloorDivExactMultiples(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_floor_div_exact_multiples(self, dtype, divisor, const_divisor, ie_device, precision, ir_version,
                                        temp_dir):
+        if precision == 'FP16':
+            pytest.skip("FP16 inference precision does not keep these quotients exact")
         self._test(*self.create_floor_div_net(dtype, divisor, const_divisor),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
