@@ -34,8 +34,18 @@ void expect_to_boolean(ov::element::Type src_prc, const std::vector<T>& src, con
 }  // namespace
 
 TEST(CpuConvertTests, NumericToBooleanFloat32) {
-    const std::vector<float> src = {0.0f, -0.0f, 0.25f, -0.25f, 1.0f, -1.0f, 42.5f, -42.5f};
-    const std::vector<uint8_t> expected = {0, 0, 1, 1, 1, 1, 1, 1};
+    const std::vector<float> src = {0.0f,
+                                    -0.0f,
+                                    0.25f,
+                                    -0.25f,
+                                    1.0f,
+                                    -1.0f,
+                                    42.5f,
+                                    -42.5f,
+                                    std::numeric_limits<float>::quiet_NaN(),
+                                    std::numeric_limits<float>::infinity(),
+                                    -std::numeric_limits<float>::infinity()};
+    const std::vector<uint8_t> expected = {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     expect_to_boolean(ov::element::f32, src, expected);
 }
 
