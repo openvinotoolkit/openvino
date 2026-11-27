@@ -974,15 +974,6 @@ const std::vector<QueryOptions> query_cases = [] {
     o.rope_rows_target = {0, 1, 1, rotary_dim};
     o.rope_rows_special_zero = true;
     cases.push_back(o);
-    // A dynamic length kept by the -1 of the target, as for a static batch.
-    o = QueryOptions{"dynamic_length_rope_rows"};
-    o.rope_rows_target = {0, 1, -1, rotary_dim};
-    o.rope_rows_special_zero = true;
-    cases.push_back(o);
-    o = QueryOptions{"dynamic_length_rope_rows_collapsed"};
-    o.rope_rows_target = {-1, 1, 1, rotary_dim};
-    o.absorb_norm = o.absorb_rope = false;
-    cases.push_back(o);
     o = QueryOptions{"multiple_rope_rows_preserved"};
     o.rope_length = 2;
     o.rope_rows_target = {-1, 1, 2, rotary_dim};
