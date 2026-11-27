@@ -11,7 +11,7 @@ namespace ov::util {
 namespace {
 
 // Cached per thread, as querying the bounds can be expensive.
-const MemoryView& thread_stack() {
+MemoryView thread_stack() {
     static thread_local const MemoryView stack = query_stack_bounds();
     return stack;
 }
@@ -19,7 +19,7 @@ const MemoryView& thread_stack() {
 }  // namespace
 
 std::optional<size_t> stack_bytes_available() {
-    const auto& stack = thread_stack();
+    const auto stack = thread_stack();
     const auto low = reinterpret_cast<uintptr_t>(stack.data());
     const auto current = current_stack_address();
     // Not on the thread's own stack (e.g. a coroutine): the remaining size is unknown.
