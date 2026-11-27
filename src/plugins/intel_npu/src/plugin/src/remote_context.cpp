@@ -42,6 +42,11 @@ public:
         _list.wait();
     }
 
+    void reset() override {
+        _list.reset();
+        _requests.clear();
+    }
+
 private:
     ZeroExecutionList _list;
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> _requests;

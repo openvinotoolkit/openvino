@@ -98,6 +98,10 @@ public:
     void updateMutableCommandListWithStrides(uint32_t index,
                                              const void* data,
                                              const std::vector<size_t>& strides) const;
+    void updateMutableCommandListWithStrides(uint32_t index,
+                                             const void* data,
+                                             const std::vector<size_t>& strides,
+                                             uint64_t command_id) const;
     void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;

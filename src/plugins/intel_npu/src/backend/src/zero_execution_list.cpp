@@ -11,6 +11,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "zero_pipeline.hpp"
 
 namespace {
 
@@ -91,8 +92,14 @@ void ZeroExecutionList::append(const std::shared_ptr<ZeroInferRequest>& request)
 }
 
 ZeroExecutionList::Arguments ZeroExecutionList::collect_arguments(const ZeroInferRequest& request) const {
-    const auto is_plain = [](const std::shared_ptr<ZeroTensor>& tensor) {
-        return tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty();
+    // Same rule as the pipelines of the requests: a strided view (e.g. a tile of a larger tensor) is passed with its
+    // strides, which requires the port to be compiled with NPU_ENABLE_STRIDES_FOR
+    const auto make_argument = [](uint32_t index, const std::shared_ptr<ZeroTensor>& tensor) {
+        Argument argument{index, tensor->data(), {}};
+        if (!(tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty())) {
+            argument.strides = IPipeline::get_strides(*tensor, true);
+        }
+        return argument;
     };
 
     Arguments arguments;
@@ -108,18 +115,16 @@ ZeroExecutionList::Arguments ZeroExecutionList::collect_arguments(const ZeroInfe
         OPENVINO_ASSERT(tensors.size() == 1, "Execution list doesn't support batched inputs");
         const auto& tensor = tensors.at(SINGLE_TENSOR);
         OPENVINO_ASSERT(tensor != nullptr && tensor->data() != nullptr, "Input zero tensor is not allocated");
-        OPENVINO_ASSERT(is_plain(tensor), "Execution list doesn't support strided tensors");
 
-        arguments.emplace_back(inputs.at(index).indexUsedByDriver, tensor->data());
+        arguments.push_back(make_argument(inputs.at(index).indexUsedByDriver, tensor));
     }
 
     const auto& outputs = request._metadata.outputs;
     for (size_t index = 0; index < outputs.size(); ++index) {
         const auto& tensor = request._levelZeroOutputTensors.at(index);
         OPENVINO_ASSERT(tensor != nullptr && tensor->data() != nullptr, "Output zero tensor is not allocated");
-        OPENVINO_ASSERT(is_plain(tensor), "Execution list doesn't support strided tensors");
 
-        arguments.emplace_back(outputs.at(index).indexUsedByDriver, tensor->data());
+        arguments.push_back(make_argument(outputs.at(index).indexUsedByDriver, tensor));
     }
 
     return arguments;
@@ -130,11 +135,23 @@ void ZeroExecutionList::record() {
     const auto start = Clock::now();
 
     _command_list = std::make_unique<CommandList>(_init_structs);
-    _fence = std::make_unique<Fence>(_command_queue);
-    _logger.info("record - started, %zu requests, command list %p, fence %p",
-                  _members.size(),
-                  static_cast<void*>(_command_list->handle()),
-                  static_cast<void*>(_fence->handle()));
+    if (_fence == nullptr) {
+        _fence = std::make_unique<Fence>(_command_queue);
+    }
+    ++_recordings;
+    // A list that is reset before every submission records every time, only the first recording is reported at INFO
+    const bool first = _recordings == 1;
+    if (first) {
+        _logger.info("record - started, %zu requests, command list %p, fence %p",
+                     _members.size(),
+                     static_cast<void*>(_command_list->handle()),
+                     static_cast<void*>(_fence->handle()));
+    } else {
+        _logger.debug("record - started (recording %llu), %zu requests, command list %p",
+                      to_ull(_recordings),
+                      _members.size(),
+                      static_cast<void*>(_command_list->handle()));
+    }
 
     for (size_t index = 0; index < _members.size(); ++index) {
         auto& member = _members.at(index);
@@ -144,9 +161,17 @@ void ZeroExecutionList::record() {
         std::lock_guard<std::mutex> lock(graph->get_mutex());
 
         member.arguments = collect_arguments(*member.request);
-        for (const auto& [argument_index, data] : member.arguments) {
-            _logger.debug("record - request %zu, argument %u = %p", index, argument_index, data);
-            graph->set_argument_value(argument_index, data);
+        for (const auto& argument : member.arguments) {
+            _logger.debug("record - request %zu, argument %u = %p%s",
+                          index,
+                          argument.index,
+                          argument.data,
+                          argument.strides.empty() ? "" : " (strided)");
+            if (argument.strides.empty()) {
+                graph->set_argument_value(argument.index, argument.data);
+            } else {
+                graph->set_argument_value_with_strides(argument.index, argument.data, argument.strides);
+            }
         }
 
         if (index > 0) {
@@ -164,32 +189,61 @@ void ZeroExecutionList::record() {
                       to_ull(member.command_id));
     }
 
-    _logger.info("record - completed, %zu graph executes in %.1f us", _members.size(), elapsed_us(start));
+    if (first) {
+        _logger.info("record - completed, %zu graph executes in %.1f us", _members.size(), elapsed_us(start));
+    } else {
+        _logger.debug("record - completed, %zu graph executes in %.1f us", _members.size(), elapsed_us(start));
+    }
 }
 
-void ZeroExecutionList::update_arguments() {
+bool ZeroExecutionList::update_arguments() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroExecutionList::update_arguments");
+
+    std::vector<Arguments> current;
+    current.reserve(_members.size());
+    for (size_t member_index = 0; member_index < _members.size(); ++member_index) {
+        const auto& member = _members.at(member_index);
+        current.push_back(collect_arguments(*member.request));
+        for (size_t index = 0; index < current.back().size(); ++index) {
+            if (current.back().at(index).strides != member.arguments.at(index).strides) {
+                // A plain tensor became a strided view (or the other way around): recorded again, so that no update
+                // has to reset the strides of a recorded argument
+                _logger.debug("update_arguments - request %zu, argument %u changed its strides, recording again",
+                              member_index,
+                              current.back().at(index).index);
+                return false;
+            }
+        }
+    }
 
     size_t updated = 0;
     for (size_t member_index = 0; member_index < _members.size(); ++member_index) {
         auto& member = _members.at(member_index);
-        auto arguments = collect_arguments(*member.request);
+        auto& arguments = current.at(member_index);
         for (size_t index = 0; index < arguments.size(); ++index) {
-            if (arguments.at(index).second == member.arguments.at(index).second) {
+            const auto& argument = arguments.at(index);
+            const auto& recorded = member.arguments.at(index);
+            if (argument == recorded) {
                 continue;
             }
 
             OPENVINO_ASSERT(_init_structs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0),
                             "Changing the tensors of an execution list is not supported with this driver");
-            _logger.debug("update_arguments - request %zu, command id %llu, argument %u: %p -> %p",
+            _logger.debug("update_arguments - request %zu, command id %llu, argument %u: %p -> %p%s",
                           member_index,
                           to_ull(member.command_id),
-                          arguments.at(index).first,
-                          member.arguments.at(index).second,
-                          arguments.at(index).second);
-            _command_list->updateMutableCommandList(arguments.at(index).first,
-                                                    arguments.at(index).second,
-                                                    member.command_id);
+                          argument.index,
+                          recorded.data,
+                          argument.data,
+                          argument.strides.empty() ? "" : " (strided)");
+            if (argument.strides.empty()) {
+                _command_list->updateMutableCommandList(argument.index, argument.data, member.command_id);
+            } else {
+                _command_list->updateMutableCommandListWithStrides(argument.index,
+                                                                   argument.data,
+                                                                   argument.strides,
+                                                                   member.command_id);
+            }
             ++updated;
         }
         member.arguments = std::move(arguments);
@@ -201,6 +255,7 @@ void ZeroExecutionList::update_arguments() {
                      to_ull(_submissions + 1),
                      updated);
     }
+    return true;
 }
 
 void ZeroExecutionList::prepare() {
@@ -214,10 +269,8 @@ void ZeroExecutionList::prepare() {
         member.request->prepare_outputs();
     }
 
-    if (_command_list == nullptr) {
+    if (_command_list == nullptr || !update_arguments()) {
         record();
-    } else {
-        update_arguments();
     }
 
     _command_list->close();
@@ -280,6 +333,15 @@ void ZeroExecutionList::wait() {
                   sync_us,
                   since_submit_us,
                   elapsed_us(start) - sync_us);
+}
+
+void ZeroExecutionList::reset() {
+    OPENVINO_ASSERT(!_running, "Cannot reset an execution list that is running");
+
+    // The requests stay marked as executed by an execution list: they never built pipelines of their own
+    _members.clear();
+    _command_list.reset();
+    _logger.debug("reset - the list is empty, the next submission records a new command list");
 }
 
 }  // namespace intel_npu

@@ -34,10 +34,19 @@ public:
     void prepare();
     void start_async();
     void wait();
+    void reset();
 
 private:
-    // Driver argument index and the address bound to it
-    using Arguments = std::vector<std::pair<uint32_t, const void*>>;
+    struct Argument {
+        uint32_t index = 0;  // Used by the driver
+        const void* data = nullptr;
+        std::vector<size_t> strides;  // In elements, innermost first; empty for a plain tensor
+
+        bool operator==(const Argument& other) const {
+            return index == other.index && data == other.data && strides == other.strides;
+        }
+    };
+    using Arguments = std::vector<Argument>;
 
     struct Member {
         std::shared_ptr<ZeroInferRequest> request;
@@ -47,7 +56,8 @@ private:
 
     Arguments collect_arguments(const ZeroInferRequest& request) const;
     void record();
-    void update_arguments();
+    // Returns false if the list has to be recorded again
+    bool update_arguments();
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     const void* _queue_owner;
@@ -60,6 +70,7 @@ private:
 
     // For the logs
     uint64_t _submissions = 0;
+    uint64_t _recordings = 0;
     std::chrono::steady_clock::time_point _submit_time;
 
     Logger _logger;

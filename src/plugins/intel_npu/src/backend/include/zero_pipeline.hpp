@@ -42,11 +42,11 @@ public:
 
     virtual ~IPipeline() = default;
 
-protected:
-    // Helper function handling strides for Zero Pipeline and ZeroDynamicPipeline. Stateless regarding pipeline
-    // instances, hence static
+    // Helper function handling strides for Zero Pipeline, ZeroDynamicPipeline and ZeroExecutionList. Stateless
+    // regarding pipeline instances, hence static
     static std::vector<size_t> get_strides(const ov::ITensor& tensor, bool reverse_order = false);
 
+protected:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;

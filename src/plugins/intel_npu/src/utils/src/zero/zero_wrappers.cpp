@@ -261,12 +261,18 @@ void CommandList::updateMutableCommandList(uint32_t index, const void* data, uin
 void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                                       const void* data,
                                                       const std::vector<size_t>& strides) const {
+    updateMutableCommandListWithStrides(index, data, strides, _command_id);
+}
+void CommandList::updateMutableCommandListWithStrides(uint32_t index,
+                                                      const void* data,
+                                                      const std::vector<size_t>& strides,
+                                                      uint64_t command_id) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
     desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
-    desc.commandId = _command_id;
+    desc.commandId = command_id;
     desc.argIndex = index;
     desc.pArgValue = data;
 

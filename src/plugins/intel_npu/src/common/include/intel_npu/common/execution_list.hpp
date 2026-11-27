@@ -41,6 +41,13 @@ public:
      */
     virtual void wait() = 0;
 
+    /**
+     * @brief Removes all requests so that the list can be filled again, e.g. with a different sequence of requests
+     * for the next submission. The next start_async() records a new command list. The removed requests still can't be
+     * used on their own.
+     */
+    virtual void reset() = 0;
+
     virtual ~IExecutionList() = default;
 };
 
