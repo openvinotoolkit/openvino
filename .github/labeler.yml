@@ -56,6 +56,7 @@
 - 'src/plugins/intel_cpu/thirdparty/FindACL.cmake'
 - 'cmake/arm*.toolchain.cmake'
 - 'cmake/rpi*'
+- 'cmake/rpi_cross/**/*'
 - '.github/dockerfiles/**/*arm64*/**/*'
 
 'platform: risc-v':
