@@ -25,9 +25,10 @@ struct stateless_kv_test_params {
     int64_t concat_axis;
     bool is_seq_len_present_len;
     std::vector<layout> expected_layouts;
-    int64_t window_size = 0;
+    int64_t window_size = -1;
     int64_t seq_len = -1;
     bool has_pos_idx = false;
+    bool is_swc = true;
 };
 
 class stateless_kv_test : public testing::TestWithParam<stateless_kv_test_params> {};
@@ -47,7 +48,8 @@ TEST_P(stateless_kv_test, shape_infer) {
     }
 
     const auto concat_axis = ov::util::normalize(p.concat_axis, p.input_layouts[0].get_rank());
-    auto stateless_kv_prim = std::make_shared<stateless_kv>("output", input_prim_ids, concat_axis, p.is_seq_len_present_len, p.window_size, p.has_pos_idx);
+    auto stateless_kv_prim =
+        std::make_shared<stateless_kv>("output", input_prim_ids, concat_axis, p.is_seq_len_present_len, p.window_size, p.has_pos_idx, p.window_size > 0 && p.is_swc);
     stateless_kv_prim->num_outputs = 2;
     stateless_kv_prim->output_data_types = {p.input_layouts[0].data_type, p.input_layouts[0].data_type};
     auto& stateless_kv_node = prog.get_or_create(stateless_kv_prim);
@@ -98,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
             },
-            0,
+            -1,
             -1,
             true,
         },
@@ -128,7 +130,7 @@ INSTANTIATE_TEST_SUITE_P(
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
             },
-            0,
+            -1,
             -1,
             true,
         },
@@ -144,7 +146,7 @@ INSTANTIATE_TEST_SUITE_P(
                 layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
                 layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx, padding{{}, {0, 0, 12}, padding::DynamicDimsMask{"0100"}}},
             },
-            0,
+            -1,
             0,  // past=0
         },
         {
@@ -251,6 +253,57 @@ INSTANTIATE_TEST_SUITE_P(
             },
             2,
             7,  // past=7, overflow so already trimmed to 5~6, cur=4 causes overflow so using new tensor for sdpa, len(cur)+window-1=5 nopadding
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx, padding{{}, {0, 0, 5}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            1,  // non-swc, present=3 < window: sdpa covers all present rows
+            false,
+            false,
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 5, 4}, data_types::f16, format::bfyx, padding{{0, 0, 2}, {0, 0, 1}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            5,  // non-swc, present=7 > window: sdpa starts at past-window+1=2
+            false,
+            false,
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{1, 2, 12, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 7, 4}, data_types::f16, format::bfyx, padding{{0, 0, 5}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            8,  // non-swc, past=8 + new=4 > capacity: present grows to 12, sdpa starts at past-window+1=5
+            false,
+            false,
         },
     }));
 

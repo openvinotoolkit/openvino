@@ -15,6 +15,8 @@
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 
+#include <algorithm>
+
 namespace ov {
 namespace op {
 namespace internal {
@@ -25,6 +27,18 @@ using Convolution = ov::intel_gpu::op::Convolution;
 
 namespace ov::intel_gpu {
 
+
+// True if the zero-point is a Constant whose elements are all equal
+static bool is_uniform_zero_point(const std::shared_ptr<ov::Node>& node) {
+    auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!zp_const || ov::shape_size(zp_const->get_shape()) == 0) {
+        return false;
+    }
+    const auto values = zp_const->cast_vector<double>();
+    return std::all_of(values.begin(), values.end(), [&](double v) {
+        return v == values[0];
+    });
+}
 
 static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::Convolution>& op) {
     validate_inputs_count(op, {3, 6});
@@ -74,6 +88,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     op->get_output_element_type(0),
                                                     auto_pad,
                                                     filter_rank);
+        prim->activations_zero_point_per_tensor = is_uniform_zero_point(op->get_input_node_shared_ptr(op::Convolution::Args::AZP));
     } else {
         prim = std::make_shared<cldnn::convolution>(layerName,
                                                     inputs[op::Convolution::Args::INPUT],
@@ -157,6 +172,8 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
                                                pads_end,
                                                output_padding,
                                                weights_have_group_dim);
+        // The pads of the op are zero if auto_pad is SAME_UPPER/SAME_LOWER and spatial dims are dynamic.
+        deconvPrim.auto_pad = op->get_auto_pad();
         if (op->get_input_size() == 3) {
             auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
@@ -243,6 +260,8 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                pads_end,
                                                output_padding,
                                                weights_have_group_dim);
+        // The pads of the op are zero if auto_pad is SAME_UPPER/SAME_LOWER and spatial dims are dynamic.
+        deconvPrim.auto_pad = op->get_auto_pad();
         if (op->get_input_size() == 3) {
             auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {

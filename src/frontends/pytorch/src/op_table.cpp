@@ -235,6 +235,7 @@ OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
+OP_CONVERTER(translate_ravel);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
@@ -277,6 +278,7 @@ OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
+OP_CONVERTER(translate_mT);
 OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
@@ -359,6 +361,7 @@ OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_stack_fx);
 OP_CONVERTER(translate_sum_fx);
 OP_CONVERTER(translate_std_fx);
+OP_CONVERTER(translate_std_mean_fx);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_quantize_per_channel_fx);
 OP_CONVERTER(translate_quantize_per_tensor_fx);
@@ -702,6 +705,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
         {"aten::randn_like", op::translate_randn_like},
+        {"aten::ravel", op::translate_ravel},
         {"aten::real", common_translators::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
         {"aten::reciprocal_", op::inplace_op<op::translate_reciprocal>},
@@ -779,6 +783,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::svd", op::translate_svd},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
+        {"aten::mT", op::translate_mT},
         {"aten::take_along_dim", op::translate_take_along_dim},
         {"aten::tan", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>, 1>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
@@ -958,6 +963,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.prod.default", op::translate_prod_fx},
         {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.round.decimals", op::translate_round},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
         {"aten.select_scatter.default", op::translate_select_scatter_fx},
@@ -967,6 +973,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.split.Tensor", op::translate_list_view_fx},
         {"aten.stack.default", op::translate_stack_fx},
         {"aten.std.correction", op::translate_std_fx},
+        {"aten.std_mean.correction", op::translate_std_mean_fx},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
         {"aten.sym_size.int", op::translate_size},
@@ -985,6 +992,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.zeros_like.default", op::translate_zeros_like_fx},
         {"get_attr", op::translate_constant},
         {"scalar_tensor.default", op::translate_scalar_tensor_fx},
+        {"torch.sym_min", op::translate_minimum},
+        {"torch.sym_max", op::translate_maximum},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision.nms.default", op::translate_nms},
         {"torchvision.roi_align.default", op::translate_roi_align},

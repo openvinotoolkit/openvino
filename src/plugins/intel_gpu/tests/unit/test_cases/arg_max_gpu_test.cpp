@@ -1916,6 +1916,42 @@ std::vector<float> topk_radix_special_values(size_t rows, size_t row_size, ov::o
 }
 }  // namespace
 
+TEST(arg_max_gpu_topk_axis_bf16, k1_sort_values) {
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<ov::bfloat16>(
+        ov::PartialShape{2, 64, 1, 1},
+        {{2, 64, 1, 1}},
+        1,
+        ov::op::TopKMode::MAX,
+        1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 31); },
+        ov::op::TopKSortType::SORT_VALUES,
+        "arg_max_min_axis"));
+}
+
+TEST(arg_max_gpu_topk_axis_bf16, k_greater_than_one_sort_values) {
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<ov::bfloat16>(
+        ov::PartialShape{2, 64, 1, 1},
+        {{2, 64, 1, 1}},
+        1,
+        ov::op::TopKMode::MIN,
+        5,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 37); },
+        ov::op::TopKSortType::SORT_VALUES,
+        "arg_max_min_axis"));
+}
+
+TEST(arg_max_gpu_topk_axis_bf16, internal_buffer_sort_indices) {
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<ov::bfloat16>(
+        ov::PartialShape{2, 2049, 1, 1},
+        {{2, 2049, 1, 1}},
+        1,
+        ov::op::TopKMode::MAX,
+        5,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 41); },
+        ov::op::TopKSortType::SORT_INDICES,
+        "arg_max_min_axis"));
+}
+
 // Chunked mode with dynamic rows: the maximum level repeats in every chunk, so the first
 // top-K indices come from equal values spread over several chunks.
 TYPED_TEST(arg_max_gpu_topk_radix, chunked_dynamic_rows_tied_indices) {

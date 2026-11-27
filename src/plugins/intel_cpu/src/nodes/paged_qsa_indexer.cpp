@@ -161,6 +161,11 @@ bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>
             errorMessage = "Only PagedQSAIndexer operation is supported";
             return false;
         }
+        const auto& config = paged_qsa_indexer->get_config();
+        if (!config.query_norm || !config.query_rope) {
+            errorMessage = "PagedQSAIndexer CPU implementation requires query_norm and query_rope to be enabled.";
+            return false;
+        }
         static constexpr size_t float_ports[] = {InputIdx::INDEX_QUERY,
                                                  InputIdx::RAW_INDEX_KEYS,
                                                  InputIdx::ROPE_COS,

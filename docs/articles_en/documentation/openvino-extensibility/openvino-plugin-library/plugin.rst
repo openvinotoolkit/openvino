@@ -209,11 +209,11 @@ The import works in these steps:
 
 * The model structure and the blob info sections are mandatory.
 * The blob is rejected if its runtime requirements are not supported by the plugin.
-* The compiled options are restored into the plugin configuration. Properties passed to
+* The compile options are restored into the plugin configuration. Properties passed to
   ``import_model`` have a higher priority.
 * The weights are taken from the blob. If the blob has no weights section (for example, it was exported
   with ``ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)``), they are read from ``ov::weights_path``,
-  or from the path stored in the compiled options.
+  or from the path stored in the compile options.
 * Sections that the plugin does not know are skipped, so blobs written by a newer format minor version
   still import.
 

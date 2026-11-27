@@ -49,10 +49,11 @@ bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_r
     return true;
 }
 
-template <class T>
+template <class... T>
 bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
+    static_assert(sizeof...(T) > 0, "has_op_with_type requires at least one operation type");
     for (const auto& op : function->get_ops()) {
-        if (ov::as_type_ptr<T>(op)) {
+        if (ov::is_type_any_of<T...>(op)) {
             return true;
         }
     }
@@ -237,6 +238,23 @@ TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
  */
 TRANSFORMATIONS_API bool have_same_fake_quantize_params(const std::shared_ptr<ov::op::v0::FakeQuantize>& lhs,
                                                         const std::shared_ptr<ov::op::v0::FakeQuantize>& rhs);
+
+/**
+ * \brief Collects the attributes reported by node->visit_attributes() into a map that supports equality comparison.
+ *
+ * \param node  The node whose attributes are collected.
+ * \return The map from the attribute name to its value.
+ * \throws ov::NotImplemented for the attributes that can not be compared, e.g. sub-models or raw buffers.
+ */
+TRANSFORMATIONS_API ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node);
+
+/**
+ * \brief Checks that two constants have the same element type, shape and data.
+ *
+ * \return false if any of the constants is nullptr or if they differ.
+ */
+TRANSFORMATIONS_API bool constants_are_equal(const std::shared_ptr<ov::op::v0::Constant>& lhs,
+                                             const std::shared_ptr<ov::op::v0::Constant>& rhs);
 
 /**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,

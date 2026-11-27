@@ -596,36 +596,44 @@ void fill_q5_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     }
 
     // Store one 32-value group whose source values are q[k] in [0..31], w = d1*q - m1.
-    const auto store_group = [&](size_t group, float d1, float m1, const uint8_t* q, uint8_t* dst) {
-        if (!zp.is_integer()) {
-            scales[group] = ov::float16(d1);
-            zp.store(group, zp_from_offset(m1, d1));
-            std::copy_n(q, 32, dst);
-            return;
-        }
-        float values[32];
-        float lo = 0.0f, hi = 0.0f;
-        for (int k = 0; k < 32; ++k) {
-            values[k] = d1 * static_cast<float>(q[k]) - m1;
-            lo = std::min(lo, values[k]);
-            hi = std::max(hi, values[k]);
-        }
-        const ov::float16 scale_f16((hi - lo) / 255.0f);
-        const float scale = static_cast<float>(scale_f16);
-        if (!(scale > 0.0f) || !std::isfinite(scale)) {
-            // A (near-)zero range: every value rounds to zero.
-            scales[group] = ov::float16(0.0f);
-            zp.store_integer(group, 0);
-            std::fill_n(dst, 32, 0);
-            return;
-        }
-        const long zpi = std::clamp(std::lround(-lo / scale), 0L, 255L);
-        scales[group] = scale_f16;
-        zp.store_integer(group, static_cast<uint8_t>(zpi));
-        for (int k = 0; k < 32; ++k) {
-            dst[k] = static_cast<uint8_t>(std::clamp(std::lround(values[k] / scale) + zpi, 0L, 255L));
-        }
-    };
+    const auto store_group =
+        [&](size_t group, float d1, float m1, float source_min_scale, const uint8_t* q, uint8_t* dst) {
+            if (!zp.is_integer()) {
+                if (d1 == 0.f && m1 != 0.f) {
+                    const float scale = std::fabs(source_min_scale);
+                    scales[group] = ov::float16(scale);
+                    zp.store(group, m1 / scale);
+                    std::fill_n(dst, 32, 0);
+                    return;
+                }
+                scales[group] = ov::float16(d1);
+                zp.store(group, zp_from_offset(m1, d1));
+                std::copy_n(q, 32, dst);
+                return;
+            }
+            float values[32];
+            float lo = 0.0f, hi = 0.0f;
+            for (int k = 0; k < 32; ++k) {
+                values[k] = d1 * static_cast<float>(q[k]) - m1;
+                lo = std::min(lo, values[k]);
+                hi = std::max(hi, values[k]);
+            }
+            const ov::float16 scale_f16((hi - lo) / 255.0f);
+            const float scale = static_cast<float>(scale_f16);
+            if (!(scale > 0.0f) || !std::isfinite(scale)) {
+                // A (near-)zero range: every value rounds to zero.
+                scales[group] = ov::float16(0.0f);
+                zp.store_integer(group, 0);
+                std::fill_n(dst, 32, 0);
+                return;
+            }
+            const long zpi = std::clamp(std::lround(-lo / scale), 0L, 255L);
+            scales[group] = scale_f16;
+            zp.store_integer(group, static_cast<uint8_t>(zpi));
+            for (int k = 0; k < 32; ++k) {
+                dst[k] = static_cast<uint8_t>(std::clamp(std::lround(values[k] / scale) + zpi, 0L, 255L));
+            }
+        };
 
     ov::parallel_for(n_super_block, [&](size_t i) {
         const uint8_t* block_data = data + i * bytes_per_block;
@@ -648,8 +656,8 @@ void fill_q5_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
                 q1[l] = static_cast<uint8_t>((ql[l] & 0xF) + ((qh[l] & u1) ? 16 : 0));
                 q2[l] = static_cast<uint8_t>((ql[l] >> 4) + ((qh[l] & u2) ? 16 : 0));
             }
-            store_group(i * 8 + is, d1, m1, q1, weights + i * 256 + j);
-            store_group(i * 8 + is + 1, d2, m2, q2, weights + i * 256 + j + 32);
+            store_group(i * 8 + is, d1, m1, dmin, q1, weights + i * 256 + j);
+            store_group(i * 8 + is + 1, d2, m2, dmin, q2, weights + i * 256 + j + 32);
             ql += 32;
             is += 2;
             u1 <<= 2;

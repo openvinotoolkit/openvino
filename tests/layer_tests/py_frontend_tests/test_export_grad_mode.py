@@ -133,6 +133,28 @@ def test_export_autocast_returns_view(mutate_base):
         np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
 
 
+def test_export_autocast_convolution_bias():
+    # Body tensor ids must not resolve to parent graph values with the same index.
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv1 = torch.nn.Conv2d(3, 8, 3, padding=1)
+            self.conv2 = torch.nn.Conv2d(8, 4, 3, padding=1)
+
+        def forward(self, x):
+            with torch.autocast("cpu", enabled=False):
+                return self.conv2(self.conv1(x).relu())
+
+    model = Model().eval()
+    data = torch.randn(1, 3, 16, 16)
+    exported = torch.export.export(model, (data,))
+    assert any(str(node.target) == "wrap_with_autocast" for node in exported.graph.nodes)
+    compiled = convert_without_decompositions(exported)
+    with torch.no_grad():
+        expected = model(data)
+    np.testing.assert_allclose(compiled([data.numpy()])[0], expected.numpy(), atol=1e-4, rtol=1e-4)
+
+
 def test_export_enabled_autocast_output_types():
     class Model(torch.nn.Module):
         def forward(self, x, w):

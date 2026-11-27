@@ -13883,3 +13883,89 @@ TEST(convolution_1d_small_ic_gemm_gate, rejects_input_features_above_max) {
     ASSERT_ANY_THROW(run_conv_1d(c, c.dt, "convolution_gpu_1d_small_ic_gemm"))
         << "kernel accepted IC = " << c.in_features;
 }
+
+namespace {
+// Two dynamic oneDNN convolutions with equal shapes: the second one reuses the impl created for the first one
+void test_onednn_conv_dynamic_azp_impl_reuse(bool per_channel0, bool per_channel1, bool set_per_tensor_flag = true) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ic = 16, oc = 16, h = 6, w = 6, k = 3, oh = h - k + 1, ow = w - k + 1;
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<uint8_t> input_data(ic * h * w);
+    for (auto& v : input_data)
+        v = static_cast<uint8_t>(rg.generate_random_val<int>(0, 40, 1));
+
+    std::array<std::vector<int>, 2> wv, zp;
+    for (size_t i = 0; i < 2; ++i) {
+        wv[i].resize(oc * ic * k * k);
+        for (auto& v : wv[i])
+            v = rg.generate_random_val<int>(-10, 10, 1);
+        zp[i].resize(ic);
+        for (int64_t c = 0; c < ic; ++c)
+            zp[i][c] = (i == 0 ? per_channel0 : per_channel1) ? static_cast<int>(3 + 7 * i + c) : static_cast<int>(3 + 14 * i);
+    }
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{1, ic, h, w}, data_types::u8, format::bfyx});
+    set_values(input_mem, input_data);
+    topology topology(input_layout("input", layout{ov::PartialShape{-1, ic, -1, -1}, data_types::u8, format::bfyx}));
+    for (size_t i = 0; i < 2; ++i) {
+        const auto idx = std::to_string(i);
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{oc, ic, k, k}, data_types::i8, format::bfyx});
+        set_values(weights_mem, std::vector<int8_t>(wv[i].begin(), wv[i].end()));
+        auto azp_mem = engine.allocate_memory({ov::PartialShape{1, ic, 1, 1}, data_types::u8, format::bfyx});
+        set_values(azp_mem, std::vector<uint8_t>(zp[i].begin(), zp[i].end()));
+        topology.add(data("weights" + idx, weights_mem), data("azp" + idx, azp_mem));
+        auto conv_prim =
+            convolution("conv" + idx, input_info("input"), "weights" + idx, "", "", "azp" + idx, "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false, data_types::f32);
+        // Set by the plugin (ops/convolution.cpp) when the OV Constant is converted to the primitive
+        if (set_per_tensor_flag)
+            conv_prim.activations_zero_point_per_tensor = !(i == 0 ? per_channel0 : per_channel1);
+        topology.add(conv_prim);
+        topology.add(reorder("out" + idx, input_info("conv" + idx), format::bfyx, data_types::f32));
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    for (size_t i = 0; i < 2; ++i) {
+        mem_lock<float, mem_lock_type::read> out(outputs.at("out" + std::to_string(i)).get_memory(), get_test_stream());
+        ASSERT_EQ(out.size(), static_cast<size_t>(oc * oh * ow));
+        for (int64_t o = 0; o < oc; ++o)
+            for (int64_t y = 0; y < oh; ++y)
+                for (int64_t x = 0; x < ow; ++x) {
+                    int32_t acc = 0;
+                    for (int64_t c = 0; c < ic; ++c)
+                        for (int64_t ky = 0; ky < k; ++ky)
+                            for (int64_t kx = 0; kx < k; ++kx)
+                                acc += (static_cast<int32_t>(input_data[(c * h + y + ky) * w + x + kx]) - zp[i][c]) *
+                                       wv[i][((o * ic + c) * k + ky) * k + kx];
+                    ASSERT_EQ(static_cast<float>(acc), out[(o * oh + y) * ow + x]) << "conv" << i << " o=" << o << " y=" << y << " x=" << x;
+                }
+    }
+}
+}  // namespace
+
+TEST(convolution_onednn_dynamic_azp, impl_reuse_per_tensor) {
+    test_onednn_conv_dynamic_azp_impl_reuse(false, false);
+}
+TEST(convolution_onednn_dynamic_azp, impl_reuse_per_channel) {
+    test_onednn_conv_dynamic_azp_impl_reuse(true, true);
+}
+// Same shapes, different zero-point kinds: the impl must not be shared between a per-tensor and a per-channel conv.
+// conv1 is executed before conv0 and creates the impl that conv0 reuses
+TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_conv0_tensor_conv1_channel) {
+    test_onednn_conv_dynamic_azp_impl_reuse(false, true);
+}
+TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_conv0_channel_conv1_tensor) {
+    test_onednn_conv_dynamic_azp_impl_reuse(true, false);
+}
+// The per-tensor flag is not set (e.g. the zero-point is not a Constant): uniform data must not make the impl per-tensor
+TEST(convolution_onednn_dynamic_azp, impl_reuse_no_flag_conv0_channel_conv1_uniform) {
+    test_onednn_conv_dynamic_azp_impl_reuse(true, false, false);
+}

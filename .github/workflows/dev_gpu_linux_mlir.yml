@@ -270,10 +270,8 @@ jobs:
 
       - name: Build OpenVINO
         run: |
-          # ENABLE_DEBUG_CAPS is required: OV_GPU_ENABLE_MLIR is a debug-only option
           cmake -S "${OPENVINO_REPO}" -B "${BUILD_DIR}" \
             -DENABLE_MLIR_FOR_GPU=ON \
-            -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_PREFIX_PATH="${GC_INSTALL_DIR};${LLVM_INSTALL_DIR}" \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DENABLE_TESTS=ON \

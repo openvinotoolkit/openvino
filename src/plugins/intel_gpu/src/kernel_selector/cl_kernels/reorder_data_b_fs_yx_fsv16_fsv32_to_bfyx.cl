@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/sub_group_block_read.cl"
-#include "include/batch_headers/fetch_data.cl"
-
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 #define OUTPUT_GET_TILED_INDEX(ORDER) OUTPUT_GET_INDEX(ORDER)
 

@@ -68,7 +68,7 @@ std::string qsa_indexer_inst::to_string(const qsa_indexer_node& node) {
 
 qsa_indexer_inst::typed_primitive_inst(network& network, const qsa_indexer_node& node) : parent(network, node) {
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason),
+    OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason),
                     "[GPU] Invalid qsa_indexer primitive: ",
                     reason);
 }

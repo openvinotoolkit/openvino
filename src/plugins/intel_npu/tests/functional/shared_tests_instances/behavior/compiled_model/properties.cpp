@@ -45,7 +45,6 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::num_requests.name(), ov::Any(4u)},
     {ov::hint::inference_precision.name(), ov::Any(ov::element::i8)},
-    {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::model.name(), ov::Any(std::shared_ptr<const ov::Model>(nullptr))},
     {ov::hint::model.name(),
      ov::Any(std::shared_ptr<ov::Model>(nullptr))},  // intentionally copied above to test constness

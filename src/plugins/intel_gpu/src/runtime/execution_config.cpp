@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
@@ -76,6 +78,17 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // cldnn::grouped_matmul (2D x 3D) and the batched FC (3D x 3D), incl. GroupedMatMulCompressed, need the original
+    // ranks; legacy shape infer pads them to 4D.
+    if (ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
+        return true;
+    }
+
+    // A READ with a write gate has two outputs, which the legacy shape inference cannot address by port.
+    if (ov::is_type<ov::intel_gpu::op::GatedResidual>(op)) {
         return true;
     }
 

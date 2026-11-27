@@ -448,6 +448,24 @@ multiplication.
   * **Required**: *no*
   * **Constraints**: ``scale > 0``.
 
+* *query_norm*
+
+  * **Description**: Whether query RMSNorm has been absorbed into the indexer. ``false`` is an intermediate
+    graph-fusion state in which query normalization remains outside the operation.
+  * **Type**: ``boolean``
+  * **Default value**: ``true``
+  * **Required**: *no*
+  * **Constraints**: Must be ``true`` for execution.
+
+* *query_rope*
+
+  * **Description**: Whether query RoPE has been absorbed into the indexer. ``false`` is an intermediate
+    graph-fusion state in which query rotation remains outside the operation.
+  * **Type**: ``boolean``
+  * **Default value**: ``true``
+  * **Required**: *no*
+  * **Constraints**: Must be ``true`` for execution.
+
 
 **Inputs**
 

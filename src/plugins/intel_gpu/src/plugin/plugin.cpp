@@ -357,7 +357,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
 
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id, bool initialize) const {
     auto contexts = get_default_contexts();
-    OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
+    OPENVINO_ASSERT(contexts.contains(device_id), "[GPU] Context was not initialized for ", device_id, " device");
 
     auto context = contexts.at(device_id);
     if (initialize) {
@@ -985,7 +985,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     }
 
     const uint32_t default_streams_for_tput = 2;
-    if (options.count(ov::num_streams.name()) > 0) {
+    if (options.contains(ov::num_streams.name())) {
         auto streams = options.at(ov::num_streams.name()).as<ov::streams::Num>();
         if (streams == ov::streams::AUTO) {
             n_streams = std::max(default_streams_for_tput, device_info.num_ccs);

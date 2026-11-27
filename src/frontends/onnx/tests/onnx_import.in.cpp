@@ -4966,6 +4966,99 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_roi_align_f32) {
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_roi_align_default_sampling) {
+    // ONNX RoiAlign (opset 10) spec default of sampling_ratio is 0 (adaptive sampling grid); a
+    // missing attribute must not be filled with 1 (fixed 1-point grid). Reference = onnxruntime.
+    const auto model = convert_model("roi_align_default_sampling.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4},
+                               {0.374540f,
+                                0.950714f,
+                                0.731994f,
+                                0.598658f,
+                                0.156019f,
+                                0.155995f,
+                                0.058084f,
+                                0.866176f,
+                                0.601115f,
+                                0.708073f,
+                                0.020584f,
+                                0.969910f,
+                                0.832443f,
+                                0.212339f,
+                                0.181825f,
+                                0.183405f});
+    test_case.add_input<float>(Shape{4, 4},
+                               {0.f, 0.f, 3.f, 3.f, 0.f, 1.f, 2.f, 3.f, 1.f, 0.f, 3.f, 2.f, 1.f, 1.f, 2.f, 2.f});
+    test_case.add_input<int64_t>(Shape{4}, {0, 0, 0, 0});
+    test_case.add_expected_output<float>(Shape{4, 1, 2, 2},
+                                         {0.369716f,
+                                          0.440470f,
+                                          0.530485f,
+                                          0.302502f,
+                                          0.405300f,
+                                          0.235684f,
+                                          0.588492f,
+                                          0.280705f,
+                                          0.474197f,
+                                          0.563728f,
+                                          0.235684f,
+                                          0.478689f,
+                                          0.232688f,
+                                          0.110035f,
+                                          0.435030f,
+                                          0.164983f});
+    test_case.run_with_tolerance_as_fp(1.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_roi_align_default_sampling_16) {
+    // Same as above for the opset-16 translator, which is a separate code path and additionally
+    // relies on the RoiAlign-16 default of coordinate_transformation_mode = "half_pixel".
+    // Reference = onnxruntime.
+    const auto model = convert_model("roi_align_default_sampling_16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4},
+                               {0.374540f,
+                                0.950714f,
+                                0.731994f,
+                                0.598658f,
+                                0.156019f,
+                                0.155995f,
+                                0.058084f,
+                                0.866176f,
+                                0.601115f,
+                                0.708073f,
+                                0.020584f,
+                                0.969910f,
+                                0.832443f,
+                                0.212339f,
+                                0.181825f,
+                                0.183405f});
+    test_case.add_input<float>(Shape{4, 4},
+                               {0.f, 0.f, 3.f, 3.f, 0.f, 0.f, 3.5f, 3.5f, 0.5f, 0.5f, 3.f, 3.f, 0.f, 1.f, 3.f, 2.f});
+    test_case.add_input<int64_t>(Shape{4}, {0, 0, 0, 0});
+    test_case.add_expected_output<float>(Shape{4, 1, 2, 2},
+                                         {0.430037f,
+                                          0.588003f,
+                                          0.485257f,
+                                          0.239685f,
+                                          0.424741f,
+                                          0.554789f,
+                                          0.550218f,
+                                          0.321771f,
+                                          0.372996f,
+                                          0.384790f,
+                                          0.535058f,
+                                          0.230379f,
+                                          0.255657f,
+                                          0.302393f,
+                                          0.275643f,
+                                          0.178080f});
+    test_case.run_with_tolerance_as_fp(1.0e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_roialign16_avg_out_half_pixel) {
     const auto model = convert_model("roialign16_avg_out_half_pixel.onnx");
 
@@ -8311,6 +8404,32 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_uint32_y) {
          1.0393754f,  2.0902128f,  -0.4672897f,  1.8636966f,   1.2390026f,  -0.38409668f, -0.29675618f, -2.113882f,
          -1.2571493f, 0.19212584f, -0.48622572f, 1.3817313f,   0.2130472f,  0.12426434f,  0.18794645f,  -1.4493794f,
          0.38522267f, 0.55802476f, -1.0083855f,  0.12431115f,  -1.9025584f, -1.1199955f,  -0.97456354f, 0.5826947f});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX BitShift with direction="LEFT" on uint8 inputs
+/// Verifies that overflowed values wrap around (modulo 2^8) as required by the ONNX
+/// specification instead of being saturated to the maximum value of the type.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_left_uint8) {
+    const auto model = convert_model("bitshift_left_uint8.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 16, 128, 255});
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 2, 3, 7});
+    test_case.add_expected_output<uint8_t>(Shape{5}, {0, 2, 64, 0, 128});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX BitShift with direction="RIGHT" on uint8 inputs
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_right_uint8) {
+    const auto model = convert_model("bitshift_right_uint8.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<uint8_t>(Shape{5}, {0, 2, 64, 128, 255});
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 2, 7, 4});
+    test_case.add_expected_output<uint8_t>(Shape{5}, {0, 1, 16, 1, 15});
 
     test_case.run();
 }

@@ -96,6 +96,7 @@ set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/conversion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/convert_color_i420.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/convert_color_nv12.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/convert_color_to_nv12.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/convolution.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/convolution_backprop_data.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/ctc_greedy_decoder.hpp
@@ -537,6 +538,7 @@ set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/convert_color_i420.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/convert_color_nv12.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/single_op/convert_color_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/ctc_greedy_decoder.cpp
