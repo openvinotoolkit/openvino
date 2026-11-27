@@ -70,6 +70,9 @@ struct SDPABase : public KernelGenerator {
                                                      const std::vector<int64_t>& input_v_transpose_order);
 
     static bool is_int4_kv_cache(const kernel_impl_params& params);
+    // Plain SDPA whose V order swaps the last two dims ({.., 3, 2}): V is stored [value][key], e.g. the GPU
+    // GroupQueryAttentionDecomposition's [B, KV heads, head size, S] cache.
+    static bool has_transposed_v(const kernel_impl_params& params);
 
     // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
     // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
