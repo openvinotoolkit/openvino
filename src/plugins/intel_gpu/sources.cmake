@@ -159,6 +159,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_fc_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_power_half_to_sqrt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/decompose_one_hot_non_const_values.cpp
