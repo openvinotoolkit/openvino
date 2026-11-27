@@ -76,6 +76,11 @@ enum impl_desc_type : int64_t {
     jit_avx_1x1 = jit | avx | _1x1,
     jit_sse42_1x1 = jit | sse42 | _1x1,
     jit_uni_1x1 = jit | uni | _1x1,
+    // ISA-less oneDNN names, e.g. the aarch64 SVE kernels "jit_1x1:sve_128" and "brgconv:sve_128"
+    jit_1x1 = jit | _1x1,
+    jit_dw = jit | _dw,
+    brgconv_1x1 = brgconv | _1x1,
+    brgconv_dw = brgconv | _dw,
     jit_avx512_amx_1x1 = jit | avx512 | amx | _1x1,
 
     jit_avx512_dw = jit | avx512 | _dw,

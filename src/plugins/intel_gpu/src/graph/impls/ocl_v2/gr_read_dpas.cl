@@ -17,6 +17,10 @@
 //      GR_PRODUCE_WRITE_GATE, GR_WG_SIZE (subgroups), GR_RD_TM (8/16/32), GR_RD_NT, GR_NV_KD (phase 1 chunk halves / 16),
 //      GR_RD_SLM_GAIN (0 = gain from global, 1 = padded SLM copy, 2 = duplicated SLM copy), GR_P3_GB (optional: branches per
 //      phase-3 K loop).
+// GR_WD_PACKED (predequantized W_down only): the f16 W_down scratch is in the K32 tile layout of gr_dequant_weights
+//      (GR_DQ_PACKED), so the B operand of one 16-column tile and K32 step is one 1 KB block (two subgroup block reads) and a K32 step
+//      of the whole work-group reads L * 64 contiguous bytes. Row-major, every lane reads its own row (C*D * 2 bytes apart): one
+//      K32 step then touches L rows, i.e. L different pages, which makes the kernel very sensitive to TLB misses.
 // Compressed weights (GR_W_TYPE 4-bit group 32 / 8-bit per-channel, gr_common.cl; no write gate): GR_WD_KCH / GR_WD_NRAW / GR_WD_RB and
 //      GR_WU_KCH / GR_WU_NRAW / GR_WU_RB give the k values per raw load, its dwords and the row bytes of W_down / W_up.
 // Dispatch: gws = [WG * 16, ceil(rows / TM), 1], lws = [WG * 16, 1, 1].
@@ -70,8 +74,32 @@
 #endif
 
 // One K32 step of phase 2: loads of the A tile (raw residual), the gain and the W rows of every column tile ...
+#ifndef GR_WD_PACKED
+#define GR_WD_PACKED 0
+#endif
+#if GR_WD_PACKED && (GR_W_TYPE != GR_WT_F16 || GR_LOWRANK % 16 != 0)
+    #error "gr_read_dpas.cl: the packed W_down layout is an f16 scratch of 16-row tiles"
+#endif
+
 #if GR_W_TYPE == GR_WT_F16
-#define GR_P2_LDB(dst, j, KK) dst = vload16(0, (const __global uint*)(brow[j] + (KK)))
+#define GR_P2_LDR(dst, j, KK) dst = vload16(0, (const __global uint*)(brow[j] + (KK)))
+#if GR_WD_PACKED
+// tile (K32 step s, column tile t) at (s * L / 16 + t) * 512 halves; dword i of lane l at i * 16 + l (gr_dequant_weights)
+#define GR_WD_K32_HALVES (GR_LOWRANK * 32)
+#define GR_P2_LDP(dst, j, KK)                                                                                                      \
+    {                                                                                                                              \
+        const __global uint* p_ = (const __global uint*)(brow[j] + (size_t)((KK) >> 5) * GR_WD_K32_HALVES);                        \
+        dst = (uint16)(intel_sub_group_block_read8(p_), intel_sub_group_block_read8(p_ + 128));                                    \
+    }
+#if GR_PRODUCE_WRITE_GATE
+// the write-gate tile reads the row-major W_inject scratch
+#define GR_P2_LDB(dst, j, KK) { if (is_wgate) { GR_P2_LDR(dst, j, KK); } else { GR_P2_LDP(dst, j, KK); } }
+#else
+#define GR_P2_LDB(dst, j, KK) GR_P2_LDP(dst, j, KK)
+#endif
+#else
+#define GR_P2_LDB(dst, j, KK) GR_P2_LDR(dst, j, KK)
+#endif
 
 #define GR_P2_LOAD(AT, GE, GS, B, KK) { GR_RD2D(GR_RD_TM, residual, GR_CD * 2, num_rows, GR_CD * 2, (KK), t0, AT); GR_P2_GAIN(GE, GS, KK); unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) { GR_P2_LDB(B[j_], j_, KK); } }
 #endif
@@ -237,7 +265,15 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             const uint row = n0 + 16 * j + lane;
 #endif
 #if GR_W_TYPE == GR_WT_F16
+#if GR_WD_PACKED
+#if GR_PRODUCE_WRITE_GATE
+            brow[j] = is_wgate ? w + (size_t)row * GR_CD : w + (size_t)(n0 / 16 + j) * 512;
+#else
+            brow[j] = w + (size_t)(n0 / 16 + j) * 512;
+#endif
+#else
             brow[j] = w + (size_t)row * GR_CD;
+#endif
 #else
             brow[j] = w_down + (size_t)row * GR_WD_RB;
 #endif

@@ -447,10 +447,10 @@ public:
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        if (m_view.empty() || entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
+        if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {
-            return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
+            return m_view.subspan(static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size));
         }
     }
 
@@ -461,13 +461,6 @@ public:
     bool validate() const noexcept;
 
 private:
-    constexpr const std::byte* begin() const noexcept {
-        return m_view.begin();
-    }
-    constexpr const std::byte* end() const noexcept {
-        return m_view.end();
-    }
-
     ov::util::MemoryView m_view{};
 };
 
