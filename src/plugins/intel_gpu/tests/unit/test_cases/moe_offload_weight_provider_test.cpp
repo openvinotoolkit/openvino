@@ -256,23 +256,25 @@ TEST_F(moe_les_upload, learned_head_routes_each_row_of_variable_verifier_blocks)
     auto* head = predictor.find(2);
     ASSERT_NE(head, nullptr);
     auto& stream = owner.get_stream();
+    std::vector<ov::float16> previous(16, 0);
+    previous[15] = 2;
+    head->previous->copy_from(stream, previous.data(), true);
+    auto single = engine.allocate_memory(head->previous->get_layout());
     for (const size_t rows : {1, 6, 3, 7}) {
-        std::vector<ov::float16> packed(rows * 32, 0);
+        std::vector<ov::float16> current(rows * 16, 0);
         std::vector<uint32_t> expected;
         std::vector<uint32_t> scalar;
         for (size_t row = 0; row < rows; ++row) {
-            packed[row * 32 + row] = 3;
-            packed[row * 32 + 16 + 15] = 2;
+            current[row * 16 + row] = 3;
             expected.push_back(static_cast<uint32_t>(row));
             expected.push_back(15);
-            auto single = head->packed_input(1);
-            single->copy_from(stream, packed.data() + row * 32, true);
+            single->copy_from(stream, current.data() + row * 16, true);
             auto result = head->execute(single, stream.enqueue_marker({}, true), model.top_k);
             result.ready->wait();
             scalar.insert(scalar.end(), result.cpu_indices->begin(), result.cpu_indices->end());
         }
-        auto block = head->packed_input(rows);
-        block->copy_from(stream, packed.data(), true);
+        auto block = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(rows), 1, 16}, data_types::f16, format::bfyx});
+        block->copy_from(stream, current.data(), true);
         auto result = head->execute(block, stream.enqueue_marker({}, true), rows * model.top_k);
         result.ready->wait();
         EXPECT_EQ(*result.cpu_indices, scalar);

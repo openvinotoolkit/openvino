@@ -16,6 +16,9 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/shape_of.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/moe_router_fused.hpp"
@@ -164,27 +167,15 @@ class LesPredictor {
 public:
     struct Head {
         uint32_t hidden = 0;
-        cldnn::memory::ptr input;
+        cldnn::memory::ptr previous;
         cldnn::network::ptr network;
-        cldnn::memory::ptr batch_storage;
         LookaheadReadback readback;
 
-        cldnn::memory::ptr packed_input(size_t tokens) {
-            if (tokens == 1)
-                return input;
-            auto& engine = network->get_engine();
-            cldnn::layout layout{ov::PartialShape{static_cast<int64_t>(tokens), 1, 2 * static_cast<int64_t>(hidden)},
-                                 cldnn::data_types::f16, cldnn::format::bfyx};
-            if (!batch_storage || batch_storage->size() < layout.bytes_count()) {
-                if (batch_storage)
-                    network->get_stream().finish();
-                batch_storage = engine.allocate_memory(layout, cldnn::allocation_type::usm_device, false);
-            }
-            return engine.reinterpret_buffer(*batch_storage, layout);
-        }
-
-        LookaheadRouter::Result execute(const cldnn::memory::ptr& packed, const cldnn::event::ptr& ready, size_t count) {
-            network->set_input_data("les_in", packed);
+        LookaheadRouter::Result execute(const cldnn::memory::ptr& current, const cldnn::event::ptr& ready, size_t count) {
+            const auto rows = static_cast<int64_t>(current->get_layout().count() / hidden);
+            cldnn::layout layout{ov::PartialShape{rows, 1, hidden}, cldnn::data_types::f16, cldnn::format::bfyx};
+            network->set_input_data("les_current", network->get_engine().reinterpret_buffer(*current, layout));
+            network->set_input_data("les_previous", previous);
             network->execute({ready});
             auto router = network->get_primitive("les_router");
             auto routed = network->get_stream().enqueue_marker({}, true);
@@ -204,7 +195,13 @@ public:
             const auto id = std::to_string(layer);
             const auto experts = static_cast<int64_t>(head.experts);
             const auto hidden = static_cast<int64_t>(head.hidden);
-            topology.add(cldnn::input_layout("les_in", cldnn::layout{ov::PartialShape{-1, 1, 2 * hidden}, f16, cldnn::format::bfyx}));
+            const cldnn::layout row_layout{ov::PartialShape{1, 1, hidden}, f16, cldnn::format::bfyx};
+            topology.add(cldnn::input_layout("les_current", cldnn::layout{ov::PartialShape{-1, 1, hidden}, f16, cldnn::format::bfyx}));
+            topology.add(cldnn::input_layout("les_previous", row_layout));
+            topology.add(cldnn::shape_of("les_shape", cldnn::input_info("les_current"), cldnn::data_types::i32));
+            topology.add(cldnn::broadcast("les_previous_rows", cldnn::input_info("les_previous"), cldnn::input_info("les_shape"),
+                                          ov::AxisSet{}, ov::op::BroadcastType::NUMPY));
+            topology.add(cldnn::concatenation("les_in", {cldnn::input_info("les_current"), cldnn::input_info("les_previous_rows")}, 2));
 
             // Row e of the weights is [W[e, :] | W'[e, :]], so one FC computes both products.
             std::vector<ov::float16> packed(head.experts * 2 * head.hidden);
@@ -239,9 +236,8 @@ public:
             auto& compiled = m_heads[layer];
             compiled.network = cldnn::network::allocate_network(stream, program, true, true);
             compiled.hidden = static_cast<uint32_t>(hidden);
-            compiled.input = engine.allocate_memory(cldnn::layout{ov::PartialShape{1, 1, 2 * hidden}, f16, cldnn::format::bfyx},
-                                                    cldnn::allocation_type::usm_device, false);
-            compiled.input->fill(*stream, 0);
+            compiled.previous = engine.allocate_memory(row_layout, cldnn::allocation_type::usm_device, false);
+            compiled.previous->fill(*stream, 0);
         }
         stream->finish();
         m_top_k = model.top_k;
