@@ -13,6 +13,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -20,6 +21,57 @@
 #include "openvino/openvino.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "util.hpp"
+#include "partitioning/patterns/sdpa.hpp"
+
+TEST(NPUWRegularizeSDPA, FoldEmptyPastLengthOnly) {
+    for (const auto& type : {ov::element::i32, ov::element::i64}) {
+        for (const bool keep_dims : {false, true}) {
+            for (const int64_t query_length : {1024, 1, -1}) {
+                SCOPED_TRACE(type.to_string() + "/" + std::to_string(keep_dims) + "/" +
+                             std::to_string(query_length));
+                auto mask = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{2, 1024});
+                auto hidden = std::make_shared<ov::op::v0::Parameter>(
+                    ov::element::f32,
+                    ov::PartialShape{2, query_length, 4, 16});
+                const auto constant = [](int64_t value) {
+                    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {value});
+                };
+                auto mask_length = std::make_shared<ov::op::v8::Gather>(
+                    std::make_shared<ov::op::v3::ShapeOf>(mask), constant(1), constant(0));
+                auto query = std::make_shared<ov::op::v8::Gather>(
+                    std::make_shared<ov::op::v3::ShapeOf>(hidden), constant(1), constant(0));
+                auto stop = std::make_shared<ov::op::v1::Subtract>(mask_length, query);
+                auto slice = std::make_shared<ov::op::v8::Slice>(mask,
+                                                               constant(0),
+                                                               stop,
+                                                               constant(1),
+                                                               constant(1));
+                auto reduce = std::make_shared<ov::op::v1::ReduceSum>(slice, constant(1), keep_dims);
+                reduce->set_friendly_name("npuw/qsa_past_length");
+                auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce},
+                                                        ov::ParameterVector{mask, hidden});
+                ov::npuw::patterns::regularize::RegularizeSDPA(false).run_on_model(model);
+                model->validate_nodes_and_infer_types();
+                const auto output = model->get_results()[0]->input_value(0);
+                EXPECT_EQ(output.get_element_type(), type);
+                EXPECT_EQ(output.get_shape(), (keep_dims ? ov::Shape{2, 1} : ov::Shape{2}));
+                const auto zero = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+                if (query_length == 1024) {
+                    ASSERT_NE(zero, nullptr);
+                    EXPECT_EQ(zero->cast_vector<int64_t>(), (std::vector<int64_t>{0, 0}));
+                    EXPECT_EQ(zero->get_friendly_name(), "npuw/qsa_past_length");
+                    for (const auto& node : model->get_ordered_ops()) {
+                        EXPECT_FALSE(ov::is_type<ov::op::v8::Slice>(node));
+                        EXPECT_FALSE(ov::is_type<ov::op::v1::ReduceSum>(node));
+                    }
+                } else {
+                    EXPECT_EQ(zero, nullptr);
+                    EXPECT_EQ(output.get_node_shared_ptr(), reduce);
+                }
+            }
+        }
+    }
+}
 
 namespace {
 

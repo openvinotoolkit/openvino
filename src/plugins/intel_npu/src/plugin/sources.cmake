@@ -173,6 +173,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/static_sparse_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/static_sparse_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.cpp

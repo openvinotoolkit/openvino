@@ -612,7 +612,16 @@ void Partitioner::identifySubgraphs() {
                 // to maintain graph contracts. See handling where parameter_from is called.
                 auto otype = output.get_element_type();
                 if (otype == ov::element::f32 && connect_in_f16) {
-                    if (!is_hp_tag(output)) {
+                    // A model output is reused as the link (see the Results handling below), so
+                    // it stays in its original precision and so must the reader.
+                    const auto readers = output.get_target_inputs();
+                    const bool is_model_output =
+                        std::any_of(readers.begin(), readers.end(), [](const ov::Input<ov::Node>& reader) {
+                            return ov::op::util::is_output(reader.get_node());
+                        });
+                    if (is_model_output) {
+                        LOG_DEBUG("Found parameter  " << output << ", kept in fp32 precision as a model output");
+                    } else if (!is_hp_tag(output)) {
                         otype = ov::element::f16;
                         LOG_DEBUG("Found parameter  " << output << ", will be computed in fp16 precision");
                     } else {
