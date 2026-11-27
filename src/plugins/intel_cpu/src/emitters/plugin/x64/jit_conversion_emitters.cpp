@@ -413,11 +413,11 @@ void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t>& in_ve
             h->vpmovusdb(xmm_dst, vmm_dst);
         }
     } else {
-        if (is_signed) {
-            h->uni_vpackssdw(vmm_dst, vmm_src, vmm_src);
-        } else {
-            h->uni_vpackusdw(vmm_dst, vmm_src, vmm_src);
-        }
+        // AVX2 uses two steps to saturate signed dwords to unsigned bytes.
+        // Step 1: VPACKSSDW narrows to signed words (65025 -> 32767).
+        // Step 2: VPACKUSWB interpret words as signed and clamp to [0, 255] (32767 -> 255).
+        // If use VPACKUSDW in step 1 would produce 0xFE01, which step 2 reads as -511 and clamps to 0.
+        h->uni_vpackssdw(vmm_dst, vmm_src, vmm_src);
 
         if (isa != dnnl::impl::cpu::x64::sse41) {
             h->vpermq(ymm_dst, ymm_dst, 0x08);

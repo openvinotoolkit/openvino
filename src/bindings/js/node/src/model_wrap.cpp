@@ -57,48 +57,42 @@ std::shared_ptr<ov::Model> ModelWrap::get_model() const {
 }
 
 Napi::Value ModelWrap::get_input(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0) {
-        try {
+    try {
+        OPENVINO_ASSERT(info.Length() <= 1, "Invalid number of arguments -> ", info.Length());
+        if (info.Length() == 0) {
             return Output<ov::Node>::wrap(info.Env(), _model->input());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return Napi::Value();
+        } else if (info[0].IsString()) {
+            const auto& tensor_name = info[0].ToString();
+            return Output<ov::Node>::wrap(info.Env(), _model->input(tensor_name));
+        } else if (info[0].IsNumber()) {
+            const auto& idx = info[0].As<Napi::Number>().Int32Value();
+            return Output<ov::Node>::wrap(info.Env(), _model->input(idx));
+        } else {
+            OPENVINO_THROW("'input' method called with incorrect parameters.");
         }
-    } else if (info.Length() != 1) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[0].IsString()) {
-        const auto& tensor_name = info[0].ToString();
-        return Output<ov::Node>::wrap(info.Env(), _model->input(tensor_name));
-    } else if (info[0].IsNumber()) {
-        const auto& idx = info[0].As<Napi::Number>().Int32Value();
-        return Output<ov::Node>::wrap(info.Env(), _model->input(idx));
-    } else {
-        reportError(info.Env(), "Error while getting model outputs.");
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
 }
 
 Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0) {
-        try {
+    try {
+        OPENVINO_ASSERT(info.Length() <= 1, "Invalid number of arguments -> ", info.Length());
+        if (info.Length() == 0) {
             return Output<ov::Node>::wrap(info.Env(), _model->output());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return Napi::Value();
+        } else if (info[0].IsString()) {
+            const auto& tensor_name = info[0].ToString();
+            return Output<ov::Node>::wrap(info.Env(), _model->output(tensor_name));
+        } else if (info[0].IsNumber()) {
+            const auto& idx = info[0].As<Napi::Number>().Int32Value();
+            return Output<ov::Node>::wrap(info.Env(), _model->output(idx));
+        } else {
+            OPENVINO_THROW("'output' method called with incorrect parameters.");
         }
-    } else if (info.Length() != 1) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[0].IsString()) {
-        auto tensor_name = info[0].ToString();
-        return Output<ov::Node>::wrap(info.Env(), _model->output(tensor_name));
-    } else if (info[0].IsNumber()) {
-        auto idx = info[0].As<Napi::Number>().Int32Value();
-        return Output<ov::Node>::wrap(info.Env(), _model->output(idx));
-    } else {
-        reportError(info.Env(), "Error while getting model outputs.");
-        return Napi::Value();
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
 }
 

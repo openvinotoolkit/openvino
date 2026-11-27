@@ -85,9 +85,11 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             }
             if (config.has_zp) {
                 const auto zp_dt = dt_of(zps[i]);
-                // The batched GEMV strides zp by the weight's bit width (MOE_EXPERT_ZP_BYTES), so they must match.
+                // The batched GEMV reads 4-bit zero points packed and 8-bit ones unpacked, but only the 4-bit GEMV
+                // takes both: 4-bit weights accept 4-bit or u8 zero points (GGUF Q4_1/Q4_K), 8-bit weights 8-bit ones.
                 // u3 never runs it (OneDNN grouped GEMM) and its zp is u8, so it is exempt.
-                const bool zp_width_ok = wei_dt == ov::element::u3 || zp_dt.bitwidth() == wei_dt.bitwidth();
+                const bool zp_width_ok =
+                    wei_dt == ov::element::u3 || zp_dt.bitwidth() == wei_dt.bitwidth() || (wei_dt.bitwidth() == 4 && zp_dt == ov::element::u8);
                 if (!one_of(zp_dt, supported_zp_type) || !zp_width_ok) {
                     return false;
                 }

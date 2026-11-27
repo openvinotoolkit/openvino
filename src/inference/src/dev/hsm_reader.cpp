@@ -40,6 +40,9 @@ bool Section::read(size_t offset, size_t length, void* destination) const noexce
         std::memcpy(destination, m_entry.inline_bytes.data() + offset, length);
         return true;
     } else {
+        // m_source's alternatives are all nothrow-constructible and m_source is only ever set once via a constructor
+        // init-list, never reassigned - valueless_by_exception() is unreachable.
+        // coverity[UNCAUGHT_EXCEPT:FALSE]
         return std::visit(ov::util::VariantVisitor{
                               [](const auto&) {
                                   return false;

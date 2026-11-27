@@ -24,14 +24,24 @@ class ConversionContext {
 public:
     using getInputsFn = std::function<SmallVector<mlir::Value>(NodePtr)>;
     using getDimValueFn = std::function<Value(const Dimension&)>;
+    // Physical dimension order of a tensor, e.g. {0, 2, 1} for a logical [E, N, G] tensor stored as [E, G, N].
+    using DimOrder = SmallVector<int64_t>;
+    using requestInputOrderFn = std::function<void(const ov::Input<ov::Node>&, DimOrder)>;
     using NodeOutputMap = std::map<ov::Output<ov::Node>, mlir::Value>;
 
     mlir::MLIRContext* context;
     mlir::OpBuilder* block_builder;
     getInputsFn getInputs;
     getDimValueFn getDimValue;
+    // A hint to pass the source of `input` in the given physical order. The graph converter may ignore it, so the IR
+    // must always be built on logical tensors, with no reordering of the input: only the function argument layout depends on it.
+    requestInputOrderFn requestInputOrder;
 
-    ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder, getInputsFn getInputs, getDimValueFn getDimValue);
+    ConversionContext(mlir::MLIRContext* context,
+                      mlir::OpBuilder* block_builder,
+                      getInputsFn getInputs,
+                      getDimValueFn getDimValue,
+                      requestInputOrderFn requestInputOrder);
 
     [[nodiscard]] mlir::OpBuilder& builder() const {
         return *block_builder;

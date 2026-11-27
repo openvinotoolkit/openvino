@@ -79,6 +79,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/framework_node.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul_compressed_test.cpp
@@ -140,7 +141,6 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_qsa_indexer.cpp
