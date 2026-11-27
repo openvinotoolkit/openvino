@@ -91,27 +91,21 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
         // The extra parts are matched on top of the main map, so that they reuse its nodes
         PatternValueMap pm = main_pm;
 
-        // Matches `matcher` on a consumer of `source`, on top of pm
-        auto match_consumer = [&pm](Matcher& matcher, const Output<Node>& source) {
+        // Matches `pattern` on a consumer of `source` on top of pm, and extends pm with the match
+        auto match_consumer = [&pm](const std::shared_ptr<Node>& pattern, const Output<Node>& source) {
+            Matcher matcher(pattern);
             for (const auto& input : source.get_target_inputs()) {
                 for (const auto& candidate : input.get_node()->outputs()) {
                     if (matcher.match(candidate, pm)) {
+                        pm = matcher.get_pattern_value_map();
                         return true;
                     }
                 }
             }
             return false;
         };
-        Matcher extra_token_matcher(extra_token_m);
-        if (match_consumer(extra_token_matcher, perm)) {
-            pm = extra_token_matcher.get_pattern_value_map();
-        }
-        Matcher extra_inv_matcher(extra_inv_argsort_m);
-        if (match_consumer(extra_inv_matcher, perm_out)) {
-            pm = extra_inv_matcher.get_pattern_value_map();
-        }
-        const bool has_token = pm.count(extra_token_m) != 0U;
-        const bool has_inv = pm.count(extra_inv_argsort_m) != 0U;
+        const bool has_token = match_consumer(extra_token_m, perm);
+        const bool has_inv = match_consumer(extra_inv_argsort_m, perm_out);
 
         const auto topk_ids = pm.at(topk_ids_m);
         const auto offsets = pm.at(offsets_m);

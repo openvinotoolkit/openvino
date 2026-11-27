@@ -57,30 +57,28 @@ std::shared_ptr<ov::Model> build_model(const FuseMoEExpertSortParams& params) {
     auto topk_ids = std::make_shared<ov::op::v0::Parameter>(ids_type, ids_shape);
     auto axis0 = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
 
-    ov::test::MoEExpertSortOptions options;
-    options.token_index = token_path;
-    options.inverse_permutation = inverse_perm;
-    options.descending_argsort = descending_argsort;
-    options.slice_on_updates = slice_on_updates;
-    options.permutation_to_i32 = perm_to_i32;
-    options.token_source_top_k = expand_top_k;
-    if (tokens_from_hidden) {
-        options.token_source_tokens = hidden;
-    }
-    const auto sort = ov::test::build_moe_expert_sort_subgraph(topk_ids, num_experts, options);
-    sort.offsets.get_node()->set_friendly_name("offsets");
+    const auto [perm, offsets, token, inv_perm] =
+        ov::test::build_moe_expert_sort_subgraph(topk_ids,
+                                                 num_experts,
+                                                 token_path,
+                                                 inverse_perm,
+                                                 descending_argsort,
+                                                 slice_on_updates,
+                                                 perm_to_i32,
+                                                 expand_top_k,
+                                                 tokens_from_hidden ? ov::Output<ov::Node>(hidden) : ov::Output<ov::Node>());
+    offsets.get_node()->set_friendly_name("offsets");
 
     ov::Output<ov::Node> sorted_hidden = hidden;
     if (token_path) {
-        sorted_hidden = std::make_shared<ov::op::v8::Gather>(hidden, std::make_shared<ov::op::v0::Convert>(sort.token_index, ov::element::i32), axis0);
+        sorted_hidden = std::make_shared<ov::op::v8::Gather>(hidden, std::make_shared<ov::op::v0::Convert>(token, ov::element::i32), axis0);
     }
-    ov::OutputVector outputs{sorted_hidden, sort.offsets};
+    ov::OutputVector outputs{sorted_hidden, offsets};
     if (inverse_perm) {
-        auto inv_perm = std::make_shared<ov::op::v0::Convert>(sort.inverse_permutation, ov::element::i32);
-        outputs.push_back(std::make_shared<ov::op::v8::Gather>(sorted_hidden, inv_perm, axis0));
+        outputs.push_back(std::make_shared<ov::op::v8::Gather>(sorted_hidden, std::make_shared<ov::op::v0::Convert>(inv_perm, ov::element::i32), axis0));
     }
     if (perm_output) {
-        outputs.push_back(sort.permutation);
+        outputs.push_back(perm);
     }
     return std::make_shared<ov::Model>(outputs, ov::ParameterVector{hidden, topk_ids});
 }
@@ -161,7 +159,7 @@ protected:
         if (fused) {
             model_ref = build_model_ref(GetParam());
         }
-        // Validation after a pass would drop the symbols
+        // As in the plugin pipeline: Validate after SymbolicPropagation would re-infer the shapes from the Parameters and drop the symbols
         manager.set_per_pass_validation(false);
         manager.register_pass<ov::pass::SymbolicPropagation>();
         manager.register_pass<FuseMoEExpertSort>(std::get<8>(GetParam()));

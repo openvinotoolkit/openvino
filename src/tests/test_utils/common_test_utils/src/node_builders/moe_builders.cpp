@@ -670,9 +670,16 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
                                        "MoE3GeMMSubgraph");
 }
 
-MoEExpertSortSubgraph build_moe_expert_sort_subgraph(const ov::Output<ov::Node>& topk_ids,
-                                                     size_t number_of_experts,
-                                                     const MoEExpertSortOptions& options) {
+std::tuple<ov::Output<ov::Node>, ov::Output<ov::Node>, ov::Output<ov::Node>, ov::Output<ov::Node>>
+build_moe_expert_sort_subgraph(const ov::Output<ov::Node>& topk_ids,
+                               size_t number_of_experts,
+                               bool with_token,
+                               bool with_inverse_permutation,
+                               bool descending_argsort,
+                               bool slice_on_updates,
+                               bool permutation_to_i32,
+                               const std::optional<size_t>& token_source_top_k,
+                               const ov::Output<ov::Node>& token_source_tokens) {
     using namespace ov::op;
     auto argsort = [](const ov::Output<ov::Node>& data, v11::TopK::Mode mode) {
         auto len = std::make_shared<v0::Squeeze>(std::make_shared<v3::ShapeOf>(data));
@@ -683,20 +690,19 @@ MoEExpertSortSubgraph build_moe_expert_sort_subgraph(const ov::Output<ov::Node>&
     };
     auto axis0 = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
 
-    MoEExpertSortSubgraph subgraph;
     auto flat_ids = flatten(topk_ids);
-    auto sort = argsort(flat_ids, options.descending_argsort ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN);
-    subgraph.permutation = sort->output(1);
-    if (options.permutation_to_i32) {
-        subgraph.permutation = std::make_shared<v0::Convert>(subgraph.permutation, ov::element::i32);
+    auto sort = argsort(flat_ids, descending_argsort ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN);
+    ov::Output<ov::Node> perm = sort->output(1);
+    if (permutation_to_i32) {
+        perm = std::make_shared<v0::Convert>(perm, ov::element::i32);
     }
 
-    auto sorted_ids = std::make_shared<v0::Convert>(std::make_shared<v8::Gather>(flat_ids, subgraph.permutation, axis0),
-                                                    ov::element::i32);
+    auto sorted_ids =
+        std::make_shared<v0::Convert>(std::make_shared<v8::Gather>(flat_ids, perm, axis0), ov::element::i32);
     ov::Output<ov::Node> updates =
         std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i32, ov::Shape{}, {1}),
-                                        std::make_shared<v3::ShapeOf>(subgraph.permutation));
-    if (options.slice_on_updates) {
+                                        std::make_shared<v3::ShapeOf>(perm));
+    if (slice_on_updates) {
         updates = std::make_shared<v8::Slice>(updates,
                                               v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}),
                                               std::make_shared<v3::ShapeOf>(sorted_ids, ov::element::i32),
@@ -709,12 +715,13 @@ MoEExpertSortSubgraph build_moe_expert_sort_subgraph(const ov::Output<ov::Node>&
         updates,
         v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
         v12::ScatterElementsUpdate::Reduction::SUM);
-    subgraph.offsets = std::make_shared<v0::CumSum>(counts, v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    auto offsets = std::make_shared<v0::CumSum>(counts, v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
 
-    if (options.token_index) {
-        const auto& tokens = options.token_source_tokens.get_node() ? options.token_source_tokens : topk_ids;
+    ov::Output<ov::Node> token;
+    if (with_token) {
+        const auto& tokens = token_source_tokens.get_node() ? token_source_tokens : topk_ids;
         const auto top_k =
-            options.token_source_top_k.value_or(static_cast<size_t>(topk_ids.get_partial_shape()[1].get_length()));
+            token_source_top_k.value_or(static_cast<size_t>(topk_ids.get_partial_shape()[1].get_length()));
         auto num_tokens = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(tokens),
                                                        v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
                                                        v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
@@ -728,12 +735,13 @@ MoEExpertSortSubgraph build_moe_expert_sort_subgraph(const ov::Output<ov::Node>&
             unsqueeze,
             v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<size_t>{1, top_k}),
             ov::op::BroadcastType::BIDIRECTIONAL);
-        subgraph.token_index = std::make_shared<v8::Gather>(flatten(expand), subgraph.permutation, axis0);
+        token = std::make_shared<v8::Gather>(flatten(expand), perm, axis0);
     }
-    if (options.inverse_permutation) {
-        subgraph.inverse_permutation = argsort(sort->output(1), v11::TopK::Mode::MIN)->output(1);
+    ov::Output<ov::Node> inv_perm;
+    if (with_inverse_permutation) {
+        inv_perm = argsort(sort->output(1), v11::TopK::Mode::MIN)->output(1);
     }
-    return subgraph;
+    return {perm, offsets, token, inv_perm};
 }
 
 }  // namespace test

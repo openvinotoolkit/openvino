@@ -50,16 +50,16 @@ protected:
 
         auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputDynamicShapes[0]);
         auto topk_ids = std::make_shared<ov::op::v0::Parameter>(ids_type, inputDynamicShapes[1]);
-        const auto sort = ov::test::build_moe_expert_sort_subgraph(topk_ids, num_experts);
+        const auto [perm, offsets, token, inv_perm] = ov::test::build_moe_expert_sort_subgraph(topk_ids, num_experts);
         auto axis0 = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
-        auto sorted_hidden = std::make_shared<ov::op::v8::Gather>(hidden, sort.token_index, axis0);
+        auto sorted_hidden = std::make_shared<ov::op::v8::Gather>(hidden, token, axis0);
 
         const auto hidden_size = static_cast<size_t>(inputDynamicShapes[0][1].get_length());
         ov::test::utils::InputGenerateData weights_data(-1, 2, 128);
         auto weights = std::make_shared<ov::op::v0::Constant>(
             ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{num_experts, hidden_size, hidden_size}, weights_data));
-        auto experts_out = std::make_shared<ov::op::v17::GroupedMatMul>(sorted_hidden, weights, sort.offsets);
-        auto out = std::make_shared<ov::op::v8::Gather>(experts_out, sort.inverse_permutation, axis0);
+        auto experts_out = std::make_shared<ov::op::v17::GroupedMatMul>(sorted_hidden, weights, offsets);
+        auto out = std::make_shared<ov::op::v8::Gather>(experts_out, inv_perm, axis0);
         function = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{hidden, topk_ids}, "MoEExpertSort");
     }
 

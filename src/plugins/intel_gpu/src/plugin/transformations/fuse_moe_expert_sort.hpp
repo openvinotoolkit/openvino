@@ -15,11 +15,11 @@ namespace ov::intel_gpu {
  * optimum-intel `ov_grouped_mm`) sorts the flattened top-k expert ids with two argsorts and
  * counts the rows of each expert with a scatter-add:
  *
- *   flat_ids = Reshape(topk_ids [T, K], [-1])                        [S = T*K]
- *   perm     = TopK(flat_ids, k = S, min).indices                    argsort
+ *   flat_ids = Reshape(topk_ids [T, K], [-1])                                      [S = T*K]
+ *   perm     = TopK(flat_ids, k = S, min).indices                                  argsort
  *   offsets  = CumSum(ScatterElementsUpdate(zeros[E], flat_ids[perm], ones, sum))
  *   token    = Reshape(Broadcast(Unsqueeze(Range(0, T, 1)), [T, K]), [-1])[perm]
- *   inv_perm = TopK(perm, k = S, min).indices                        argsort of the permutation
+ *   inv_perm = TopK(perm, k = S, min).indices                                      argsort of the permutation
  *
  * Before:
  *
@@ -33,19 +33,19 @@ namespace ov::intel_gpu {
  *                │  TopK   │ argsort
  *                └────┬────┘
  *                     │ perm [S]
- *        ┌────────────┼┄┄┄┄┄┄┄┄┄┄┄┄┄┐
- *        │            ┆             ┆
- *   ┌────┴────┐  ┌────┴────┐  ┌─────┴─────┐
- *   │ Gather  │  │ Gather  │  │   TopK    │
- *   │flat_ids │  │ token   │  │ (inverse) │
- *   └────┬────┘  │ source  │  └─────┬─────┘
- *        │       └────┬────┘        ┆
- *   ┌────┴────┐       ┆             ┆
- *   │ScatterEU│       ┆             ┆
- *   └────┬────┘       ┆             ┆
- *   ┌────┴────┐       ┆             ┆
- *   │ CumSum  │       ┆             ┆
- *   └────┬────┘       ┆             ┆
+ *        ┌────────────┼─────────────┐
+ *        │            │             │
+ *   ┌────┴────┐ ┌─────┴─────┐ ┌─────┴─────┐
+ *   │ Gather  │ │  Gather   │ │   TopK    │
+ *   │flat_ids │ │   token   │ │ (inverse) │
+ *   └────┬────┘ │  source   │ │(optional) │
+ *        │      │(optional) │ └─────┬─────┘
+ *   ┌────┴────┐ └─────┬─────┘       │
+ *   │ScatterEU│       │             │
+ *   └────┬────┘       │             │
+ *   ┌────┴────┐       │             │
+ *   │ CumSum  │       │             │
+ *   └────┬────┘       │             │
  *     offsets    token index    inv_perm
  *
  * After:
@@ -55,11 +55,10 @@ namespace ov::intel_gpu {
  *             ┌───────┴───────┐
  *             │ MoEExpertSort │
  *             └───┬───┬───┬───┘
- *                 ┆   │   ┆
+ *                 │   │   │
  *       token index   │   inv_perm (row_lut)
+ *        (optional)   │   (optional)
  *                  offsets
- *
- * ┆ - optional branches.
  *
  * MoEExpertSort is stable, while the argsort TopK is not, so the pass requires every user of the permutation to be replaced.
  * The token index and the inverse permutation are optional. max_num_experts is the number of experts the kernel supports.
