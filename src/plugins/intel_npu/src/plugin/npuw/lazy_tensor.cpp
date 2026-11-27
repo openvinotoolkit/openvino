@@ -15,6 +15,7 @@
 #    include <unistd.h>
 #endif
 
+#include "intel_npu/utils/stable_tensor_view.hpp"
 #include "logging.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -43,6 +44,7 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     if (weightless_cache_attr != rt_info.end()) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+        m_has_offset = true;
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
@@ -52,7 +54,11 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
 }
 
 std::size_t Const::hash() const {
-    std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
+    std::size_t seed = m_canonical_offset ? std::hash<std::size_t>()(m_offset) : std::hash<const void*>()(m_cached_ptr);
+    seed += 0x9e3779b9;
+    if (m_canonical_offset) {
+        seed ^= std::hash<std::size_t>()(m_byte_size) + 0x9e3779b9;
+    }
     seed ^= m_cached_type.hash() + 0x9e3779b9;
     for (const auto& dim : m_cached_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
@@ -61,8 +67,18 @@ std::size_t Const::hash() const {
 }
 
 bool Const::operator==(const Const& other) const {
-    return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
-            m_cached_ptr == other.m_cached_ptr);
+    if (m_cached_type != other.m_cached_type || m_cached_shape != other.m_cached_shape ||
+        m_canonical_offset != other.m_canonical_offset) {
+        return false;
+    }
+    if (m_canonical_offset) {
+        return m_offset == other.m_offset && m_byte_size == other.m_byte_size;
+    }
+    if (m_cached_ptr != other.m_cached_ptr) {
+        return false;
+    }
+    return m_cached_ptr != nullptr ||
+           (m_offset == other.m_offset && m_byte_size == other.m_byte_size && m_weights_path == other.m_weights_path);
 }
 
 void Const::validate_weight_range(std::size_t weights_size) const {
@@ -107,7 +123,8 @@ ov::Tensor Const::eval() const {
         validate_weight_range(mapped_memory->size());
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
-        return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
+        auto view = ov::make_tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
+        return ov::make_tensor(ov::SoPtr<ov::ITensor>(view, m_mmaped_weights));
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
@@ -115,17 +132,7 @@ ov::Tensor Const::eval() const {
 }
 
 LazyTensor::Meta Const::eval_meta() const {
-    if (m_node) {
-        return {m_node->get_shape(), m_node->get_element_type()};
-    }
-
-    // Weightless import case
-    if (!m_weights_path.empty() || m_handle_provider) {
-        return {m_cached_shape, m_cached_type};
-    }
-
-    NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
-    return {m_read_from_bin.get_shape(), m_read_from_bin.get_element_type()};
+    return {m_cached_shape, m_cached_type};
 }
 
 void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
@@ -168,14 +175,15 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
         m_read_from_bin = ov::npuw::util::tensor_from_const(it->second);
-        NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
-                    m_read_from_bin.get_element_type() == m_cached_type);
+        const auto expected_size = ov::util::get_memory_size_safe(m_cached_type, m_cached_shape);
+        NPUW_ASSERT(m_cached_type.is_static() && m_cached_type != ov::element::string && expected_size &&
+                    *expected_size == m_byte_size && m_read_from_bin.get_byte_size() == m_byte_size);
+        auto view = ov::make_tensor(m_cached_type, m_cached_shape, m_read_from_bin.data());
+        m_read_from_bin = ov::make_tensor(ov::SoPtr<ov::ITensor>(view, it->second));
     }
 }
 
-// The weight has been copied to its destination and is not needed anymore: drop its file range from the page cache
-// right away instead of leaving it there for the reclaim, so the weights do not pile up in the page cache during the
-// model load. This has to happen after the mapping is released, pages that are still mapped cannot be dropped.
+// Request dropping the file range after releasing this Const's mapping. An outstanding view can keep it mapped longer.
 // TODO: Enabled only on Android for now, until a generic fix is found.
 static void drop_file_range(const std::string& path,
                             const ov::FileHandleProvider& provider,
@@ -401,6 +409,45 @@ void Subtract128::detach() {
     tensor.detach();
 }
 
+std::size_t Reshape::hash() const {
+    auto seed = tensor.get_hash() + 0x9e3779b9;
+    for (const auto dim : shape) {
+        seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
+    }
+    return seed;
+}
+
+bool Reshape::operator==(const Reshape& other) const {
+    return shape == other.shape && canonical_offset == other.canonical_offset && tensor == other.tensor;
+}
+
+ov::Tensor Reshape::eval() const {
+    const auto meta = eval_meta();
+    const auto source = tensor.eval();
+    OPENVINO_ASSERT(source.is_continuous(), "LazyTensor reshape requires contiguous input");
+    const auto owner = ov::get_tensor_impl(source);
+    auto view = std::make_shared<intel_npu::StableTensorView>(owner, meta.shape);
+    return ov::make_tensor(ov::SoPtr<ov::ITensor>(view, owner._so));
+}
+
+LazyTensor::Meta Reshape::eval_meta() const {
+    const auto meta = tensor.eval_meta();
+    OPENVINO_ASSERT(
+        ov::util::get_memory_size_safe(meta.type, meta.shape) && ov::util::get_memory_size_safe(meta.type, shape),
+        "LazyTensor reshape shape overflows");
+    OPENVINO_ASSERT(ov::shape_size(meta.shape) == ov::shape_size(shape),
+                    "LazyTensor reshape must preserve the element count");
+    return {shape, meta.type};
+}
+
+void Reshape::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+    tensor.read_weight(ctx);
+}
+
+void Reshape::detach() {
+    tensor.detach();
+}
+
 std::size_t Gather::hash() const {
     std::size_t seed = w.get_hash() + 0x9e3779b9;
     seed ^= t.get_element_type().hash() + 0x9e3779b9;
@@ -473,6 +520,7 @@ enum class TransformType : std::uint16_t {
     CONVERT = 5,
     GATHER = 6,
     SUBTRACT_128 = 7,
+    RESHAPE = 8,
 };
 
 struct LazyTensorImpl {
@@ -483,6 +531,10 @@ struct LazyTensorImpl {
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
     std::size_t get_hash() const;
+    const void* const_data_ptr() const;
+    ov::Tensor imported_const_for_comparison() const;
+    LazyTensor reshape_source() const;
+    LazyTensor canonicalize_constant_shape() const;
     void get_transformations(std::vector<LazyTensor::Transform>& vec) const;
 
     void detach();
@@ -539,6 +591,10 @@ ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op:
     return ov::npuw::weights::TransformType::SUBTRACT_128;
 }
 
+ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Reshape&) {
+    return ov::npuw::weights::TransformType::RESHAPE;
+}
+
 }  // namespace
 
 namespace ov {
@@ -558,12 +614,26 @@ void Const::serialize(ov::npuw::orc::Stream& stream) {
 
     bool contains_weight = static_cast<bool>(m_copied_if_not_in_model);
     stream & contains_weight;
+    if (stream.input()) {
+        m_has_offset = !contains_weight;
+    }
     if (contains_weight) {
         if (stream.output()) {
+            // Multiple reshape closures can serialize the same source.
             stream & m_copied_if_not_in_model;
-            m_copied_if_not_in_model = ov::Tensor();
         } else {
+            OPENVINO_ASSERT(m_cached_type.is_static(), "[NPU] ORC embedded weight has unsupported element type");
+            const auto expected_byte_size = ov::util::get_memory_size_safe(m_cached_type, m_cached_shape);
+            OPENVINO_ASSERT(expected_byte_size && *expected_byte_size == m_byte_size,
+                            "[NPU] ORC embedded weight byte size does not match its type and shape");
             stream & m_read_from_bin;
+            OPENVINO_ASSERT(m_read_from_bin, "[NPU] ORC embedded weight is not initialized");
+            OPENVINO_ASSERT(m_read_from_bin.get_element_type() == m_cached_type,
+                            "[NPU] ORC embedded weight type does not match its metadata");
+            OPENVINO_ASSERT(m_read_from_bin.get_shape() == m_cached_shape,
+                            "[NPU] ORC embedded weight shape does not match its metadata");
+            OPENVINO_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size,
+                            "[NPU] ORC embedded weight byte size does not match its metadata");
         }
     }
 }
@@ -600,6 +670,13 @@ void Convert::serialize(ov::npuw::orc::Stream& stream) {
 
 void Subtract128::serialize(ov::npuw::orc::Stream& stream) {
     stream & tensor;
+}
+
+void Reshape::serialize(ov::npuw::orc::Stream& stream) {
+    stream & tensor & shape & canonical_offset;
+    if (stream.input() && canonical_offset) {
+        OPENVINO_ASSERT(tensor.mark_canonical_offset(), "Malformed LazyTensor Reshape canonical source");
+    }
 }
 
 void Gather::serialize(ov::npuw::orc::Stream& stream) {
@@ -652,6 +729,9 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
         break;
     case TransformType::SUBTRACT_128:
         m_transform.emplace<op::Subtract128>(ov::npuw::orc::load_versioned_payload<op::Subtract128>(section));
+        break;
+    case TransformType::RESHAPE:
+        m_transform.emplace<op::Reshape>(ov::npuw::orc::load_versioned_payload<op::Reshape>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
@@ -733,6 +813,42 @@ std::size_t LazyTensorImpl::get_hash() const {
     return m_hash;
 }
 
+const void* LazyTensorImpl::const_data_ptr() const {
+    const auto* c = std::get_if<op::Const>(&m_transform);
+    if (c == nullptr || c->m_node == nullptr) {
+        return nullptr;
+    }
+    return c->m_cached_ptr;
+}
+
+ov::Tensor LazyTensorImpl::imported_const_for_comparison() const {
+    const auto* c = std::get_if<op::Const>(&m_transform);
+    if (c == nullptr || c->m_node || (!c->m_read_from_bin && c->m_weights_path.empty() && !c->m_handle_provider)) {
+        return {};
+    }
+    return c->eval();
+}
+
+LazyTensor LazyTensorImpl::reshape_source() const {
+    const auto* reshape = std::get_if<op::Reshape>(&m_transform);
+    return reshape ? reshape->tensor : LazyTensor();
+}
+
+LazyTensor LazyTensorImpl::canonicalize_constant_shape() const {
+    const auto* c = std::get_if<op::Const>(&m_transform);
+    if (c == nullptr || c->m_node == nullptr || c->m_cached_type == ov::element::string) {
+        return LazyTensor();
+    }
+    auto flattened = std::make_shared<ov::op::v0::Constant>(*c->m_node, ov::Shape{ov::shape_size(c->m_cached_shape)});
+    flattened->get_rt_info() = c->m_node->get_rt_info();
+    LazyTensor source(flattened);
+    const bool canonical = source.mark_canonical_offset();
+    LazyTensor result;
+    result.m_impl = std::make_shared<LazyTensorImpl>(op::Reshape(source, c->m_cached_shape, canonical));
+    result.eval_meta();
+    return result;
+}
+
 void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec) const {
     vec.push_back(m_transform);
     std::visit(overloaded{
@@ -750,6 +866,10 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
                    [&vec](const op::Subtract128& op) {
+                       auto next_tr = op.tensor.get_transformations();
+                       vec.insert(vec.end(), next_tr.begin(), next_tr.end());
+                   },
+                   [&vec](const op::Reshape& op) {
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
@@ -814,6 +934,41 @@ LazyTensor LazyTensor::subtract_128() {
     return new_lt;
 }
 
+LazyTensor LazyTensor::reshape(const ov::Shape& shape) const {
+    NPUW_ASSERT(m_impl && "Cannot reshape an uninitialized LazyTensor");
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Reshape(*this, shape));
+    new_lt.eval_meta();
+    return new_lt;
+}
+
+LazyTensor LazyTensor::reshape_source() const {
+    return m_impl ? m_impl->reshape_source() : LazyTensor();
+}
+
+bool LazyTensor::mark_canonical_offset() {
+    if (!m_impl) {
+        return false;
+    }
+    auto* c = std::get_if<op::Const>(&m_impl->m_transform);
+    if (c == nullptr || !c->m_has_offset) {
+        return false;
+    }
+    c->m_canonical_offset = true;
+    m_impl->m_hash = c->hash();
+    return true;
+}
+
+LazyTensor LazyTensor::canonicalize_constant_shape() const {
+    if (m_impl) {
+        const auto canonical = m_impl->canonicalize_constant_shape();
+        if (canonical) {
+            return canonical;
+        }
+    }
+    return *this;
+}
+
 bool LazyTensor::operator==(const LazyTensor& other) const {
     if (!m_impl && !other.m_impl) {
         return true;
@@ -856,6 +1011,25 @@ std::size_t LazyTensor::get_hash() const {
         return 0;
     }
     return m_impl->get_hash();
+}
+
+const void* LazyTensor::const_data_ptr() const {
+    if (!m_impl) {
+        return nullptr;
+    }
+    return m_impl->const_data_ptr();
+}
+
+ov::Tensor LazyTensor::imported_const_for_comparison() const {
+    return m_impl ? m_impl->imported_const_for_comparison() : ov::Tensor();
+}
+
+bool LazyTensor::is_plain_constant() const {
+    return m_impl && std::holds_alternative<op::Const>(m_impl->m_transform);
+}
+
+bool LazyTensor::shares_impl_with(const LazyTensor& other) const {
+    return m_impl == other.m_impl;
 }
 
 std::vector<LazyTensor::Transform> LazyTensor::get_transformations() const {

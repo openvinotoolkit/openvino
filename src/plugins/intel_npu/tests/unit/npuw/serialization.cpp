@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -1744,6 +1745,43 @@ TEST(SerializationTest, OVTypes_LazyTensor_uninitialized) {
     EXPECT_EQ(var, res);
 }
 
+TEST(SerializationTest, LlmHeaderRejectsAmbiguousPreviousVersions) {
+    std::stringstream serialized;
+    ov::npuw::s11n::write_header(serialized, NPUW_LLM_COMPILED_MODEL_INDICATOR);
+    auto current = serialized.str();
+    const auto version_pos = current.rfind(NPUW_LLM_SERIALIZATION_VERSION);
+    ASSERT_NE(version_pos, std::string::npos);
+    std::stringstream current_stream(current);
+    EXPECT_NO_THROW(ov::npuw::s11n::read_and_check_header(current_stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLM"));
+
+    current.replace(version_pos, std::strlen(NPUW_LLM_SERIALIZATION_VERSION), NPUW_SERIALIZATION_VERSION);
+    std::stringstream legacy_stream(current);
+    EXPECT_THROW(ov::npuw::s11n::read_and_check_header(legacy_stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLM"),
+                 ov::Exception);
+
+    current.replace(version_pos, std::strlen(NPUW_SERIALIZATION_VERSION), "0.36");
+    std::stringstream older_stream(current);
+    EXPECT_THROW(ov::npuw::s11n::read_and_check_header(older_stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLM"),
+                 ov::Exception);
+}
+
+TEST(SerializationTest, NonLlmHeaderUsesUpstreamVersion) {
+    std::stringstream serialized;
+    ov::npuw::s11n::write_header(serialized, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+    auto current = serialized.str();
+    const auto version_pos = current.rfind(NPUW_SERIALIZATION_VERSION);
+    ASSERT_NE(version_pos, std::string::npos);
+    std::stringstream current_stream(current);
+    EXPECT_NO_THROW(
+        ov::npuw::s11n::read_and_check_header(current_stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR, "batched"));
+
+    current.replace(version_pos, std::strlen(NPUW_SERIALIZATION_VERSION), NPUW_LLM_SERIALIZATION_VERSION);
+    std::stringstream mismatched_stream(current);
+    EXPECT_THROW(
+        ov::npuw::s11n::read_and_check_header(mismatched_stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR, "batched"),
+        ov::Exception);
+}
+
 TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {
     using namespace ov::npuw::s11n;
 
@@ -1823,6 +1861,28 @@ TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
     EXPECT_EQ(res.eval_meta().shape, (ov::Shape{2, 3}));
     EXPECT_EQ(res.eval_meta().type, ov::element::i8);
     expect_tensors_equal(expected, res.eval());
+}
+
+TEST(SerializationTest, LazyTensorReshapeRetainsMmapAfterDetach) {
+    using namespace ov::npuw::s11n;
+    const std::vector<uint8_t> bytes{1, 2, 3, 4, 5, 6, 7, 8};
+    const ScopedFile weights_file = write_binary_file("reshape_lifetime", bytes);
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 4}, bytes, 0);
+    auto original = ov::npuw::weights::LazyTensor(constant).canonicalize_constant_shape();
+    ov::npuw::weights::LazyTensor restored;
+    std::stringstream serialized;
+    write(serialized, original);
+    read(serialized, restored);
+    {
+        auto mapped = ov::load_mmap_object(weights_file.path);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+        restored.read_weight(WeightsContext(weights, weights_file.path.string(), {}, {}));
+    }
+
+    auto view = restored.eval();
+    restored.detach();
+    EXPECT_EQ(view.get_shape(), (ov::Shape{2, 4}));
+    EXPECT_EQ(std::memcmp(view.data(), bytes.data(), bytes.size()), 0);
 }
 
 TEST(SerializationTest, OVTypes_LazyTensor_subtract128_embedded_roundtrip) {

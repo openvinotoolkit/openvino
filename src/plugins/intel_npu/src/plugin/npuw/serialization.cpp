@@ -442,7 +442,9 @@ void ov::npuw::s11n::write_header(std::ostream& stream, const IndicatorType& mod
     write(stream, OPENVINO_VERSION_MAJOR);
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write(stream,
+          std::string(model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR ? NPUW_LLM_SERIALIZATION_VERSION
+                                                                           : NPUW_SERIALIZATION_VERSION));
 }
 
 void ov::npuw::s11n::read_and_check_header(std::istream& stream,
@@ -477,8 +479,10 @@ void ov::npuw::s11n::read_and_check_header(std::istream& stream,
         stream_io.bytes(s11n_version.data(), s11n_version_size);
     }
 
+    const auto* expected_version =
+        expected == NPUW_LLM_COMPILED_MODEL_INDICATOR ? NPUW_LLM_SERIALIZATION_VERSION : NPUW_SERIALIZATION_VERSION;
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        s11n_version != expected_version) {
         OPENVINO_THROW("This blob was serialized with a different OV version!",
                        "\nSerialized by OV ",
                        vmajor,
@@ -495,6 +499,6 @@ void ov::npuw::s11n::read_and_check_header(std::istream& stream,
                        "\nNPUW serialized by version ",
                        s11n_version,
                        "\nNPUW current serialization version ",
-                       NPUW_SERIALIZATION_VERSION);
+                       expected_version);
     }
 }

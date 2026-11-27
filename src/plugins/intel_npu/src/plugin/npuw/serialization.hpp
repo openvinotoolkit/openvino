@@ -57,6 +57,9 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICA
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
 const constexpr char* NPUW_SERIALIZATION_VERSION = "0.37";
+// LLM 0.37 was used by both the older PR layout and upstream's incompatible HFA layout.
+// LLM 0.38 includes both the current HFA layout and weights-bank view references.
+const constexpr char* NPUW_LLM_SERIALIZATION_VERSION = "0.38";
 
 // Forward declaration
 namespace intel_npu {
