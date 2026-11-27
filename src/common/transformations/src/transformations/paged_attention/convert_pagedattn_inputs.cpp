@@ -44,6 +44,10 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                                        ov::op::internal::PagedQSAIndexer>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto root = m.get_match_root();
+        // A backend can lay out the caches of some paged ops itself.
+        if (transformation_callback(root)) {
+            return false;
+        }
         bool status = false;
 
         // PagedAttentionExtension and PagedSparseAttention share the key/value cache inputs (3, 4) and the

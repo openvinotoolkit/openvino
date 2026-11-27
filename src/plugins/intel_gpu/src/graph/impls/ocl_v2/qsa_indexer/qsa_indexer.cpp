@@ -41,6 +41,41 @@ size_t index_heads_4d(const layout& l) {
     return static_cast<size_t>(ps[2].get_length());
 }
 
+bool in_place_block_cache(const kernel_impl_params& params) {
+    return params.typed_desc<qsa_indexer>()->in_place_block_cache;
+}
+
+/// The block cache is [B, 1, blocks, D_idx], or [B, blocks, D_idx] when updated in place.
+size_t block_axis(const layout& l) {
+    return l.get_partial_shape().size() - 2;
+}
+
+/// Blocks held by the cache.
+size_t cache_blocks(const layout& l) {
+    return l.get_shape()[block_axis(l)];
+}
+
+/// Distance in rows between two batch rows of the cache: an in-place cache is the kv_cache output, padded along the block
+/// axis by its preallocation.
+size_t cache_block_stride(const layout& l) {
+    const auto axis = block_axis(l);
+    const auto& pad = l.data_padding;
+    for (size_t i = 0; i < l.get_partial_shape().size(); i++) {
+        OPENVINO_ASSERT(pad._lower_size[i] == 0 && (i == axis || pad._upper_size[i] == 0),
+                        "[GPU][OCL] qsa_indexer: the block cache may only be padded after its blocks, got ",
+                        l.to_short_string());
+    }
+    return cache_blocks(l) + static_cast<size_t>(pad._upper_size[axis]);
+}
+
+/// The block cache argument: the updated output, or the input written in place.
+ArgumentDescriptor block_cache_arg(const kernel_impl_params& params) {
+    if (in_place_block_cache(params)) {
+        return {ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDEX_KEYS_CACHE};
+    }
+    return {ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE};
+}
+
 JitConstants make_jit(JitConstants jit, const std::shared_ptr<const qsa_indexer>& desc, const RuntimeParams& params) {
     const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::INDEX_QUERY));
     jit.make("QSA_IDX_QUERY_HEADS", h_iq);
@@ -97,8 +132,7 @@ bool use_dpas_score(const kernel_impl_params& params) {
 size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& /*desc*/) {
     const auto& index_query_shape = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape();
     const auto tokens = std::max<size_t>(1, index_query_shape[0] * index_query_shape[1]);
-    const auto& summary_shape = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape();
-    const auto pitch = qsa::score_pitch(summary_shape[2]);
+    const auto pitch = qsa::score_pitch(cache_blocks(params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE)));
     if (!is_decode_shape(params) && use_dpas_score(params)) {
         return tokens * pitch;
     }
@@ -115,7 +149,7 @@ protected:
         return make_jit(QsaGenerator::get_jit_constants(params), params.typed_desc<qsa_indexer>(), params);
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         for (auto idx : {QSAIn::INDEX_QUERY,
                          QSAIn::RAW_INDEX_KEYS,
@@ -128,7 +162,7 @@ protected:
                          QSAIn::PAST_INCOMPLETE_ROPE}) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
         }
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
+        args.push_back(block_cache_arg(params));
         args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_RAW_K});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_ROPE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
@@ -170,10 +204,10 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
+        args.push_back(block_cache_arg(params));
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         for (uint32_t i = 0; i < 4; i++) {
@@ -270,10 +304,10 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
+        args.push_back(block_cache_arg(params));
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         for (uint32_t i = 0; i < 7; i++) {
@@ -351,6 +385,19 @@ public:
         return true;
     }
 
+    [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
+        auto args = PrimitiveImplOCL::get_arguments(instance);
+        // Before the first complete block, an in-place cache is the empty output of a skipped kv_cache, which has no buffer.
+        // No block is read or written then, but every kernel argument must be bound.
+        auto& cache = args.inputs[QSAIn::BLOCK_INDEX_KEYS_CACHE];
+        if (!cache && in_place_block_cache(*instance.get_impl_params())) {
+            OPENVINO_ASSERT(instance.get_impl_params()->get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).count() == 0,
+                            "[GPU][OCL] qsa_indexer: the block cache has no buffer");
+            cache = args.intermediates[QSAIndexerInternalBufIdx::INDEXER_Q];
+        }
+        return args;
+    }
+
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
         if (params.is_dynamic()) {
             return {};
@@ -402,6 +449,8 @@ public:
         const auto desc = params.typed_desc<qsa_indexer>();
 
         const auto& index_query_layout = params.get_input_layout(QSAIn::INDEX_QUERY);
+        OPENVINO_ASSERT(!index_query_layout.data_padding && !params.get_input_layout(QSAIn::RAW_INDEX_KEYS).data_padding,
+                        "[GPU][OCL] qsa_indexer: padded index_query / raw_index_keys are not supported");
         const auto& index_query_shape = index_query_layout.get_shape();
         const size_t batch = index_query_shape[0];
         const size_t seq_len = index_query_shape[1];
@@ -410,14 +459,15 @@ public:
         rtp->seq_len = seq_len;
         rtp->num_tokens = batch * seq_len;
         rtp->index_query_heads = index_heads_4d(index_query_layout);
-        rtp->summary_stride = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
+        const auto& cache_layout = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE);
+        rtp->summary_stride = cache_block_stride(cache_layout);
 
         // key_length stays in GPU memory: every size below is a bound from shapes only and the kernels derive the real
         // work (and drop the excess) from key_length.
         const auto r = desc->key_block_size;
         rtp->prepare_blocks_per_row = seq_len == 0 ? 0 : (seq_len - 1) / r + 2;
         rtp->prepare_wg_count = batch * rtp->prepare_blocks_per_row;
-        const size_t max_blocks = std::max<size_t>(1, rtp->summary_stride);
+        const size_t max_blocks = std::max<size_t>(1, cache_blocks(cache_layout));
         rtp->pitch = qsa::score_pitch(max_blocks);
         rtp->num_partitions = std::max<size_t>(1, (max_blocks + score_partition_blocks - 1) / score_partition_blocks);
         rtp->chunk_rows = std::max<size_t>(1, std::min(rtp->num_tokens, score_scratch_elems(params, *desc) / rtp->pitch));
@@ -428,7 +478,8 @@ public:
 
 private:
     /// Functional state: every state output starts as a copy of its input, then prepare overwrites the entries this call
-    /// produces. Inputs and outputs are distinct buffers, so prepare reads the old incomplete block without a hazard.
+    /// produces. Inputs and outputs are distinct buffers, so prepare reads the old incomplete block without a hazard. A block
+    /// cache updated in place has no output to fill.
     static std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
         auto& stream = instance.get_network().get_stream();
         if (stream.get_queue_type() == QueueTypes::out_of_order) {
@@ -440,9 +491,16 @@ private:
                                                                            std::pair{QSAIn::PAST_INCOMPLETE_ROPE, QSAOut::PAST_INCOMPLETE_ROPE}};
         const auto& params = *instance.get_impl_params();
         for (const auto& [in, out] : state) {
+            if (in == QSAIn::BLOCK_INDEX_KEYS_CACHE && in_place_block_cache(params)) {
+                continue;
+            }
+            const auto bytes = params.get_output_layout(out).bytes_count();
+            // An empty state (an unset ReadValue) may have no buffer.
+            if (bytes == 0) {
+                continue;
+            }
             auto src = instance.input_memory_ptr(in);
             auto dst = instance.output_memory_ptr(out);
-            const auto bytes = params.get_output_layout(out).bytes_count();
             OPENVINO_ASSERT(!params.get_input_layout(in).data_padding && !params.get_output_layout(out).data_padding,
                             "[GPU][OCL] qsa_indexer: padded state buffers are not supported");
             OPENVINO_ASSERT(src->size() >= bytes && dst->size() >= bytes, "[GPU][OCL] qsa_indexer: state buffer is too small");
@@ -450,7 +508,7 @@ private:
             // An aliased summary is safe (prepare only appends to it); the incomplete-block state is read and rewritten by
             // different work-groups of one dispatch.
             OPENVINO_ASSERT(!aliased || in == QSAIn::BLOCK_INDEX_KEYS_CACHE, "[GPU][OCL] qsa_indexer: incomplete-block state input and output must not alias");
-            if (bytes == 0 || aliased) {
+            if (aliased) {
                 continue;
             }
             deps.push_back(dst->copy_from(stream, *src, 0, 0, bytes, false));
@@ -488,6 +546,10 @@ bool QSAIndexerImplementationManager::validate_impl(const cldnn::program_node& n
         return false;
     }
     if (raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() != 4 || raw_index_keys_ps[2].is_dynamic() || raw_index_keys_ps[2].get_length() != 1) {
+        return false;
+    }
+    const auto& cache_layout = node.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE);
+    if (cache_layout.get_partial_shape().rank() != (desc->in_place_block_cache ? 3 : 4) || cache_layout.data_type != ov::element::f16) {
         return false;
     }
 

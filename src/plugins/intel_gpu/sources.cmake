@@ -101,6 +101,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_qsa_indexer.cpp
@@ -143,7 +144,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/space_to_depth.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_fill_empty_rows.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/stateless_kv.cpp
@@ -169,6 +170,9 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_fc_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_qsa_indexer_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_sparse_attn_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
@@ -247,7 +251,8 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sdpa.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa_config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/qsa_indexer_in_place.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/stateless_kv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/swoosh.cpp
