@@ -169,6 +169,18 @@ jobs:
           EnforceProcessCountAcrossBuilds: 'true'
           MultiProcMaxCount: ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}
 
+      # Records what the logs miss to explain why link.exe needs ~7 GB with Ninja and ~3 GB with MSBuild on the same inputs
+      # (see .github/scripts/win_link_probe.ps1); output goes into the memory sampler artifact
+      - name: Link probe
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          & "${{ env.OPENVINO_REPO }}\.github\scripts\win_link_probe.ps1" `
+            -BuildDir "${{ env.BUILD_DIR }}" `
+            -BinDir "${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}" `
+            -OutDir "$env:RUNNER_TEMP\mem_sampler\probe" `
+            -Config "${{ env.CMAKE_BUILD_TYPE }}"
+
       - name: Show ccache stats
         if: ${{ !cancelled() }}
         run: '& ccache --show-stats --verbose'
@@ -305,6 +317,16 @@ jobs:
             )
             Import-Csv "$dir\processes.csv" | Sort-Object { [double]$_.peak_private_mb } -Descending | Select-Object -First 15 | ForEach-Object {
               $lines += "| $($_.peak_private_mb) | $($_.name) $($_.pid) | $($_.seen_for_sec) | ``$($_.source)`` |"
+            }
+            # link.exe threads: how many it creates and how many cores it really keeps busy (cpu_sec / seen_for_sec)
+            $links = @(Import-Csv "$dir\processes.csv" | Where-Object { $_.name -eq 'link' -and [double]$_.seen_for_sec -ge 5 })
+            if ($links.Count -gt 0 -and ($links[0].PSObject.Properties.Name -contains 'peak_threads')) {
+              $thr = $links | ForEach-Object { [double]$_.peak_threads } | Measure-Object -Maximum -Average
+              $par = $links | ForEach-Object { [double]$_.cpu_sec / [double]$_.seen_for_sec } | Measure-Object -Maximum -Average
+              $sumThr = ($samples | ForEach-Object { [int]$_.link_threads } | Measure-Object -Maximum).Maximum
+              $lines += ''
+              $lines += ('- link.exe running >= 5 s (n={0}): threads per process max {1:F0} / avg {2:F1}; cores kept busy (cpu_sec / seen_for_sec) max {3:F1} / avg {4:F1}; most link threads at one moment: {5}' -f
+                $links.Count, $thr.Maximum, $thr.Average, $par.Maximum, $par.Average, $sumThr)
             }
             $lines | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
             $lines | Write-Output
