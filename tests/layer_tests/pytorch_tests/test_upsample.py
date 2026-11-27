@@ -168,6 +168,7 @@ class TestUpsample2DConstInput(PytorchLayerTest):
     @pytest.mark.parametrize("antialias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_upsample2d_const_input(self, mode, antialias, ie_device, precision, ir_version):
         self._test(*self.create_model(mode, antialias), ie_device,
                    precision, ir_version, trace_model=True, freeze_model=False, **{"custom_eps": 1e-3})
