@@ -7,7 +7,7 @@
 #include "registry.hpp"
 
 #ifdef OV_GPU_MEGAKERNEL_IMPL_LINKED
-#    include "impls/ocl_v2/megakernel/megakernel.hpp"
+#    include "impls/ocl_v2/megakernel_interface/megakernel.hpp"
 #endif
 
 namespace ov::intel_gpu {

@@ -6,7 +6,7 @@ Configure a separate OpenVINO build with the test backend and Google Test enable
 cmake -S . -B build-megakernel-test \
   -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=OCL -DENABLE_TESTS=ON \
   -DOUTPUT_ROOT="$PWD/build-megakernel-test/output" \
-  -DMEGAKERNEL_ROOT="$PWD/tests/megakernel" -DMEGAKERNEL_IMPLEMENTATION=TestMegaKernel
+  -DMEGAKERNEL_ROOT="$PWD/tests/megakernel" -DMEGAKERNEL_IMPLEMENTATION=megakernel_test_lib
 cmake --build build-megakernel-test --target ov_megakernel_integration_test --parallel
 ctest --test-dir build-megakernel-test -R '^ov_megakernel_integration_test$' --output-on-failure
 ```

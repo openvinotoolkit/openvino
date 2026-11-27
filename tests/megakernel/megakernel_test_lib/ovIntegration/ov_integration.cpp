@@ -3,7 +3,7 @@
 //
 
 #include "iOVIntegration.h"
-#include "megakernelImpl.h"
+#include "mk_params.h"
 
 #include "intel_gpu/op/megakernel.hpp"
 #include "intel_gpu/runtime/memory.hpp"

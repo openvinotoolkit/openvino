@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "megakernelImpl.h"
+#include "mk_params.h"
 
 namespace mk {
 class TestRuntime : public IMegakernelRuntime {

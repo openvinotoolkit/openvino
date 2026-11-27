@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "megakernelImpl.h"
+#include "mk_lib_api.h"
 
-#include "impl/test_runtime.h"
+#include "src/runtime.h"
 
 extern "C" mk::IMegakernelRuntime* CreateMegaKernelPOCRuntime() {
     return new mk::TestRuntime();

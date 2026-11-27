@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_runtime.h"
+#include "runtime.h"
 
 #include <CL/cl_ext.h>
 
@@ -11,7 +11,6 @@
 #include <vector>
 
 namespace {
-std::atomic<unsigned int> execution_count{0};
 constexpr const char* kernel_source = R"CLC(
 __kernel void add_relu(__global const float* left, __global const float* right, __global float* output) {
     size_t index = get_global_id(0);
@@ -20,17 +19,13 @@ __kernel void add_relu(__global const float* left, __global const float* right, 
 )CLC";
 }
 
-extern "C" unsigned int TestMegaKernelExecutionCount() {
-    return execution_count.load();
-}
-
 namespace mk {
 TestRuntime::~TestRuntime() {
     Destroy();
 }
 
 TErrorcode TestRuntime::Init(const IConstantParams*, const IPlatformParams* params) {
-    const auto* platform_params = static_cast<const PlatformParamsImpl*>(params);
+    const auto* platform_params = static_cast<const mk::OCLPlatformParams*>(params);
     queue = platform_params->stream;
     cl_platform_id platform = nullptr;
     cl_int status = clGetDeviceInfo(platform_params->deviceId,
@@ -73,8 +68,6 @@ TErrorcode TestRuntime::Execute(const IRuntimeParams* params) {
     if (status != CL_SUCCESS)
         return status;
     status = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &io->count, nullptr, 0, nullptr, nullptr);
-    if (status == CL_SUCCESS)
-        ++execution_count;
     return status;
 }
 

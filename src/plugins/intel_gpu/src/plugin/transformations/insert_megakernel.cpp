@@ -6,7 +6,7 @@
 
 #include <cstdlib>
 
-#include "../../megakernel/iOVIntegration.h"
+#include "../../megakernel_interface/iOVIntegration.h"
 
 namespace ov::intel_gpu {
 

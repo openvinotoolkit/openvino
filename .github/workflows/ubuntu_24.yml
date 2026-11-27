@@ -404,7 +404,7 @@ jobs:
             -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=OCL -DENABLE_TESTS=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DOUTPUT_ROOT="$PWD/build-megakernel-test/output" \
-            -DMEGAKERNEL_ROOT="$PWD/tests/megakernel" -DMEGAKERNEL_IMPLEMENTATION=TestMegaKernel
+            -DMEGAKERNEL_ROOT="$PWD/tests/megakernel" -DMEGAKERNEL_IMPLEMENTATION=megakernel_test_lib
 
       - name: Build megakernel integration test
         shell: bash

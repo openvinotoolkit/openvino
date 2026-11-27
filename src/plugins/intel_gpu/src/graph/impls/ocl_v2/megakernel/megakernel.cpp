@@ -1,16 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// MegaKernel plugin implementation — task-system-scheduled decoder.
-// The entire Qwen3 decoder (all layers) runs in ONE kernel launch per token, but
-// instead of a persistent grid + grid-wide software barrier, the work is driven
-// by the fine-tuned GPU task system (MEGAKERNEL_POC/research/preloading_gemv):
-// a pool of persistent worker work-groups pulls topologically-sorted tasks FIFO
-// from a shared work queue; each layer stage is a set of per-workgroup tiles, and
-// inter-stage ordering (the old grid barrier) is expressed as global atomic
-// sync-flag dependencies resolved by the tasks themselves. Decode is one launch;
-// prefill loops it per token. Key techniques: intel_sub_group_block_read, fused
-// RMSNorm, fused RoPE, workgroup-cooperative flash-decoding attention, split-K GEMV.
 
 #include "megakernel.hpp"
 
@@ -24,11 +14,11 @@
 #include <vector>
 
 #include "../primitive_ocl_base.hpp"
+#include "iMegakernelRuntime.h"
 #include "iOVIntegration.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/megakernel.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "megakernelImpl.h"
 #include "megakernel_inst.h"
 #include "ocl/ocl_engine.hpp"
 #include "ocl/ocl_event.hpp"
@@ -82,7 +72,6 @@ public:
         }
 
         megakernelRuntime_ = CreateMegaKernelPOCRuntime();
-
         auto& eng = cldnn::downcast<cldnn::ocl::ocl_engine>(instance.get_network().get_engine());
         cl_context ctx = eng.get_cl_context().get();
         cl_device_id dl_device = eng.get_cl_device().get();
@@ -91,7 +80,7 @@ public:
         auto params = mk::GetMegaKernelConstantParams(&instance);
 
         // Specific to OpenCL platform, but will have to be generalized to any plaform supported by megakernel runtime.
-        mk::PlatformParamsImpl platformParams{};
+        mk::OCLPlatformParams platformParams{};
         platformParams.context = ctx;
         platformParams.deviceId = dl_device;
         platformParams.stream = queue;

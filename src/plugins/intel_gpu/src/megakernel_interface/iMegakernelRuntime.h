@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <CL/cl.h>
+#include <CL/cl_ext.h>
+
 // Simplified runtime interface for MEGAKERNEL POC.
 namespace mk {
 
@@ -19,6 +22,13 @@ class IRuntimeParams {};
 // Platform-specific parameters for the runtime(e.g., OpenCL context, device,
 // etc.).
 class IPlatformParams {};
+
+// [NOTE]: Temporary here. It should be a part of the platform-specific implementation.
+struct OCLPlatformParams : IPlatformParams {
+  cl_device_id deviceId = nullptr;
+  cl_context context = nullptr;
+  cl_command_queue stream = nullptr;
+};
 
 // Interface for a MegaKernel runtime.
 class IMegakernelRuntime {
@@ -39,3 +49,6 @@ class IMegakernelRuntime {
 };
 
 }  // namespace mk
+
+extern "C" mk::IMegakernelRuntime* CreateMegaKernelPOCRuntime();
+extern "C" void DestroyMegaKernelPOCRuntime(mk::IMegakernelRuntime* runtime);

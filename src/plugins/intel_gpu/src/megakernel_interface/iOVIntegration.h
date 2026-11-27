@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "IMegakernelRuntime.h"
+#include "iMegakernelRuntime.h"
 
 namespace ov {
 class Model;
