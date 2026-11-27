@@ -893,7 +893,7 @@ const std::vector<ov::AnyMap> mtConfigs = {
     },
 };
 
-const std::vector<std::string> mtModelNames = {"ESPCN_x2_DynHW_H960xW960"};
+const std::vector<std::string> mtModelNames = {"ESPCN_x2_DynHW_H480xW640"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileMultithreadTests,
