@@ -82,14 +82,6 @@ protected:
         return {};
     }
 
-    void hint_prefetch() const override {
-        if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (this->m_shared_object) {
-                AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
-            }
-        }
-    }
-
     // protected to not create SharedBufferBase directly
     SharedBufferBase(char* data,
                      size_t size,

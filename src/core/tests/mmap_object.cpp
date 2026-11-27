@@ -396,141 +396,6 @@ TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
     EXPECT_THAT(expected_slice, ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
 }
 
-class HintPrefetchTest : public ::testing::Test {
-protected:
-    std::filesystem::path m_file_path;
-
-    void TearDown() override {
-        std::filesystem::remove(m_file_path);
-    }
-};
-
-TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
-    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
-    constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MiB (above 4 MiB threshold)
-    const auto data = utils::make_modulo_sequence_pattern(file_size);
-    ov::util::save_binary(m_file_path, data.data(), data.size());
-
-    {
-        auto mapped = load_mmap_object(m_file_path);
-        ASSERT_NE(mapped, nullptr);
-        EXPECT_EQ(mapped->size(), file_size);
-
-        EXPECT_NO_THROW(mapped->hint_prefetch());
-
-        EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
-    }
-}
-
-TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
-    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_partial.bin");
-    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MB
-    constexpr size_t prefault_offset = 1 * 1024 * 1024;
-    constexpr size_t prefault_size = 5 * 1024 * 1024;
-    const auto data = utils::make_modulo_sequence_pattern(file_size);
-    ov::util::save_binary(m_file_path, data.data(), data.size());
-
-    {
-        auto mapped = load_mmap_object(m_file_path);
-        ASSERT_NE(mapped, nullptr);
-
-        EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
-
-        EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
-    }
-}
-
-TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
-    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_small.bin");
-    constexpr size_t file_size = 1024;  // 1 KB - below threshold
-    const auto data = utils::make_modulo_sequence_pattern(file_size);
-    ov::util::save_binary(m_file_path, data.data(), data.size());
-
-    {
-        auto mapped = load_mmap_object(m_file_path);
-        ASSERT_NE(mapped, nullptr);
-        EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
-        EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
-    }
-}
-
-TEST_F(HintPrefetchTest, parallel_prefault_with_file_offset) {
-    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_offset.bin");
-    constexpr size_t file_size = 10 * 1024 * 1024;  // 10 MB
-    constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
-    const auto data = utils::make_modulo_sequence_pattern(file_size);
-    ov::util::save_binary(m_file_path, data.data(), data.size());
-
-    {
-        auto mapped = load_mmap_object(m_file_path, map_offset);
-        ASSERT_NE(mapped, nullptr);
-        EXPECT_EQ(mapped->size(), file_size - map_offset);
-
-        EXPECT_NO_THROW(mapped->hint_prefetch());
-
-        const auto* mapped_bytes = reinterpret_cast<const uint8_t*>(mapped->data());
-        EXPECT_TRUE(std::equal(mapped_bytes, mapped_bytes + mapped->size(), data.begin() + map_offset));
-    }
-}
-
-TEST_F(HintPrefetchTest, hint_prefetch_with_both_offsets) {
-    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_both_offsets.bin");
-    constexpr size_t file_size = 12 * 1024 * 1024;  // 12 MB
-    constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
-    constexpr size_t pop_offset = 1 * 1024 * 1024;  // Populate starting at 1 MB into mapping
-    constexpr size_t pop_size = 5 * 1024 * 1024;    // Populate 5 MB
-    const auto data = utils::make_modulo_sequence_pattern(file_size);
-    ov::util::save_binary(m_file_path, data.data(), data.size());
-
-    {
-        auto mapped = load_mmap_object(m_file_path, map_offset);
-        ASSERT_NE(mapped, nullptr);
-        EXPECT_EQ(mapped->size(), file_size - map_offset);
-
-        EXPECT_NO_THROW(mapped->hint_prefetch(pop_offset, pop_size));
-
-        const auto* mapped_bytes = reinterpret_cast<const uint8_t*>(mapped->data());
-        EXPECT_TRUE(std::equal(mapped_bytes, mapped_bytes + mapped->size(), data.begin() + map_offset));
-    }
-}
-
-// Investigates whether calling hint_prefetch(offset, size) and POSIX_FADV_SEQUENTIAL
-// on a subregion of an already-cached file evicts pages *outside* that region
-TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
-#ifndef __linux__
-    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
-#endif
-    constexpr size_t file_size = 128 * 1024 * 1024;
-
-    constexpr size_t prefetch_offset = 80 * 1024 * 1024;
-    constexpr size_t prefetch_size = 16 * 1024 * 1024;
-
-    constexpr size_t prefix_mb = 64;
-    constexpr size_t prefix_size = prefix_mb * 1024 * 1024;
-
-    const size_t page = static_cast<size_t>(util::get_system_page_size());
-    const size_t total_prefix_pages = prefix_size / page;
-
-    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
-    {
-        const auto data = utils::make_modulo_sequence_pattern(file_size);
-        ov::util::save_binary(m_file_path, data.data(), data.size());
-    }
-
-    auto mapped = load_mmap_object(m_file_path);
-    volatile std::byte sink{};
-    for (size_t i = 0; i < prefix_size; i += page) {
-        sink = sink | mapped->data()[i];
-    }
-    const size_t pages_before = utils::count_resident_pages(mapped->data(), prefix_size);
-    ASSERT_EQ(pages_before, total_prefix_pages)
-        << "Expected all " << total_prefix_pages << " prefix pages resident after warmup, but found " << pages_before;
-
-    mapped->hint_prefetch(prefetch_offset, prefetch_size);
-    const size_t pages_after = utils::count_resident_pages(mapped->data(), prefix_size);
-    EXPECT_EQ(pages_after, pages_before) << "hint_prefetch evicted pages.";
-}
-
 class HintPrefetchAsyncTest : public ::testing::Test {
 protected:
     std::filesystem::path m_file_path;
@@ -638,6 +503,22 @@ TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
     EXPECT_EQ(pages_resident, region_pages) << "Expected the requested region to be fully resident.";
 
     EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, file_offset_and_region_offset_data_correct) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_both_offsets.bin");
+    constexpr size_t file_size = 12 * 1024 * 1024;
+    constexpr size_t map_offset = 2 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path, map_offset);
+    ASSERT_NE(mapped, nullptr);
+    ASSERT_EQ(mapped->size(), file_size - map_offset);
+
+    mapped->hint_prefetch_async(1 * 1024 * 1024, 5 * 1024 * 1024);
+
+    EXPECT_EQ(read_mapped(*mapped), std::vector<uint8_t>(data.begin() + map_offset, data.end()));
 }
 
 TEST_F(HintPrefetchAsyncTest, below_threshold_is_safe_noop) {

@@ -196,10 +196,17 @@ double throughput_mibs(size_t size_mib, long long ms) {
 
 namespace strategy {
 
+// Starts a background prefetch of [offset, offset + size) and blocks until it completes.
+void prefetch_and_wait(const std::shared_ptr<ov::MappedMemory>& mapped, size_t offset, size_t size) {
+    if (auto token = mapped->hint_prefetch_async(offset, size); token.valid()) {
+        token.wait();
+    }
+}
+
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch(0, ov::auto_size);
+    prefetch_and_wait(mapped, 0, ov::auto_size);
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
@@ -241,7 +248,7 @@ void mmap_then_compute(const std::filesystem::path& path, size_t /*file_size*/) 
 
 void mmap_prefetch_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch(0, ov::auto_size);
+    prefetch_and_wait(mapped, 0, ov::auto_size);
     compute_over_mapped(mapped);
 }
 
@@ -250,7 +257,7 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
                                        size_t offset,
                                        size_t size) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch(offset, size);
+    prefetch_and_wait(mapped, offset, size);
     const auto total_copy_size = std::min(size, mapped->size() - offset);
     constexpr size_t chunk_size = 128 * util::one_mib;
     std::vector<char> buffer(std::min(chunk_size, total_copy_size));
