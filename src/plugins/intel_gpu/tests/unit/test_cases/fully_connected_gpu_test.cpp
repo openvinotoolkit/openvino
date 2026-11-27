@@ -7595,7 +7595,8 @@ std::ostream& operator<<(std::ostream& os, const ternary_fc_params& p) {
 
 bool ternocl_int2_supported(engine& engine) {
     const auto& info = engine.get_device_info();
-    return engine.runtime_type() == runtime_types::ocl && info.arch >= gpu_arch::xe2 && info.supports_immad;
+    const auto runtime = engine.runtime_type();
+    return (runtime == runtime_types::ocl || runtime == runtime_types::ze) && info.arch >= gpu_arch::xe2 && info.supports_immad;
 }
 
 // Normalised Sylvester H_1024 applied to s * x, per 1024-wide block of every row.
@@ -7848,6 +7849,27 @@ TEST(fully_connected_gpu_ternocl_int2_cached, static_int8_prefill_bias) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
     fully_connected_gpu_ternocl_int2::run(ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, true, false}, false, {20}, true);
+}
+
+// fwht, quant and int8_gemm: the active stages are not in declaration order.
+TEST(fully_connected_gpu_ternocl_int2_cached, static_hadamard_int8_prefill) {
+    if (!ternocl_int2_supported(get_test_engine()))
+        GTEST_SKIP();
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{40, 256, 1024, ternary_epilogue::none, false, true, true}, false, {40}, true);
+}
+
+// A dynamic impl with int8 prefill switches between the GEMV stage (M <= 8) and quant + int8 GEMM
+// (M > 8, one GEMM per M band), which also changes its scratch buffers.
+TEST(fully_connected_gpu_ternocl_int2_cached, dynamic_int8_prefill) {
+    if (!ternocl_int2_supported(get_test_engine()))
+        GTEST_SKIP();
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, true, false}, true, {1, 8, 9, 20, 40, 70, 4, 1}, true);
+}
+
+TEST(fully_connected_gpu_ternocl_int2_cached, dynamic_hadamard_int8_prefill) {
+    if (!ternocl_int2_supported(get_test_engine()))
+        GTEST_SKIP();
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, true, true}, true, {1, 8, 9, 20, 40, 70, 4, 1}, true);
 }
 
 // Two FCs on one weight constant: both run the TernOCL impl on the same packed weights.
