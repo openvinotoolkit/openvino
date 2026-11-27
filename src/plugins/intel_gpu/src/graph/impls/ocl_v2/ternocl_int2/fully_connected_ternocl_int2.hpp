@@ -132,14 +132,26 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         if (fc_prim->weights_layout != ov::intel_gpu::op::FcWeightsLayout::NK) {
             TERNOCL_REJECT("weights_layout is not NK");
         }
-        if (fc_node.weights().get_output_layout(false).data_type != data_types::u2) {
+        // u2 ternary, or (enable_ternocl_u1) u1 binary with a scalar zero point 0.5.
+        const auto wdt = fc_node.weights().get_output_layout(false).data_type;
+        const bool u1 = wdt == data_types::u1 && node.get_program().get_config().get_enable_ternocl_u1();
+        if (wdt != data_types::u2 && !u1) {
             TERNOCL_REJECT("weights are not u2");
         }
         if (!fc_node.weights().is_type<data>()) {
             TERNOCL_REJECT("weights are not a constant");
         }
         // Ternary {-1, 0, +1} arrives as u2 codes {0, 1, 2} with a scalar zero point of 1.
-        if (!fc_prim->decompression_zero_point_scalar.has_value() || std::lround(fc_prim->decompression_zero_point_scalar.value()) != 1) {
+        if (u1) {
+            if (!fc_prim->decompression_zero_point_scalar.has_value() ||
+                fc_prim->decompression_zero_point_scalar.value() != 0.5f) {
+                TERNOCL_REJECT("u1 zero point is not the scalar 0.5");
+            }
+            if (fc_prim->hadamard_block != 0) {
+                TERNOCL_REJECT("u1 with a Hadamard input transform");
+            }
+        } else if (!fc_prim->decompression_zero_point_scalar.has_value() ||
+                   std::lround(fc_prim->decompression_zero_point_scalar.value()) != 1) {
             TERNOCL_REJECT("zero point is not the scalar 1");
         }
 
@@ -152,7 +164,8 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
             TERNOCL_REJECT("output is not f16 or f32");
         }
         if (in_layout.format != format::bfyx || out_layout.format != format::bfyx) {
-            TERNOCL_REJECT("unsupported activation format");
+            TERNOCL_REJECT("unsupported activation format " + in_layout.format.to_string() + " -> " +
+                           out_layout.format.to_string());
         }
         if (in_layout.data_padding || out_layout.data_padding) {
             TERNOCL_REJECT("padded activations");
@@ -193,7 +206,8 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
             TERNOCL_REJECT("K is not a multiple of the group size");
         }
         // One lane per output column in 16-wide sub-group blocks; the tail is clipped, not padded.
-        if (N % 16 != 0) {
+        // u1 kernels clamp and guard a column tail; the u2 kernels need whole 16-column blocks.
+        if (!u1 && N % 16 != 0) {
             TERNOCL_REJECT("N is not a multiple of 16");
         }
         if (fc_prim->hadamard_block != 0 && (fc_prim->hadamard_block != 1024 || K % 1024 != 0)) {

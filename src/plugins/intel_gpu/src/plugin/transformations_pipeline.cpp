@@ -986,9 +986,37 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+    // Binary (u1) FullyConnected weights stay compressed only for the TernOCL u1 path, which takes them in groups
+    // of 128 along K ([N, K / 128, 128]); any other u1 weight is decompressed to f16 up front, as without it.
+    const bool ternocl_u1 = config.get_enable_ternocl_u1();
+    if (ternocl_u1) {
+        for (const auto& op : func->get_ops()) {
+            auto cvt = ov::as_type_ptr<ov::op::v0::Convert>(op);
+            if (!cvt) {
+                continue;
+            }
+            auto c = ov::as_type_ptr<ov::op::v0::Constant>(cvt->get_input_node_shared_ptr(0));
+            if (!c || c->get_element_type() != ov::element::u1) {
+                continue;
+            }
+            const auto& sh = c->get_shape();
+            if (sh.size() == 3 && sh[2] == 128) {
+                continue;
+            }
+            auto folded =
+                std::make_shared<ov::op::v0::Constant>(cvt->get_destination_type(), sh, c->cast_vector<float>());
+            folded->set_friendly_name(cvt->get_friendly_name());
+            ov::copy_runtime_info(cvt, folded);
+            ov::replace_node(cvt, folded);
+        }
+    }
+
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
-    const ov::element::TypeVector supported_woq_types =
+    ov::element::TypeVector supported_woq_types =
         {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
+    if (ternocl_u1) {
+        supported_woq_types.push_back(ov::element::u1);
+    }
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
@@ -1075,9 +1103,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        manager.register_pass<ov::pass::MarkDequantization>(
-            std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2},
-            !device_info.supports_immad);
+        std::vector<ov::element::Type> dq_types{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2};
+        if (ternocl_u1) {
+            dq_types.push_back(ov::element::u1);
+        }
+        manager.register_pass<ov::pass::MarkDequantization>(dq_types, !device_info.supports_immad);
         if (config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p) {
             manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1, ov::element::f8e8m0},
@@ -1899,7 +1929,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 break;
             }
         }
-        const bool int2_merge_mlp = ternocl_int2 && has_u2_weights && !disable_fc_swiglu_fusion;
+        // u1 weights on the TernOCL path take the same merge (its epilogue has no SiLU-multiply chain to fuse into).
+        bool has_u1_weights = false;
+        if (ternocl_u1) {
+            for (const auto& op : func->get_ops()) {
+                const auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
+                if (c && c->get_element_type() == ov::element::u1) {
+                    has_u1_weights = true;
+                    break;
+                }
+            }
+        }
+        const bool int2_merge_mlp = ternocl_int2 && (has_u2_weights || has_u1_weights) && !disable_fc_swiglu_fusion;
         bool fuse_mlp_swiglu = !config.get_use_onednn() &&
                                !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
@@ -2035,8 +2076,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
                 }
                 // u2 oneDNN kernel expects fp16 activations; disabled until i8 activation support is added
-                if (root->get_input_element_type(1) == ov::element::u2) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u2 weights require fp16 activations" << std::endl;
+                if (root->get_input_element_type(1) == ov::element::u2 ||
+                    root->get_input_element_type(1) == ov::element::u1) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name()
+                                    << "  dyn_quan is turned off: u2 / u1 weights require fp16 activations"
+                                    << std::endl;
                     return true;
                 }
 
@@ -2132,6 +2176,28 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
+    }
+    if (ternocl_u1) {
+        // u1 constants that did not become compressed FullyConnected weights (an embedding, a MatMul that stayed a
+        // MatMul) have no GPU u1 kernel: fold their decompression to f16.
+        bool any = false;
+        for (const auto& node : func->get_ordered_ops()) {
+            auto cvt = ov::as_type_ptr<ov::op::v0::Convert>(node);
+            if (!cvt) {
+                continue;
+            }
+            auto c = ov::as_type_ptr<ov::op::v0::Constant>(cvt->get_input_node_shared_ptr(0));
+            if (c && c->get_element_type() == ov::element::u1) {
+                ov::enable_constant_folding(cvt);
+                ov::disable_keep_const_precision(c);
+                any = true;
+            }
+        }
+        if (any) {
+            ov::pass::Manager fold("GPU:TernoclU1FoldLeftovers");
+            fold.register_pass<ov::pass::ConstantFolding>();
+            fold.run_passes(func);
+        }
     }
 #ifdef GPU_DEBUG_CONFIG
     {
