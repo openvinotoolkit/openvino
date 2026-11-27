@@ -9,14 +9,15 @@
 #include "openvino/reference/sparse_attention.hpp"
 #include "sparse_attention_shape_inference.hpp"
 
-namespace {
+// Named (not anonymous) so the helpers of the two ops do not collide in unity builds.
+namespace ov::op::sparse_attention {
 std::vector<int64_t> key_lengths(const ov::Tensor& t) {
     std::vector<int64_t> v(t.get_size());
     for (size_t i = 0; i < v.size(); i++)
         v[i] = t.get_element_type() == ov::element::i32 ? t.data<const int32_t>()[i] : t.data<const int64_t>()[i];
     return v;
 }
-}  // namespace
+}  // namespace ov::op::sparse_attention
 
 namespace ov::op::v17 {
 
@@ -185,7 +186,7 @@ bool SparseAttention::evaluate(TensorVector& outputs, const TensorVector& inputs
         cnt[i] = inputs[4].get_element_type() == element::i32
                      ? inputs[4].data<const int32_t>()[i]
                      : static_cast<int32_t>(inputs[4].data<const int64_t>()[i]);
-    const auto kl = inputs.size() > 5 ? key_lengths(inputs[5]) : std::vector<int64_t>{};
+    const auto kl = inputs.size() > 5 ? ov::op::sparse_attention::key_lengths(inputs[5]) : std::vector<int64_t>{};
     auto run = [&](auto tag) {
         using T = decltype(tag);
         ov::reference::sparse_attention<T>(inputs[0].data<const T>(),
