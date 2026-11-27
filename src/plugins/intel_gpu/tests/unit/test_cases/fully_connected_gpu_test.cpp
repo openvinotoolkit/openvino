@@ -3375,6 +3375,9 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
     void test_compressed_int8_broadcast_scale_zp(bool transpose_parameters, int64_t ofm) {
         auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad) {
+            GTEST_SKIP() << "The test requires the oneDNN IMMAD FC implementation.";
+        }
 
         constexpr int64_t ifm = 32;
         constexpr int64_t groups = 2;
@@ -3414,6 +3417,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         network.set_input_data("input", input_mem);
         network.set_input_data("scale", scale_mem);
         network.set_input_data("zp", zp_mem);
+        ASSERT_TRUE(network.get_primitive("fc_prim")->get_impl()->is_onednn());
 
         auto outputs = network.execute();
         auto output_mem = outputs.at("fc_prim").get_memory();
@@ -3422,6 +3426,64 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         for (size_t i = 0; i < output_ptr.size(); ++i) {
             EXPECT_NEAR(static_cast<float>(output_ptr[i]), 112.0f, 1e-2f) << "i = " << i;
+        }
+    }
+
+    void test_compressed_int8_batched_broadcast_scale_zp() {
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad) {
+            GTEST_SKIP() << "The test requires the oneDNN IMMAD FC implementation.";
+        }
+
+        constexpr int64_t batch = 2;
+        constexpr int64_t ofm = 3;
+        constexpr int64_t ifm = 64;
+        constexpr int64_t scale_groups = 4;
+        constexpr int64_t zp_groups = 2;
+
+        auto input_mem = engine.allocate_memory({ {batch, 2, ifm}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {batch, ofm, ifm}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {1, 1, scale_groups}, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {1, 1, zp_groups}, data_types::u8, format::bfyx });
+        set_values<ov::float16>(input_mem, std::vector<ov::float16>(batch * 2 * ifm, ov::float16(1.0f)));
+        set_values<uint8_t>(weights_mem, std::vector<uint8_t>(batch * ofm * ifm, 3));
+        set_values<ov::float16>(scale_mem, {2.0f, 3.0f, 4.0f, 5.0f});
+        set_values<uint8_t>(zp_mem, {1, 2});
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            input_layout("scale", scale_mem->get_layout()),
+            input_layout("zp", zp_mem->get_layout()),
+            fully_connected("fc_prim",
+                            input_info("input"),
+                            "weights",
+                            "",
+                            "scale",
+                            "zp",
+                            data_types::f16,
+                            3,
+                            3,
+                            true,
+                            true,
+                            true));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
+        network.set_input_data("input", input_mem);
+        network.set_input_data("scale", scale_mem);
+        network.set_input_data("zp", zp_mem);
+        ASSERT_TRUE(network.get_primitive("fc_prim")->get_impl()->is_onednn());
+
+        auto outputs = network.execute();
+        auto output_mem = outputs.at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ((ov::PartialShape{batch, 2, ofm}), output_mem->get_layout().get_partial_shape());
+
+        for (size_t i = 0; i < output_ptr.size(); ++i) {
+            EXPECT_NEAR(static_cast<float>(output_ptr[i]), 304.0f, 1e-2f) << "i = " << i;
         }
     }
 
@@ -6682,6 +6744,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_single_output_scale_zp) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_single_output_scale_zp_transposed) {
     this->test_compressed_int8_broadcast_scale_zp(true, 1);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_batched_broadcast_scale_zp_different_groups) {
+    this->test_compressed_int8_batched_broadcast_scale_zp();
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel) {
