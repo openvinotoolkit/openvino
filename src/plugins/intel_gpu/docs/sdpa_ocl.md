@@ -4606,8 +4606,8 @@ result is quoted.
   31 / 32 pass because a compressed MIXED reads its new tokens from Kc / Vc, but fail with `SDPA_OCL_PA_CUR_F16=0`
   (0.044 / 0.055 against 0.025); a later step reading those tokens from the cache gets the wrong values. The two
   controls (the same case without the pads passes; the same padded case passes on Kc / Vc) put it in the writer,
-  the alignment cause is from code reading. Found in the xe_hpg port (P7e), not fixed. On Xe2 the two cases fail
-  (next entry).
+  the alignment cause is from code reading. Master's writer does it too (measured, next entry). Found in the xe_hpg
+  port (P7e), not fixed. On Xe2 the two cases fail (next entry).
 - On Xe2 `smoke_paged_attention_comp_tm` cases 31, 32, 47 and 49 fail (B70, 2026-11-11: 0.174 / 0.045 / 0.028 /
   0.048 against 0.025). The cases came with the xe_hpg port (2026-11-06 / 07, checked on DG2, whose SG8 kernels read
   Kc / Vc at any alignment). The last B70 run before it (2026-11-08) had no such suite, so this is not a regression.
@@ -4621,7 +4621,21 @@ result is quoted.
   - Case 49 (dynamic pads 0 / 2, a 260 B token stride) takes the fixup tier, which assumes a dynamic padding keeps a
     16 B multiple stride ("Block2d rules"), and reads wrong values.
 
-  Cases 48 and 50 (pads 2 / 6) pass. Recorded, not fixed: the four still fail on Xe2.
+  Cases 48 and 50 (pads 2 / 6) pass. Recorded, not fixed: the four are skipped off xe_hpg (`sg16_known_issue` in
+  `paged_attention_gpu_test.cpp`, 2026-11-27), and xe_hpg still runs them. On PTL CI (Windows test data) only case 31
+  failed.
+
+  Master is wrong on the same four inputs, so they are not a regression against it.
+  - Setup: B70, 2026-11-27, master ba75620d91 (`pa_kv_cache_update_ref` + `sdpa_micro`). The cases were ported with
+    this harness's input pads, `comp_stress` and logit gain, and are not in master's tests.
+  - Check: master reads every key from the cache, so the same data with and without the pads must give bitwise equal
+    output. It does with zero pads.
+  - 31 / 32 / 47 / 49 differ by up to 0.80 / 1.37 / 0.79 / 0.42. 48 / 50 are equal.
+  - 31 / 32 / 47: K / V pads alone change the K and V cache bytes (the writer issue above). Q pads alone change the
+    output over an identical cache: `sdpa_micro` misreads the padded Q as well.
+  - 49: the cache is identical, but K / V pads alone change the output: `sdpa_micro` misreads the K / V input.
+  - Against master's f16 reference, 31 / 32 fail at 0.80 / 1.37, and their unpadded controls pass at 0.003 / 0.005.
+    The u4 control already fails there (0.95: u4 new tokens under the sharp softmax), hence the pair check.
 - The PA unit-test harness (`paged_attention_gpu_test.h`) writes the past tokens' token-major u4 V rows v / 2 bytes
   apart, while the KV cache writer (`pa_kv_cache_update_ref.cl`'s `PACKED_V_HEAD_SIZE`) and the readers align the row to
   16 B. The two agree only for V heads that are multiples of 32, so the cache-based u4 reference
@@ -4859,6 +4873,26 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor. Of th
   master d6bbd41244; with the rule forced off it passed 8 of 8), so the runtime model had no SDPA node; not `sdpa_ocl`. Since
   2026-11-14 it passes on the B70: a rank-3 op that `sdpa_ocl` serves faster stays fused on Xe2 discrete GPUs, and since 2026-11-16 on
   Xe2 and newer GPUs, integrated ones too ("Rank-3 plain SDPA"; the test ran on the B70, PTL-H and LNL). On every other XMX device the decomposition, and so the failure, remains.
+
+### Test failures on non-XMX devices
+
+Measured 2026-11-27 on the UHD 770 (non-XMX) of the dev PC: `ov_gpu_unit_tests --gtest_filter=sdpa_gpu*` failed 13 of 152
+tests, all on `sdpa_opt`. The same 13 fail on master cf02398464 with bit-identical errors (the branch tests ported under
+the same names, so with the same data), so they are master defects of `sdpa_opt`, not of this branch. They pass on the
+B70, where `sdpa_ocl` runs them. Until the fix (a separate PR) they skip on devices without XMX (`SKIP_ON_NON_XMX_SDPA_OPT()`
+in `sdpa_gpu_test.cpp`):
+
+- 12 tests this branch added (`sdpa_gpu_causal_mask.prefill_static_*` x4, `sdpa_gpu_noncausal_tail` x6,
+  `sdpa_gpu_plain_decode.prompt_then_decode_*` x2): max error 4.2e-3 to 8.2e-3 against the 4e-3 bound set for `sdpa_ocl`.
+  The FlashAttention-2 multi-token stage of `sdpa_opt` (on by default in these tests, and for LLMs) still accumulates
+  Q.K^T in f16; upstream #39767 moved only the other path to f32. With `OV_GPU_COULD_USE_FLASHATTN_V2=0`, 11 of the 12 pass,
+  and `prefill_static_upper_left_32q_32kv_2048seq` drops from 8.2e-3 to 4.8e-3 (the rest is not analysed). The tests of
+  these families that pass come close: up to 3.66e-3 (`prefill_32q_8kv_16q_1024kv_d64`), 3.50e-3 and 3.36e-3 twice.
+- `sdpa_gpu_custom.static_mismatched_kv_head_size_multi_token_uses_sg_scale_factor_2` (K head 16, V head 32,
+  SG_SCALE_FACTOR 2): 3831 of 4096 outputs wrong, up to 0.08, with FlashAttention-2 on or off. On master the test compares
+  with a network forced to "sdpa_ref", which runs `SDPAOpt` as well, so it cannot fail there. The kernel source the
+  plugin generates is byte-identical to the B70's, where the result is right, so the defect depends on the device or its
+  compiler; the cause was not found. Only the value check skips; its dispatch checks still run.
 
 ### Test coverage gaps
 
