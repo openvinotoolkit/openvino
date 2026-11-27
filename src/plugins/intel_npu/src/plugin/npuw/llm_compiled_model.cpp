@@ -346,6 +346,55 @@ bool vocab_is_closure(const ov::AnyMap& stage_config) {
            stage_cfg.get<::intel_npu::NPUW_HOST_GATHER>();
 }
 
+// The NPUW configs of the prefill, generate and LM head stages. They depend only on the user options and on the
+// NPU description, not on the graph transformations, so they are built before the model is transformed. This lets
+// the decisions that need the final stage options (like the shared vocabulary) be made before the LM head is cut.
+struct StageConfigs {
+    ov::AnyMap prefill;
+    ov::AnyMap generate;
+    ov::AnyMap lm_head;
+    // NPU_COMPILATION_MODE_PARAMS of the prefill config before the user options are merged in
+    std::optional<std::string> default_compilation_mode_params;
+};
+
+StageConfigs build_stage_configs(const std::shared_ptr<ov::Model>& model,
+                                 const std::optional<NPUDesc>& npudesc,
+                                 const std::optional<ov::Any>& prefill_config_opt,
+                                 const std::optional<ov::Any>& generate_config_opt,
+                                 const std::optional<ov::Any>& prefill_config_addition,
+                                 const std::optional<ov::Any>& generate_config_addition,
+                                 const std::optional<ov::Any>& lm_head_config_addition,
+                                 const ov::AnyMap& other_props,
+                                 const ::intel_npu::npuw::llm::GenerateHint generate_hint,
+                                 const bool prefill_attn_hfa) {
+    StageConfigs cfgs;
+    cfgs.prefill = prefill_config_opt.value_or(get_default_prefill_config(model, npudesc)).as<ov::AnyMap>();
+    if (prefill_attn_hfa) {
+        // Enable the mask-skipping optimization by default; the actual per-layer
+        // decision (safe only for Causal, or SlidingWindow whose window already
+        // covers the full context) is made independently for each SDPA subgraph in
+        // HostFlashAttention::from(), based on the rt_info DetectAttentionMask writes.
+        // Setting this to "NO" (or via user-supplied config, which overrides this
+        // below) acts as a master kill switch disabling the optimization outright.
+        cfgs.prefill[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] = "YES";
+    }
+    cfgs.generate = generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
+
+    if (auto it = cfgs.prefill.find("NPU_COMPILATION_MODE_PARAMS"); it != cfgs.prefill.end()) {
+        cfgs.default_compilation_mode_params = it->second.as<std::string>();
+    }
+
+    merge_config_with(cfgs.prefill, other_props);
+    merge_config_with(cfgs.generate, other_props);
+    merge_config_with(cfgs.prefill, prefill_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>());
+    merge_config_with(cfgs.generate, generate_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>());
+
+    cfgs.lm_head = get_default_lm_head_config(npudesc);
+    merge_config_with(cfgs.lm_head, other_props);
+    merge_config_with(cfgs.lm_head, lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>());
+    return cfgs;
+}
+
 // Detect Gemma-4 E2B/E4B by a consumed "per_layer_inputs" input with nonzero PLE dim.
 // Gemma4 26B A4B (MoE) also has this input, but dangling (proj_dim==0, unconsumed).
 bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
@@ -862,7 +911,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
 
     // Sharing is detected on the whole model, before the LM head is cut off. The Sub128 shifts are
-    // inserted later, when the stage configs are known.
+    // inserted before the cut too, if the predicted stage configs allow it (see below).
     bool shared_vocab = false;
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
         ov::npuw::DetectVocabSharing(shared_vocab).run_on_model(kvcache_model);
@@ -874,6 +923,66 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // The rerank tag only gates the batched wrapper at the entry point. Pop it here
     // so it stays out of the submodel configs, like the embed tag above.
     pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
+
+    // other_props and the LLM options are final here, so the stage configs are built now. This lets the decisions
+    // which depend on the final stage options be made before the model is transformed.
+    // NB: GENERATE_HINT is only applicable for default generate config!
+    if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
+        OPENVINO_THROW("GENERATE_HINT only works with default generate config!");
+    }
+    const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
+    auto stage_cfgs = build_stage_configs(
+        kvcache_model,
+        npudesc,
+        prefill_config_opt,
+        generate_config_opt,
+        prefill_config_addition,
+        generate_config_addition,
+        lm_head_config_addition,
+        other_props,
+        generate_hint,
+        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA);
+
+    if (shared_vocab) {
+        // The shared vocabulary makes the LM head dequantize the weights with the zero point and the scale as
+        // inputs. Without the compiler zero point decomposition for this case the LM head becomes several times
+        // slower, so the default is turned off. The compiler is the one selected by the LM head config, which can
+        // differ from the top-level one. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept.
+        const bool set_by_user = npuw_llm_props.count(std::string(::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED::key())) > 0;
+        const bool shared_head = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
+        const bool platform_supports =
+            !npudesc.has_value() || set_by_user || platform_supports_shared_vocab(npudesc->arch);
+        const int64_t head_compiler_ver = shared_head && platform_supports && npudesc.has_value() && !set_by_user
+                                              ? query_compiler_version(plugin, stage_cfgs.lm_head)
+                                              : int64_t{0};
+        const bool compiler_supports =
+            !npudesc.has_value() || set_by_user || compiler_supports_dynamic_zp_decomposition(head_compiler_ver);
+        if (!shared_head) {
+            // Without a separate LM head model the embedding and the LM head are in one model. If the embedding
+            // matches the quantized host gather (hidden size 2048 or more), the partitioner uses it for the whole
+            // model and does not run ConvertDQVocab, so the Sub128 shifts of the LM head reach the compiler.
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_LLM_SHARED_HEAD.");
+            shared_vocab = false;
+        } else if (!platform_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: the NPU37XX compiler keeps the LM head dequantization "
+                     "on SHAVE.");
+            shared_vocab = false;
+        } else if (!compiler_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer for the LM head, "
+                     "the compiler is "
+                     << ONEAPI_VERSION_MAJOR(head_compiler_ver) << "." << ONEAPI_VERSION_MINOR(head_compiler_ver)
+                     << ".");
+            shared_vocab = false;
+        } else if (!vocab_is_closure(stage_cfgs.prefill) || !vocab_is_closure(stage_cfgs.generate) ||
+                   !vocab_is_closure(stage_cfgs.lm_head)) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
+                     "NPUW_HOST_GATHER in every stage.");
+            shared_vocab = false;
+        }
+        if (!shared_vocab) {
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        }
+    }
 
     if (m_is_embedding) {
         if (m_attention_mask_is_4d_float) {
@@ -956,7 +1065,28 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
+    // The Sub128 shifts are inserted on the whole model, before the LM head is cut off, so that the embedding and
+    // the LM head keep one shared i8 vocabulary table.
+    std::shared_ptr<ov::Model> unshifted_model;
+    if (shared_vocab) {
+        unshifted_model = kvcache_model->clone();
+        if (!ov::npuw::InsertVocabSub128().run_on_model(kvcache_model)) {
+            // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
+            LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
+            unshifted_model.reset();
+        }
+    }
+
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+
+    if (unshifted_model && !lm_head_model) {
+        // InsertVocabSub128 does not need the "logits" output, the LM head cut does. Without the LM head model the
+        // shifts would reach the compiler (see the NPUW_LLM_SHARED_HEAD check above), so they are undone.
+        LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: the LM head is not cut off.");
+        kvcache_model = unshifted_model;
+        m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+    }
+    unshifted_model.reset();
 
     // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
     // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to
@@ -1212,52 +1342,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         user_compilation_mode_params = it->second.as<std::string>();
     }
 
-    auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
-
-    if (prefill_attn_hfa) {
-        // Enable the mask-skipping optimization by default; the actual per-layer
-        // decision (safe only for Causal, or SlidingWindow whose window already
-        // covers the full context) is made independently for each SDPA subgraph in
-        // HostFlashAttention::from(), based on the rt_info DetectAttentionMask wrote
-        // above. Setting this to "NO" here (or via user-supplied config, which
-        // overrides this below) acts as a master kill switch disabling the
-        // optimization outright.
-        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] = "YES";
-    }
-
-    // NB: GENERATE_HINT is only applicable for default generate config!
-    if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
-        OPENVINO_THROW("GENERATE_HINT only works with default generate config!");
-    }
-    const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
-
-    const std::optional<std::string> default_compilation_mode_params =
-        [&prefill_config]() -> std::optional<std::string> {
-        if (const auto it = prefill_config.find("NPU_COMPILATION_MODE_PARAMS"); it != prefill_config.end()) {
-            return it->second.as<std::string>();
-        }
-        return std::nullopt;
-    }();
-
-    auto prefill_config_addition_value =
-        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-    auto generate_config_addition_value =
-        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-
-    merge_config_with(prefill_config, other_props);
-    merge_config_with(generate_config, other_props);
-    merge_config_with(prefill_config, prefill_config_addition_value);
+    // The stage configs were built before the model was transformed (see build_stage_configs).
+    auto& prefill_config = stage_cfgs.prefill;
+    auto& generate_config = stage_cfgs.generate;
+    const auto& default_compilation_mode_params = stage_cfgs.default_compilation_mode_params;
     // If model has multiple outputs, only logits will be extracted to a separate model.
     // Prefill will have all other outputs. It might be a wrong assumption that all of
     // them need to be sliced for, for instance, 1 token.
+    // NB: this is done after the user additions are merged, as before, so it overrides them.
     if (lm_head_model) {
         LOG_DEBUG("LM head model is present, erasing NPUW_SLICE_OUT from prefill config.");
         prefill_config.erase("NPUW_SLICE_OUT");
     }
-    merge_config_with(generate_config, generate_config_addition_value);
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
         LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
@@ -1533,55 +1629,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::AnyMap lm_head_config;
     if (lm_head_model) {
-        lm_head_config = get_default_lm_head_config(npudesc);
-        merge_config_with(lm_head_config, other_props);
-        auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-        merge_config_with(lm_head_config, lm_head_config_addition_value);
+        lm_head_config = std::move(stage_cfgs.lm_head);
         apply_weights_bank_name(lm_head_config, weights_bank_name);
-    }
-
-    if (shared_vocab) {
-        // The shared vocabulary makes the LM head dequantize the weights with the zero point and the scale as
-        // inputs. Without the compiler zero point decomposition for this case the LM head becomes several times
-        // slower, so the default is turned off. The compiler is the one selected by the final LM head config,
-        // which can differ from the top-level one. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept.
-        const bool set_by_user = npuw_llm_props.count(std::string(::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED::key())) > 0;
-        const auto head_compiler_ver = lm_head_model && npudesc.has_value() && !set_by_user
-                                           ? query_compiler_version(plugin, lm_head_config)
-                                           : int64_t{0};
-        const bool compiler_supports =
-            !npudesc.has_value() || set_by_user || compiler_supports_dynamic_zp_decomposition(head_compiler_ver);
-        const bool platform_supports =
-            !npudesc.has_value() || set_by_user || platform_supports_shared_vocab(npudesc->arch);
-        const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
-                                                    vocab_is_closure(generate_config) &&
-                                                    (lm_head_model && vocab_is_closure(lm_head_config));
-        if (!lm_head_model) {
-            // Without a separate LM head model the embedding and the LM head are in one model. If the embedding
-            // matches the quantized host gather (hidden size 2048 or more), the partitioner uses it for the whole
-            // model and does not run ConvertDQVocab, so the Sub128 shifts of the LM head reach the compiler.
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_LLM_SHARED_HEAD.");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        } else if (!platform_supports) {
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: the NPU37XX compiler keeps the LM head dequantization "
-                     "on SHAVE.");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        } else if (!compiler_supports) {
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer for the LM head, "
-                     "the compiler is "
-                     << ONEAPI_VERSION_MAJOR(head_compiler_ver) << "." << ONEAPI_VERSION_MINOR(head_compiler_ver)
-                     << ".");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        } else if (!vocab_is_closure_in_all_stages) {
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
-                     "NPUW_HOST_GATHER in every stage.");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        } else {
-            if (!ov::npuw::InsertVocabSub128().run_on_model(lm_head_model)) {
-                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
-                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
-            }
-        }
     }
 
     // Compile multiple generate model variants with different sizes
