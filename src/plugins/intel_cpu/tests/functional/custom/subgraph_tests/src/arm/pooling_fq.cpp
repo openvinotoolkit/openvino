@@ -30,6 +30,7 @@ using PoolingFQTestParams = std::tuple<element::Type,  // Quantized precision
                                        size_t,         // Padding
                                        bool,           // Exclude padding
                                        element::Type,  // Inference precision hint
+                                       bool,           // Per-channel output FakeQuantize
                                        CPUSpecificParams>;
 
 class PoolingAndFQ : public testing::WithParamInterface<PoolingFQTestParams>,
@@ -37,17 +38,20 @@ class PoolingAndFQ : public testing::WithParamInterface<PoolingFQTestParams>,
                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PoolingFQTestParams>& obj) {
-        const auto& [quantizedPrecision, stride, padding, excludePad, inferencePrecision, cpuParams] = obj.param;
+        const auto& [quantizedPrecision, stride, padding, excludePad, inferencePrecision, perChannelFQ, cpuParams] =
+            obj.param;
         std::ostringstream result;
         result << "QuantizedPRC=" << quantizedPrecision << "_Stride=" << stride << "_Padding=" << padding
-               << "_ExcludePad=" << excludePad << "_InferencePRC=" << inferencePrecision;
+               << "_ExcludePad=" << excludePad << "_InferencePRC=" << inferencePrecision
+               << "_PerChannelFQ=" << perChannelFQ;
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [quantizedPrecision, stride, padding, excludePad, inferencePrecision, cpuParams] = GetParam();
+        const auto& [quantizedPrecision, stride, padding, excludePad, inferencePrecision, perChannelFQ, cpuParams] =
+            GetParam();
         targetDevice = utils::DEVICE_CPU;
         configuration = {ov::hint::inference_precision(inferencePrecision)};
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -59,8 +63,21 @@ protected:
         const float outputHigh = signedDomain ? 127.0f : 255.0f;
         // The signed input shift is 127.75 and the output shift is -128.
         // Folding them before integer conversion gives the correct zero point.
-        const float inputLow = signedDomain ? -255.5f : 0.5f;
-        const float inputHigh = signedDomain ? 254.5f : 510.5f;
+        std::vector<float> inputLow{signedDomain ? -255.5f : 0.5f};
+        std::vector<float> inputHigh{signedDomain ? 254.5f : 510.5f};
+        ov::Shape fqConstShape{};
+        if (perChannelFQ) {
+            // ACL int8 pooling has a single destination scale and zero point, so a FakeQuantize with different
+            // ranges per channel must stay unfused instead of being reduced to channel 0.
+            if (signedDomain) {
+                inputLow = {-255.5f, -200.5f, -100.5f};
+                inputHigh = {254.5f, 150.5f, 200.5f};
+            } else {
+                inputLow = {0.5f, 10.5f, 50.5f};
+                inputHigh = {510.5f, 300.5f, 400.5f};
+            }
+            fqConstShape = {1, 3, 1, 1};
+        }
         const ov::Shape inputShape{1, 3, 9, 9};
         ov::ParameterVector params{std::make_shared<op::v0::Parameter>(element::f32, inputShape)};
         const auto inputFQ = utils::make_fake_quantize(params[0],
@@ -83,13 +100,13 @@ protected:
         const auto outputFQ = utils::make_fake_quantize(pooling,
                                                         element::f32,
                                                         256,
-                                                        {},
-                                                        {inputLow},
-                                                        {inputHigh},
-                                                        {outputLow},
-                                                        {outputHigh});
+                                                        fqConstShape,
+                                                        inputLow,
+                                                        inputHigh,
+                                                        std::vector<float>(inputLow.size(), outputLow),
+                                                        std::vector<float>(inputLow.size(), outputHigh));
 
-        // A quantized consumer keeps the output FQ fused into integer Pooling.
+        // A quantized consumer keeps the output FQ fused into integer Pooling, unless it is per-channel.
         // Identity weights keep each channel observable without cancellation.
         const auto order = op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 3, 1});
         const auto transpose = std::make_shared<op::v1::Transpose>(outputFQ, order);
@@ -126,13 +143,25 @@ protected:
     void validate() override {
         SubgraphBaseTest::validate();
         CheckNumberOfNodesWithType(compiledModel, "Pooling", 1);
-        CheckPluginRelatedResults(compiledModel, "Pooling");
+        // No standalone FakeQuantize is left: the output one is either fused into the Pooling (per-tensor) or
+        // decomposed (per-channel).
+        CheckNumberOfNodesWithType(compiledModel, "FakeQuantize", 0);
         const auto expectedPrecision = std::get<0>(GetParam());
-        const auto poolingNodes = GetNodesWithTypes(compiledModel.get_runtime_model(), {"Pooling"});
-        for (const auto& node : poolingNodes) {
+        const bool perChannelFQ = std::get<5>(GetParam());
+        if (!perChannelFQ) {
+            CheckPluginRelatedResults(compiledModel, "Pooling");
+        }
+        for (const auto& node : GetNodesWithTypes(compiledModel.get_runtime_model(), {"Pooling"})) {
             const auto& rtInfo = node->get_rt_info();
+            // The Pooling reads the quantized input in both cases.
             EXPECT_EQ(rtInfo.at(ov::exec_model_info::RUNTIME_PRECISION).as<element::Type>(), expectedPrecision);
-            EXPECT_EQ(node->get_output_element_type(0), expectedPrecision);
+            if (perChannelFQ) {
+                // The per-channel FakeQuantize is not fused, so the Pooling output is not requantized and stays
+                // floating point.
+                EXPECT_TRUE(node->get_output_element_type(0).is_real()) << node->get_output_element_type(0);
+            } else {
+                EXPECT_EQ(node->get_output_element_type(0), expectedPrecision);
+            }
         }
     }
 
@@ -157,6 +186,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PoolingAndFQ_NoPadding,
                                             ::testing::Values(0U),
                                             ::testing::Values(false, true),
                                             ::testing::Values(element::f16, element::f32),
+                                            ::testing::Values(false),
                                             ::testing::ValuesIn(cpuParams)),
                          PoolingAndFQ::getTestCaseName);
 
@@ -167,6 +197,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PoolingAndFQ_ExcludePadding,
                                             ::testing::Values(1U),
                                             ::testing::Values(true),
                                             ::testing::Values(element::f16, element::f32),
+                                            ::testing::Values(false),
                                             ::testing::ValuesIn(cpuParams)),
                          PoolingAndFQ::getTestCaseName);
 
@@ -178,7 +209,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_PoolingAndFQ_IncludePadding,
                                             ::testing::Values(1U),
                                             ::testing::Values(false),
                                             ::testing::Values(element::f16, element::f32),
+                                            ::testing::Values(false),
                                             ::testing::Values(cpuParams.front())),
+                         PoolingAndFQ::getTestCaseName);
+
+// The per-channel FakeQuantize stays unfused, so no layout or primitive type is enforced on the Pooling.
+INSTANTIATE_TEST_SUITE_P(smoke_PoolingAndFQ_PerChannel,
+                         PoolingAndFQ,
+                         ::testing::Combine(::testing::Values(element::i8, element::u8),
+                                            ::testing::Values(2U),
+                                            ::testing::Values(0U),
+                                            ::testing::Values(false),
+                                            ::testing::Values(element::f16, element::f32),
+                                            ::testing::Values(true),
+                                            ::testing::Values(emptyCPUSpec)),
                          PoolingAndFQ::getTestCaseName);
 
 }  // namespace
