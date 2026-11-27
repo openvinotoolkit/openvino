@@ -70,9 +70,16 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     OPENVINO_ASSERT(!layout.format.is_image(), "[GPU][Vulkan] Image allocations are not supported");
     OPENVINO_ASSERT(type == allocation_type::vk_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
     validate_tensor_shape(layout.get_partial_shape().get_max_shape(), layout.data_type);
-    check_allocatable(layout, type);
 
     const auto byte_size = layout.bytes_count();
+    const auto max_byte_size = get_device_info().max_alloc_mem_size;
+    OPENVINO_ASSERT(byte_size <= max_byte_size,
+                    "[GPU][Vulkan] Exceeded max size of memory object allocation: requested ",
+                    byte_size,
+                    " bytes, but max alloc size supported by device is ",
+                    max_byte_size,
+                    " bytes. Reduce the requested allocation size.");
+
     auto region = allocate_buffer_region(byte_size);
     auto* tracking_address = region->get_allocation()->get_mapped_data();
     if (tracking_address != nullptr) {
