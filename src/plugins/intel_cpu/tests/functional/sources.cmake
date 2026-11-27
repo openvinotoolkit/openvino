@@ -201,6 +201,8 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/eltwise_chain.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/fuse_transpose_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/fuse_transpose_reorder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/gated_residual.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/gated_residual.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/moe.cpp
@@ -290,6 +292,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_sdpa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_pa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_pa.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/include/qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/qsa_indexer.cpp

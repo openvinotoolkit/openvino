@@ -276,6 +276,13 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/gated_residual_mix.cpp
+        API         src/nodes/kernels/gated_residual_mix.hpp
+        NAME        gated_residual_mix
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp
         API         src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp
         NAME        turboq_quantize_head turboq_quantize

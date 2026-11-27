@@ -286,7 +286,7 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
                                         const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {
-        ov::ProfilingInfo p_info;
+        ov::ProfilingInfo p_info{};
         p_info.status = ov::ProfilingInfo::Status::EXECUTED;
         p_info.node_name = name;
         p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);

@@ -95,6 +95,7 @@ struct GraphOptions {
     float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
     // FuseQSAIndexer padding: the block-key cache is grown by a Concat.
     bool padding = true;
+    int64_t rope_batch = -1;
 };
 
 GraphOptions unpadded() {
@@ -112,8 +113,8 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
     };
     const auto query = param(data_type, PartialShape{-1, -1, query_heads, head_size});
     const auto raw_keys = param(data_type, PartialShape{-1, -1, key_heads, head_size});
-    const auto rope_cos = param(data_type, PartialShape{-1, o.rope_length, rotary_dim});
-    const auto rope_sin = param(data_type, PartialShape{-1, o.rope_length, rotary_dim});
+    const auto rope_cos = param(data_type, PartialShape{o.rope_batch, o.rope_length, rotary_dim});
+    const auto rope_sin = param(data_type, PartialShape{o.rope_batch, o.rope_length, rotary_dim});
     const auto key_length = param(element::i32, PartialShape{-1});
     const auto beam_idx = o.gathered_states ? param(element::i32, PartialShape{-1}) : nullptr;
 
@@ -651,6 +652,7 @@ struct QueryOptions {
     bool different_tail_input = false;
     int64_t concat_axis = -1;
     int64_t rope_length = -1;
+    int64_t rope_batch = -1;
     int64_t rope_axis = 1;
     // Reshape target expressing the cos / sin head-axis Unsqueeze; empty keeps the Unsqueeze.
     std::vector<int64_t> rope_rows_target;
@@ -672,7 +674,9 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
     using In = typename Indexer::InputIdx;
     constexpr bool paged = std::is_same<Indexer, op_internal::PagedQSAIndexer>::value;
     QueryGraph<Indexer> graph;
-    graph.model = make_model(GraphOptions{false, false, paged, false, o.rope_length}, paged);
+    GraphOptions graph_options{false, false, paged, false, o.rope_length};
+    graph_options.rope_batch = o.rope_batch;
+    graph.model = make_model(graph_options, paged);
     for (const auto& node : graph.model->get_ops()) {
         graph.indexer = ov::as_type_ptr<Indexer>(node);
         if (graph.indexer) {
@@ -978,6 +982,27 @@ const std::vector<QueryOptions> query_cases = [] {
     o.rope_length = 2;
     o.rope_rows_target = {-1, 1, 2, rotary_dim};
     cases.push_back(o);
+    o = QueryOptions{"dynamic_rope_length"};
+    o.rope_batch = 1;
+    o.rope_rows_target = {1, 1, -1, rotary_dim};
+    cases.push_back(o);
+    o.name = "zero_rope_length_positive_batch";
+    o.rope_length = 0;
+    cases.push_back(o);
+    o.rope_length = -1;
+    o.name = "split_rope_dynamic_rope_length";
+    o.split_rope = true;
+    cases.push_back(o);
+    o = QueryOptions{"zero_batch_dynamic_rope_length"};
+    o.rope_batch = 0;
+    o.rope_rows_target = {0, 1, -1, rotary_dim};
+    o.with_norm = o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"zero_length_dynamic_rope_batch"};
+    o.rope_length = 0;
+    o.rope_rows_target = {-1, 1, 0, rotary_dim};
+    o.with_norm = o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
     o = QueryOptions{"multiple_rope_rows"};
     o.rope_length = 2;
     o.rope_rows_target = {-1, 1, 1, rotary_dim};
@@ -1085,6 +1110,18 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          [](const testing::TestParamInfo<QueryOptions>& info) {
                              return info.param.name;
                          });
+
+TEST_F(TransformationTestsF, FuseDenseQSAIndexerQuerySplitRoPEDynamicRows) {
+    QueryOptions options;
+    options.rope_batch = 1;
+    options.rope_rows_target = {1, 1, -1, rotary_dim};
+    options.split_rope = true;
+    model = getQueryModel<op_internal::QSAIndexer>(options);
+    model_ref = getQueryModelRef<op_internal::QSAIndexer>(options);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryPartialRoPE) {
     QueryOptions options;

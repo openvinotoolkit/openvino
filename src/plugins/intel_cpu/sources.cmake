@@ -214,6 +214,7 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/fullyconnected_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/fullyconnected_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/gated_delta_net_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/gated_residual_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/gathermatmul_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/gathermatmul_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/gdn_implementations.cpp
@@ -316,6 +317,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/inverse.hpp
     ${CPU_SRC_DIR}/nodes/istft.cpp
     ${CPU_SRC_DIR}/nodes/istft.h
+    ${CPU_SRC_DIR}/nodes/kernels/gated_residual_mix.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/gated_residual_mix.hpp
     ${CPU_SRC_DIR}/nodes/kernels/jit_eltwise_common.cpp
     ${CPU_SRC_DIR}/nodes/kernels/jit_eltwise_common.hpp
     ${CPU_SRC_DIR}/nodes/kernels/kai/kleidi_kernel.hpp
@@ -745,6 +748,11 @@ set(CPU_PLUGIN_ACL_SRCS
 )
 
 set(CPU_PLUGIN_X64_SRCS
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gated_residual_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gated_residual_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/gated_residual_implementations.cpp
+    ${CPU_SRC_DIR}/nodes/gated_residual.cpp
+    ${CPU_SRC_DIR}/nodes/gated_residual.h
     ${CPU_SRC_DIR}/emitters/plugin/x64/debug_capabilities.cpp
     ${CPU_SRC_DIR}/emitters/plugin/x64/debug_capabilities.hpp
     ${CPU_SRC_DIR}/emitters/plugin/x64/jit_bf16_emitters.hpp
