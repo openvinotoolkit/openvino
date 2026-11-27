@@ -237,6 +237,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self.input_shapes = input_shapes or []
 
         self._input_signature = []
+        self._input_names = None
         self._example_input = None
 
         if isinstance(pt_module, torch.fx.graph_module.GraphModule):
@@ -273,9 +274,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             if not input_types or len(input_types) == 0:
                 self.input_types = found_types
 
+            placeholder_names = list(self._input_signature)
             if hasattr(self.pt_module, "forward"):
                 input_params = inspect.signature(self.pt_module.forward).parameters
                 self._input_signature = list(input_params)
+                self._input_names = self._get_input_names_from_spec(placeholder_names)
 
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
@@ -481,6 +484,51 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
         return torch.export.export(model, **export_args_dict)
 
+    def _get_input_names_from_spec(self, placeholder_names: list) -> "list | None":
+        """Name each flattened input after its forward parameter, or after its placeholder inside a container.
+
+        Container arguments (list, tuple, dict) are flattened into several inputs, so the forward parameter names
+        do not line up with the input indices. Returns None if the input spec of the module is not available.
+        """
+        def children(spec):
+            # children() replaces the deprecated children_specs in newer torch versions
+            return list(spec.children()) if hasattr(spec, "children") else list(spec.children_specs)
+
+        in_spec = getattr(self.pt_module, "_in_spec", None)
+        if in_spec is None or in_spec.num_leaves != len(placeholder_names) or len(children(in_spec)) != 2:
+            return None
+        args_spec, kwargs_spec = children(in_spec)
+        argument_specs = list(zip(self._input_signature, children(args_spec)))
+        if kwargs_spec.num_leaves:
+            argument_specs += list(zip(kwargs_spec.context, children(kwargs_spec)))
+        names = []
+        is_container_leaf = []
+        for name, spec in argument_specs:
+            start = len(names)
+            leaves = [name] if spec.is_leaf() else placeholder_names[start:start + spec.num_leaves]
+            names += leaves
+            is_container_leaf += [not spec.is_leaf()] * len(leaves)
+        if len(names) != len(placeholder_names):
+            return None
+        # A plain argument keeps its own name. A container leaf whose placeholder name is already taken,
+        # e.g. pair[0] -> "pair_0" next to an argument called "pair_0", gets a suffix instead.
+        taken = {name for name, leaf in zip(names, is_container_leaf) if not leaf}
+        reserved = taken | {name for name, leaf in zip(names, is_container_leaf) if leaf}
+        for i, name in enumerate(names):
+            if is_container_leaf[i] and name in taken:
+                suffix = 1
+                while f"{name}_{suffix}" in reserved:
+                    suffix += 1
+                name = names[i] = f"{name}_{suffix}"
+                reserved.add(name)
+            taken.add(name)
+        return names
+
+    def get_input_signature_name(self, index: int) -> str:
+        if self._input_names is not None and index < len(self._input_names):
+            return self._input_names[index]
+        return super().get_input_signature_name(index)
+
     @staticmethod
     def get_found_shape(value) -> str:
         # If input is a tensor, read the shape from meta data
@@ -596,6 +644,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
+        if name == "__openvino_legacy_op_type":
+            return OVAny(self.get_legacy_op_type())
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
@@ -681,10 +731,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
-                name = self.pt_module.target.__name__
+            target = self.pt_module.target
+            if type(target).__name__ == "EdgeOpOverload":
+                name = target.__name__
+            elif inspect.isfunction(target):
+                name = f"{target.__module__}.{target.__qualname__}"
             else:
-                name = str(self._functional_out_target(self.pt_module.target))
+                name = str(self._functional_out_target(target))
             if self._module_extension_target_ops:
                 if name in self._module_extension_target_ops:
                     return self._module_extension_target_ops[name]
@@ -693,6 +746,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
             return "UNKNOWN_TYPE_" + str(self.pt_module.op)
+
+    def get_legacy_op_type(self):
+        if (isinstance(self.pt_module, torch.fx.Node) and self.pt_module.op == "call_function"
+                and inspect.isfunction(self.pt_module.target)):
+            return str(self.pt_module.target)
+        return ""
 
     def get_schema(self):
         schema = getattr(getattr(self.pt_module, "target", None), "_schema", None)
@@ -755,6 +814,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return max_out_id + 1
 
     def _node_name_prefix(self):
+        for module_path, _ in reversed(self.pt_module.meta.get("nn_module_stack", {}).values()):
+            if module_path:
+                return f"{module_path}/{self.pt_module.name}"
         return self.pt_module.name
 
     def as_constant(self):

@@ -4,7 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <exception>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -17,6 +19,7 @@
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -26,6 +29,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
+using namespace ::intel_npu;
+
 namespace {
 // Log markers emitted once per adapter, when its constructor runs (see driver_compiler_adapter.cpp /
 // plugin_compiler_adapter.cpp). Used to detect whether a given compiler type had to be (re)initialized.
@@ -34,29 +39,31 @@ std::string startMarkerFor(ov::intel_npu::CompilerType compilerType) {
                                                                : "initialize PluginCompilerAdapter start";
 }
 
+// Only successful PLUGIN bulk loading emits this marker; DRIVER has no equivalent success marker.
 size_t countOccurrences(const std::string& haystack, const std::string& needle) {
     size_t count = 0;
-    for (size_t pos = haystack.find(needle); pos != std::string::npos; pos = haystack.find(needle, pos + needle.size())) {
+    for (size_t pos = haystack.find(needle); pos != std::string::npos;
+         pos = haystack.find(needle, pos + needle.size())) {
         ++count;
     }
     return count;
 }
 
-// Only PluginCompilerAdapter's successful bulk load logs a distinctive, identifiable marker (see
-// "VCLCompilerImpl return supported_options" in compiler_impl.cpp). DriverCompilerAdapter has
-// no equivalent marker on its success path, so "exactly once" bulk-load checks below only apply to PLUGIN.
 std::string bulkLoadMarkerFor(ov::intel_npu::CompilerType compilerType) {
     return compilerType == ov::intel_npu::CompilerType::PLUGIN ? "VCLCompilerImpl return supported_options" : "";
 }
+
 }  // namespace
 
-// Exercises CompilerOptionSupportHelper against a real backend/compiler, complementing the
+// Exercises CompilerOptionSupportHelper against a real backend and the real VCL, complementing the
 // backend-agnostic unit tests in tests/unit/npu/compiler_option_support_helper_test.cpp.
 class CompilerOptionSupportHelperFunctionalTests : public ov::test::behavior::OVPluginTestBase,
                                                    public testing::WithParamInterface<ov::intel_npu::CompilerType> {
 protected:
-    ov::SoPtr<::intel_npu::IEngineBackend> backend;
-    std::unique_ptr<::intel_npu::CompilerOptionSupportHelper> helper;
+    ov::SoPtr<IEngineBackend> backend;
+    std::shared_ptr<OptionSupportCache> optionSupportCache;
+    VCLFunctionTableProvider vclFunctionsProvider;
+    std::unique_ptr<CompilerOptionSupportHelper> helper;
     ov::intel_npu::CompilerType compilerType;
 
     std::string targetDevice;
@@ -68,9 +75,14 @@ protected:
         OVPluginTestBase::SetUp();
 
         compilerType = GetParam();
-        backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory());
+        backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        optionSupportCache = std::make_shared<OptionSupportCache>();
+        const auto loader = std::make_shared<VCLLoader>();
+        vclFunctionsProvider = [loader] {
+            return loader->sharedFunctions();
+        };
+        helper = std::make_unique<CompilerOptionSupportHelper>(
+            std::make_shared<const CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache));
     }
 
     void TearDown() override {
@@ -90,8 +102,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, RejectsCompilerTypeOutsideSup
 }
 
 // Properties from DriverCompilerAdapter's legacy fallback list marked as supported since compiler
-// version 0.0 (see "_supportedPropertiesWithVersions" in driver_compiler_adapter.cpp). These are safe,
-// version-independent choices to exercise real (uncached) compiler lookups for both compiler types.
+// version 0.0. These are safe, version-independent choices to exercise uncached compiler lookups.
 const std::vector<std::string> knownSupportedOptions = {ov::enable_profiling.name(),
                                                         ov::hint::performance_mode.name(),
                                                         ov::log::level.name(),
@@ -118,11 +129,11 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, GetsSupportFromCompilerWhenNo
         }
     }
 
-    // The cache was empty for these options, so the real compiler adapter must have been created.
+    // The cache was empty for these options, so the compiler adapter must have been created.
     ASSERT_NE(logs.find(startMarkerFor(compilerType)), std::string::npos);
 }
 
-TEST_P(CompilerOptionSupportHelperFunctionalTests, CachesResultAfterRealCompilerLookup) {
+TEST_P(CompilerOptionSupportHelperFunctionalTests, CachesResultAfterCompilerLookup) {
     for (const auto& optionName : knownSupportedOptions) {
         OV_ASSERT_NO_THROW(helper->isOptionSupported(compilerType, optionName));
     }
@@ -140,7 +151,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, CachesResultAfterRealCompiler
         utils::LoggerLevelGuard loggerLevelGuard(ov::log::Level::INFO);
 
         // Second lookup for every option: each must be served from the cache populated by the
-        // previous real compiler lookup, without creating the adapter again.
+        // previous compiler adapter lookup, without creating the adapter again.
         for (const auto& optionName : knownSupportedOptions) {
             bool isSupported = false;
             OV_ASSERT_NO_THROW(isSupported = helper->isOptionSupported(compilerType, optionName));
@@ -152,8 +163,8 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, CachesResultAfterRealCompiler
 }
 
 TEST_P(CompilerOptionSupportHelperFunctionalTests, AddsNewOptionToCacheAndReturnsItWithoutCompilerLookup) {
-    const auto cacheKey = static_cast<::intel_npu::OptionSupportCache::CacheKey>(compilerType);
-    helper->getOptionSupportCache()->addSupportedOption(cacheKey, "MANUALLY_CACHED_OPTION", true);
+    const auto cacheKey = static_cast<OptionSupportCache::CacheKey>(compilerType);
+    optionSupportCache->addSupportedOption(cacheKey, "MANUALLY_CACHED_OPTION", true);
 
     std::string logs;
     std::mutex logsMutex;
@@ -176,9 +187,9 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, AddsNewOptionToCacheAndReturn
     ASSERT_EQ(logs.find(startMarkerFor(compilerType)), std::string::npos);
 }
 
-// "DUMMY_OPTION_NOT_IN_BULK_LIST" is not part of any real compiler's bulk "get_supported_options()" dump,
+// "DUMMY_OPTION_NOT_IN_BULK_LIST" is not part of any compiler's bulk "get_supported_options()" dump,
 // so unlike "knownSupportedOptions" above, the first lookup cannot be answered from the bulk-populated
-// cache and must fall through to the individual "is_option_supported" probe on the real compiler adapter.
+// cache and must fall through to the individual "is_option_supported" probe on the compiler adapter.
 TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOptionOutsideBulkList) {
     const std::string unlistedOption = "DUMMY_OPTION_NOT_IN_BULK_LIST";
 
@@ -227,10 +238,10 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    ::intel_npu::CompilerAdapterFactory factory;
+    const CompilerAdapterFactory factory{backend, vclFunctionsProvider};
     auto adapterCompilerType = compilerType;
-    std::unique_ptr<::intel_npu::ICompilerAdapter> compilerAdapter;
-    OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(backend, adapterCompilerType, ""));
+    std::unique_ptr<ICompilerAdapter> compilerAdapter;
+    OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(adapterCompilerType, ""));
 
     bool supportedByCompiler = false;
     OV_ASSERT_NO_THROW(supportedByCompiler = compilerAdapter->is_option_supported(batchModeOption));
@@ -262,12 +273,11 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirect
     ASSERT_EQ(logs.find(startMarkerFor(compilerType)), std::string::npos);
 }
 
-// Stresses the shared, per-compiler-type once_flag/cache guard in CompilerOptionSupportHelper::isOptionSupported
-// with concurrent lookups for the same key. Bulk loading ("get_supported_options") must still run exactly once.
 TEST_P(CompilerOptionSupportHelperFunctionalTests, ConcurrentLookupsForSameKeyLoadOptionsOnceWithoutRaces) {
     constexpr int kThreadCount = 8;
     std::vector<std::thread> threads;
-    std::vector<bool> results(kThreadCount, false);
+    // Avoid vector<bool>'s packed bits: concurrent writes to distinct indices can still race.
+    std::vector<int> results(kThreadCount, 0);
     std::vector<std::exception_ptr> failures(kThreadCount);
 
     std::string logs;
@@ -285,10 +295,8 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ConcurrentLookupsForSameKeyLo
         for (int i = 0; i < kThreadCount; ++i) {
             threads.emplace_back([&, i]() {
                 try {
-                    // Mixing options already known to be part of the bulk list, queried concurrently
-                    // for the same compiler type/key.
                     const auto& optionName = knownSupportedOptions[i % knownSupportedOptions.size()];
-                    results[i] = helper->isOptionSupported(compilerType, optionName);
+                    results[i] = helper->isOptionSupported(compilerType, optionName) ? 1 : 0;
                 } catch (...) {
                     failures[i] = std::current_exception();
                 }
@@ -301,13 +309,11 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ConcurrentLookupsForSameKeyLo
 
     for (int i = 0; i < kThreadCount; ++i) {
         ASSERT_FALSE(failures[i]) << "Thread " << i << " threw an exception";
-        EXPECT_TRUE(results[i]) << "Thread " << i;
+        EXPECT_EQ(results[i], 1) << "Thread " << i;
     }
 
     const auto marker = bulkLoadMarkerFor(compilerType);
     if (!marker.empty()) {
-        // Regardless of how many threads raced past the cache-miss check, the expensive bulk
-        // "get_supported_options" retrieval, guarded by the per-key once_flag, must run exactly once.
         EXPECT_EQ(countOccurrences(logs, marker), 1u);
     }
 }
@@ -317,24 +323,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Values(ov::intel_npu::CompilerType::DRIVER, ov::intel_npu::CompilerType::PLUGIN),
                          CompilerOptionSupportHelperFunctionalTests::getTestCaseName);
 
-// Single helper instance shared by concurrent lookups against two independent compiler-type keys
-// (DRIVER and PLUGIN), to verify the once_flag/cache map has no cross-key races or deadlocks.
 class CompilerOptionSupportHelperConcurrencyTests : public ov::test::behavior::OVPluginTestBase {
 protected:
-    ov::SoPtr<::intel_npu::IEngineBackend> backend;
-    std::unique_ptr<::intel_npu::CompilerOptionSupportHelper> helper;
-
-    std::string targetDevice;
+    ov::SoPtr<IEngineBackend> backend;
+    std::shared_ptr<OptionSupportCache> optionSupportCache;
+    std::unique_ptr<CompilerOptionSupportHelper> helper;
 
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_NPU;
-
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
-        backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory());
+        // The compiler-in-plugin key of this test needs the real VCL entry points.
+        const auto loader = std::make_shared<VCLLoader>();
+        backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        optionSupportCache = std::make_shared<OptionSupportCache>();
+        helper = std::make_unique<CompilerOptionSupportHelper>(std::make_shared<const CompilerAdapterFactory>(
+            backend,
+            [loader] {
+                return loader->sharedFunctions();
+            },
+            optionSupportCache));
     }
 
     void TearDown() override {
@@ -343,10 +351,11 @@ protected:
 };
 
 TEST_F(CompilerOptionSupportHelperConcurrencyTests,
-      ConcurrentLookupsForDifferentKeysLoadOptionsOncePerKeyWithoutDeadlock) {
+       ConcurrentLookupsForDifferentKeysLoadOptionsOncePerKeyWithoutDeadlock) {
     constexpr int kThreadsPerType = 4;
     std::vector<std::thread> threads;
-    std::vector<bool> results(kThreadsPerType * 2, false);
+    // Avoid vector<bool>'s packed bits: concurrent writes to distinct indices can still race.
+    std::vector<int> results(kThreadsPerType * 2, 0);
     std::vector<std::exception_ptr> failures(kThreadsPerType * 2);
 
     std::string logs;
@@ -365,7 +374,9 @@ TEST_F(CompilerOptionSupportHelperConcurrencyTests,
             threads.emplace_back([&, i]() {
                 try {
                     results[i] = helper->isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
-                                                           knownSupportedOptions[i % knownSupportedOptions.size()]);
+                                                           knownSupportedOptions[i % knownSupportedOptions.size()])
+                                     ? 1
+                                     : 0;
                 } catch (...) {
                     failures[i] = std::current_exception();
                 }
@@ -374,7 +385,9 @@ TEST_F(CompilerOptionSupportHelperConcurrencyTests,
                 const int idx = kThreadsPerType + i;
                 try {
                     results[idx] = helper->isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                             knownSupportedOptions[i % knownSupportedOptions.size()]);
+                                                             knownSupportedOptions[i % knownSupportedOptions.size()])
+                                       ? 1
+                                       : 0;
                 } catch (...) {
                     failures[idx] = std::current_exception();
                 }
@@ -387,11 +400,9 @@ TEST_F(CompilerOptionSupportHelperConcurrencyTests,
 
     for (size_t i = 0; i < results.size(); ++i) {
         ASSERT_FALSE(failures[i]) << "Thread " << i << " threw an exception";
-        EXPECT_TRUE(results[i]) << "Thread " << i;
+        EXPECT_EQ(results[i], 1) << "Thread " << i;
     }
 
-    // Concurrent traffic on the DRIVER key must not block or interfere with the independent
-    // once_flag/cache entry for the PLUGIN key (and vice versa): PLUGIN must still bulk-load exactly once.
     EXPECT_EQ(countOccurrences(logs, bulkLoadMarkerFor(ov::intel_npu::CompilerType::PLUGIN)), 1u);
 }
 

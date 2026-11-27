@@ -155,7 +155,7 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    reorder_cache_key ckey{ input_id, reorder_params->get_output_layout()};
+    reorder_cache_key ckey{input_id, reorder_params->get_output_layout(), reorder_params->should_be_transposed()};
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
@@ -178,10 +178,16 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {
             const auto& shape = weights_layout.get_partial_shape();
-            if (is_input) {
-                channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
-            } else {
-                channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
+            const bool grouped_weights = conv_node.get_primitive()->grouped_weights_shape || format::is_grouped(weights_layout.format);
+            const int64_t groups = static_cast<int64_t>(conv_node.get_groups());
+            if (grouped_weights) {
+                // Grouped weights shape is [G, O_per_group, I_per_group, ...]
+                if (shape.size() >= 3) {
+                    channel_count = groups * shape[is_input ? 2 : 1].get_length();
+                }
+            } else if (shape.size() >= 2) {
+                // Non-grouped weights shape is [G * O_per_group, I_per_group, ...]
+                channel_count = is_input ? groups * shape[1].get_length() : shape[0].get_length();
             }
         }
     }
@@ -449,6 +455,28 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+
+    const auto is_fp_to_int = [](data_types from, data_types to) {
+        return data_type_traits::is_floating_point(from) && !data_type_traits::is_floating_point(to);
+    };
+    // A Convert from floating point to an integral type (reorder in truncate mode) truncates toward zero and wraps
+    // out-of-range values. Except for select, whose kernel converts the same way, a previous node storing the
+    // integral type directly converts in its own way (e.g. saturates), so keep such a reorder.
+    if (node.get_primitive()->truncate && is_fp_to_int(prev.get_output_layout().data_type, node.get_output_layout().data_type) &&
+        !prev.is_type<select>()) {
+        return false;
+    }
+    // Once a node stores the truncated integral value of its floating-point result, another type conversion fused into
+    // it would make it store the floating-point result in the new type directly, dropping the truncation. The reorder
+    // chain shrinking keeps fp -> int -> fp reorders for the same reason.
+    const auto& prev_fused_prims = prev.get_fused_primitives();
+    const bool prev_truncates = std::any_of(prev_fused_prims.begin(), prev_fused_prims.end(), [&](const fused_primitive_desc& fd) {
+        return fd.is_type<reorder>() && fd.typed_desc<reorder>()->truncate &&
+               is_fp_to_int(fd.input_layout.data_type, fd.get_output_layout().data_type);
+    });
+    if (prev_truncates && prev.get_output_layout().data_type != node.get_output_layout().data_type) {
+        return false;
+    }
 
     // Do not fuse a rank-reducing reorder into a producer whose fused higher-rank
     // eltwise peer cannot be indexed correctly at the reduced rank (inner-spatial
@@ -1265,30 +1293,14 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         node.set_preferred_input_fmt(0, get_fsv16_format(rank));
         node.set_preferred_output_fmt(0, get_fsv16_format(rank));
 
-        // Override input for small channels (≤ 16)
-        // fsv16 format uses 16-element blocks. channels ≤ 16 waste block padding
-        // e.g. 8ch uses only 8/16 elements per block (50% waste), planar format is more efficient
-        if (input_channels > 0 && input_channels <= 16) {
+        // Override with default planar format for small channels (<= 8).
+        // Matches oneDNN jit:ir small-channel threshold for FP16 (get_default_mad_block(f16) / 2 = 8),
+        // where fsv16 (aBcd16b) is rejected and falls back to ocl:ref:any.
+        if (input_channels > 0 && input_channels <= 8) {
             node.set_preferred_input_fmt(0, format::get_default_format(rank));
         }
 
-        // Override output for small channels (≤ 16)
-        // same as input - avoid fsv16 block padding overhead for small channel counts
-        if (output_channels > 0 && output_channels <= 16) {
-            node.set_preferred_output_fmt(0, format::get_default_format(rank));
-        }
-
-        // Override output for channel expansion operations (small input → large output)
-        // when expanding from small input channels (≤16) to large output channels (≥32),
-        // planar output format enables OneDNN to select optimized JIT kernel instead of reference kernel
-        // Thresholds explained:
-        //   - input ≤ 16: matches fsv16 block size, input side uses planar format (set above)
-        //   - output ≥ 32: 2 or more fsv16 blocks (32/16=2), where blocked write overhead exceeds
-        //                  sequential write benefits. planar format provides better cache locality
-        //                  and memory access patterns for large channel generation
-        // e.g. 3ch → 1024ch would create 64 fsv16 blocks with scattered writes,
-        //      but planar format allows efficient sequential writes
-        if (input_channels > 0 && input_channels <= 16 && output_channels >= 32) {
+        if (output_channels > 0 && output_channels <= 8) {
             node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     } else if (is_fp32_input) {

@@ -7,14 +7,24 @@ Embedding fixtures contain `embeddings` instead of `logits`, and cover causal/bi
 per-token output plus mean, first-token and last-token pooling.
 OpenVINO does not participate in reference generation.
 
-The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
+`eagle3-fc-q4_1` and `dflash-fc-q4_1` use packed Q4_1 FC weights with logical
+input width 96. Their integer zero points, binary-exact scales and Q8_0-representable
+hidden features isolate packed-weight geometry from requantization and reference
+activation rounding. Both use CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
+and the unchanged `1e-5` gate; they do not establish arbitrary quantized-checkpoint parity.
+
+DFlash fixtures cover `dflash`, `dflash-mapped`, `dflash-fc-q4_1`, `dflash-post` and
+`dflash-shared`. Convolution, selector, LiLiCorr and Markov variants are deferred.
+
+The decoder and embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with
 per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-ple`). Reference revisions are:
 
 | Fixtures | llama.cpp CPU oracle |
 |---|---|
-| Decoder/embedding fixtures other than the Mamba and Prism cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| Decoder/embedding fixtures other than the Mamba, Prism and noncausal LFM cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| `lfm2-encoder`, `lfm2-embed-mean`, `lfm2-embed-cls`, `lfm2-embed-last`, `lfm2-colbert`, `lfm3-d1` | Upstream `604cc430239c76ff636c443e3400bf552b750421` |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 
@@ -89,6 +99,8 @@ PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_dspark_accuracy.py --oracle ./dspark
 Gated-DeltaNet feature ordering. `dspark.npz` uses the DSpark API oracle for noncausal
 draft blocks with log-SNR conditioning; it also stores Markov and confidence projection
 weights for the head checks. The upstream oracle revision does not supply these Prism contracts.
+The `qwen3next-legacy-hadamard` case rotates the legacy fixture's fused weights and reuses its
+original logits; it always uses the committed fixture, even when `OV_GGUF_ACCURACY_DATA` is set.
 
 For an additional real-checkpoint check, create `<arch>.gguf` in a separate directory,
 then run `architecture_oracle <arch>.gguf <arch>.bin "The capital of France is"`.
@@ -108,6 +120,14 @@ and random seed 20261014. They cover four hybrid layers, four query/two KV heads
 three/four-tap convolution caches, a two-token attention window, dense leading layers,
 selection bias and normalized softmax/sigmoid expert weights. The sigmoid case includes
 expert-scale metadata that llama.cpp's LFM2 MoE loader ignores.
+
+Noncausal LFM fixtures set `<arch>.attention.causal=false` and use three-tap centered
+convolutions. `lfm2-encoder` returns per-token rows; `lfm2-embed-mean`, `-cls` and `-last`
+pool them, the mean case through a biased `dense_2` projection, and `lfm2-colbert` projects
+every token to `embedding_length_out`. `lfm3-d1` evaluates tokens `1..6` in one batch with
+`architecture_oracle <model> <out> --whole-prompt`, which writes the vocabulary size and every
+token's logits; its sliding-window layers cross the two-token window while full-attention
+layers stay bidirectional.
 
 `afmoe.npz` was extracted from OpenVINO donor `c4a023aeac0302c283295ba241ddee5af5ca4a0b`.
 It covers four layers (one dense, three routed/shared MoE), four query/two KV heads,

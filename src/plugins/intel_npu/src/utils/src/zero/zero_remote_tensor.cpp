@@ -33,7 +33,7 @@ void validate_src_roi_bounds(const ov::Shape& owner_shape,
     OPENVINO_ASSERT(owner_shape.size() == roi_shape.size(), "ROI rank must match parent tensor rank");
 
     size_t total_bytes = ov::util::get_memory_size(type, ov::shape_size(owner_shape));
-    size_t roi_bytes = intel_npu::zeroUtils::get_capacity_size(roi_shape, owner_strides);
+    size_t roi_bytes = intel_npu::zeroUtils::get_capacity_size(type, roi_shape, owner_strides);
 
     OPENVINO_ASSERT(offset + roi_bytes <= total_bytes,
                     "ROI with offset ",
@@ -212,7 +212,8 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    TensorType zero_tensor_type,
                                    MemType memory_type,
                                    const void* memory,
-                                   const std::optional<FileDescriptor>& file_desc)
+                                   const std::optional<FileDescriptor>& file_desc,
+                                   std::optional<size_t> import_size)
     : _context(context),
       _init_structs(init_structs),
       _element_type(element_type),
@@ -229,7 +230,20 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
     const auto byte_size = ov::util::get_memory_size_safe(element_type, shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", shape);
 
-    allocate(*byte_size);
+    if (import_size.has_value()) {
+        OPENVINO_ASSERT(*import_size >= *byte_size,
+                        "Import size (",
+                        *import_size,
+                        " bytes) is smaller than the tensor size (",
+                        *byte_size,
+                        " bytes) for type: ",
+                        element_type,
+                        " and shape: ",
+                        shape);
+    }
+
+    // import_size is only accepted for imported memory, so other memory types always use the tensor size
+    allocate(import_size.value_or(*byte_size));
 }
 
 const ov::element::Type& ZeroRemoteTensor::get_element_type() const {
@@ -264,19 +278,9 @@ void ZeroRemoteTensor::set_shape(ov::Shape new_shape) {
 }
 
 void ZeroRemoteTensor::update_strides() {
-    if (_element_type.bitwidth() < 8) {
-        return;
-    }
-
     auto& shape = get_shape();
-    if (_strides.empty() && !shape.empty()) {
-        _strides.resize(shape.size());
-        _strides.back() = shape.back() == 0 ? 0 : _element_type.size();
-        std::transform(shape.crbegin(),
-                       shape.crend() - 1,
-                       _strides.rbegin(),
-                       _strides.rbegin() + 1,
-                       std::multiplies<size_t>());
+    if (_strides.empty() && ov::util::can_compute_byte_strides(_element_type, shape)) {
+        _strides = ov::util::get_dense_byte_strides(_element_type, shape);
     }
 }
 

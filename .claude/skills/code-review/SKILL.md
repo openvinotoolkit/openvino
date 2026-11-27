@@ -240,7 +240,8 @@ shared tests and documentation according to the behavior exercised or described.
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime and core](references/runtime.md) and [Plugins](references/plugins.md), as exercised |
 | `src/frontends/`, `src/bindings/python/src/openvino/frontend/` (including PyTorch and JAX decoders), `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [Bindings and public APIs](references/bindings.md) for Python API or language-boundary changes |
 | `src/bindings/`, public API changes under `src/core/include/` or `src/inference/include/` | [Bindings and public APIs](references/bindings.md) |
-| `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, `cmake/`, `CMakeLists.txt` and `*.cmake` at any depth, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
+| `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
+| `cmake/`, `CMakeLists.txt`, `*.cmake`, and `*.cmake.in` at any depth, toolchain files | [CMake and build system](references/cmake.md), plus [CI, build, and dependencies](references/ci.md) for dependency changes |
 
 This skill defines the common evidence and reporting contract. Component
 references add domain-specific checks and explicit requirements.
@@ -297,6 +298,10 @@ Apply the same technical evidence threshold regardless of authorship:
   without current evidence.
 
 ## Review output
+
+Always load and follow [delivery.md](references/delivery.md). It is mandatory and
+defines the report order, the final-message rule, and PR publishing; the
+rules below define the content of each part.
 
 Start with the main assessment and identify the reviewed baseline. State
 whether inspection was complete or partial.

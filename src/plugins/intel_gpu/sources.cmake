@@ -54,6 +54,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_residual.cpp
     # NOTE: filename contains a literal space (pre-existing, not a typo introduced here)
     "${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gather tree.cpp"
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gather.cpp
@@ -89,6 +90,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/paged_qsa_indexer.cpp
@@ -131,7 +133,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/space_to_depth.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_fill_empty_rows.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/stateless_kv.cpp
@@ -150,12 +152,16 @@ set(GPU_PLUGIN_OPS_SOURCES
 )
 
 set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/bcast_and_pad_zp_buffers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/binary_conv_to_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/clamp_fp16_output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_fc_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_qsa_indexer_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_sparse_attn_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
@@ -202,8 +208,11 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/optimize_subsequent_reshapes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/preserve_single_selective_ssm_output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/print_model_statistics.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_gated_residual_scale_layout.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/gated_residual_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/reduce_fc_dimensions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/remove_fq_before_dw_conv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/scale_down_gated_mlp_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sink_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/stateless_kv_fusion.cpp
@@ -218,6 +227,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected_compressed.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_space_to_depth.cpp
@@ -227,12 +237,11 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_router_fused.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/placeholder.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sdpa.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa_config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/qsa_indexer_in_place.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/stateless_kv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/swoosh.cpp

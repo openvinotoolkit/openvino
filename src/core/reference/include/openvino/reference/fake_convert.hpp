@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <type_traits>
 #include <vector>
 
 #include "openvino/reference/autobroadcast_binop.hpp"
@@ -29,20 +30,26 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
  * @param arg_f       Pointer to the input data.
  * @param out_f       Pointer to the otuput data.
  * @param count       Number of elements in the data input.
- * @param use_clamp   If use clamp.
- *
- * Exponent denormal values 0 -7
- * Exponent normal values 1..15 -6..8 (7 - exponent)
- * Exponent NaN values 15 8
- *
+ * @param use_clamp   If use clamp: out of range values and inf saturate to +-448, otherwise they become NaN.
  */
 void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, bool use_clamp = true);
 }  // namespace func
 
 namespace fake_convert_details {
+/**
+ * @brief Round float data to odd in place, so that the following f32 -> f16 -> f8 conversion rounds only once.
+ */
+void round_to_odd_for_f8(float* data, size_t count);
+
 template <bool INVERT, typename T>
 inline T scale_shift(T val, T scale, T shift) {
-    return INVERT ? static_cast<T>((val + shift) / scale) : static_cast<T>(val * scale - shift);
+    if constexpr (INVERT) {
+        // adding zero shift would turn -0 into +0 (-0 + 0 == +0), so skip it to keep the sign of zero
+        const T shifted = shift == T(0) ? val : static_cast<T>(val + shift);
+        return static_cast<T>(shifted / scale);
+    } else {
+        return static_cast<T>(val * scale - shift);
+    }
 }
 /**
  * @brief Apply scale and shift for the data input.
@@ -192,6 +199,13 @@ void fake_convert(const T* data,
     fake_convert_details::apply_scale_shift<T>(out, data, scale, shift, data_shape, scale_shape, shift_shape, false);
 
     std::vector<ov::float16> tmp_fp16(element_count, 0.f);
+    // Round to odd keeps f32 -> f16 -> f8 a single rounding, it is valid only for f8e4m3/f8e5m2.
+    // out is an intermediate here, it is overwritten by the result below.
+    if constexpr (std::is_same_v<T, float>) {
+        if (destination_type == element::f8e4m3 || destination_type == element::f8e5m2) {
+            fake_convert_details::round_to_odd_for_f8(out, element_count);
+        }
+    }
     reference::convert(out, tmp_fp16.data(), element_count);
     fake_convert_details::apply_conversion(tmp_fp16.data(), tmp_fp16.data(), element_count, destination_type);
     reference::convert(tmp_fp16.data(), out, element_count);

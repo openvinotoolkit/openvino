@@ -357,7 +357,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
 
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id, bool initialize) const {
     auto contexts = get_default_contexts();
-    OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
+    OPENVINO_ASSERT(contexts.contains(device_id), "[GPU] Context was not initialized for ", device_id, " device");
 
     auto context = contexts.at(device_id);
     if (initialize) {
@@ -556,14 +556,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     // Store tensor base in thread-local storage
     g_current_tensor_base = static_cast<const size_t*>(model.data());
     std::unique_ptr<std::streambuf> buf;
-#ifdef _WIN32
-    // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
-    const bool use_prefetch = false;
-#else
-    const bool use_prefetch = static_cast<bool>(ov::get_memory_hints(model));
-#endif
+    const bool use_prefetch = ov::intel_gpu::PrefetchStreamBuf::is_supported(model);
     if (!use_prefetch) {
-        // Memory without hints (e.g. user provided), keep the pread path for user file mappings.
+        // Memory without hints (e.g. user provided) or not a byte blob, keep the pread path for user file mappings.
         buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
     } else {
         buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);
@@ -985,7 +980,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     }
 
     const uint32_t default_streams_for_tput = 2;
-    if (options.count(ov::num_streams.name()) > 0) {
+    if (options.contains(ov::num_streams.name())) {
         auto streams = options.at(ov::num_streams.name()).as<ov::streams::Num>();
         if (streams == ov::streams::AUTO) {
             n_streams = std::max(default_streams_for_tput, device_info.num_ccs);

@@ -111,8 +111,7 @@ public:
                        ov::element::Type exec_prc = ov::element::f32);
     jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                       const std::shared_ptr<ov::Node>& n,
-                       ov::element::Type exec_prc = ov::element::f32);
+                       const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -135,8 +134,7 @@ public:
                       ov::element::Type exec_prc = ov::element::f32);
     jit_floor_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      const std::shared_ptr<ov::Node>& n,
-                      ov::element::Type exec_prc = ov::element::f32);
+                      const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -156,8 +154,7 @@ public:
                         ov::element::Type exec_prc = ov::element::f32);
     jit_ceiling_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& n,
-                        ov::element::Type exec_prc = ov::element::f32);
+                        const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -177,8 +174,7 @@ public:
                           ov::element::Type exec_prc = ov::element::f32);
     jit_floor_mod_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                          const std::shared_ptr<ov::Node>& n,
-                          ov::element::Type exec_prc = ov::element::f32);
+                          const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -202,8 +198,7 @@ public:
                     ov::element::Type exec_prc = ov::element::f32);
     jit_mod_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& n,
-                    ov::element::Type exec_prc = ov::element::f32);
+                    const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -267,8 +262,7 @@ public:
                                    ov::element::Type exec_prc = ov::element::f32);
     jit_squared_difference_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                    dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                   const std::shared_ptr<ov::Node>& n,
-                                   ov::element::Type exec_prc = ov::element::f32);
+                                   const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -288,8 +282,7 @@ public:
                               ov::element::Type exec_prc = ov::element::f32);
     jit_power_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                               dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                              const std::shared_ptr<ov::Node>& n,
-                              ov::element::Type exec_prc = ov::element::f32);
+                              const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -309,8 +302,7 @@ public:
                       ov::element::Type exec_prc = ov::element::f32);
     jit_equal_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      const std::shared_ptr<ov::Node>& n,
-                      ov::element::Type exec_prc = ov::element::f32);
+                      const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -333,8 +325,7 @@ public:
                           ov::element::Type exec_prc = ov::element::f32);
     jit_not_equal_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                          const std::shared_ptr<ov::Node>& n,
-                          ov::element::Type exec_prc = ov::element::f32);
+                          const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -357,8 +348,7 @@ public:
                         ov::element::Type exec_prc = ov::element::f32);
     jit_greater_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& n,
-                        ov::element::Type exec_prc = ov::element::f32);
+                        const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -381,8 +371,7 @@ public:
                               ov::element::Type exec_prc = ov::element::f32);
     jit_greater_equal_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                               dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                              const std::shared_ptr<ov::Node>& n,
-                              ov::element::Type exec_prc = ov::element::f32);
+                              const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -405,8 +394,7 @@ public:
                      ov::element::Type exec_prc = ov::element::f32);
     jit_less_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& n,
-                     ov::element::Type exec_prc = ov::element::f32);
+                     const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -430,8 +418,7 @@ public:
 
     jit_less_equal_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                            dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                           const std::shared_ptr<ov::Node>& n,
-                           ov::element::Type exec_prc = ov::element::f32);
+                           const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -454,8 +441,7 @@ public:
                             ov::element::Type exec_prc = ov::element::f32);
     jit_logical_and_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                             dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& n,
-                            ov::element::Type exec_prc = ov::element::f32);
+                            const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -478,8 +464,7 @@ public:
                            ov::element::Type exec_prc = ov::element::f32);
     jit_logical_or_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                            dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                           const std::shared_ptr<ov::Node>& n,
-                           ov::element::Type exec_prc = ov::element::f32);
+                           const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -502,8 +487,7 @@ public:
                             ov::element::Type exec_prc = ov::element::f32);
     jit_logical_xor_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                             dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& n,
-                            ov::element::Type exec_prc = ov::element::f32);
+                            const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -526,8 +510,7 @@ public:
                             ov::element::Type exec_prc = ov::element::f32);
     jit_logical_not_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                             dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& n,
-                            ov::element::Type exec_prc = ov::element::f32);
+                            const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -553,8 +536,7 @@ public:
                              ov::element::Type exec_prc = ov::element::f32);
     jit_power_static_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                              dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                             const std::shared_ptr<ov::Node>& n,
-                             ov::element::Type exec_prc = ov::element::f32);
+                             const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -581,8 +563,7 @@ public:
                       ov::element::Type exec_prc = ov::element::f32);
     jit_prelu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      const std::shared_ptr<ov::Node>& n,
-                      ov::element::Type exec_prc = ov::element::f32);
+                      const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -604,8 +585,7 @@ public:
                      ov::element::Type exec_prc = ov::element::f32);
     jit_sqrt_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& n,
-                     ov::element::Type exec_prc = ov::element::f32);
+                     const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -625,8 +605,7 @@ public:
                          ov::element::Type exec_prc = ov::element::f32);
     jit_negative_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                         const std::shared_ptr<ov::Node>& n,
-                         ov::element::Type exec_prc = ov::element::f32);
+                         const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -647,8 +626,7 @@ public:
 
     jit_exp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& n,
-                    ov::element::Type exec_prc = ov::element::f32);
+                    const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -676,8 +654,7 @@ public:
 
     jit_erf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& n,
-                    ov::element::Type exec_prc = ov::element::f32);
+                    const std::shared_ptr<ov::Node>& n);
 
     void emit_data() const override;
 
@@ -704,8 +681,7 @@ public:
                           ov::element::Type exec_prc = ov::element::f32);
     jit_soft_sign_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                          const std::shared_ptr<ov::Node>& n,
-                          ov::element::Type exec_prc = ov::element::f32);
+                          const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -729,8 +705,7 @@ public:
                        ov::element::Type exec_prc = ov::element::f32);
     jit_erfinv_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                       const std::shared_ptr<ov::Node>& n,
-                       ov::element::Type exec_prc = ov::element::f32);
+                       const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -797,8 +772,7 @@ public:
     }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                       const std::shared_ptr<ov::Node>& node,
-                       ov::element::Type exec_prc = ov::element::f32);
+                       const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override {
         return 1;
@@ -868,8 +842,7 @@ public:
                        ov::element::Type exec_prc = ov::element::f32);
     jit_select_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                       const std::shared_ptr<ov::Node>& n,
-                       ov::element::Type exec_prc = ov::element::f32);
+                       const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -890,8 +863,7 @@ public:
                             ov::element::Type exec_prc = ov::element::f32);
     jit_bitwise_and_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                             dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& n,
-                            ov::element::Type exec_prc = ov::element::f32);
+                            const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -911,8 +883,7 @@ public:
                             ov::element::Type exec_prc = ov::element::f32);
     jit_bitwise_not_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                             dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& n,
-                            ov::element::Type exec_prc = ov::element::f32);
+                            const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -934,8 +905,7 @@ public:
                            ov::element::Type exec_prc = ov::element::f32);
     jit_bitwise_or_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                            dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                           const std::shared_ptr<ov::Node>& n,
-                           ov::element::Type exec_prc = ov::element::f32);
+                           const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -955,8 +925,7 @@ public:
                             ov::element::Type exec_prc = ov::element::f32);
     jit_bitwise_xor_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                             dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& n,
-                            ov::element::Type exec_prc = ov::element::f32);
+                            const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -1006,6 +975,7 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
+    size_t aux_vecs_count() const override;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>

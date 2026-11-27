@@ -5,6 +5,7 @@
 #include "cpu_tensor.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -14,6 +15,7 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -93,6 +95,19 @@ void Tensor::update_strides() const {
     auto blocked_desc = m_memptr->getDescWithType<BlockedMemoryDesc>();
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     const auto& strides = blocked_desc->getStrides();
+
+    if (m_element_type.bitwidth() < CHAR_BIT && strides.size() > 1) {
+        // only dense (non-padded) sub-byte strides are representable; remove once CVS-198022 lands.
+        const auto ov_shape = ov::Shape{m_memptr->getDescPtr()->getShape().getStaticDims()};
+        OPENVINO_ASSERT(
+            ov::util::can_compute_byte_strides(m_element_type, ov_shape) && strides == ov::row_major_strides(ov_shape),
+            "intel_cpu::Tensor cannot report byte strides for a non-dense multi-dimensional "
+            "sub-byte tensor of type ",
+            m_element_type);
+        m_strides = ov::util::get_dense_byte_strides(m_element_type, ov_shape);
+        return;
+    }
+
     m_strides.resize(strides.size());
     std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
         return stride * m_element_type.size();

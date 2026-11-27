@@ -19,8 +19,9 @@
                                        OUTPUT_PAD_AFTER_FEATURE_NUM) % OUTPUT_FEATURE_BLOCK_SIZE) %        \
          OUTPUT_FEATURE_BLOCK_SIZE)
     #define GWS_FEATURE_SIZE(logical_feature_size) (OUTPUT_FEATURE_NUM + OUTPUT_FEATURE_PAD_RESET_SIZE)
-    // Use non-safe indexing to address padding lanes past the logical feature range.
-    #define GET_PAD_RESET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
+    // Use raw indexing to address padding lanes past the logical feature range. _GET_INDEX is folded to the
+    // first element offset for a single-element tensor, which would make every padding lane overwrite it.
+    #define GET_PAD_RESET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_RAW)(idx_order)
 #else
     #define GWS_FEATURE_SIZE(logical_feature_size) (logical_feature_size)
 #endif

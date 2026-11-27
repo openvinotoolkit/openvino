@@ -57,7 +57,7 @@ std::string paged_qsa_indexer_inst::to_string(const paged_qsa_indexer_node& node
 
 paged_qsa_indexer_inst::typed_primitive_inst(network& network, const paged_qsa_indexer_node& node) : parent(network, node) {
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::PagedQSAIndexer::validate_config(node.get_primitive()->get_config(), reason),
+    OPENVINO_ASSERT(ov::op::internal::PagedQSAIndexer::validate_config(node.get_primitive()->get_config(), reason),
                     "[GPU] Invalid paged_qsa_indexer primitive: ",
                     reason);
 }

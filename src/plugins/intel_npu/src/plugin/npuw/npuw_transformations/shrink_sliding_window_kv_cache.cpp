@@ -92,14 +92,6 @@ struct PastKVSource {
     std::shared_ptr<ov::Node> convert;  // nullptr when Parameter -> Concat directly
 };
 
-// Classifies an SDPA node as SWA (sliding-window) or not, using attention mask
-// classification information attached to the node earlier in the pipeline.
-bool is_sliding_sdpa(const std::shared_ptr<SDPA>& sdpa) {
-    const auto& rt_info = sdpa->get_rt_info();
-    const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
-    return (it != rt_info.end()) && (it->second.as<int64_t>() >= 0);
-}
-
 // Identify the past_kv Parameter feeding a KV Concat. The other Concat input carries the
 // freshly computed KV, so elimination is enough; an optional Convert may sit in between.
 PastKVSource find_past_kv_source(const std::shared_ptr<ov::op::v0::Concat>& concat) {
@@ -300,7 +292,7 @@ void scan_and_patch(const std::shared_ptr<ov::Model>& model,
         if (!sdpa) {
             continue;
         }
-        if (!is_sliding_sdpa(sdpa)) {
+        if (!ov::npuw::has_sliding_window_mask_annotation(*sdpa)) {
             continue;  // skip non-SWA SDPAs
         }
         LOG_DEBUG("[SWA] Patching SWA SDPA '" << sdpa->get_friendly_name() << "'");

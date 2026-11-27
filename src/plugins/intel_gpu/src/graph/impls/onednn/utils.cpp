@@ -306,7 +306,7 @@ cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
     return ret->first;
 }
 
-int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(const cldnn::layout& l, const dnnl::memory::desc& desc) {
     int64_t offset = 0;
     auto b_padding = l.data_padding._lower_size[0];
     auto f_padding = l.data_padding._lower_size[1];
@@ -848,29 +848,6 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }
-
-template <typename T>
-bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
-    auto ptr = node.get_attached_memory_ptr();
-    auto* engine = ptr->get_engine();
-    auto& stream = engine->get_service_stream();
-    auto num_elems = node.get_output_layout().count();
-    mem_lock<T, mem_lock_type::read> old_data{ptr, stream};
-    auto val = old_data[0];
-    for (size_t i = 1; i < num_elems; i++) {
-        if (val != old_data[i]) {
-            zp_val = DNNL_RUNTIME_S32_VAL;
-            return false;
-        }
-    }
-
-    zp_val = val;
-    return true;
-}
-
-template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
-template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
-template bool is_per_tensor<int32_t>(cldnn::data_node& node, int32_t& zp_val);
 
 static std::string get_external_order(const std::vector<size_t>& order, bool is_weights, bool is_grouped) {
     cldnn::format default_fmt = format::get_default_format(order.size(), is_weights, is_grouped);

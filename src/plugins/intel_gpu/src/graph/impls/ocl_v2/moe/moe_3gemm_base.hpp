@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "moe_gemm_base.hpp"
+#include "../primitive_ocl_base.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -19,16 +19,15 @@ namespace ov::intel_gpu::ocl {
 #define MOE_INTERNAL_BUFFER_EXPERT_MASK_BATCH              5   // expert_mask_batch
 #define MOE_INTERNAL_BUFFER_EXPERT_MASK_TOPK               6   // expert_mask_topk
 #define MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS           7   // experts_ids for each activated expert
-#define MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT  8   // token start offset idx (input gather tokens) for each activated expert
-#define MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT 9   // token len (input gather tokens) for each activated expert
-#define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT           10  // token idx per expert
-#define MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM         11  // num_actual_used_experts
-#define MOE_INTERNAL_BUFFER_GROUPED_OFFSETS                12  // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
-#define MOE_INTERNAL_BUFFER_ROW_LUT                        13  // gathered row index per (token, topk), inverse of token idx per expert
-
-#define ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL 1
-
-enum class MoE3GemmMicroKernelType : uint8_t { MLP_GATE = 0, MLP_UP = 1, MLP_DOWN = 2 };
+#define MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT 8   // token len (input gather tokens) for each activated expert
+#define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT           9   // token idx per expert
+#define MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM         10  // num_actual_used_experts
+#define MOE_INTERNAL_BUFFER_GROUPED_OFFSETS                11  // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
+#define MOE_INTERNAL_BUFFER_ROW_LUT                        12  // gathered row index per (token, topk), inverse of token idx per expert
+// Scale / zero point slots of an offloaded layer (gate/up/down), at fixed indices so that they keep the loaded experts
+#define MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS 13
+#define MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS    16
+#define MOE_INTERNAL_BUFFER_OTD_END         19
 
 enum class MOE3GemmInputIndex : uint8_t {
     HIDDEN_STATES = 0,
@@ -57,11 +56,6 @@ enum class MOE3GemmInputIndex : uint8_t {
     SHARED_GATE_GATE_WEIGHT = 21
 };
 
-struct moe_3gemm_config {
-    int32_t weight_group_size = -1;
-    bool has_batch_dim = false;  // 0 - pa, 1 - non-pa
-};
-
-struct MoE3GemmRuntimeParams : public MoEGemmRuntimeParams {};
+struct MoE3GemmRuntimeParams : public ImplRuntimeParams {};
 
 }  // namespace ov::intel_gpu::ocl
