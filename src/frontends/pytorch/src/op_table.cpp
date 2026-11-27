@@ -277,6 +277,7 @@ OP_CONVERTER(translate_svd);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
+OP_CONVERTER(translate_sym_float);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_mT);
 OP_CONVERTER(translate_take_along_dim);
@@ -989,6 +990,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.zeros_like.default", op::translate_zeros_like_fx},
         {"get_attr", op::translate_constant},
         {"scalar_tensor.default", op::translate_scalar_tensor_fx},
+        {"torch.sym_float", op::translate_sym_float},
         {"torch.sym_min", op::translate_minimum},
         {"torch.sym_max", op::translate_maximum},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
