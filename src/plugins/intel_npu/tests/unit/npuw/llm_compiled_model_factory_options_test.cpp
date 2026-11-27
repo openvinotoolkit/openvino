@@ -215,6 +215,9 @@ TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
     };
     for (const auto& test : {Case{"5010", (7 << 16) | 28, false},
                              Case{"5010", (7 << 16) | 29, true},
+                             Case{"6010", (7 << 16) | 28, false},
+                             Case{"6010", (7 << 16) | 29, true},
+                             Case{"NPU6010", (8 << 16) | 3, true},
                              Case{"4000", (8 << 16) | 3, false}}) {
         SCOPED_TRACE(test.arch + "/" + std::to_string(test.compiler));
         auto plugin = std::make_shared<ArchAwarePlugin>(test.arch, 3, test.compiler);
@@ -231,6 +234,44 @@ TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
         const auto* prefill = recorder.find_suffix("_prefill");
         ASSERT_NE(prefill, nullptr);
         EXPECT_EQ(prefill->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, Npu6010PreservesFusedStageHints) {
+    struct Case {
+        bool fused_prefill;
+        bool fused_generate;
+        MoEHint expected_generate;
+    };
+    const auto plugin = std::make_shared<ArchAwarePlugin>("NPU6010", 3, (8 << 16) | 3);
+    const auto core = attach_mock_core_with_npu_device(plugin);
+    for (const auto& test : {Case{true, false, MoEHint::DEVICE_ROUTED},
+                             Case{false, true, MoEHint::FUSED},
+                             Case{true, true, MoEHint::FUSED}}) {
+        SCOPED_TRACE(test.fused_prefill);
+        SCOPED_TRACE(test.fused_generate);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_SHARED_HEAD", "NO"}};
+        if (test.fused_prefill) {
+            props["NPUW_LLM_PREFILL_MOE_HINT"] = "FUSED";
+        }
+        if (test.fused_generate) {
+            props["NPUW_LLM_GENERATE_MOE_HINT"] = "FUSED";
+        }
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        const auto* prefill = recorder.find_suffix("_prefill");
+        const auto* generate = recorder.find_contains("_kv");
+        ASSERT_NE(prefill, nullptr);
+        ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), test.expected_generate);
+        EXPECT_EQ(count_nodes<ov::op::internal::MOECompressed>(prefill->model) > 0, test.fused_prefill);
+        EXPECT_EQ(count_nodes<ov::op::internal::MOECompressed>(generate->model) > 0, test.fused_generate);
     }
 }
 

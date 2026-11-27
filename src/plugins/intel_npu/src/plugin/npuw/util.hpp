@@ -280,9 +280,24 @@ bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
 
+// State kinds of the sparse attention (QSA) layers. ConvertSparseAttentionToDense renames their
+// states to cache_params.{past|present}.<kind>.<layer>. They are not linear-attention states; they
+// only share the carrying contract of the conv/ssm ones: static shapes and a full-tensor
+// present -> past copy. The single kind list here is shared by the pass and by the QSA matchers below.
+const std::vector<std::string>& get_qsa_state_kinds();
+
+// get_qsa_state_kinds() as a regex alternation: "block_index_key|incomplete_index_key|incomplete_index_rope".
+const std::string& qsa_state_kinds_alternation();
+
+// The linear-attention states of hybrid models (conv/ssm).
 bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
 
 bool starts_with_past_lincache(const std::string& input_name);
+
+// The QSA states renamed by ConvertSparseAttentionToDense (see get_qsa_state_kinds above).
+bool matchQSAStateString(const std::string& input, const std::string& past_or_present = "past");
+
+bool starts_with_past_qsa_state(const std::string& input_name);
 
 // Matches past_key_values.N.key/value Parameter (and present.N.key/value output) names of
 // layers managed by sliding window attention.

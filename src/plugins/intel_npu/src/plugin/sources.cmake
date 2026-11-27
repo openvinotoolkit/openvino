@@ -130,6 +130,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_sparse_attention_to_dense.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_sparse_attention_to_dense.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.cpp

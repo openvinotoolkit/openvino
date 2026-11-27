@@ -4,6 +4,7 @@
 
 set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/compatibility_string.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/constants_from_ir_file.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/inference_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/memory_dyn_batch.cpp

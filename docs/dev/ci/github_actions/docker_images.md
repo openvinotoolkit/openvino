@@ -52,7 +52,7 @@ Most of the images on the OpenVINO ACR are either mirrors of the images from Doc
 
 Examples:
 * `openvinogithubactions.azurecr.io/library/ubuntu:22.04` corresponds to `ubuntu:22.04` from Docker Hub
-* `openvinogithubactions.azurecr.io/nvidia/cuda:11.8.0-runtime-ubuntu20.04` corresponds to `nvidia/cuda:11.8.0-runtime-ubuntu20.04` from Docker Hub
+* `openvinogithubactions.azurecr.io/nvidia/cuda:12.2.2-runtime-ubuntu22.04` corresponds to `nvidia/cuda:12.2.2-runtime-ubuntu22.04` from Docker Hub
 
 Image mirroring is performed automatically via [ACR artifact cache rules](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-artifact-cache),
 so no manual upload from a public DockerHub to OpenVINO ACR instance is required. 
