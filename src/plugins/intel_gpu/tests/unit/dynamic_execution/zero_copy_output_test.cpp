@@ -624,8 +624,9 @@ protected:
             OV_ASSERT_NO_THROW(request.infer());
 
             auto actual = request.get_output_tensor();
-            if (caller_tensor)
+            if (caller_tensor) {
                 ASSERT_EQ(actual.data(), caller_tensor->get());
+            }
             ASSERT_EQ(actual.get_shape(), (ov::Shape{M, top_k}));
             const auto* actual_data = actual.data<const int32_t>();
             ASSERT_EQ(std::vector<int32_t>(actual_data, actual_data + actual.get_size()), reference_topk(input_data, M).second);
