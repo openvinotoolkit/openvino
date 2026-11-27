@@ -60,6 +60,7 @@ set(OV_NPU_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/slice_out_embeds_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/prefix_caching.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/prepare_whisper_model_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npuw/qsa_state_utils_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/serialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/split_kvcache_into_blocks_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/test_utils.cpp
