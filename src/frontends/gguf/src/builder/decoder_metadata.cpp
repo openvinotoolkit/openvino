@@ -71,6 +71,18 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     const auto key = [&](const std::string& suffix) {
         return p.architecture + "." + suffix;
     };
+    if (p.architecture == "dflash") {
+        for (const auto& [name, value] : detail::MetadataAccess::get(m).map)
+            OPENVINO_ASSERT(name.rfind("lilicorr.", 0) != 0 && name.rfind("dflash.markov", 0) != 0,
+                            "[GGUF] unsupported DFlash auxiliary metadata '",
+                            name,
+                            "'; only the base DFlash architecture is supported");
+        for (const auto* suffix : {"conv_kernel_size", "conv_group_size", "selector_rank", "selector_top_k"})
+            OPENVINO_ASSERT(integer(m, key(suffix), 0) == 0,
+                            "[GGUF] unsupported DFlash auxiliary metadata '",
+                            key(suffix),
+                            "'; only the base DFlash architecture is supported");
+    }
     auto& d = p.dimensions;
     d.layers = integer(m, key("block_count"), d.layers, d.layers == 0);
     d.embedding = integer(m, key("embedding_length"), d.embedding, d.embedding == 0);
@@ -118,9 +130,11 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     p.causal_attention = flag(m, key("attention.causal"), p.causal_attention);
     auto& a = p.attention;
     a.rope.freq_base = real(m, key("rope.freq_base"), a.rope.freq_base > 0 ? a.rope.freq_base : 10000.0f);
-    const float factor = real(m, key("rope.scaling.factor"), 0.0f);
+    const auto factor_key = key("rope.scaling.factor");
+    const float factor = real(m, factor_key, 1.0f);
     a.rope.freq_scale = a.rope.freq_scale > 0 ? a.rope.freq_scale : 1.0f;
-    if (factor != 0.0f) {
+    // Missing or zero metadata preserves the architecture's scaling default.
+    if (m.has(factor_key) && factor != 0.0f) {
         OPENVINO_ASSERT(factor > 0.0f, "[GGUF] RoPE scaling factor must be finite and positive");
         const double inverse = 1.0 / static_cast<double>(factor);
         OPENVINO_ASSERT(inverse <= std::numeric_limits<float>::max(),
@@ -180,6 +194,13 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     a.sliding_window = a.sliding_window || a.window_size > 0 || !a.sliding_layers.empty();
     d.per_layer_embedding = integer(m, key("embedding_length_per_layer_input"), d.per_layer_embedding);
     d.shared_kv_layers = integer(m, key("attention.shared_kv_layers"), d.shared_kv_layers);
+    p.deepstack_layers = integer(m, key("n_deepstack_layers"), p.deepstack_layers);
+    p.draft.norm_before_fc = flag(m, key("norm_before_fc"), p.draft.norm_before_fc);
+    p.draft.norm_before_residual = flag(m, key("norm_before_residual"), p.draft.norm_before_residual);
+    if (m.has(key("target_layers")))
+        p.draft.target_layers = integers(m, key("target_layers"));
+    if (p.architecture == "eagle3" || p.architecture == "dflash")
+        p.draft.mask_token_id = integer(m, "tokenizer.ggml.mask_token_id", p.draft.mask_token_id);
     auto& e = p.experts;
     e.count = integer(m, key("expert_count"), e.count);
     e.used = integer(m, key("expert_used_count"), e.used);
@@ -203,6 +224,7 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     scales.logits = real(m, key("logit_scale"), scales.logits);
     scales.attention = real(m, key("attention.scale"), scales.attention);
     scales.attention_temperature = real(m, key("attention.temperature_scale"), scales.attention_temperature);
+    scales.attention_value = real(m, key("attention.value_scale"), scales.attention_value);
     scales.attention_soft_cap = real(m, key("attn_logit_softcapping"), scales.attention_soft_cap);
     scales.logits_soft_cap = real(m, key("final_logit_softcapping"), scales.logits_soft_cap);
     auto& hybrid = p.hybrid;

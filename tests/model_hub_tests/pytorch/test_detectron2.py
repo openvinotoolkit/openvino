@@ -12,6 +12,7 @@ from models_hub_common.utils import get_models_list, compare_two_tensors, retry
 from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
+@pytest.mark.skip(reason="Ticket: 199639. Detectron2 weights at dl.fbaipublicfiles.com fail TLS certificate verification")
 class TestDetectron2ConvertModel(TestTorchConvertModel):
     def setup_class(self):
         from PIL import Image

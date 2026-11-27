@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_params& params, const FullyConnectedKernelBase::DispatchData&) const {
+JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_params& params, const FullyConnectedKernelBase::DispatchData& /*unused*/) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
     if (input.is_dynamic()) {
@@ -59,7 +59,7 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     return jit;
 }
 
-FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params, int, int /*kernel_number*/) const {
+FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params, int /*unused*/, int /*kernel_number*/) const {
     DispatchData dispatchData;
 
     // Determine global work sizes.
@@ -167,7 +167,7 @@ KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params& p
     return GetCommonKernelsData(params, dl, wl, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
 }
 
-JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const fully_connected_params&, const DispatchData&) const {
+JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const fully_connected_params& /*unused*/, const DispatchData& /*unused*/) const {
     return {};
 }
 
@@ -178,16 +178,16 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
 }
 
-Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_params& params) const {
+Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_params& params) {
     if (params.quantization != QuantizationType::NONE) {
         return Datatype::INT32;
     }

@@ -28,8 +28,8 @@ the same directory, or supply a complete list of paths. No merged GGUF copy is c
 See [split-file loading](docs/runtime.md#split-gguf-files) for Python and C++ usage and validation.
 
 The result is a stateless graph with llama.cpp-style inputs and explicit cache inputs/outputs.
-In C++, register [`GenAIExtension`](include/openvino/frontend/gguf/extension/genai.hpp) to obtain a stateful model with the
-OpenVINO GenAI interface; this extension is not available from Python. Tokenizer metadata is attached
+In C++, pass the converted model to [`adapt_to_genai()`](include/openvino/frontend/gguf/adapt_to_genai.hpp) to obtain
+stateful models with the OpenVINO GenAI interface; this function is not available from Python. Tokenizer metadata is attached
 to the converted model's rt_info. See [running converted models](docs/runtime.md) for both contracts.
 Projector files convert to encoder models; see [multimodal conversion](docs/mmproj.md).
 

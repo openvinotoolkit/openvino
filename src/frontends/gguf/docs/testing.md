@@ -9,6 +9,7 @@ This Linux single-configuration example puts binaries and libraries in an explic
 ```sh
 cmake -S . -B build-gguf -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON -DBUILD_SHARED_LIBS=ON \
+  -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
   -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$PWD/build-gguf/bin" \
   -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="$PWD/build-gguf/bin"
 cmake --build build-gguf --target ov_gguf_frontend_tests ov_gguf_architecture_library_tests --parallel
@@ -35,6 +36,11 @@ Use `--gtest_list_tests` for exact parameterized names; filter while iterating, 
 `--gtest_filter='GGUFOps.Scale*'`. A narrowed filter skips the operation-coverage gate. That gate
 runs in environment teardown, so inspect the process exit status even if no individual test failed.
 Shared changes require the affected architecture/projector numerical and structural regressions.
+
+The Cohere2 and Gemma3n PagedAttention parity tests require FP16 KV caches and skip on ARM64,
+whose CPU PagedAttention executor does not support that cache precision. Their architecture
+conversion and stateful SDPA tests still run there. FP32-cache ARM64 PA equivalence is not
+established by these tests.
 
 `GGUFShards` covers discovery from either shard, unordered explicit lists, renamed files in
 different directories, metadata-only first shards, mapping lifetime, invalid or incomplete
@@ -122,9 +128,15 @@ Keep registration, structural conversion, numerical agreement, and application f
 as separate evidence. A new architecture needs a nonzero oracle fixture and a real-checkpoint
 comparison; exercise relevant positions, sizes, cache appends/resets, and adaptation paths.
 
-| Check | Acceptance and limit |
+For each model architecture, a working F32/F16 reference path establishes
+architecture support. Implemented quantized formats remain enabled even when their
+checkpoint comparison falls below the numerical or greedy agreement thresholds.
+Record those failed comparisons as accuracy limitations; do not relabel them as
+parity passes. Unsupported tensor encodings and graph/runtime errors remain failures.
+
+| Check | Numerical parity threshold and limit |
 |---|---|
-| Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; F32 inference, F16 KV, activation quantization disabled |
+| Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; Gemma3n uses `2e-5` (`3e-4` on ARM64) with every-step greedy equality; F32 inference, F16 KV, activation quantization disabled |
 | Native real decoder replay | Same first prediction and at least 90% matching greedy choices over prefill plus 12 reference-token steps; record full-logit errors |
 | mmproj fixture | Raw and adapted embeddings, normalized MSE below `1e-5`; dynamic cases reuse one compiled model |
 | mmproj real checkpoint | CPU NMSE below `1e-5` unless an explicit model-list override documents the reason; other devices are not calibrated to the CPU limit |

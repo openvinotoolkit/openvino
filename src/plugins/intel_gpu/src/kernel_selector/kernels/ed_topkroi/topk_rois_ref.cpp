@@ -34,7 +34,7 @@ KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params &params
     }
 
     KernelData kernel_data = KernelData::Default<experimental_detectron_topk_roi_params>(params);
-    const experimental_detectron_topk_roi_params &new_params = dynamic_cast<const experimental_detectron_topk_roi_params &>(*kernel_data.params.get());
+    const experimental_detectron_topk_roi_params& new_params = dynamic_cast<const experimental_detectron_topk_roi_params&>(*kernel_data.params);
 
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);

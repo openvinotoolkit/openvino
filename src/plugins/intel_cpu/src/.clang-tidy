@@ -26,7 +26,7 @@
 # -misc-const-correctness. No big reason to enforce
 # -misc-no-recursion. No big reason to enforce
 # -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
-# -readability-uppercase-literal-suffix. 
+# -readability-uppercase-literal-suffix.
 #
 ### Checks that are turned off but better be enabled later:
 # -bugprone-easily-swappable-parameters
@@ -48,6 +48,11 @@
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
 # -modernize-use-std-numbers
+# TODO: C++20 default exposed new findings; fix the code and re-enable:
+# -modernize-loop-convert,
+# -modernize-use-equals-default,
+# -modernize-use-starts-ends-with,
+# -readability-container-contains
 
 Checks: >
   -*,
@@ -87,6 +92,10 @@ Checks: >
   -modernize-avoid-c-arrays,
   -modernize-use-constraints,
   -modernize-use-std-numbers,
+  -modernize-loop-convert,
+  -modernize-use-equals-default,
+  -modernize-use-starts-ends-with,
+  -readability-container-contains,
   -modernize-use-trailing-return-type,
   -misc-header-include-cycle,
   -misc-const-correctness,
@@ -115,10 +124,10 @@ CheckOptions:
     value: true
   - key: modernize-use-default-member-init.UseAssignment
     value: true
-  # matches with corresponding cpplink check  
+  # matches with corresponding cpplink check
   - key: google-readability-namespace-comments.ShortNamespaceLines
     value: "10"
-  # matches with corresponding cpplink check  
+  # matches with corresponding cpplink check
   - key: google-readability-namespace-comments.SpacesBeforeComments
     value: "2"
   - key: modernize-loop-convert.MinConfidence

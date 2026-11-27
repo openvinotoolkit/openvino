@@ -91,10 +91,17 @@ Complete parameters and overrides are validated before dependent plans are deriv
 
 `ModelContract` declares recurrent batching and image-attention semantics consumed by generic
 GenAI adaptation. Decoder configuration exports it automatically; other builders may call
-`configure_model_contract(contract)`. The common `GgufDecoder::get_model_contract()` accessor
+`configure_model_contract(contract)`; `model_contract()` returns the declarations made so far. The common `GgufDecoder::get_model_contract()` accessor
 also lets the llama.cpp adapter supply resolved facts. Architecture names are diagnostic data.
 An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
 batching from generic operation capabilities. All three states survive IR serialization.
+`sequence_outputs` names auxiliary decoder outputs that `AdaptToGenAI` reshapes to
+`[B,T,D]`. `component_groups` declares named groups of independently selectable models,
+the primary model of each group, its output names and its recurrent-state prefix.
+The contracts survive IR serialization; adaptation consumes them without family-name checks.
+`supports_genai_adaptation` lets a builder reject the standard decoder interface
+when its graph requires a different inference protocol. An unset value defers to
+legacy input compatibility, which is resolved before serializing the contract.
 
 ### Auto-detected features
 
@@ -118,6 +125,13 @@ helpers remain internal migration adapters under builder. The topology never rer
 | Soft-caps (gemma2/3) | `attn_logit_softcapping` / `final_logit_softcapping` |
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
+
+Attention output gates may provide one sigmoid value per channel or per head.
+The shared attention block reshapes per-head gates to `[B,T,H,1]` and broadcasts
+across head dimensions, preserving the existing full-width and interleaved gate
+paths. When GGUF frequency factors encode partial RoPE, retain those factors
+instead of reducing the rotary dimension; sliding layers can select a different
+RoPE configuration through the per-layer decoder parameters.
 
 MiniCPM's `logit_scale` is a divisor. When the key is absent, the builder uses
 `embedding_length / 256`, giving the model's `256 / embedding_length` output multiplier.
@@ -173,6 +187,17 @@ are a snapshot. `decoder_layer_parameters(layer)` supplies resolved heads, scale
 for a custom attention fragment. The Qwen3 builder in
 [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp) owns its layer order
 this way; `VisionEncoderBuilder` in the same file is a larger non-decoder family.
+
+The [LFM builder](../src/builder/arch/lfm_builder.cpp) handles `lfm2`, `lfm2moe` and
+`lfm3` in one decoder loop. Family-specific metadata and tensor validation select
+normalization and output behavior; residual connections, short convolution,
+attention and FFN construction are shared.
+For `lfm3`, zero per-layer KV
+heads select short convolution; other layers use sliding or full attention. Its
+dense SwiGLU layers require both post-attention and post-FFN norms or neither.
+Sliding layers rotate the full head, while full-attention layers retain the
+partial rotation encoded by `rope_freqs.weight`. Final normalization requires
+`output_norm.weight`; an absent output projection uses tied token embeddings.
 
 ### Declare model contracts
 

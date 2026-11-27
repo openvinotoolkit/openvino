@@ -42,7 +42,7 @@ public:
     ~NodeDebugHelper();
 
 private:
-    std::string get_iteration_prefix() {
+    std::string get_iteration_prefix() const {
         if (m_iter < 0) {
             return std::string("");
         }

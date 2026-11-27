@@ -18,6 +18,6 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 private:
-    bool NeedsImadIsv4Padding(const reorder_weights_params& params) const;
+    static bool NeedsImadIsv4Padding(const reorder_weights_params& params);
 };
 }  // namespace kernel_selector

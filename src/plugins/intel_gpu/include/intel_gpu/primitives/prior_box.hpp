@@ -49,8 +49,8 @@ struct prior_box : public primitive_base<prior_box> {
               const bool flip = true,
               const bool clip = false,
               const std::vector<float>& variance = {},
-              const float step = 0.0f,
-              const float offset = 0.5f,
+              const float step = 0.0F,
+              const float offset = 0.5F,
               const bool scale_all_sizes = true,
               const std::vector<float>& fixed_ratio = {},
               const std::vector<float>& fixed_size = {},
@@ -167,13 +167,13 @@ struct prior_box : public primitive_base<prior_box> {
     /// @brief Variance for adjusting the prior boxes.
     std::vector<float> variance;
     /// @brief Step width for clustered version.
-    float step_width{0.0f};
+    float step_width{0.0F};
     /// @brief Step height for clustered version.
-    float step_height{0.0f};
+    float step_height{0.0F};
     /// @brief Step.
-    float step{0.0f};
+    float step{0.0F};
     /// @brief Offset to the top left corner of each cell.
-    float offset{0.0f};
+    float offset{0.0F};
     /// @brief If false, only first min_size is scaled by aspect_ratios
     bool scale_all_sizes{true};
 
@@ -311,7 +311,7 @@ private:
     bool clustered = false;
 
     void init(const std::vector<float>& ratios, const std::vector<float>& variances) {
-        constexpr auto default_aspect_ratio = 1.0f;
+        constexpr auto default_aspect_ratio = 1.0F;
         aspect_ratios.push_back(default_aspect_ratio);
         constexpr auto aspect_ratio_threshold = 1e-6;
         for (auto new_aspect_ratio : ratios) {
@@ -328,14 +328,14 @@ private:
                 }
                 aspect_ratios.push_back(new_aspect_ratio);
                 if (flip) {
-                    aspect_ratios.push_back(1.0f / new_aspect_ratio);
+                    aspect_ratios.push_back(1.0F / new_aspect_ratio);
                 }
             }
         }
 
         const auto variances_size = variances.size();
         if (variances_size == 0) {
-            constexpr auto default_variance = 0.1f;
+            constexpr auto default_variance = 0.1F;
             variance.push_back(default_variance);
         } else if (variances_size == 1 || variances_size == 4) {
             variance.resize(variances_size);

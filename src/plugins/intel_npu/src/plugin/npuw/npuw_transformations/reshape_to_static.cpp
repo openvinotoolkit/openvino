@@ -56,10 +56,16 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(num_layers.is_static());  // num_deepstack_layers must be resolved
             new_shape = ov::PartialShape({num_layers, input_size, partial_shape[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
-            new_shape = ov::PartialShape({1, kvcache_size});
-            if (lhs_seq_size && !is_prefill)
-                // NB: for whisper kvcache model attn mask should be size + 1
-                new_shape = ov::PartialShape({1, kvcache_size + 1});
+            const auto& mask_shape = input.get_partial_shape();
+            if (mask_shape.rank().is_static() && mask_shape.size() == 4u && input.get_element_type().is_real()) {
+                // 4D float additive mask layout: [B, 1, Q, K].
+                new_shape = ov::PartialShape({1, 1, input_size, kvcache_size});
+            } else {
+                new_shape = ov::PartialShape({1, kvcache_size});
+                if (lhs_seq_size && !is_prefill)
+                    // NB: for whisper kvcache model attn mask should be size + 1
+                    new_shape = ov::PartialShape({1, kvcache_size + 1});
+            }
         } else if (input_name.find(ov::npuw::util::kVisualPosMasksParamName) != std::string::npos) {
             new_shape = ov::PartialShape({1, input_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
@@ -131,6 +137,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                 NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
                 new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
             }
+        } else if (ov::npuw::util::matchQSAStateString(input_name)) {
+            // The QSA states (see ConvertSparseAttentionToDense) are batch-first, [N, ...], and their
+            // other dimensions are already static: only the batch is set
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            NPUW_ASSERT(partial_shape[0].is_dynamic() || partial_shape[0].get_length() <= 1);
+            new_shape[0] = 1;  // batch_dim
         } else if (ov::npuw::util::matchLinCacheString(input_name)) {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;

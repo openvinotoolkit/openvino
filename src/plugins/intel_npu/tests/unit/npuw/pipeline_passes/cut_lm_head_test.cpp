@@ -13,9 +13,12 @@
 #include "llm_compiled_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace {
 
@@ -169,3 +172,62 @@ TEST(CutLMHeadTest, NoLogitsIsUntouched) {
     ASSERT_EQ(model->get_results().size(), 1u);
     EXPECT_EQ(find_result_by_name(model, "not_logits"), result);
 }
+
+class CutLMHeadTiedWeightsTest : public testing::TestWithParam<bool> {};
+
+TEST_P(CutLMHeadTiedWeightsTest, ConstantLiftingDoesNotModifyOtherModel) {
+    auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, kSeq});
+    auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{kVocab, kHidden}, {1});
+    auto weights_f32 = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{kVocab, 1}, {1});
+    auto zero_point_f32 = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+    zero_point_f32->set_friendly_name("tied_zero_point_convert");
+    auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_f32, zero_point_f32);
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{kVocab, 1}, {0.5f});
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto embeddings = std::make_shared<ov::op::v8::Gather>(dequantized, ids, axis);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(embeddings, dequantized, false, true);
+    auto result = std::make_shared<ov::op::v0::Result>(matmul);
+    result->output(0).set_names({LLMCompiledModel::layer_names::logits});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
+
+    std::shared_ptr<ov::Model> lm_head_model;
+    ASSERT_TRUE(ov::npuw::CutLMHead(lm_head_model).run_on_model(model));
+    ASSERT_NE(lm_head_model, nullptr);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    ASSERT_NO_THROW(lm_head_model->validate_nodes_and_infer_types());
+
+    const auto& modified_model = GetParam() ? lm_head_model : model;
+    const auto& other_model = GetParam() ? model : lm_head_model;
+    std::shared_ptr<ov::Node> modified_convert;
+    std::shared_ptr<ov::Node> other_convert;
+    for (const auto& op : modified_model->get_ops()) {
+        if (op->get_friendly_name() == "tied_zero_point_convert") {
+            modified_convert = op;
+        }
+    }
+    for (const auto& op : other_model->get_ops()) {
+        if (op->get_friendly_name() == "tied_zero_point_convert") {
+            other_convert = op;
+        }
+    }
+    ASSERT_NE(modified_convert, nullptr);
+    ASSERT_NE(other_convert, nullptr);
+    auto other_zero_point = ov::as_type_ptr<ov::op::v0::Constant>(other_convert->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(other_zero_point, nullptr);
+    EXPECT_EQ(other_zero_point->get_data_ptr(), zero_point->get_data_ptr());
+
+    // NPUW function creation lifts constants into registered closure parameters.
+    auto lifted = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, zero_point->get_shape());
+    modified_convert->input(0).replace_source_output(lifted);
+    modified_model->add_parameters({lifted});
+
+    EXPECT_NE(modified_convert, other_convert);
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(other_convert->input_value(0).get_node()));
+    EXPECT_NO_THROW(modified_model->validate_nodes_and_infer_types());
+    EXPECT_NO_THROW(other_model->validate_nodes_and_infer_types());
+    EXPECT_EQ(lm_head_model->get_parameters().size(), GetParam() ? 2u : 1u);
+}
+
+INSTANTIATE_TEST_SUITE_P(CutLMHeadTest, CutLMHeadTiedWeightsTest, testing::Bool());

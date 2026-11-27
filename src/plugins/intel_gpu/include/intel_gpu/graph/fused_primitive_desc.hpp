@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -119,12 +121,9 @@ struct fused_primitive_desc {
 template<typename... SupportedTypes>
 bool fused_ops_are_one_of(const std::vector<fused_primitive_desc>& fused_ops) {
     std::array supported_type_ids = {(SupportedTypes::type_id())...};
-    for (const auto& fd : fused_ops) {
-        if (!one_of(fd.desc->type, supported_type_ids)) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(fused_ops.begin(), fused_ops.end(), [&supported_type_ids](const auto& fd) {
+        return one_of(fd.desc->type, supported_type_ids);
+    });
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

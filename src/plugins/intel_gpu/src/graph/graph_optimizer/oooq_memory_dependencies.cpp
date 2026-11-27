@@ -22,7 +22,7 @@ public:
     bool is_set(size_t idx) const {
         size_t storage_idx = idx >> 6;
         uint64_t mask = 1ULL << (idx & 0x3F);
-        return (storage[storage_idx] & mask) != 0u;
+        return (storage[storage_idx] & mask) != 0U;
     }
     void set(size_t idx) {
         size_t storage_idx = idx >> 6;
@@ -43,21 +43,6 @@ public:
         }
         return changed;
     }
-#if 0
-    void dump(std::ostream& s, size_t cols) {
-        size_t idx = 0;
-        size_t rows = (storage.size() * 64) / cols;
-
-        s << storage.size() << " items" << std::endl;
-        for (size_t i = 0; i < rows; i++) {
-            for (size_t j = 0; j < cols; j++) {
-                s << is_set(idx);
-                idx++;
-            }
-            s << std::endl;
-        }
-    }
-#endif
 
 protected:
     std::vector<uint64_t> storage;
@@ -100,8 +85,9 @@ void oooq_memory_dependencies::run(program& p) {
         for (const auto& user : node.first->get_users()) {
             // ShapeOf reads its input layout without waiting for the producer kernel to finish,
             // so this edge cannot establish a buffer lifetime ordering.
-            if (user->is_type<shape_of>())
+            if (user->is_type<shape_of>()) {
                 continue;
+            }
             const auto user_id = user_map.at(user);
             user_bitmap[node.second].set(user_id);
             is_topological = is_topological && node.second < user_id;
@@ -125,8 +111,9 @@ void oooq_memory_dependencies::run(program& p) {
             auto& users = user_bitmap[--node_id];
             for (auto* user : (*it)->get_users()) {
                 // ShapeOf reads only its input layout, so its users can run before the producer kernel finishes.
-                if (!user->is_type<shape_of>())
+                if (!user->is_type<shape_of>()) {
                     users._or(user_bitmap[user_map.at(user)]);
+                }
             }
         }
     } else {

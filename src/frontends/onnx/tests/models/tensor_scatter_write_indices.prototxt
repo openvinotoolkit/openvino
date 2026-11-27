@@ -1,0 +1,71 @@
+ir_version: 11
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "past_cache"
+    input: "update"
+    input: "write_indices"
+    output: "present_cache"
+    op_type: "TensorScatter"
+    attribute {
+      name: "axis"
+      i: -2
+      type: INT
+    }
+  }
+  name: "tensor_scatter_write_indices_graph"
+  input {
+    name: "past_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 4 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "update"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "write_indices"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 4 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 24
+}

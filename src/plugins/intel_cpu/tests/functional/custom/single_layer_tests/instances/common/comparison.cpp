@@ -16,7 +16,8 @@ const auto withParameterCases = ::testing::Combine(
     ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
     ::testing::ValuesIn(modelPrc()),
     ::testing::ValuesIn(inferPrc()),
-    ::testing::ValuesIn(enforceSnippets())
+    ::testing::ValuesIn(enforceSnippets()),
+    ::testing::Values(std::nullopt)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_Comparison_WithParameter, ComparisonLayerCPUTest, withParameterCases, ComparisonLayerCPUTest::getTestCaseName);
 
@@ -26,7 +27,8 @@ const auto withConstantCases = ::testing::Combine(
     ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
     ::testing::ValuesIn(modelPrc()),
     ::testing::ValuesIn(inferPrc()),
-    ::testing::ValuesIn(enforceSnippets())
+    ::testing::ValuesIn(enforceSnippets()),
+    ::testing::Values(std::nullopt)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_Comparison_WithConstant, ComparisonLayerCPUTest, withConstantCases, ComparisonLayerCPUTest::getTestCaseName);
 

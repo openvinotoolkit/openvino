@@ -3,12 +3,11 @@
 //
 
 #include <intel_gpu/primitives/multiclass_nms.hpp>
-#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 namespace ov::intel_gpu {
 

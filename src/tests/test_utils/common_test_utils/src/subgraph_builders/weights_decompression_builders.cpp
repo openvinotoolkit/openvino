@@ -130,10 +130,11 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
     if (decompression_subtract_type != DecompressionType::empty) {
         auto subtract_shape =
             decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
-        auto shift_const_tensor =
-            ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                    subtract_shape,
-                                                    ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
+        // Per-weight zero points have the same shape as the weights; use different data to avoid an all-zero result.
+        auto shift_const_tensor = ov::test::utils::create_and_fill_tensor(
+            weights_precision,
+            subtract_shape,
+            ov::test::utils::InputGenerateData(start_from, up_to, 1, seed + (group_size == 1 ? 1 : 0)));
         auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
 
         std::shared_ptr<ov::Node> shift_convert =
@@ -641,7 +642,7 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
                                                                                    1.f,
                                                                                    1);
     } else {
-        const auto up_to = data_precision == ov::element::i4 ? 7 : 15;
+        const auto up_to = data_precision == ov::element::u2 ? 3 : data_precision == ov::element::i4 ? 7 : 15;
         ov::test::utils::InputGenerateData generate_data(0, up_to);
         if (data_precision.is_signed())
             generate_data.start_from = -1;
@@ -681,12 +682,14 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
     if (decompression_subtract_type != DecompressionType::empty) {
         const bool scalar_zp = decompression_subtract_type == DecompressionType::scalar;
         auto shift_tensor_shape = scalar_zp ? ov::Shape{1} : scaleshift_const_shape;
-        const auto up_to = data_precision == ov::element::i4 ? 7 : 15;
+        const auto up_to = data_precision == ov::element::u2 ? 3 : data_precision == ov::element::i4 ? 7 : 15;
         auto shift_tensor = ov::test::utils::create_and_fill_tensor(data_precision,
                                                                     shift_tensor_shape,
                                                                     ov::test::utils::InputGenerateData(0, up_to));
         if (scalar_zp && data_precision.bitwidth() == 4) {
             static_cast<uint8_t*>(shift_tensor.data())[0] = 0x88;
+        } else if (scalar_zp && data_precision == ov::element::u2) {
+            static_cast<uint8_t*>(shift_tensor.data())[0] = 0xAA;
         }
         auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_tensor);
         std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, output_precision);

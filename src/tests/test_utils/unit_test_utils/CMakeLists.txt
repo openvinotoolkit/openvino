@@ -8,13 +8,15 @@ endif()
 
 set(TARGET_NAME unit_test_utils)
 
+include(sources.cmake)
+
 add_subdirectory(mocks/mock_engine)
 add_subdirectory(mocks/mock_dispatch_candidate)
 
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES ${OV_UNIT_TEST_UTILS_SOURCES}
         ADD_CLANG_FORMAT
         LINK_LIBRARIES
             PUBLIC

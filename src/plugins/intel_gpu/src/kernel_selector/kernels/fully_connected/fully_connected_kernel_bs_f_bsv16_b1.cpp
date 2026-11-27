@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,8 @@ JitConstants FullyConnected_bs_f_bsv16_b1::GetJitConstants(
 }
 
 FullyConnected_bs_f_bsv16_b1::DispatchData FullyConnected_bs_f_bsv16_b1::SetDefault(const fully_connected_params& arg,
-                                                                                    int, int /*kernel_number*/) const {
+                                                                                    int /*autoTuneIndex*/,
+                                                                                    int /*kernel_number*/) const {
     DispatchData dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
     // Properties of chunk and unit.

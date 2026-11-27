@@ -286,7 +286,7 @@ static std::vector<paged_attention_token_type_test_params> make_micro_sdpa_mixed
     //  - long_sequence: many groups, chunk longer than one tile
     //  - long_chain_of_1s: one long group at the start of the chunk
     //  - long_input_with_mixed_token_types (SW5): sliding window with many groups
-    struct Case { const char* name; int past; };
+    struct Case { const std::string name; int past; };
     const auto all = test::PagedAttentionTokenTypeTestData::GetTestData();
     for (const Case& c : {Case{"middle_segment", 3},
                           Case{"casual_indirectly", 8},
@@ -594,7 +594,7 @@ TEST_P(paged_attention_token_type_micro_sdpa_mixed_head_test, mixed_stage_head_s
 static std::vector<paged_attention_token_type_test_params> make_micro_sdpa_mixed_head_test_params() {
     std::vector<paged_attention_token_type_test_params> params;
     const auto all = test::PagedAttentionTokenTypeTestData::GetTestData();
-    struct Case { const char* name; int past; std::vector<int> repeats; };
+    struct Case { const std::string name; int past; std::vector<int> repeats; };
     // SW0: all head sizes. SW5: the largest only.
     for (const Case& c : {Case{"long_sequence", 85, {2, 4, 8}}, Case{"two_small_image_groups", 12, {8}}}) {
         const auto& d = paged_attention_token_type_multi_subsequence_test::find_case(all, c.name);

@@ -25,20 +25,6 @@ const T& required_metadata(const std::map<std::string, GGUFMetaData>& config, co
     return *value;
 }
 
-WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& base) {
-    WeightTensors tensors;
-    if (auto it = weights.find(base + ".weight"); it != weights.end()) {
-        tensors.weight = it->second;
-    }
-    if (auto it = weights.find(base + ".scales"); it != weights.end()) {
-        tensors.scales = it->second;
-    }
-    if (auto it = weights.find(base + ".zp"); it != weights.end()) {
-        tensors.zero_point = it->second;
-    }
-    return tensors;
-}
-
 }  // namespace
 
 std::string strip_weight_suffix(const std::string& name) {
@@ -48,34 +34,48 @@ std::string strip_weight_suffix(const std::string& name) {
     return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
 }
 
-GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
-                           std::unordered_map<std::string, GgufTensorType>& qtypes,
+GraphEmitter::GraphEmitter(const GgufWeightTable& weights,
                            std::string arch,
                            const std::unordered_map<std::string, CreatorFunction>* translators)
     : m_weights(weights),
-      m_qtypes(qtypes),
       m_arch(std::move(arch)),
       m_graph(std::make_shared<GgufGraph>()),
       m_translators(translators ? *translators : get_supported_ops()) {}
 
-const ov::Tensor& GraphEmitter::weight_tensor(const std::string& name) const {
-    auto it = m_weights.find(name);
+const ov::Shape& GraphEmitter::weight_shape(const std::string& name) const {
+    if (const auto it = m_graph_weights.find(name); it != m_graph_weights.end()) {
+        return it->second.shape;
+    }
+    const auto it = m_weights.find(name);
     OPENVINO_ASSERT(it != m_weights.end(),
                     "[GGUF] model is missing expected weight tensor '",
                     name,
                     "' for architecture '",
                     m_arch,
                     "'");
-    return it->second;
+    return it->second.shape;
 }
 
 int64_t GraphEmitter::weight_rows(const std::string& name) const {
-    auto it = m_weights.find(name);
-    if (it == m_weights.end()) {
+    if (!has_weight(name)) {
         return 1;
     }
-    const auto& s = it->second.get_shape();
-    return s.empty() ? 1 : static_cast<int64_t>(s[0]);
+    const auto& shape = weight_shape(name);
+    return shape.empty() ? 1 : static_cast<int64_t>(shape[0]);
+}
+
+void GraphEmitter::register_graph_weight(const std::string& name, GgufTensorType qtype) {
+    const auto& shape = value(name).get_partial_shape();
+    OPENVINO_ASSERT(shape.is_static(), "[GGUF] derived weight must have a static shape: ", name);
+    m_graph_weights[name] = {shape.to_shape(), qtype};
+    m_emitted_weights.insert(name);
+}
+
+void GraphEmitter::add_generated_weight(const std::string& name, const ov::Tensor& tensor) {
+    GgufWeight source(tensor);
+    source.source_name = name;
+    emit_weight(name, source);
+    register_graph_weight(name, source.qtype);
 }
 
 const ov::Output<ov::Node>& GraphEmitter::value(const std::string& name) const {
@@ -100,7 +100,9 @@ std::string GraphEmitter::add_op(const std::string& op_type,
             OPENVINO_ASSERT(m_hadamard_signs.count(width), "[GGUF] missing Hadamard signs for width ", width);
             attrs["hadamard_signs"] = m_hadamard_signs.at(width);
         }
-        if (op_type == "GGML_OP_MUL_MAT" && m_hadamard_v_heads && inputs[0].find(".ssm_out.") != std::string::npos) {
+        const bool gqa_grouped = attrs.count("gqa_grouped") && attrs.at("gqa_grouped").as<bool>();
+        if (op_type == "GGML_OP_MUL_MAT" && m_hadamard_v_heads && !gqa_grouped &&
+            inputs[0].find(".ssm_out.") != std::string::npos) {
             OPENVINO_ASSERT(width % m_hadamard_v_heads == 0, "[GGUF] invalid Hadamard GDN width");
             attrs["hadamard_gdn_heads"] = std::vector<int64_t>{m_hadamard_v_heads / m_hadamard_k_heads,
                                                                m_hadamard_k_heads,
@@ -123,13 +125,6 @@ std::string GraphEmitter::add_op(const std::string& op_type,
                    m_translators,
                    m_constant_cache);
     return name;
-}
-
-void GraphEmitter::inherit_hadamard(const std::string& name, const std::string& source) {
-    if (m_hadamard_weights.count(source)) {
-        m_hadamard_weights.insert(name);
-        m_hadamard_consumed.insert(source);
-    }
 }
 
 void GraphEmitter::validate_hadamard() const {
@@ -224,7 +219,7 @@ void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>&
     }
     for (const auto& names : {m_hadamard_weights, m_hadamard_inverse_weights})
         for (const auto& name : names) {
-            const auto& shape = weight_tensor(name).get_shape();
+            const auto& shape = weight_shape(name);
             OPENVINO_ASSERT(shape.size() == 2, "[GGUF] Hadamard requires matrix weights: ", name);
             const auto width = shape.back();
             OPENVINO_ASSERT(width > 0 && width % m_hadamard_block == 0 &&
@@ -264,60 +259,68 @@ void GraphEmitter::add_extra_input_node(const std::string& name, const std::shar
     (*m_graph->values)[name] = node;
 }
 
-void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype) {
-    if (m_emitted_weights.count(node_name)) {
+void GraphEmitter::emit_weight(const std::string& name, const GgufWeight& source) {
+    if (m_emitted_weights.count(name)) {
         return;
     }
-    m_emitted_weights.insert(node_name);
-
-    std::map<std::string, ov::Any> attrs{{"gguf_weight", true},
-                                         {"gguf_qtype", static_cast<int>(qtype)},
-                                         {"gguf.blob.weight", tensors.weight}};
-    if (tensors.scales) {
-        attrs["gguf.blob.scales"] = tensors.scales;
-    }
-    if (tensors.zero_point) {
-        attrs["gguf.blob.zp"] = tensors.zero_point;
-    }
-    add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
+    add_op("GGML_OP_NONE", name, {}, 0, {{"gguf_source", source}});
+    m_emitted_weights.insert(name);
 }
 
-WeightTensors GraphEmitter::weight_parts(const std::string& base) const {
-    return find_weight_tensors(m_weights, base);
+bool GraphEmitter::column_groups_aligned(const std::string& name, const std::vector<int64_t>& columns) const {
+    const auto it = m_weights.find(name);
+    return it == m_weights.end() || gguf_column_groups_are_aligned(it->second, columns);
 }
 
 GgufTensorType GraphEmitter::weight_qtype(const std::string& base) const {
-    return lookup_qtype(base, m_qtypes);
-}
-
-void GraphEmitter::add_weight(const std::string& ggml_name) {
-    if (m_emitted_weights.count(ggml_name)) {
-        return;
-    }
-    const std::string base = strip_weight_suffix(ggml_name);
-    emit_weight_op(ggml_name, weight_parts(base), weight_qtype(base));
+    const auto name = strip_weight_suffix(base) + ".weight";
+    const auto find = [&](const auto& table) {
+        const auto it = table.find(name);
+        return it != table.end() ? it : table.find(base);
+    };
+    if (const auto it = find(m_graph_weights); it != m_graph_weights.end())
+        return it->second.qtype;
+    if (const auto it = find(m_weights); it != m_weights.end())
+        return it->second.qtype;
+    return GGUF_TYPE_F16;
 }
 
 void GraphEmitter::add_weight_from(const std::string& node_name, const std::string& src_base) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    emit_weight_op(node_name, weight_parts(src_base), weight_qtype(src_base));
+    derive_weight(node_name, "GGML_OP_VIEW", {src_base + ".weight"}, 3);
 }
 
-void GraphEmitter::add_named_weight(const std::string& ggml_name) {
+std::string GraphEmitter::derive_weight(const std::string& name,
+                                        const std::string& op_type,
+                                        const std::vector<std::string>& sources,
+                                        int op_case,
+                                        std::map<std::string, ov::Any> attrs) {
+    OPENVINO_ASSERT(!sources.empty(), "[GGUF] derived weight requires sources: ", name);
+    const bool rotated = m_hadamard_weights.count(sources.front()) > 0;
+    for (const auto& source : sources) {
+        add_weight(source);
+        OPENVINO_ASSERT((m_hadamard_weights.count(source) != 0) == rotated,
+                        "[GGUF] derived weight mixes Hadamard-rotated and plain sources: ",
+                        name);
+    }
+    add_op(op_type, name, sources, op_case, std::move(attrs));
+    register_graph_weight(name, weight_qtype(sources.front()));
+    if (rotated) {
+        m_hadamard_weights.insert(name);
+        m_hadamard_consumed.insert(sources.begin(), sources.end());
+    }
+    return name;
+}
+
+void GraphEmitter::add_weight(const std::string& ggml_name) {
     if (m_emitted_weights.count(ggml_name)) {
         return;
     }
-    auto it = m_weights.find(ggml_name);
+    const auto it = m_weights.find(ggml_name);
     OPENVINO_ASSERT(it != m_weights.end(), "[GGUF] weight not found in gguf: ", ggml_name);
-    const ov::Tensor& w = it->second;
-    // Map the OV element type back to the ggml float qtype so translate_weight rebuilds a plain
-    // Constant of the right precision.
-    GgufTensorType qtype = w.get_element_type() == ov::element::f32    ? GGUF_TYPE_F32
-                           : w.get_element_type() == ov::element::bf16 ? GGUF_TYPE_BF16
-                                                                       : GGUF_TYPE_F16;
-    emit_weight_op(ggml_name, {w, {}, {}}, qtype);
+    emit_weight(ggml_name, it->second);
 }
 
 }  // namespace ov::frontend::gguf

@@ -11,7 +11,8 @@ void err_details::cldnn_print_error_message(
 #ifndef NDEBUG
                                             const std::string& file, int line,
 #else
-                                            const std::string&, int,
+    const std::string& /*unused*/,
+    int /*unused*/,
 #endif
                                             const std::string& instance_id,
                                             std::stringstream& msg,

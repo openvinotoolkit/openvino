@@ -19,6 +19,12 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/multiply_partial_function.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace {
 using namespace testing;
@@ -1004,4 +1010,91 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(multiplyTransformationTestValues)),
     MultiplyPartialTransformation::getTestCaseName);
+
+// Activations scaling in the GPU plugin runs this transformation with scalingMode = true. When both inputs of a
+// Multiply are scaled outputs of one split, the new Multiply has to read both split outputs.
+enum class SplitKind { Split, VariadicSplit };
+
+using MultiplyPartialScalingModeParams = std::tuple<ov::element::Type, SplitKind>;
+
+std::string splitKindName(const SplitKind kind) {
+    switch (kind) {
+    case SplitKind::Split:
+        return "Split";
+    case SplitKind::VariadicSplit:
+        return "VariadicSplit";
+    default:
+        OPENVINO_THROW("Unexpected SplitKind: ", static_cast<int>(kind));
+    }
+}
+
+ov::OutputVector splitInTwo(const ov::Output<ov::Node>& data, const SplitKind kind) {
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    switch (kind) {
+    case SplitKind::Split:
+        return std::make_shared<ov::op::v1::Split>(data, axis, 2)->outputs();
+    case SplitKind::VariadicSplit: {
+        const auto lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, 3});
+        return std::make_shared<ov::op::v1::VariadicSplit>(data, axis, lengths)->outputs();
+    }
+    default:
+        OPENVINO_THROW("Unexpected SplitKind: ", static_cast<int>(kind));
+    }
+}
+
+std::shared_ptr<ov::Model> getModel(const ov::element::Type precision, const SplitKind kind) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 4, 6});
+    const auto split = splitInTwo(data, kind);
+    const auto scaled0 =
+        std::make_shared<ov::op::v1::Multiply>(split[0], ov::op::v0::Constant::create(precision, ov::Shape{}, {8.f}));
+    const auto scaled1 =
+        std::make_shared<ov::op::v1::Multiply>(split[1], ov::op::v0::Constant::create(precision, ov::Shape{}, {8.f}));
+    const auto multiply = std::make_shared<ov::op::v1::Multiply>(scaled0, scaled1);
+    return std::make_shared<ov::Model>(ov::OutputVector{multiply}, ov::ParameterVector{data});
+}
+
+std::shared_ptr<ov::Model> getModelRef(const ov::element::Type precision, const SplitKind kind) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 4, 6});
+    const auto split = splitInTwo(data, kind);
+    const auto multiply = std::make_shared<ov::op::v1::Multiply>(split[0], split[1]);
+    const auto scale = ov::op::v0::Constant::create(precision, ov::Shape{}, {64.f});
+    const auto scaled = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{precision},
+        ov::op::TemporaryReplaceOutputType(multiply, ov::element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(scale, ov::element::f32).get());
+    return std::make_shared<ov::Model>(ov::OutputVector{scaled}, ov::ParameterVector{data});
+}
+
+class MultiplyPartialTransformationScalingMode : public TransformationTestsF,
+                                                 public testing::WithParamInterface<MultiplyPartialScalingModeParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyPartialScalingModeParams>& info) {
+        const auto& [precision, kind] = info.param;
+        std::ostringstream result;
+        result << precision << "_" << splitKindName(kind);
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& [precision, kind] = GetParam();
+        model = getModel(precision, kind);
+        model_ref = getModelRef(precision, kind);
+        // The parameters of the GPU plugin's activations scaling run
+        const auto params =
+            ov::pass::low_precision::LayerTransformation::Params(false, precision, {precision}, true, true);
+        manager.register_pass<ov::pass::low_precision::MultiplyPartialTransformation>(params);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+};
+
+TEST_P(MultiplyPartialTransformationScalingMode, MultiplyOfTwoSplitOutputs) {}
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyPartialTransformationScalingMode,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::Values(SplitKind::Split, SplitKind::VariadicSplit)),
+                         MultiplyPartialTransformationScalingMode::getTestCaseName);
 } // namespace

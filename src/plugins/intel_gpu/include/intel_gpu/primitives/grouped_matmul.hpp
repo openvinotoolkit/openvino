@@ -70,7 +70,7 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
         seed = hash_combine(seed, decompression_scale.is_valid());
         seed = hash_combine(seed, decompression_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
-        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
+        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0F));
         return seed;
     }
 
@@ -79,11 +79,9 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
             return false;
         }
         auto rhs_casted = downcast<const grouped_matmul>(rhs);
-        return compressed_weights == rhs_casted.compressed_weights &&
-               decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
+        return compressed_weights == rhs_casted.compressed_weights && decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
                decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
-               decompression_zero_point_scalar.value_or(0.0f) ==
-                   rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
+               decompression_zero_point_scalar.value_or(0.0F) == rhs_casted.decompression_zero_point_scalar.value_or(0.0F);
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -107,7 +105,7 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
         bool has_value = false;
         ib >> has_value;
         if (has_value) {
-            float v = 0.f;
+            float v = 0.F;
             ib >> make_data(&v, sizeof(float));
             decompression_zero_point_scalar = v;
         } else {

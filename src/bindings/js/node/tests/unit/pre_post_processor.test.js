@@ -45,6 +45,28 @@ describe("ov.preprocess.PrePostProcessor tests", () => {
     it("output(const std::string& tensor_name)", () => {
       assert.doesNotThrow(() => new ov.preprocess.PrePostProcessor(model).output("fc_out"));
     });
+
+    it("constructor throws for an argument that is not a Model", () => {
+      assert.throws(() => new ov.preprocess.PrePostProcessor({}), /expects a Model object/);
+      assert.throws(
+        () => new ov.preprocess.PrePostProcessor(new ov.Tensor(ov.element.f32, [1])),
+        /expects a Model object/,
+      );
+    });
+
+    it("input()/output() throw for unknown tensor name or out of range index", () => {
+      const ppp = new ov.preprocess.PrePostProcessor(model);
+      assert.throws(() => ppp.input("nonexistent_input"), /nonexistent_input/);
+      assert.throws(() => ppp.input(99), Error);
+      assert.throws(() => ppp.output("nonexistent_output"), /nonexistent_output/);
+      assert.throws(() => ppp.output(99), Error);
+    });
+
+    it("build() throws for invalid preprocessing", () => {
+      const ppp = new ov.preprocess.PrePostProcessor(model);
+      ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
+      assert.throws(() => ppp.build(), Error);
+    });
   });
 
   describe("InputInfo", () => {

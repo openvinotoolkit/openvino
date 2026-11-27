@@ -498,7 +498,7 @@ public:
         const char* fname = "clCreateFromVA_APIMediaSurfaceINTEL";
 #endif
         if (!pfn_clCreateFromMediaSurfaceINTEL) {
-            pfn_clCreateFromMediaSurfaceINTEL = try_load_entrypoint<PFN_clCreateFromMediaSurfaceINTEL>((cl_platform_id)platform, fname);
+            pfn_clCreateFromMediaSurfaceINTEL = try_load_entrypoint<PFN_clCreateFromMediaSurfaceINTEL>(platform, fname);
         }
     }
 
@@ -854,6 +854,7 @@ public:
                                         wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
                                         ret_event == nullptr ? nullptr : &tmp);
 
+        detail::errHandler(err, "clEnqueueMemcpyINTEL");
         if (ret_event != nullptr && err == CL_SUCCESS) {
             *ret_event = tmp;
         }
@@ -881,6 +882,7 @@ public:
                                           wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
                                           ret_event == nullptr ? nullptr : &tmp);
 
+        detail::errHandler(err, "clEnqueueMemFillINTEL");
         if (ret_event != nullptr && err == CL_SUCCESS) {
             *ret_event = tmp;
         }
@@ -906,6 +908,7 @@ public:
                                         wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
                                         ret_event == nullptr ? nullptr : &tmp);
 
+        detail::errHandler(err, "clEnqueueMemsetINTEL");
         if (ret_event != nullptr && err == CL_SUCCESS) {
             *ret_event = tmp;
         }
@@ -1051,7 +1054,7 @@ private:
         _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr);
     }
 
-    void _check_error(size_t size, void* ptr, cl_int error, const char* usm_type) {
+    static void _check_error(size_t size, void* ptr, cl_int error, const char* usm_type) {
         if (ptr == nullptr || error != CL_SUCCESS) {
             std::stringstream sout;
             sout << "[CL ext] Can not allocate " << size << " bytes for USM " << usm_type << ". ptr: " << ptr << ", error: " << error << std::endl;

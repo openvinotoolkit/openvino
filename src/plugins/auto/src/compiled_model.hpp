@@ -26,12 +26,17 @@ protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     std::string get_log_tag() const noexcept;
     static ov::AnyMap get_device_supported_properties(AutoCompileContext& context);
+    static ov::AnyMap get_device_supported_properties(const std::string& device_name,
+                                                      const SoCompiledModel& compiled_model);
     ScheduleContext::Ptr   m_context;
 
 private:
     Schedule::Ptr          m_scheduler;
     std::once_flag         m_oc;
     bool m_inputs_outputs_from_hardware;
+    // copied so that they outlive the hardware compiled model, which the dynamic selection may release
+    std::vector<ov::Output<const ov::Node>> m_hw_inputs;
+    std::vector<ov::Output<const ov::Node>> m_hw_outputs;
     void set_compile_model_for_context();
 };
 }  // namespace auto_plugin

@@ -11,9 +11,9 @@ struct experimental_detectron_detection_output_params : public base_params {
     experimental_detectron_detection_output_params()
         : base_params(KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT) {}
 
-    float score_threshold{0.0f};
-    float nms_threshold{0.0f};
-    float max_delta_log_wh{0.0f};
+    float score_threshold{0.0F};
+    float nms_threshold{0.0F};
+    float max_delta_log_wh{0.0F};
     int num_classes{0};
     int post_nms_count{0};
     int max_detections_per_image{0};
@@ -41,13 +41,9 @@ private:
                              const std::string& stage_name,
                              size_t stage_index,
                              clKernelData& kernel) const;
-    void PrepareRefineBoxesKernel(const experimental_detectron_detection_output_params&,
-                                  clKernelData&) const;
-    void PrepareNmsClassWiseKernel(const experimental_detectron_detection_output_params&,
-                                   clKernelData&) const;
-    void PrepareTopKDetectionsKernel(const experimental_detectron_detection_output_params&,
-                                     clKernelData&) const;
-    void PrepareCopyOutputKernel(const experimental_detectron_detection_output_params&,
-                                 clKernelData&) const;
+    void PrepareRefineBoxesKernel(const experimental_detectron_detection_output_params& /*params*/, clKernelData& /*kernel*/) const;
+    void PrepareNmsClassWiseKernel(const experimental_detectron_detection_output_params& /*params*/, clKernelData& /*kernel*/) const;
+    void PrepareTopKDetectionsKernel(const experimental_detectron_detection_output_params& /*params*/, clKernelData& /*kernel*/) const;
+    void PrepareCopyOutputKernel(const experimental_detectron_detection_output_params& /*params*/, clKernelData& /*kernel*/) const;
 };
 }  // namespace kernel_selector

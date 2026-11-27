@@ -5,6 +5,8 @@
 #include "test_utils.h"
 #include <iostream>
 
+#include "openvino/runtime/core.hpp"
+
 
 using namespace cldnn;
 
@@ -294,9 +296,14 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
     ExecutionConfig config(values);
 
     // Onednn engine currently does NOT support out_of_order
+#ifdef OV_GPU_VENDOR_NVIDIA
+    // oneDNN is the main backend on NVIDIA GPUs
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+#else
     if (engine.get_device_info().supports_immad) {
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
+#endif
 
     if (engine.get_enable_large_allocations()) {
         config.set_property(ov::intel_gpu::hint::enable_large_allocations(true));
@@ -309,8 +316,13 @@ std::shared_ptr<cldnn::engine> create_test_engine() {
     auto ret = cldnn::engine::create(
             cldnn::get_default_engine_type(), cldnn::get_default_runtime_type());
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_VENDOR_NVIDIA
+    // oneDNN is the main backend on NVIDIA GPUs
+    ret->create_onednn_engine({});
+#else
     if (ret->get_device_info().supports_immad)
         ret->create_onednn_engine({});
+#endif
 #endif
     return ret;
 }
@@ -503,6 +515,25 @@ void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::ne
         std::cout << o.first << ":" << time << std::endl;
     }
     std::cout << std::endl;
+}
+
+
+std::string get_engine_gpu_device_name() {
+    auto& engine = get_test_engine();
+    const auto engine_uuid = engine.get_device_info().uuid;
+    ov::Core core;
+    for (const auto& device : core.get_available_devices()) {
+        if (device.rfind("GPU", 0) != 0) {
+            continue;
+        }
+        try {
+            if (core.get_property(device, ov::device::uuid).uuid == engine_uuid.uuid) {
+                return device;
+            }
+        } catch (const ov::Exception&) {
+        }
+    }
+    return "GPU";
 }
 
 }  // namespace tests

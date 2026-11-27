@@ -180,7 +180,10 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
  * When set to 0 (default), all weights are resident on GPU. A value of N means
  * N% of eligible weights are streamed from host memory on demand via an LRU cache,
  * reducing GPU memory usage at the cost of inference latency.
- * Currently supported for MoE expert weights only.
+ * Currently supported for MoE expert weights only. This property requires weightless
+ * caching: it automatically enables @ref ov::enable_weightless unless the user explicitly
+ * disables it. Setting this property together with @ref ov::enable_weightless(false) or
+ * @ref ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED) throws an exception.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};

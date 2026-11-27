@@ -113,7 +113,7 @@ MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16::SetDefault(const mvn_params
     return dispatchData;
 }
 
-Datatype MVNKernel_b_fs_yx_fsv16::GetAccumulatorType(const mvn_params& params) const {
+Datatype MVNKernel_b_fs_yx_fsv16::GetAccumulatorType(const mvn_params& params) {
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
@@ -177,7 +177,7 @@ JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, 
     return jits;
 }
 
-MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultForMulti(const mvn_params& params) const {
+MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultForMulti(const mvn_params& params) {
     MultiDispatchData dispatchData;
 
     auto max_wg = params.engineInfo.maxWorkGroupSize;
@@ -249,7 +249,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
     }
 
     constexpr size_t intermidiate_bytes = 4;
-    const mvn_params& orgParams = static_cast<const mvn_params&>(params);
+    const mvn_params& orgParams = params;
 
     auto dispatchData = SetDefaultForMulti(orgParams);
 
@@ -346,7 +346,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_p
         return {};
     }
 
-    const mvn_params& orgParams = static_cast<const mvn_params&>(params);
+    const mvn_params& orgParams = params;
     bool has_variance = params.mvnNormalizeVariance;
     size_t multi_stage_kernels = has_variance ? 5 : 3;
     size_t total_kernels = 1 + multi_stage_kernels;  // kernel[0]=basic + multi-stage

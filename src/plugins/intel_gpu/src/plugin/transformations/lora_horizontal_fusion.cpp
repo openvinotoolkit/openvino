@@ -4,23 +4,18 @@
 
 #include "lora_horizontal_fusion.hpp"
 
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include <algorithm>
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 void copy_runtime_info_from_outputs(const ov::OutputVector& from, const std::shared_ptr<ov::Node>& to) {
@@ -63,13 +58,8 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
             return variable_a != nullptr;
         };
 
-        for (const auto& user : split_node->get_users()) {
-            if (!is_lora_pattern(user)) {
-                return false;
-            }
-        }
-
-        return true;
+        const auto users = split_node->get_users();
+        return std::all_of(users.begin(), users.end(), is_lora_pattern);
     };
 
     auto lora_input = any_input();

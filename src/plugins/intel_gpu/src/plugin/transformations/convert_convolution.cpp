@@ -47,7 +47,7 @@ ov::Tensor get_compensation(ov::Tensor* w_tensor, ov::Tensor* azp_tensor, ov::Te
 
     for (size_t g = 0; g < groups_count; g++) {
         for (size_t oc = 0; oc < output_channels; oc++) {
-            float c = 0.f;
+            float c = 0.F;
             for (size_t ic = 0; ic < input_channels; ic++) {
                 for (size_t k = 0; k < total_spatial_size; k++) {
                     size_t azp_offset = (g * input_channels + ic) % azp_total;

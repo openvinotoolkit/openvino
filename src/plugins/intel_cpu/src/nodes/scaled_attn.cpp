@@ -89,17 +89,13 @@ using namespace dnnl::impl;
 
 namespace ov::intel_cpu::node {
 
-static bool is_quantized_cache(ov::element::Type prec) {
-    return prec == ov::element::u8 || prec == ov::element::u4;
-}
-
 // Compress and write cur tensor into the KV cache (dst) at position L0.
 // Handles encoded (TurboQ), quantized (u8/u4 with scale/zp), or raw (f32/f16/bf16 memcpy).
 // ws: per-thread f32 scratch for the codec path.
 static void compress_cache(const PlainTensor& cur,
                            PlainTensor& dst,
                            size_t L0,
-                           const ov::Extensions::Cpu::CacheSpec& spec,
+                           const ov::intel_cpu::CacheSpec& spec,
                            PlainTensor& scale_zp,
                            PlainTensor& meta_data,
                            const CpuParallelPtr& cpu_parallel,
@@ -1432,8 +1428,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                  const MemoryPtr beam_input,
                  const PlainTensor& k_scale_zp,
                  const PlainTensor& v_scale_zp,
-                 const ov::Extensions::Cpu::CacheSpec& k_param,
-                 const ov::Extensions::Cpu::CacheSpec& v_param,
+                 const ov::intel_cpu::CacheSpec& k_param,
+                 const ov::intel_cpu::CacheSpec& v_param,
                  float* per_thread_head_scratch,
                  size_t per_thread_head_stride,
                  const PlainTensor& k_quant_meta_data,
@@ -1599,7 +1595,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
             // Use mha_kv_cache pipeline for all single-token decoding.
             // This unifies quantized (u8/u4) and raw paths through a single codec-generic pipeline.
-            // temporary OV_TURBOQ_LEGACY_ATTN=1 reverts to the old per-type dispatch.
+            // temporary OV_CPU_LEGACY_ATTN=1 reverts to the old per-type dispatch.
             // ARM SIMD abstraction not yet wired through mha_kv_cache — fall back to legacy.
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             const bool use_new_pipeline = false;
@@ -1888,13 +1884,9 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
                             prec);
         }
     }
-    m_key_spec.group_size = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
-                                ? keyS
-                                : cpuConfig.keyCacheGroupSize;
+    m_key_spec.group_size = ov::intel_cpu::resolve_group_size(cpuConfig.keyCacheGroupSize, keyS);
     m_key_spec.precision = keyCachePrecision;
-    m_value_spec.group_size = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
-                                  ? valueS
-                                  : cpuConfig.valueCacheGroupSize;
+    m_value_spec.group_size = ov::intel_cpu::resolve_group_size(cpuConfig.valueCacheGroupSize, valueS);
     m_value_spec.precision = valueCachePrecision;
 
     if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
@@ -2280,7 +2272,7 @@ static std::shared_ptr<CpuBlockedMemoryDesc> make_kv_cache_desc(ov::element::Typ
 }
 
 // Per-channel groups along L; per-token groups along inner. L_total is (L0+L1)*2.
-static std::vector<size_t> compute_scale_zp_shape(const ov::Extensions::Cpu::CacheSpec& quant_param,
+static std::vector<size_t> compute_scale_zp_shape(const ov::intel_cpu::CacheSpec& quant_param,
                                                   size_t hidden_states,
                                                   size_t B,
                                                   size_t H,
@@ -2425,7 +2417,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                     compute_scale_zp_shape(m_value_spec, SV, B, H, (L0 + L1) * 2, order, real_order));
             }
             if (L0 > 0) {
-                auto update_scales_zp = [&](const ov::Extensions::Cpu::CacheSpec& quant_param,
+                auto update_scales_zp = [&](const ov::intel_cpu::CacheSpec& quant_param,
                                             PlainTensor& new_scale_zp,
                                             PlainTensor& old_scale_zp) {
                     if (quant_param.by_channel) {
@@ -2841,7 +2833,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                     compute_scale_zp_shape(m_value_spec, SV, B, H, (L0 + L1) * 2, order, real_order));
             }
             if (L0 > 0 && !is_reset) {
-                auto update_scales_zp = [&](const ov::Extensions::Cpu::CacheSpec& quant_param,
+                auto update_scales_zp = [&](const ov::intel_cpu::CacheSpec& quant_param,
                                             PlainTensor& new_scale_zp,
                                             PlainTensor& old_scale_zp) {
                     if (quant_param.by_channel) {
@@ -2904,7 +2896,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_turboq;
         if (need_k_szp || need_v_szp) {
             auto reset_scale_zp =
-                [&](const ov::Extensions::Cpu::CacheSpec& quant_param, size_t hidden_states, size_t cache_max_size) {
+                [&](const ov::intel_cpu::CacheSpec& quant_param, size_t hidden_states, size_t cache_max_size) {
                     const size_t capacity_L = cache_max_size / (B * H * hidden_states);
                     PlainTensor scale_zp;
                     scale_zp.resize<float>(compute_scale_zp_shape(quant_param,
