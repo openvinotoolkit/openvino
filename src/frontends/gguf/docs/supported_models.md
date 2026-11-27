@@ -103,47 +103,38 @@ pins the backend revision and runs its operator tests plus state scenarios on ge
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
 
-## Inkling 2 coverage
+## Inkling 2
 
-Inkling 2 Small and Mini use `inkling2` and `inkling2_loop`, respectively. Their shared
-builder implements normalized token embeddings, clipped Q/K, RMS-normalized V, learned
-relative-position bias and query-dependent attention sinks, static/input-dependent short
-convolutions, depth-wise residual mixing, sigmoid-routed SITU experts, and padded-vocabulary
-trimming. There is no text RoPE. Mini unrolls the metadata-selected loop count, shares physical
-weights and gives every pass independent attention and convolution states.
+Inkling 2 Small and Mini use `inkling2` and `inkling2_loop`. They share one builder: clipped
+NoPE attention with RMS-normalized V, a learned relative-position bias, a query-dependent
+attention sink, static and input-dependent short convolutions, depth-wise residual mixing,
+sigmoid-routed SITU experts and padded-vocabulary trimming. Mini unrolls the metadata loop
+count into one graph; the passes share weights and keep independent attention and convolution
+states.
 
-Three nonzero F32 fixtures compare full logits against llama.cpp CPU at
-`a6ac41c757c066941766164439f6876f2deaab04`, through prefill, cached decode, multi-token
-append and state reset, with NMSE below `1e-5`. They cover fixed and varying loop metadata,
-sliding/full attention, learned sink/relative bias, clipping and expert-selection bias.
-Focused tests also cover normalized embedding injection, vocabulary trimming and malformed
-metadata/tensor rejection. Small checkpoint
-replay requires substantially more memory than the synthetic fixtures; fixture parity does not
-establish full-checkpoint parity.
+Design decisions:
+- The relative bias is gathered from a per-token table by clamped query-key distance. Key
+  positions are kept in an extra i32 state, so cached decode and reset need no extra inputs.
+- Sliding-window masks are halved before the bias is added, so masked logits stay finite in
+  F16.
+- Q/K/relative clipping uses `ReduceL2` without an epsilon; the epsilon has no effect there
+  and would force the chain to F32 on GPU.
+- Input-dependent convolution taps are extra one-hot channels of the same `SSM_CONV`, reusing
+  the regular convolution state.
+- Experts are emitted as a direct expert-major `GatherMatmul`.
 
-Real Mini CPU replay uses `ggml-org/Inkling-2-Mini-GGUF` revision
-`e8a2cecf0e78914f07cc27b9be711a9b2c7561d9`, `Inkling-2-Mini-Q8_0.gguf`
-(478 F32 and 226 Q8_0 tensors), with the same pinned llama.cpp reference.
-With F32 inference, F16 KV and disabled activation quantization, reference-token replay of
-`The capital of France is` matches the first prediction and 12/13 greedy choices across prefill
-and 12 cached steps. Complete-logit NMSE is `3.4e-5..4.701e-3`. This passes the quantized
-checkpoint greedy-choice gate, not the stricter F32 fixture NMSE gate.
+Limitations:
+- Inference uses the stateful SDPA model on CPU and GPU, single-sequence and greedy.
+  `SDPAToPagedAttention` does not support the model, so GenAI must use the SDPA attention
+  backend.
+- GPU decode is slow because the GPU plugin does not yet fuse SDPA with an attention sink.
+- GenAI raw-text input requires the Inkling pretokenizer and a Tokenizers build providing
+  `BPETokenizerIgnoreMerges`; otherwise supply pretokenized input. The published chat template
+  is not supported, so set `GenerationConfig.apply_chat_template` to `false`.
+- `IQ4_NL` is not supported; use a format such as `Q8_0` or `BF16`.
+- Speculative/MTP components are not supported.
 
-Inference uses the stateful SDPA model on CPU and GPU; it is single-sequence and greedy.
-PagedAttention conversion is not supported yet: `SDPAToPagedAttention` fails on the model, so
-GenAI must use the SDPA attention backend. GPU decode is slow because the GPU plugin does not yet
-fuse SDPA with an attention sink. Batching and beam search remain unqualified;
-speculative/MTP components are unsupported.
-GenAI raw-text input requires its Inkling pretokenizer and a Tokenizers build providing
-`BPETokenizerIgnoreMerges`; older Tokenizers builds cannot load this operation. Older GenAI
-versions may produce different token IDs. Callers may instead supply pretokenized input.
-The published chat template is not supported by the tested GenAI template engine, so automatic
-template application fails. For raw or manually rendered prompts, set
-`GenerationConfig.apply_chat_template` to `false`; tool calling has not been qualified.
-The existing quantization loader does not support `IQ4_NL`; use a supported format such as
-`Q8_0` or `BF16`, rather than the publisher's `IQ4_NL` Mini file.
-The separate shared `inkling2v` image encoder is described in [mmproj.md](mmproj.md#inkling-2-vision);
-encoder conversion alone does not establish an end-to-end GenAI image pipeline.
+The `inkling2v` image encoder is described in [mmproj.md](mmproj.md#inkling-2-vision).
 
 ## LFM2 and LFM2.5 coverage
 
