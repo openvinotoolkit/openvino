@@ -9,6 +9,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -421,6 +422,7 @@ struct MHAHelper {
     ov::Extensions::Cpu::PagedAttnQuantParams _params;
     size_t _new_score_stride = 0;
     bool AarchF16 = false;
+    bool _use_sgemm = false;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -650,6 +652,34 @@ struct MHAHelper {
         _weight.resize<float>({_nthr, h, _block_size, _new_score_stride});
     }
 
+    // The f32 cache reorder already produces planar B, suitable for SGEMM below the BRGEMM ISA floor.
+    static void exec_sgemm(const DATA_TYPE* a,
+                          const DATA_TYPE* b,
+                          float* c,
+                          size_t m,
+                          size_t n,
+                          size_t k,
+                          size_t lda,
+                          size_t ldb,
+                          size_t ldc,
+                          bool accumulate = false) {
+        OPENVINO_ASSERT(precision_of<DATA_TYPE>::value == ov::element::f32);
+        const auto status = dnnl::sgemm('N',
+                                        'N',
+                                        m,
+                                        n,
+                                        k,
+                                        1.0F,
+                                        reinterpret_cast<const float*>(a),
+                                        lda,
+                                        reinterpret_cast<const float*>(b),
+                                        ldb,
+                                        accumulate ? 1.0F : 0.0F,
+                                        c,
+                                        ldc);
+        OPENVINO_ASSERT(status == dnnl::status::success, "PagedAttention SGEMM execution failed");
+    }
+
     void init(size_t H,
               size_t S,
               size_t SV,
@@ -685,6 +715,10 @@ struct MHAHelper {
 #    if defined(OPENVINO_ARCH_ARM64)
         AarchF16 = any_of(precision_of<DATA_TYPE>::value, ov::element::f16);
 #    endif
+#    if defined(OPENVINO_ARCH_X86_64)
+        _use_sgemm = in_type == ov::element::f32 && !_params.is_sage_attn &&
+                     !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+#    endif
         auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
@@ -706,7 +740,7 @@ struct MHAHelper {
         }
 
         // TODO: kernel supports stride
-        if (!AarchF16 && (_qk_gemm.empty() || prev_score_stride < _new_score_stride)) {
+        if (!AarchF16 && !_use_sgemm && (_qk_gemm.empty() || prev_score_stride < _new_score_stride)) {
             _qk_gemm.resize(_block_size);
             _wv_gemm.resize(_block_size);
             _wv_gemm_acc.resize(_block_size);
@@ -966,6 +1000,18 @@ struct MHAHelper {
 #    endif
                 } else {
                     auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
+                    if (_use_sgemm) {
+                        exec_sgemm(q_ptr,
+                                   k_ptr,
+                                   c_ptr + k_blk * _block_size,
+                                   q_cnt,
+                                   _block_size,
+                                   S,
+                                   H * S,
+                                   _block_size,
+                                   _new_score_stride);
+                        continue;
+                    }
                     _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
                                                      q_ptr,
                                                      k_ptr,
@@ -1094,6 +1140,19 @@ struct MHAHelper {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
+                }
+                if (_use_sgemm) {
+                    exec_sgemm(w_ptr + v_blk * _block_size,
+                               v_ptr,
+                               fp32_out_ptr,
+                               q_cnt,
+                               SV,
+                               _block_size,
+                               _new_score_stride,
+                               SV,
+                               H * SV,
+                               v_blk != 0);
+                    continue;
                 }
                 if (v_blk == 0) {
                     _wv_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,

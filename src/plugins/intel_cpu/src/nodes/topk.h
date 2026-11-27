@@ -101,7 +101,8 @@ public:
 
 private:
     void topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_idx_ptr);
-    void topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx);
+    template <typename T>
+    void topk_ref(const T* in_ptr, T* out_ptr, int32_t* dst_idx);
     inline void topk_kernel_process(const uint8_t* in_p,
                                     uint8_t* out_p,
                                     uint8_t* out_idx_p,
@@ -113,11 +114,12 @@ private:
     inline void bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val = true) const;
     void calc_bitonic_idx(size_t n, int& cnt, bool cmp_val);
     void calc_dims_size(const VectorDims& layout_dims);
-    void topk_ref_process(const float* src_data,
-                          float* dst_data,
+    template <typename T>
+    void topk_ref_process(const T* src_data,
+                          T* dst_data,
                           int32_t* dst_idx,
                           const VectorDims& in_dims,
-                          std::function<bool(float, float)> compare) const;
+                          std::function<bool(T, T)> compare) const;
     void preset_params();
     void prepare_original_idx();
 

@@ -379,6 +379,48 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
             )
+        // Unfused unary operations can run over physical blocked dimensions without broadcast remapping.
+        // Keep multi-input and fused operations out of this fallback until their blocked semantics are supported.
+        OV_CPU_INSTANCE_X64(
+            "eltwise_ref_nCsp8c", ExecutorType::Reference, OperationType::Eltwise,
+            [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp8c, LayoutType::nCsp8c},
+                                                 memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
+                VERIFY(config.descs.size() == 2 && config.attrs.postOps.empty(), UNSUPPORTED_BY_EXECUTOR);
+                VERIFY(isBlockedApplicable(config), HEURISTICS_MISMATCH);
+                return true;
+            },
+            [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
+                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping
+                                                                    : eltwiseReferenceTypeMapping;
+                return createOptimalConfigEltwise(config,
+                                                  typeMapping,
+                                                  {LayoutType::nCsp8c, LayoutType::nCsp8c},
+                                                  eltwiseMappingNotation);
+            },
+            AcceptsAnyShape<EltwiseAttrs>,
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
+            )
+        OV_CPU_INSTANCE_X64(
+            "eltwise_ref_nCsp16c", ExecutorType::Reference, OperationType::Eltwise,
+            [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                 memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
+                VERIFY(config.descs.size() == 2 && config.attrs.postOps.empty(), UNSUPPORTED_BY_EXECUTOR);
+                VERIFY(isBlockedApplicable(config), HEURISTICS_MISMATCH);
+                return true;
+            },
+            [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
+                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping
+                                                                    : eltwiseReferenceTypeMapping;
+                return createOptimalConfigEltwise(config,
+                                                  typeMapping,
+                                                  {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                  eltwiseMappingNotation);
+            },
+            AcceptsAnyShape<EltwiseAttrs>,
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
+            )
         OV_CPU_INSTANCE_COMMON(
             "eltwise_ref_ncsp", ExecutorType::Reference, OperationType::Eltwise,
             // supports

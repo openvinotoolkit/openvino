@@ -36,6 +36,7 @@ protected:
 
 private:
     utils::EltwiseTypes eltwiseType;
+    std::string eltwiseNodeName;
 
     std::string getPrimitiveType(const ov::element::Type_t& element_type,
                                  const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;

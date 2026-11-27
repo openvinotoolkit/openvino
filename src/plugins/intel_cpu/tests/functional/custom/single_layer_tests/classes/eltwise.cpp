@@ -10,6 +10,8 @@
 #include "internal_properties.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -130,6 +132,31 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 
 void EltwiseLayerCPUTest::validate() {
     SubgraphBaseTest::validate();
+#if defined(OPENVINO_ARCH_X86_64)
+    if (!ov::with_cpu_x86_avx2() && !fusedOps.empty()) {
+        // REF leaves post-ops as independent Eltwise nodes. Validate the original operation only:
+        // its two input formats must not be applied to unary post-ops, nor should fusion be expected.
+        auto runtimeModel = compiledModel.get_runtime_model()->clone();
+        bool originalNodeFound = false;
+        for (const auto& node : runtimeModel->get_ops()) {
+            auto& info = node->get_rt_info();
+            auto& layerType = info.at(ov::exec_model_info::LAYER_TYPE);
+            if (layerType.as<std::string>() != "Eltwise") {
+                continue;
+            }
+            const auto names = info.at(ov::exec_model_info::ORIGINAL_NAMES).as<std::string>();
+            if (names.find(eltwiseNodeName) != std::string::npos) {
+                originalNodeFound = true;
+            } else {
+                // Change only the validation clone, never the compiled runtime graph.
+                layerType = std::string("EltwisePostOp");
+            }
+        }
+        ASSERT_TRUE(originalNodeFound) << "Original Eltwise operation was not found: " << eltwiseNodeName;
+        CheckPluginRelatedResultsImpl(runtimeModel, {"Eltwise"});
+        return;
+    }
+#endif
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
@@ -157,6 +184,9 @@ void EltwiseLayerCPUTest::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+#if defined(OPENVINO_ARCH_X86_64)
+    expectPostOpsToBeFused = ov::with_cpu_x86_avx2();
+#endif
 
     // issue 163147
     if (ElementType::f16 == netType && enforceSnippets) {
@@ -259,6 +289,7 @@ void EltwiseLayerCPUTest::SetUp() {
         }
     }
     auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
+    eltwiseNodeName = eltwise->get_friendly_name();
     function = create_ov_model(netType, parameters, eltwise, "Eltwise");
 }
 

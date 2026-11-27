@@ -2011,7 +2011,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    // ref with float planar and no fusion
+    // Reference execution uses f32 and does not support fusion.
     if (!ov::with_cpu_x86_avx2()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
@@ -2104,6 +2104,10 @@ void MVN::initSupportedPrimitiveDescriptors() {
                 pushDesc(LayoutType::nCsp8c, impl_type);
             }
         }
+    } else if (inputPrecision == ov::element::f32 && outputPrecision == ov::element::f32 &&
+               (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5)) {
+        // The f32 reference executor also handles channel-last layouts.
+        pushDesc(LayoutType::nspc, impl_type);
     }
 
     // planar
@@ -2510,6 +2514,9 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
     size_t C1 = H * W;
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
+    const bool channelLast = mvnAttrs.layout == MVNLayoutType::mvn_by_channel;
+    const size_t spatialStride = channelLast ? C : 1;
+    const size_t channelStride = channelLast ? 1 : C2;
 
     cpu_parallel->parallel_for(N, [&](int b) {
         size_t cb = b * C3;
@@ -2520,9 +2527,9 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
 
             mean_temp = cpu_parallel->parallel_sum(C, mean_temp, [&](size_t c) -> float {
                 float mean_internal = 0.0F;
-                size_t cc = cb + c * C2;
+                size_t cc = cb + c * channelStride;
                 for (size_t sp = 0LU; sp < C2; sp++) {
-                    mean_internal += src_data_ptr[cc + sp];
+                    mean_internal += src_data_ptr[cc + sp * spatialStride];
                 }
                 return mean_internal;
             });
@@ -2534,9 +2541,10 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
                 float variance_temp = 0.0F;
                 variance_temp = cpu_parallel->parallel_sum(C, variance_temp, [&](size_t c) -> float {
                     float variance_internal = 0.0F;
-                    size_t cc = cb + c * C2;
+                    size_t cc = cb + c * channelStride;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        variance_internal += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
+                        const float centered = src_data_ptr[cc + sp * spatialStride] - mean;
+                        variance_internal += centered * centered;
                     }
                     return variance_internal;
                 });
@@ -2549,16 +2557,18 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
                 }
 
                 cpu_parallel->parallel_for(C, [&](int c) {
-                    size_t cc = cb + c * C2;
+                    size_t cc = cb + c * channelStride;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = (src_data_ptr[cc + sp] - mean) * variance;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = (src_data_ptr[offset] - mean) * variance;
                     }
                 });
             } else {
                 cpu_parallel->parallel_for(C, [&](int c) {
-                    size_t cc = cb + c * C2;
+                    size_t cc = cb + c * channelStride;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = src_data_ptr[cc + sp] - mean;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = src_data_ptr[offset] - mean;
                     }
                 });
             }
@@ -2567,9 +2577,9 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
             cpu_parallel->parallel_for(C, [&](size_t c) {
                 // mean for this channel
                 float mean = 0.F;
-                size_t cc = cb + c * C2;
+                size_t cc = cb + c * channelStride;
                 for (size_t sp = 0LU; sp < C2; sp++) {
-                    mean += src_data_ptr[cc + sp];
+                    mean += src_data_ptr[cc + sp * spatialStride];
                 }
                 mean *= C2inv;
 
@@ -2577,7 +2587,8 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
                     // variance for this channel
                     float variance = 0.F;
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        variance += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
+                        const float centered = src_data_ptr[cc + sp * spatialStride] - mean;
+                        variance += centered * centered;
                     }
 
                     if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
@@ -2588,12 +2599,14 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data,
 
                     // mvn for this channel
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = (src_data_ptr[cc + sp] - mean) * variance;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = (src_data_ptr[offset] - mean) * variance;
                     }
                 } else {
                     // mvn for this channel
                     for (size_t sp = 0LU; sp < C2; sp++) {
-                        dst_data_ptr[cc + sp] = src_data_ptr[cc + sp] - mean;
+                        const size_t offset = cc + sp * spatialStride;
+                        dst_data_ptr[offset] = src_data_ptr[offset] - mean;
                     }
                 }
             });

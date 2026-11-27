@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cmath>
 #include <common/c_types_map.hpp>
+#include <common/memory_desc_wrapper.hpp>
 #include <common/primitive_attr.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -32,6 +33,7 @@
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/node_config.h"
@@ -2185,6 +2187,12 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         }
     } else {
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
+        if (!keep_dims && fusedWith.empty() &&
+            (getInputShapeAtPort(REDUCE_DATA).getRank() == 4 || getInputShapeAtPort(REDUCE_DATA).getRank() == 5)) {
+            // Reference reduction walks logical elements, excluding blocked channel padding.
+            pushDesc(LayoutType::nCsp8c, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
+            pushDesc(LayoutType::nCsp16c, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
+        }
     }
 }
 
@@ -2258,7 +2266,7 @@ void Reduce::prepareParams() {
         return post_kernel;
     };
 
-    if (compile_post_kernel) {
+    if (jit_mode && ov::with_cpu_x86_avx2() && compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
         auto reduce_post_jcp = jcp;
@@ -2317,7 +2325,8 @@ void Reduce::createPrimitive() {
     jcp.round_to_zero = round_to_zero;
 
 #if defined(OPENVINO_ARCH_X86_64)
-    compile_post_kernel = true;
+    // The reference path performs its own post-processing and must not require an AVX2/AVX-512 kernel.
+    compile_post_kernel = jit_mode && ov::with_cpu_x86_avx2();
 #else
     compile_post_kernel = false;
 #endif  // OPENVINO_ARCH_X86_64
@@ -2363,6 +2372,11 @@ void Reduce::createPrimitive() {
 
 void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel,
                                   [[maybe_unused]] const jit_reduce_config_params& jcp) {
+    if (!jit_mode || !ov::with_cpu_x86_avx2()) {
+        kernel.reset();
+        jit_mode = false;
+        return;
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     if (ov::with_cpu_x86_avx512_core()) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
@@ -2401,7 +2415,7 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
         return;
     }
 
-    if (jit_mode) {
+    if (jit_mode && ov::with_cpu_x86_avx2()) {
         if (is_hybrid_layout) {
             dst_data = reinterpret_cast<uint8_t*>(prc_mem.get_data_handle());
         }
@@ -2418,13 +2432,9 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
         aclExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<const void*>(postOpsDataPtrs.data()));
 #endif
     } else {
-        if (layout == ReduceLayoutType::reduce_ncsp) {
-            const auto* in_ptr = reinterpret_cast<const float*>(src_data);
-            auto* out_ptr = reinterpret_cast<float*>(dst_data);
-            reduce_ref(in_ptr, out_ptr);
-        } else {
-            CPU_NODE_THROW("supports only plain layout on machine w/o avx2.");
-        }
+        const auto* in_ptr = reinterpret_cast<const float*>(src_data);
+        auto* out_ptr = reinterpret_cast<float*>(dst_data);
+        reduce_ref(in_ptr, out_ptr);
     }
 }
 
@@ -3571,6 +3581,17 @@ void Reduce::reduce_ref_process(const float* in_ptr,
 
     VectorDims src_strides =
         getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+    const bool blockedInput = layout == ReduceLayoutType::reduce_blocked;
+    const auto src_desc = MemoryDescUtils::convertToDnnlMemoryDesc(getSrcMemoryAtPort(REDUCE_DATA)->getDescPtr());
+    const dnnl::impl::memory_desc_wrapper src_wrapper(src_desc->getDnnlDesc().get());
+    if (blockedInput) {
+        // Increment logical indices, then map them to blocked physical offsets at each read.
+        // Iterating src_dims (not padded dimensions) ensures padding never contributes.
+        src_strides.assign(src_dims.size(), 1);
+        for (size_t axis = src_dims.size() - 1; axis > 0; --axis) {
+            src_strides[axis - 1] = src_strides[axis] * src_dims[axis];
+        }
+    }
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int j = 0;
         size_t i = 0;
@@ -3594,7 +3615,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                     }
                     update_idx = false;
                 }
-                reduce_prod = func(reduce_prod, in_ptr[src_idx]);
+                const size_t offset = blockedInput ? src_wrapper.off_l(src_idx) : src_idx;
+                reduce_prod = func(reduce_prod, in_ptr[offset]);
                 for (j = axes_for_reduction.size() - 1; j >= 0; j--) {
                     src_counters[axes_for_reduction[j]]++;
                     if (src_counters[axes_for_reduction[j]] < src_dims[axes_for_reduction[j]]) {

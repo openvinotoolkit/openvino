@@ -9,6 +9,7 @@
 
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "u3_symmetric_zero_point.hpp"
 
 using namespace CPUTestUtils;
@@ -139,7 +140,11 @@ void MatmulWeightsDecompression::SetUp() {
 void MatmulWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     const ov::element::Type compressed_weights_precision = std::get<1>(test_param);
-    const bool use_matmul_decompression_impl = std::get<10>(test_param);
+    bool use_matmul_decompression_impl = std::get<10>(test_param);
+#if defined(OPENVINO_ARCH_X86_64)
+    // The compressed FC executor requires AVX2; below it the constant weights are folded to the data precision.
+    use_matmul_decompression_impl = use_matmul_decompression_impl && ov::with_cpu_x86_avx2();
+#endif
 
     const auto runtime_model = compiledModel.get_runtime_model();
     const auto result = runtime_model->get_result();

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <common/memory_desc_wrapper.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -25,6 +26,7 @@
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -2222,13 +2224,22 @@ void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (jit_mode) {
         topk_process(src_data, dst_data, dst_idx);
     } else {
-        if (layout == TopKLayoutType::topk_ncsp) {
-            const auto* in_ptr = reinterpret_cast<const float*>(src_data);
-            auto* out_ptr = reinterpret_cast<float*>(dst_data);
-            auto* out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
-            topk_ref(in_ptr, out_ptr, out_idx_ptr);
-        } else {
-            CPU_NODE_THROW("only support plain layout on machine w/o sse42.");
+        auto* out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
+        switch (srcMemPtr->getPrecision()) {
+        case ov::element::f32:
+            topk_ref(reinterpret_cast<const float*>(src_data), reinterpret_cast<float*>(dst_data), out_idx_ptr);
+            break;
+        case ov::element::i32:
+            topk_ref(reinterpret_cast<const int32_t*>(src_data), reinterpret_cast<int32_t*>(dst_data), out_idx_ptr);
+            break;
+        case ov::element::i8:
+            topk_ref(reinterpret_cast<const int8_t*>(src_data), reinterpret_cast<int8_t*>(dst_data), out_idx_ptr);
+            break;
+        case ov::element::u8:
+            topk_ref(reinterpret_cast<const uint8_t*>(src_data), reinterpret_cast<uint8_t*>(dst_data), out_idx_ptr);
+            break;
+        default:
+            CPU_NODE_THROW("unsupported reference precision: ", srcMemPtr->getPrecision());
         }
     }
 }
@@ -2456,33 +2467,41 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
     }
 }
 
-void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
+template <typename T>
+void TopK::topk_ref(const T* in_ptr, T* out_ptr, int32_t* dst_idx) {
     if (mode_max) {
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
+        topk_ref_process<T>(in_ptr, out_ptr, dst_idx, src_dims, [](T x, T y) -> bool {
             return x > y;
         });
     } else {
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
+        topk_ref_process<T>(in_ptr, out_ptr, dst_idx, src_dims, [](T x, T y) -> bool {
             return x < y;
         });
     }
 }
 
-void TopK::topk_ref_process(const float* src_data,
-                            float* dst_data,
+template <typename T>
+void TopK::topk_ref_process(const T* src_data,
+                            T* dst_data,
                             int32_t* dst_idx,
                             const VectorDims& in_dims,
-                            std::function<bool(float, float)> compare) const {
+                            std::function<bool(T, T)> compare) const {
     const auto& cpu_parallel = context->getCpuParallel();
     int after_num = count(in_dims, axis + 1, in_dims.size());
+    const auto src_desc = MemoryDescUtils::convertToDnnlMemoryDesc(getSrcMemoryAtPort(TOPK_DATA)->getDescPtr());
+    const auto dst_desc = MemoryDescUtils::convertToDnnlMemoryDesc(getDstMemoryAtPort(TOPK_DATA)->getDescPtr());
+    const auto idx_desc = MemoryDescUtils::convertToDnnlMemoryDesc(getDstMemoryAtPort(TOPK_INDEX)->getDescPtr());
+    const dnnl::impl::memory_desc_wrapper src_wrapper(src_desc->getDnnlDesc().get());
+    const dnnl::impl::memory_desc_wrapper dst_wrapper(dst_desc->getDnnlDesc().get());
+    const dnnl::impl::memory_desc_wrapper idx_wrapper(idx_desc->getDnnlDesc().get());
 
     cpu_parallel->parallel_for2d(before_num, after_num, [&](int i0, int i1) {
-        std::vector<float> max_values(top_k + 1);
+        std::vector<T> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {
-            float tmp_value = max_values[index1];
+            T tmp_value = max_values[index1];
             max_values[index1] = max_values[index2];
             max_values[index2] = tmp_value;
 
@@ -2492,7 +2511,7 @@ void TopK::topk_ref_process(const float* src_data,
         };
 
         for (int i2 = 0; i2 < top_k; i2++) {
-            max_values[i2] = src_data[s_index];
+            max_values[i2] = src_data[src_wrapper.off_l(s_index)];
             max_indexes[i2] = i2;
             s_index += after_num;
         }
@@ -2504,7 +2523,7 @@ void TopK::topk_ref_process(const float* src_data,
             }
         }
         for (int i2 = top_k; i2 < dim; i2++) {
-            max_values[top_k] = src_data[s_index];
+            max_values[top_k] = src_data[src_wrapper.off_l(s_index)];
             max_indexes[top_k] = i2;
             for (int i3 = top_k; i3 > 0; i3--) {
                 if (compare(max_values[i3], max_values[i3 - 1])) {
@@ -2526,12 +2545,14 @@ void TopK::topk_ref_process(const float* src_data,
         }
         if (dst_data) {
             for (int i2 = 0; i2 < top_k; i2++) {
-                dst_data[i0 * top_k * after_num + i2 * after_num + i1] = max_values[i2];
+                const size_t offset = dst_wrapper.off_l(i0 * top_k * after_num + i2 * after_num + i1);
+                dst_data[offset] = max_values[i2];
             }
         }
         if (dst_idx) {
             for (int i2 = 0; i2 < top_k; i2++) {
-                dst_idx[i0 * top_k * after_num + i2 * after_num + i1] = max_indexes[i2];
+                const size_t offset = idx_wrapper.off_l(i0 * top_k * after_num + i2 * after_num + i1);
+                dst_idx[offset] = max_indexes[i2];
             }
         }
     });
