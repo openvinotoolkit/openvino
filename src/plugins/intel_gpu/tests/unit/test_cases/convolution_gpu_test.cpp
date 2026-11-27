@@ -2063,6 +2063,8 @@ TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_1d_ocl) {
 
     topology topology(input_layout("input", input_dyn_layout), input_layout("weights", weights_dyn_layout));
     topology.add(convolution("conv", input_info("input"), "weights", no_bias, 1, {1}, {1}, {0}, {0}, false));
+    // The convolution output format depends on the device (e.g. b_fs_yx_fsv16), the check reads planar data
+    topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -2093,7 +2095,7 @@ TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_1d_ocl) {
         // The weights reorder is the path under test
         ASSERT_TRUE(conv_impl->need_weights_reorder()) << "run " << run << ", kernel " << conv_impl->get_kernel_name();
 
-        auto output_memory = outputs.at("conv").get_memory();
+        auto output_memory = outputs.at("output").get_memory();
         const auto out_x = s.in_x - s.k_x + 1;
         ASSERT_EQ(output_memory->get_layout().get_partial_shape(), ov::PartialShape({1, s.out_f, out_x})) << "run " << run;
 
