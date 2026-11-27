@@ -287,25 +287,42 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
     if (stream.output()) {
         var.serialize(stream);
     } else {
-        LOG_INFO("Deserializing weights bank...");
-        LOG_BLOCK();
+        var.deserialize(stream, {});
+    }
+}
 
-        std::size_t bank_size = 0;
-        stream & bank_size;
+void Bank::deserialize(ov::npuw::orc::Stream& stream, const std::function<void(const std::string&)>& validate_device) {
+    LOG_INFO("Deserializing weights bank...");
+    LOG_BLOCK();
 
-        for (std::size_t i = 0; i < bank_size; ++i) {
-            std::string device;
-            stream & device;
-            std::size_t storage_size = 0;
-            stream & storage_size;
-            for (std::size_t j = 0; j < storage_size; ++j) {
-                int64_t uid = -1;
-                stream & uid;
-                var.read_and_add_tensor(stream, uid, device);
-            }
+    std::size_t bank_size = 0;
+    stream & bank_size;
+
+    for (std::size_t i = 0; i < bank_size; ++i) {
+        std::string device;
+        stream & device;
+        if (validate_device) {
+            validate_device(device);
         }
+        std::size_t storage_size = 0;
+        stream & storage_size;
+        for (std::size_t j = 0; j < storage_size; ++j) {
+            int64_t uid = -1;
+            stream & uid;
+            read_and_add_tensor(stream, uid, device);
+        }
+    }
 
-        LOG_INFO("DONE.");
+    LOG_INFO("DONE.");
+}
+
+void Bank::validate_devices(const std::function<void(const std::string&)>& validate_device) const {
+    std::unique_lock guard(m_mutex);
+    if (!m_alloc_device.empty()) {
+        validate_device(m_alloc_device);
+    }
+    for (const auto& bank : m_device_banks) {
+        validate_device(bank.first);
     }
 }
 
