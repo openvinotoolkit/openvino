@@ -14,9 +14,7 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/core/weights_prefetch.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -755,34 +753,5 @@ TEST_F(SharedBufferTest, sequential_prefetch_scheduler_slides_window) {
 
 TEST_F(SharedBufferTest, sequential_prefetch_scheduler_rejects_non_byte_tensor) {
     EXPECT_THROW(ov::util::SequentialPrefetchScheduler(ov::Tensor{ov::element::f32, ov::Shape{4}}), ov::Exception);
-}
-
-TEST_F(SharedBufferTest, get_constant_from_source_and_evict_folds_and_evicts_leaves) {
-    constexpr size_t count = 2;
-    constexpr size_t size = 256;
-
-    auto mock = std::make_shared<MockMappedMemory>(count * size);
-    const auto ops = make_mapped_constants(mock, count, size);
-    const auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ops[0], ops[1]}, 0);
-
-    EXPECT_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).Times(0);
-    EXPECT_CALL(*mock, hint_evict_mock(0 * size, size)).Times(1);
-    EXPECT_CALL(*mock, hint_evict_mock(1 * size, size)).Times(1);
-
-    const auto folded = ov::util::get_constant_from_source_and_evict(concat);
-    ASSERT_NE(folded, nullptr);
-    EXPECT_EQ(folded->get_shape(), ov::Shape{count * size});
-}
-
-TEST_F(SharedBufferTest, get_constant_from_source_and_evict_keeps_constant_source) {
-    constexpr size_t size = 256;
-
-    auto mock = std::make_shared<MockMappedMemory>(size);
-    const auto ops = make_mapped_constants(mock, 1, size);
-
-    EXPECT_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).Times(0);
-    EXPECT_CALL(*mock, hint_evict_mock(::testing::_, ::testing::_)).Times(0);
-
-    EXPECT_EQ(ov::util::get_constant_from_source_and_evict(ops[0]), ops[0]);
 }
 }  // namespace ov::test

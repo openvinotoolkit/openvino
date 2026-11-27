@@ -11,9 +11,11 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/multiply.hpp"
@@ -25,6 +27,22 @@
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
+
+namespace {
+
+/// @brief Hints the OS to evict the file-backed Constants that folding @p source reads.
+void evict_fold_inputs(const ov::Output<ov::Node>& source) {
+    std::vector<ov::Node*> nodes;
+    if (ov::could_propagate(source, nodes)) {
+        for (auto* node : nodes) {
+            if (auto* constant = ov::as_type<ov::op::v0::Constant>(node)) {
+                ov::weight_sharing::Extension::hint_evict(*constant);
+            }
+        }
+    }
+}
+
+}  // namespace
 
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool evict_folded_weights) {
     using namespace ov::pass::pattern;
@@ -191,7 +209,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 }
             }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
-            auto folded = evict_folded_weights ? ov::util::get_constant_from_source_and_evict(concat) : ov::util::get_constant_from_source(concat);
+            auto folded = ov::util::get_constant_from_source(concat);
+            if (evict_folded_weights) {
+                evict_fold_inputs(concat);
+            }
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;

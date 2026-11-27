@@ -57,17 +57,6 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Outpu
 /// \return Shared pointer to constant data or nullptr.
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
 
-/// \brief Same as get_constant_from_source, then hints the OS to evict the leaf Constants the evaluation read.
-///
-/// The leaves are the Constants found by could_propagate, i.e. the ones the folding reads. Evicting is a hint: it is a
-/// no-op for Constants not backed by a file mapping. The leaves are evicted even if the folding fails or the caller
-/// later discards the result; reading them again is correct, only slower. A source that is itself a Constant is
-/// returned as is, without evicting it.
-///
-/// \param source  Node output used to get its tensor data as constant.
-/// \return Shared pointer to constant data or nullptr.
-OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source_and_evict(const Output<Node>& source);
-
 /// \brief Checks whether the source is a Constant with shape {0}.
 ///
 /// \param source  Node output to check.

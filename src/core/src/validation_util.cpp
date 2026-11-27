@@ -10,10 +10,8 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
-#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/dimension.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -164,23 +162,6 @@ std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& s
     } else {
         return {};
     }
-}
-
-std::shared_ptr<Constant> get_constant_from_source_and_evict(const ov::Output<ov::Node>& source) {
-    if (!source.get_node() || ov::is_type<Constant>(source.get_node())) {
-        return get_constant_from_source(source);
-    }
-    std::vector<Node*> nodes;
-    const bool has_leaves = ov::could_propagate(source, nodes);
-    auto folded = get_constant_from_source(source);
-    if (has_leaves) {
-        for (auto* node : nodes) {
-            if (auto* leaf = ov::as_type<Constant>(node)) {
-                ov::weight_sharing::Extension::hint_evict(*leaf);
-            }
-        }
-    }
-    return folded;
 }
 
 bool is_empty_constant_tensor(const Output<Node>& source) {
