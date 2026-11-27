@@ -29,8 +29,8 @@ namespace ov::intel_cpu {
 ///   4 block_count      [N, Hs, L]
 ///   5 key_length       [N] or [1], optional (the 8-input form has no key_length)
 ///   n-3 beam_idx       [N]
-///   n-2 past_key       [N, Hkv, L0, E]   output of the ReadValue of the key state
-///   n-1 past_value     [N, Hkv, L0, Ev]  output of the ReadValue of the value state
+///   n-2 past_key       [N, Hkv, L0, E]   output of the ReadValue (or of the Convert after it) of the key state
+///   n-1 past_value     [N, Hkv, L0, Ev]  output of the ReadValue (or of the Convert after it) of the value state
 ///
 /// Outputs: 0 attention [N, H, L, Ev]; 1 present_key [N, Hkv, L0 + L, E] and 2 present_value
 /// [N, Hkv, L0 + L, Ev], to be consumed by the Assign nodes of the key/value states.

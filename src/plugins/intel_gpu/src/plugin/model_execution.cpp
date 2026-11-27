@@ -25,7 +25,6 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -429,14 +428,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     // Store tensor base in thread-local storage
     g_current_tensor_base = static_cast<const size_t*>(model.data());
     std::unique_ptr<std::streambuf> buf;
-#ifdef _WIN32
-    // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
-    const bool use_prefetch = false;
-#else
-    const bool use_prefetch = static_cast<bool>(ov::get_memory_hints(model));
-#endif
+    const bool use_prefetch = ov::intel_gpu::PrefetchStreamBuf::is_supported(model);
     if (!use_prefetch) {
-        // Memory without hints (e.g. user provided), keep the pread path for user file mappings.
+        // Memory without hints (e.g. user provided) or not a byte blob, keep the pread path for user file mappings.
         buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
     } else {
         buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);

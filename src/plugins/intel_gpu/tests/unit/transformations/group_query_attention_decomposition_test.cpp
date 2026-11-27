@@ -16,6 +16,8 @@
 #include "intel_gpu/op/stateless_kv.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -53,7 +55,7 @@ struct GQAConfig {
     int64_t local_window_size = -1;  // >= 1 enables sliding window attention
     bool static_past_cache = false;
     bool transpose_v = false;
-    bool should_fuse_transpose_v = true;
+    bool supports_immad = true;
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -67,7 +69,7 @@ struct GQAConfig {
     // rows (S > 1) and a query_seqlens Parameter is wired in, exercising the StatelessKV cur_len path.
     bool query_seqlens = false;
     int64_t sequence_length = 1;
-    bool present_key_slice = false;  // routes present key through a Slice before its Result
+    bool present_key_slice = false;                    // routes present key through a Slice before its Result
     bool present_value_nonzero_consumer_port = false;  // present_value feeds its consumer's input port 1, not 0
 };
 
@@ -175,7 +177,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
-    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.should_fuse_transpose_v);
+    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.supports_immad);
     manager.run_passes(model);
     return model;
 }
@@ -189,9 +191,7 @@ void expect_sdpa_kv_not_broadcast(const std::shared_ptr<ov::intel_gpu::op::SDPA>
     }
 }
 
-std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig& cfg) {
-    auto model = decompose_gqa_model(cfg);
-
+std::shared_ptr<ov::intel_gpu::op::SDPA> get_decomposed_sdpa(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::intel_gpu::op::SDPA> result;
     for (const auto& node : model->get_ordered_ops()) {
         EXPECT_FALSE(ov::is_type<ov::op::internal::GroupQueryAttention>(node));
@@ -206,8 +206,11 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
     return result;
 }
 
-void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
-    const auto model = decompose_gqa_model(cfg);
+std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig& cfg) {
+    return get_decomposed_sdpa(decompose_gqa_model(cfg));
+}
+
+void expect_stateless_kv_cache_connections(const GQAConfig& cfg, const std::shared_ptr<ov::Model>& model, bool expect_restored_v_layout = false) {
     const auto parameters = model->get_parameters();
     const bool need_qk_output = cfg.qk_output != QKOutput::NONE;
     EXPECT_EQ(parameters[3]->get_partial_shape().is_static(), cfg.static_past_cache);
@@ -296,7 +299,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         EXPECT_TRUE(value->output(1).get_partial_shape().is_dynamic());
     }
 
-    const bool fused_transpose_v = cfg.transpose_v && cfg.should_fuse_transpose_v && !need_qk_output;
+    const bool fused_transpose_v = cfg.transpose_v && !need_qk_output;
     const auto present_key_source = model->output(1).get_node()->input_value(0);
     auto present_value_source = model->output(2).get_node()->input_value(0);
     if (cfg.transpose_v && !fused_transpose_v) {
@@ -322,6 +325,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     };
     expect_current_kv(key->input_value(1), parameters[1]);
     if (fused_transpose_v) {
+        EXPECT_EQ(value->input_value(0).get_node_shared_ptr(), parameters[4]);
         const auto value_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value->input_value(1).get_node_shared_ptr());
         ASSERT_NE(value_transpose, nullptr);
         const auto value_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(value_transpose->input_value(1).get_node_shared_ptr());
@@ -340,8 +344,27 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
 
+    if (expect_restored_v_layout) {
+        ASSERT_TRUE(fused_transpose_v);
+        const auto attention_targets = value->output(1).get_target_inputs();
+        ASSERT_EQ(attention_targets.size(), 1u);
+        const auto restore_layout = ov::as_type<ov::op::v1::Transpose>(attention_targets.begin()->get_node());
+        ASSERT_NE(restore_layout, nullptr);
+        EXPECT_EQ(restore_layout->input_value(0), value->output(1));
+        const auto restore_order = ov::as_type_ptr<ov::op::v0::Constant>(restore_layout->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(restore_order, nullptr);
+        EXPECT_THAT(restore_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
+        const auto unpack_targets = restore_layout->output(0).get_target_inputs();
+        EXPECT_TRUE(std::any_of(unpack_targets.begin(), unpack_targets.end(), [](const auto& target) {
+            return target.get_index() == 0 && ov::is_type<ov::op::v13::BitwiseAnd>(target.get_node());
+        }));
+        EXPECT_TRUE(std::any_of(unpack_targets.begin(), unpack_targets.end(), [](const auto& target) {
+            return target.get_index() == 0 && ov::is_type<ov::op::v15::BitwiseRightShift>(target.get_node());
+        }));
+    }
+
     if (sdpa) {
-        if (fused_transpose_v) {
+        if (fused_transpose_v && !expect_restored_v_layout) {
             EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
         } else {
             EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
@@ -356,6 +379,10 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
         EXPECT_EQ(sdpa->get_sliding_window_size(), cfg.local_window_size);
     }
+}
+
+void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
+    expect_stateless_kv_cache_connections(cfg, decompose_gqa_model(cfg));
 }
 
 std::shared_ptr<ov::Model> expect_no_stateless_kv(const GQAConfig& cfg) {
@@ -383,10 +410,11 @@ std::shared_ptr<ov::Model> expect_no_stateless_kv(const GQAConfig& cfg) {
         EXPECT_NE(sdpa, nullptr);
         if (sdpa) {
             expect_sdpa_kv_not_broadcast(sdpa);
+            const auto num_data_inputs = sdpa->get_input_size() - sdpa->get_compression_inputs_num();
             if (sdpa->get_causal()) {
-                EXPECT_EQ(sdpa->get_input_size(), 3u) << "causal SDPA must not carry an explicit mask";
+                EXPECT_EQ(num_data_inputs, 3u) << "causal SDPA must not carry an explicit mask";
             } else {
-                EXPECT_GT(sdpa->get_input_size(), 3u) << "non-causal SDPA must carry an explicit mask";
+                EXPECT_GT(num_data_inputs, 3u) << "non-causal SDPA must carry an explicit mask";
                 if (sdpa_kv_dynamic) {
                     EXPECT_TRUE(sdpa->input_value(3).get_partial_shape().is_dynamic()) << "explicit mask must follow the dynamic K/V length";
                 }
@@ -468,10 +496,8 @@ TEST(GQADecompositionTest, padded_query_uses_stateless_kv_present_length) {
     for (const auto& stateless_kv : statelesskvs) {
         ASSERT_EQ(stateless_kv->get_input_size(), 4u);
         // Input 2 is the total seqlens (present length); input 3 is query_seqlens as cur_len.
-        EXPECT_TRUE(ov::is_type<ov::op::v1::Reshape>(stateless_kv->input_value(2).get_node()))
-            << "StatelessKV present length is not the total seqlens_1d";
-        EXPECT_EQ(stateless_kv->input_value(3).get_node_shared_ptr(), parameters.back())
-            << "StatelessKV cur_len is not query_seqlens";
+        EXPECT_TRUE(ov::is_type<ov::op::v1::Reshape>(stateless_kv->input_value(2).get_node())) << "StatelessKV present length is not the total seqlens_1d";
+        EXPECT_EQ(stateless_kv->input_value(3).get_node_shared_ptr(), parameters.back()) << "StatelessKV cur_len is not query_seqlens";
     }
 }
 
@@ -545,47 +571,30 @@ TEST(GQADecompositionTest, static_non_causal_sdpa_kv_keeps_static_shape) {
 TEST(GQADecompositionTest, transpose_v_fused) {
     GQAConfig cfg;
     cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
 
     expect_stateless_kv_cache_connections(cfg);
 }
 
-TEST(GQADecompositionTest, transpose_v_skips_stateless_kv) {
+TEST(GQADecompositionTest, transpose_v_fused_without_immad) {
     GQAConfig cfg;
     cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = false;
+    cfg.supports_immad = false;
 
-    expect_no_stateless_kv(cfg);
+    expect_stateless_kv_cache_connections(cfg);
 }
 
 TEST(GQADecompositionTest, softcap_transpose_v_skips_stateless_kv) {
     GQAConfig cfg;
     cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
     cfg.softcap = 30.0f;
 
     expect_no_stateless_kv(cfg);
 }
 
-TEST(GQADecompositionTest, int4_per_tensor_kv_with_transpose_v_skips_stateless_kv) {
-    GQAConfig cfg;
-    cfg.kv_cache_bit_width = 4;
-    cfg.kv_quant = QuantType::PER_TENSOR;
-    cfg.out_quant = QuantType::PER_TENSOR;
-    cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
-
-    const auto model = expect_no_stateless_kv(cfg);
-
-    std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
-    for (const auto& node : model->get_ordered_ops()) {
-        EXPECT_FALSE(ov::is_type<ov::op::internal::GroupQueryAttention>(node));
-        if (auto current_sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
-            ASSERT_EQ(sdpa, nullptr);
-            sdpa = current_sdpa;
-        }
-    }
-
+void expect_int4_transposed_cache_with_decompressed_sdpa(const GQAConfig& cfg) {
+    const auto model = decompose_gqa_model(cfg);
+    expect_stateless_kv_cache_connections(cfg, model, true);
+    const auto sdpa = get_decomposed_sdpa(model);
     ASSERT_NE(sdpa, nullptr);
     EXPECT_FALSE(sdpa->get_kv_compressed());
     ASSERT_EQ(sdpa->get_input_size(), 3u);
@@ -593,7 +602,17 @@ TEST(GQADecompositionTest, int4_per_tensor_kv_with_transpose_v_skips_stateless_k
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
 }
 
-TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_is_fused) {
+TEST(GQADecompositionTest, int4_per_tensor_kv_fuses_transpose_v_and_decompresses_for_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_TENSOR;
+    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.transpose_v = true;
+
+    expect_int4_transposed_cache_with_decompressed_sdpa(cfg);
+}
+
+TEST(GQADecompositionTest, int4_per_channel_kv_fuses_transpose_v_and_decompresses_for_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 4;
     cfg.kv_quant = QuantType::PER_CHANNEL;
@@ -601,15 +620,52 @@ TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_is_fused) {
     cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
 
-    expect_stateless_kv_cache_connections(cfg);
+    expect_int4_transposed_cache_with_decompressed_sdpa(cfg);
+}
 
-    const auto sdpa = decompose_and_get_sdpa(cfg);
+TEST(GQADecompositionTest, int4_per_channel_kv_keeps_compression_on_common_cache_fallback) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.transpose_v = true;
+    cfg.present_key_slice = true;
+
+    const auto model = expect_no_stateless_kv(cfg);
+    const auto sdpa = get_decomposed_sdpa(model);
     ASSERT_NE(sdpa, nullptr);
     ASSERT_TRUE(sdpa->get_kv_compressed());
+    EXPECT_EQ(sdpa->get_input_size(), 7u);
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
-    EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
+    EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), cfg.cache_type);
+    EXPECT_EQ(sdpa->input_value(2).get_partial_shape()[3], ov::Dimension(head_size / 2));
+}
+
+TEST(GQADecompositionTest, int8_per_channel_kv_fuses_transpose_v_and_keeps_compression) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.transpose_v = true;
+
+    const auto model = decompose_gqa_model(cfg);
+    expect_stateless_kv_cache_connections(cfg, model);
+    const auto sdpa = get_decomposed_sdpa(model);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 5u);
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
+    const auto value_cache = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(sdpa->input_value(2).get_node_shared_ptr());
+    ASSERT_NE(value_cache, nullptr);
+    EXPECT_EQ(sdpa->input_value(2), value_cache->output(1));
+    EXPECT_EQ(sdpa->input_value(4).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(4).get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
 }
 
 // A mask produced by make_attention_mask() is a rank-4 broadcastable tensor.
@@ -694,8 +750,7 @@ TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
     ASSERT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
     EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
-    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes,
-              (std::vector<uint64_t>{1, 1, std::numeric_limits<uint64_t>::max(), 1}));
+    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes, (std::vector<uint64_t>{1, 1, std::numeric_limits<uint64_t>::max(), 1}));
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
     EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::StatelessKV>(sdpa->input_value(1).get_node_shared_ptr()));
@@ -714,7 +769,7 @@ TEST(GQADecompositionTest, per_channel_kv_without_immad_uses_decompressed_sdpa) 
     cfg.out_quant = QuantType::PER_CHANNEL;
     cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-    cfg.should_fuse_transpose_v = false;
+    cfg.supports_immad = false;
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
@@ -761,8 +816,7 @@ TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
     ASSERT_NE(sdpa, nullptr);
     ASSERT_TRUE(sdpa->get_kv_compressed());
     ASSERT_EQ(sdpa->get_input_size(), 7u) << "Q, K, V, K scale, V scale, K zero point, V zero point";
-    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type,
-              ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type, ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
@@ -784,8 +838,7 @@ TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     ASSERT_NE(sdpa, nullptr);
     ASSERT_TRUE(sdpa->get_kv_compressed());
     ASSERT_EQ(sdpa->get_input_size(), 7u) << "Q, K, V, K scale, V scale, K zero point, V zero point";
-    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type,
-              ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type, ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::u8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::u8);
@@ -815,7 +868,6 @@ TEST(GQADecompositionTest, sliding_window_cache_transpose_v_fused) {
     cfg.local_window_size = 128;
     cfg.sliding_window_cache = true;
     cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
 
     expect_stateless_kv_cache_connections(cfg);
 }
@@ -824,7 +876,7 @@ TEST(GQADecompositionTest, sliding_window_cache_transpose_v_fused) {
 // mistake that port index for one of the consumer's own output indices.
 TEST(GQADecompositionTest, present_value_nonzero_consumer_port_does_not_crash) {
     GQAConfig cfg;
-    cfg.should_fuse_transpose_v = true;
+    cfg.supports_immad = true;
     cfg.present_value_nonzero_consumer_port = true;
 
     EXPECT_NO_THROW(decompose_gqa_model(cfg));

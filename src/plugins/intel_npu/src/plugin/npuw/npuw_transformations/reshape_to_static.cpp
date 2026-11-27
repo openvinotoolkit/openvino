@@ -137,6 +137,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                 NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
                 new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
             }
+        } else if (ov::npuw::util::matchQSAStateString(input_name)) {
+            // The QSA states (see ConvertSparseAttentionToDense) are batch-first, [N, ...], and their
+            // other dimensions are already static: only the batch is set
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            NPUW_ASSERT(partial_shape[0].is_dynamic() || partial_shape[0].get_length() <= 1);
+            new_shape[0] = 1;  // batch_dim
         } else if (ov::npuw::util::matchLinCacheString(input_name)) {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
