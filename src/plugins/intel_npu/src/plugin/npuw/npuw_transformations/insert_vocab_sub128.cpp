@@ -6,12 +6,13 @@
 
 #include <algorithm>
 #include <memory>
-#include <optional>
+#include <string>
 #include <vector>
 
 #include "../logging.hpp"
 #include "cut_lm_head.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -26,6 +27,13 @@
 #include "transformations/rt_info/decompression.hpp"
 
 namespace opp = ov::pass::pattern;
+
+// The NPU plugin is not linked with openvino::conditional_compilation, so openvino/cc/pass/itt.hpp is not
+// available here. Same definition as its default (not selective build) branch; see also
+// moe_unroll_patterns.cpp.
+#ifndef MATCHER_SCOPE
+#    define MATCHER_SCOPE(region) const std::string matcher_name(#region)
+#endif
 
 namespace {
 
@@ -63,6 +71,10 @@ void insert_sub128_shifts(const std::shared_ptr<ov::op::v1::Subtract>& subtract)
 
     const auto shifted_weight = std::make_shared<ov::op::v1::Subtract>(weight_convert, shift);
     const auto shifted_zerop = std::make_shared<ov::op::v1::Subtract>(zerop_convert, shift);
+    ov::copy_runtime_info(ov::NodeVector{weight_convert.get_node_shared_ptr(), zerop_convert.get_node_shared_ptr()},
+                          shift);
+    ov::copy_runtime_info(weight_convert.get_node_shared_ptr(), shifted_weight);
+    ov::copy_runtime_info(zerop_convert.get_node_shared_ptr(), shifted_zerop);
     shifted_weight->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
     shifted_zerop->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
     subtract->input(0).replace_source_output(shifted_weight);
@@ -71,12 +83,13 @@ void insert_sub128_shifts(const std::shared_ptr<ov::op::v1::Subtract>& subtract)
 
 // Dequantization of a u8 asymmetric vocabulary, shared by the LM head and the embedding matchers:
 //   (Convert(W) - Convert(Z)) * S [-> Convert]
-// A vocabulary that is already shifted does not match: the shifts sit between the Converts and the Subtract.
+// W is a 2D u8 table, Z is u8, S is per row ([V, 1]). A vocabulary that is already shifted does not
+// match: the shifts sit between the Converts and the Subtract.
 struct AsymVocabDQ {
     AsymVocabDQ() {
-        weight = opp::wrap_type<ov::op::v0::Constant>();
-        zerop = opp::wrap_type<ov::op::v0::Constant>();
-        scale = opp::wrap_type<ov::op::v0::Constant>();
+        weight = opp::wrap_type<ov::op::v0::Constant>(opp::type_matches(ov::element::u8) && opp::rank_equals(2));
+        zerop = opp::wrap_type<ov::op::v0::Constant>(opp::type_matches(ov::element::u8));
+        scale = opp::wrap_type<ov::op::v0::Constant>(opp::shape_matches("?, 1"));
         const auto weight_convert = opp::wrap_type<ov::op::v0::Convert>({weight});
         const auto zerop_convert = opp::wrap_type<ov::op::v0::Convert>({zerop});
         subtract = opp::wrap_type<ov::op::v1::Subtract>({weight_convert, zerop_convert});
@@ -84,18 +97,11 @@ struct AsymVocabDQ {
         output = opp::optional<ov::op::v0::Convert>({scaled});
     }
 
-    // The matched vocabulary, if it is a 2D u8 table with a u8 zero point and a per-row [V, 1] scale.
-    std::optional<Vocab> match(const opp::PatternValueMap& values) const {
+    Vocab vocab(const opp::PatternValueMap& values) const {
         const auto constant = [&values](const std::shared_ptr<ov::Node>& pattern) {
-            return ov::as_type_ptr<ov::op::v0::Constant>(values.at(pattern).get_node_shared_ptr());
+            return std::static_pointer_cast<ov::op::v0::Constant>(values.at(pattern).get_node_shared_ptr());
         };
-        Vocab vocab{constant(weight), constant(zerop), constant(scale)};
-        const auto& scale_shape = vocab.scale->get_shape();
-        if (vocab.weight->get_element_type() != ov::element::u8 || vocab.zerop->get_element_type() != ov::element::u8 ||
-            vocab.weight->get_shape().size() != 2 || scale_shape.size() != 2 || scale_shape[1] != 1) {
-            return std::nullopt;
-        }
-        return vocab;
+        return {constant(weight), constant(zerop), constant(scale)};
     }
 
     void shift(const opp::PatternValueMap& values) const {
@@ -120,40 +126,31 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::InsertVocabSub128Matcher");
 
     explicit InsertVocabSub128Matcher(std::vector<Vocab>* shifted) {
+        MATCHER_SCOPE(InsertVocabSub128);
+
         const AsymVocabDQ dq;
-        const auto hidden = opp::any_input();
-        const auto matmul = opp::wrap_type<ov::op::v0::MatMul>({hidden, dq.output});
+        // Only the [V, H] layout can share storage with the embedding table, so DetectVocabSharing
+        // never opens the gate for another layout.
+        const auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), dq.output},
+                                                               {{"transpose_a", false}, {"transpose_b", true}});
 
         // Only vocabulary MatMuls that form an LM-head result are eligible for Sub128 insertion.
         const ov::npuw::patterns::LMHeadTerminal terminal(matmul);
-        const auto result = opp::wrap_type<ov::op::v0::Result>({terminal.output});
+        const auto result =
+            opp::wrap_type<ov::op::v0::Result>({terminal.output}, [](const ov::Output<ov::Node>& output) {
+                return output.get_node_shared_ptr()->get_rt_info().count("manually_added_output") == 0;
+            });
 
         auto callback = [=](opp::Matcher& matcher) {
             const auto& values = matcher.get_pattern_value_map();
-            const auto matched_matmul =
-                std::static_pointer_cast<ov::op::v0::MatMul>(values.at(matmul).get_node_shared_ptr());
-            const auto matched_result =
-                std::static_pointer_cast<ov::op::v0::Result>(values.at(result).get_node_shared_ptr());
-
-            if (matched_result->get_rt_info().count("manually_added_output")) {
-                return false;
-            }
-
-            // Only the [V, H] layout (transpose_b, scale [V, 1]) can share storage with the
-            // embedding table, so DetectVocabSharing never opens the gate for another layout.
-            const auto vocab = dq.match(values);
-            if (!vocab || matched_matmul->get_transpose_a() || !matched_matmul->get_transpose_b()) {
-                return false;
-            }
-
             dq.shift(values);
             if (shifted) {
-                shifted->push_back(*vocab);
+                shifted->push_back(dq.vocab(values));
             }
             return true;
         };
 
-        register_matcher(std::make_shared<opp::Matcher>(result, "InsertVocabSub128"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(result, matcher_name), std::move(callback));
     }
 };
 
@@ -162,20 +159,19 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::InsertEmbeddingSub128Matcher");
 
     explicit InsertEmbeddingSub128Matcher(const std::vector<Vocab>& lm_head_vocabs) {
+        MATCHER_SCOPE(InsertEmbeddingSub128);
+
         const AsymVocabDQ dq;
         const auto gather = opp::wrap_type<ov::op::v8::Gather>({dq.output, opp::any_input(), opp::any_input()});
 
         auto callback = [=](opp::Matcher& matcher) {
             const auto& values = matcher.get_pattern_value_map();
-            const auto vocab = dq.match(values);
-            if (!vocab) {
-                return false;
-            }
             // Only the Gather over the vocabulary of the LM head: other u8 tables (for example, per-layer
             // embeddings) are not shared with it.
+            const auto vocab = dq.vocab(values);
             const bool shared = std::any_of(lm_head_vocabs.begin(), lm_head_vocabs.end(), [&](const Vocab& head) {
-                return same_storage(vocab->weight, head.weight) && same_storage(vocab->zerop, head.zerop) &&
-                       same_storage(vocab->scale, head.scale);
+                return same_storage(vocab.weight, head.weight) && same_storage(vocab.zerop, head.zerop) &&
+                       same_storage(vocab.scale, head.scale);
             });
             if (!shared) {
                 return false;
@@ -184,7 +180,7 @@ public:
             return true;
         };
 
-        register_matcher(std::make_shared<opp::Matcher>(gather, "InsertEmbeddingSub128"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(gather, matcher_name), std::move(callback));
     }
 };
 
