@@ -7,7 +7,7 @@
 #include <array>
 #include <cstddef>
 
-#include "intel_npu/utils/vm/npu_vm_runtime.hpp"
+#include "vm_runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {

@@ -41,4 +41,32 @@ TEST(NpuMemRefStridedTensorTest, PreservesNonContiguousF16Strides) {
     EXPECT_EQ(memref._data, storage.data());
 }
 
+class NpuMemRefStridedSubByteTest : public testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(NpuMemRefStridedSubByteTest, PreservesNonContiguousSubByteStrides) {
+    const auto type = GetParam();
+    constexpr size_t row_elements = 16;
+    const size_t dense_row_bytes = row_elements * type.bitwidth() / 8;
+    const size_t padded_row_bytes = 2 * dense_row_bytes;
+    std::vector<uint8_t> storage(2 * padded_row_bytes);
+
+    const auto tensor =
+        ov::make_tensor(type, ov::Shape{2, row_elements}, storage.data(), ov::Strides{padded_row_bytes, 1});
+
+    intel_npu::MemRefType memref;
+    ASSERT_NO_THROW(memref.set(tensor->data(), 0, tensor));
+    EXPECT_EQ(memref._sizes, (std::vector<int64_t>{2, static_cast<int64_t>(row_elements)}));
+    EXPECT_EQ(memref._strides, (std::vector<int64_t>{static_cast<int64_t>(padded_row_bytes * 8 / type.bitwidth()), 1}));
+    EXPECT_EQ(memref._data, storage.data());
+}
+
+INSTANTIATE_TEST_SUITE_P(HostCompile,
+                         NpuMemRefStridedSubByteTest,
+                         testing::Values(ov::element::u1,
+                                         ov::element::u2,
+                                         ov::element::u4,
+                                         ov::element::i4,
+                                         ov::element::nf4,
+                                         ov::element::f4e2m1));
+
 }  // namespace

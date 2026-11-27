@@ -68,6 +68,7 @@ struct GQAConfig {
     bool query_seqlens = false;
     int64_t sequence_length = 1;
     bool present_key_slice = false;  // routes present key through a Slice before its Result
+    bool present_value_nonzero_consumer_port = false;  // present_value feeds its consumer's input port 1, not 0
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
@@ -154,6 +155,10 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
         if (cfg.transpose_v && output_idx == 2) {
             const auto value_transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
             output = std::make_shared<ov::op::v1::Transpose>(output, value_transpose_order);
+        }
+        if (cfg.present_value_nonzero_consumer_port && output_idx == 2) {
+            const auto zero = ov::op::v0::Constant::create(output.get_element_type(), ov::Shape{1}, {0});
+            output = std::make_shared<ov::op::v1::Add>(zero, output);  // present_value lands at input port 1
         }
         if (cfg.present_key_slice && output_idx == 1) {
             const auto starts = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
@@ -814,6 +819,16 @@ TEST(GQADecompositionTest, sliding_window_cache_transpose_v_fused) {
     cfg.should_fuse_transpose_v = true;
 
     expect_stateless_kv_cache_connections(cfg);
+}
+
+// present_value's single consumer may take it at any input port; the transpose_v-fusion probe must not
+// mistake that port index for one of the consumer's own output indices.
+TEST(GQADecompositionTest, present_value_nonzero_consumer_port_does_not_crash) {
+    GQAConfig cfg;
+    cfg.should_fuse_transpose_v = true;
+    cfg.present_value_nonzero_consumer_port = true;
+
+    EXPECT_NO_THROW(decompose_gqa_model(cfg));
 }
 
 // Causal smooth softmax retains the explicit mask.

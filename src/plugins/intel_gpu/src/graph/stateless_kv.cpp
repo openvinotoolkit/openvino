@@ -59,6 +59,7 @@ int64_t stateless_kv_inst::get_swa_sequence_length(int64_t abs_seq_len, int64_t 
 }
 
 static std::optional<int64_t> read_len_value(const memory::ptr& mem, const kernel_impl_params& impl_param) {
+    OPENVINO_ASSERT(mem != nullptr, "[GPU] Sequence length memory must not be null");
     const auto layout = mem->get_layout();
     if (layout.count() == 0) {
         return std::nullopt;

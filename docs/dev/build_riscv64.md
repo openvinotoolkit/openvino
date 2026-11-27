@@ -2,7 +2,7 @@
 This guide shows how to build OpenVINO Runtime for 64-bit RISC-V devices. Due to limited resources, cross compilation is used now for building OpenVINO targeting RISC-V development boards.
 
 Cross compilation was tested on the following hosts:
-- Ubuntu 22.04 (64-bit), x64
+- Ubuntu 24.04 (64-bit), x64
 
 The software was validated on the following devices:
 - [Lichee Pi 4A](https://wiki.sipeed.com/hardware/en/lichee/th1520/lp4a.html) with RVV 0.7.1
@@ -13,8 +13,9 @@ The software was validated on the following devices:
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
-- GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
-- Python 3.10 for the optional OpenVINO Runtime Python API cross-build described below
+- GCC 10 or higher (for non-RVV) /
+  [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
+- Python 3.12 for the optional OpenVINO Runtime Python API cross-build described below
 
 ## How to build
 Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
@@ -57,7 +58,7 @@ Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platfo
 3. Create a build folder:
    ```sh
    mkdir build && cd build
-   ``` 
+   ```
 
 4. To cross compile OpenVINO Runtime for RISC-V devices, run `cmake` with specified `CMAKE_TOOLCHAIN_FILE` and `RISCV_TOOLCHAIN_ROOT` (the last one is needed only for build using GNU toolchain).
 - For target with RVV intrinsics using `riscv-gnu-toolchain`:
@@ -68,7 +69,7 @@ Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platfo
      -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/riscv64-gnu.toolchain.cmake \
      -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
    ```
-   > **NOTE**: The `riscv-gnu-toolchain` is build as there are essential files used for cross compilation under `/opt/riscv/sysroot`. The latest stable versions of Clang or GCC both support compiling source code into RISC-V instructions, so it is acceptable to choose your preferable compilers by specifying `-DCMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER`. But remember to add the key `-DCMAKE_SYSROOT=/opt/riscv/sysroot`, otherwise many fundamental headers and libs could not be found during cross compilation. 
+   > **NOTE**: The `riscv-gnu-toolchain` is build as there are essential files used for cross compilation under `/opt/riscv/sysroot`. The latest stable versions of Clang or GCC both support compiling source code into RISC-V instructions, so it is acceptable to choose your preferable compilers by specifying `-DCMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER`. But remember to add the key `-DCMAKE_SYSROOT=/opt/riscv/sysroot`, otherwise many fundamental headers and libs could not be found during cross compilation.
 - For target without optimized primitives using installed Linux packages:
    ```sh
    cmake .. \
@@ -85,14 +86,14 @@ Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platfo
 ### (Optional) Build the OpenVINO Runtime Python API
 To enable cross-compilation with python, the library `libpython3-dev:riscv64` should be on the host machine.
 
-When installing packages using the utilities `apt` or `apt-get` the packages are downloaded from apt software repositories. On Ubuntu the apt software repositories are defined in the `/etc/apt/sources.list` file or in separate files under the `/etc/apt/sources.list.d/` directory. Host machine contains host-specific repositories (for example, x86-x64) in these files. 
+When installing packages using the utilities `apt` or `apt-get` the packages are downloaded from apt software repositories. On Ubuntu the apt software repositories are defined in the `/etc/apt/sources.list` file or in separate files under the `/etc/apt/sources.list.d/` directory. Host machine contains host-specific repositories (for example, x86-x64) in these files.
 
 1. Add riscv64 repositories to download riscv64-specific packages:
     ```sh
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> riscv64-sources.list
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> riscv64-sources.list
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> riscv64-sources.list
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble main >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble universe >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main >> riscv64-sources.list
     mv riscv64-sources.list /etc/apt/sources.list.d/
     dpkg --add-architecture riscv64
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list
@@ -102,16 +103,16 @@ When installing packages using the utilities `apt` or `apt-get` the packages are
     ```sh
     apt-get install -y --no-install-recommends libpython3-dev:riscv64
     ```
-   Create  symbolink to allow python to find `riscv64-linux-gnu/python3.10/pyconfig.h` in `/usr/include/python3.10/` (this header is initially stored in `/usr/include/riscv64-linux-gnu/`)
+   Create  symbolink to allow python to find `riscv64-linux-gnu/python3.12/pyconfig.h` in `/usr/include/python3.12/` (this header is initially stored in `/usr/include/riscv64-linux-gnu/`)
     ```sh
-    ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.10/
+    ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.12/
     ```
 
 3. Add the keys `-DENABLE_PYTHON=ON -DENABLE_WHEEL=ON` to cmake command during OpenVINO build.
 
-> **Note**: This optional Python 3.10 cross-build is not exercised by the current GitHub Actions
+> **Note**: This optional Python 3.12 cross-build is not exercised by the current GitHub Actions
 > RISC-V workflow, which builds the C++ Runtime with `ENABLE_PYTHON=OFF`. The target device must
-> provide Python 3.10 when using these manually verified instructions.
+> provide Python 3.12 when using these manually verified instructions.
 
 ### RISC-V Emulation software
 In order to test applications without hardware one can use emulation software. The command line example to launch executable file with riscv64 emulation:

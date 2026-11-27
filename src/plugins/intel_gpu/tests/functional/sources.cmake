@@ -8,6 +8,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/inference_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/memory_dyn_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/model_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/moe_offload.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/properties.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/weight_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/concurrency/gpu_concurrency_tests.cpp
@@ -324,7 +325,9 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_backprop_data_runtime_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_in_place_crop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/activations_scaling.cpp

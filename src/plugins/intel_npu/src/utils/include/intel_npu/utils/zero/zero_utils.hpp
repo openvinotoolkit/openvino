@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -17,6 +18,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "zero_types.hpp"
 
 namespace intel_npu {
@@ -199,13 +201,16 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
     return ov::Any(itrHandle->second).as<Type>();
 }
 
-static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides& strides) {
+static inline size_t get_capacity_size(const ov::element::Type& type,
+                                       const ov::Shape& shape,
+                                       const ov::Strides& strides) {
+    const auto byte_shape = ov::util::get_byte_memory_shape(type, shape);
     size_t capacity = 0;
     const size_t rank = shape.size();
     for (size_t i = 0; i < rank; ++i) {
         if (i == rank - 1) {
             // Last dimension: use shape[i] * stride[i]
-            capacity += shape[i] * strides[i];
+            capacity += byte_shape[i] * strides[i];
         } else {
             // Other dimensions: use (shape[i] - 1) * stride[i]
             capacity += (shape[i] - 1) * strides[i];
@@ -213,6 +218,31 @@ static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides
     }
 
     return capacity;
+}
+
+// Converts byte strides to element strides, accounting for sub-byte element types whose
+// innermost dimension byte stride is a non-addressable placeholder (element stride is always 1).
+static inline ov::Strides byte_strides_to_element_strides(const ov::Strides& byte_strides,
+                                                          const ov::element::Type& type) {
+    const auto bitwidth = type.bitwidth();
+    OPENVINO_ASSERT(bitwidth != 0, "Element bitwidth must be greater than 0");
+
+    ov::Strides element_strides(byte_strides.size());
+    std::transform(byte_strides.begin(), byte_strides.end(), element_strides.begin(), [bitwidth](size_t byte_stride) {
+        OPENVINO_ASSERT((byte_stride * CHAR_BIT) % bitwidth == 0,
+                        "Stride ",
+                        byte_stride,
+                        " bytes is not aligned to element bitwidth ",
+                        bitwidth,
+                        ". Strides must be whole-byte multiples of the element size.");
+        return byte_stride * CHAR_BIT / bitwidth;
+    });
+
+    if (!element_strides.empty() && bitwidth < CHAR_BIT) {
+        element_strides.back() = 1;
+    }
+
+    return element_strides;
 }
 
 static inline uint32_t findCommandQueueGroupOrdinal(

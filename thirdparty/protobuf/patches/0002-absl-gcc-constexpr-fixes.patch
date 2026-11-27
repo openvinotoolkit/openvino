@@ -1,0 +1,64 @@
+Subject: [PATCH] Fix Abseil 20250127 compile-time constexpr failures on some GCC
+
+Abseil 20250127 (bundled with protobuf 6.31 and fetched via FetchContent when no
+system Abseil is available, e.g. when cross-compiling or on RHEL8) fails to
+compile with several GCC versions because of two unrelated constant-expression
+issues. Both are compiler bugs; upstream Abseil keeps the same code, so OpenVINO
+patches the fetched source.
+
+1. container/internal/raw_hash_set.h: GetPolicyFunctions() initializes a
+   `static constexpr PolicyFunctions value`. Its `get_hash_slot_fn<hasher>()`
+   member compares the address of the function template `TypeErasedApplyToSlotFn`
+   against nullptr, which those GCCs reject in a core constant expression:
+     hash_policy_traits.h:163: error: '(... == 0)' is not a constant expression
+   Making `value` `static const` keeps the exact same semantics (a once-
+   initialized function-local static) without forcing constant evaluation.
+
+2. strings/ascii.cc: the compile-time self-test
+   `static_assert(ValidateAsciiCasefold() == 0, ...)` forces constant evaluation
+   of AsciiStrCaseFold, which performs several `static_cast<char>(v)` conversions
+   with v > 127. Those implementation-defined conversions are rejected in a
+   constant expression by some GCC versions (e.g. RHEL8):
+     ascii.cc: error: non-constant condition for static assertion
+     ascii.cc: error: overflow in constant expression
+   The self-test has no runtime effect (upstream Abseil CI already covers it), so
+   remove the ValidateAsciiCasefold() helper and its static_assert.
+--- a/absl/container/internal/raw_hash_set.h
++++ b/absl/container/internal/raw_hash_set.h
+@@ -4100,5 +4100,5 @@
+   static const PolicyFunctions& GetPolicyFunctions() {
+-    static constexpr PolicyFunctions value = {
++    static const PolicyFunctions value = {
+         sizeof(slot_type),
+         // TODO(b/328722020): try to type erase
+         // for standard layout and alignof(Hash) <= alignof(CommonFields).
+--- a/absl/strings/ascii.cc
++++ b/absl/strings/ascii.cc
+@@ -228,27 +228,3 @@
+ }
+ 
+-static constexpr size_t ValidateAsciiCasefold() {
+-  constexpr size_t num_chars = 1 + CHAR_MAX - CHAR_MIN;
+-  size_t incorrect_index = 0;
+-  char lowered[num_chars] = {};
+-  char uppered[num_chars] = {};
+-  for (unsigned int i = 0; i < num_chars; ++i) {
+-    uppered[i] = lowered[i] = static_cast<char>(i);
+-  }
+-  AsciiStrCaseFold<false>(&lowered[0], &lowered[0], num_chars);
+-  AsciiStrCaseFold<true>(&uppered[0], &uppered[0], num_chars);
+-  for (size_t i = 0; i < num_chars; ++i) {
+-    const char ch = static_cast<char>(i),
+-               ch_upper = ('a' <= ch && ch <= 'z' ? 'A' + (ch - 'a') : ch),
+-               ch_lower = ('A' <= ch && ch <= 'Z' ? 'a' + (ch - 'A') : ch);
+-    if (uppered[i] != ch_upper || lowered[i] != ch_lower) {
+-      incorrect_index = i > 0 ? i : num_chars;
+-      break;
+-    }
+-  }
+-  return incorrect_index;
+-}
+-
+-static_assert(ValidateAsciiCasefold() == 0, "error in case conversion");
+-
+ }  // namespace ascii_internal

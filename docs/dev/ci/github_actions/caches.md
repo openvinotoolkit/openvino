@@ -90,12 +90,12 @@ add the mounting point under the `container`'s `volumes` key in a job configurat
 Build:
   ...
   needs: Docker
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: <self-hosted runner>
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.<image> }}
     volumes:
-      - /mount:/mount
-      - /home/runner/secrets/:/secrets:ro
+      - <shared drive path>:<shared drive path>
+      - <secrets path on runner>:/secrets:ro
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -108,31 +108,79 @@ Build:
   ...
 ```
 
-In `- /mount:/mount`, the first `/mount` is the path on the runner, the second `/mount` is the
-path in the Docker container where the resources will be available.
+In `- <shared drive path>:<shared drive path>`, the first path is the location of the shared drive
+on the runner, the second one is the path in the Docker container where the resources will be
+available. Use the same mount point as the existing workflows for the target runner.
 
 ### Available Resources
 
 * `pip` cache
-  * Accessible via the environment variable `PIP_CACHE_PATH: /mount/caches/pip/linux`, defined at the workflow level
+  * Accessible via the `PIP_CACHE_PATH` environment variable, defined at the workflow level
   * Used in jobs that involve Python usage
 * onnx models for tests
-  * Accessible at the path: `/mount/onnxtestdata`
+  * Stored in a dedicated folder on the shared drive
   * Used in the `ONNX Models tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow
 * Linux RISC-V with Conan build artifacts
   * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
 
 To add new resources, contact a member of the CI team for assistance.
 
+### Hugging Face Model Cache
+
+Hugging Face model-test jobs call `setup_hf_proxy` after checking out the action
+and making `python3` available:
+
+```yaml
+steps:
+  - name: Setup Hugging Face proxy
+    uses: ./.github/actions/setup_hf_proxy
+```
+
+The action exports `HF_ENDPOINT=http://hf-proxy.hf-proxy.svc.cluster.local`
+and `HF_HUB_DISABLE_XET=1`. It sets `HF_HOME` to `${{ runner.temp }}/hf-home`
+and both `HF_HUB_CACHE` and `HUGGINGFACE_HUB_CACHE` to
+`${{ runner.temp }}/hf-home/hub`, overriding shared-cache settings for subsequent
+steps. Call it in each reusable workflow that needs the proxy; reusable workflows
+do not inherit the caller's environment.
+
+Runner selection and existing Hugging Face authentication settings are unchanged.
+DMZ GPU runners retain the original Hugging Face endpoint and shared cache at
+`/mnt/caches/huggingface`. GPU RoPE tests do not call `setup_hf_proxy`. LLM accuracy
+tests use the proxy only when the caller sets `use-hf-proxy: true`, independently
+of `use-pip-proxy`. The AKS CPU job opts in; the DMZ GPU jobs use the default
+of `false`.
+
+Runners using `setup_hf_proxy` must be able to resolve and reach this cluster-local
+endpoint. There is no
+direct-download fallback if the proxy is unreachable. Models occupy local runner
+disk even when served from the proxy cache. The proxy covers Hugging Face Hub
+clients, not other model hosts such as Kaggle or torchvision.
+
 ### Remote Storage Compiler Cache
 
 Builds can share compiled objects through ccache's remote storage on the shared drive
-by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
-to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
-[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
-Old entries are evicted together with the rest of `/mount/caches/ccache` by the
-`Cleanup_ccache_lin` job in
-[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
+by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache) to a
+`file://` URL. Each build configuration uses its own directory inside the shared storage.
+Users:
+* The RISC-V GNU and Conan builds in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
+  and [`linux_riscv_conan.yml`](./../../../../.github/workflows/linux_riscv_conan.yml).
+* The Windows builds in
+  [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml) and
+  [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml).
+
+ccache cannot cache MSVC compilations with a separate PDB (`/Zi`), so the Windows Debug build
+sets `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`), which stores debug information
+in object files. Builds with embedded debug information link without `/INCREMENTAL`, which keeps
+PDB files free of stale incremental-link data. See `ENABLE_STATIC_LIBS_PDB` in
+[CMake options for custom compilation](./../../cmake_options_for_custom_compilation.md) for how
+static libraries are handled.
+
+`CCACHE_MAXSIZE` limits only the local cache. The remote storage is trimmed periodically by the
+`Cleanup_remote_ccache_*` jobs in
+[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) with
+`ccache --trim-dir --trim-method mtime` (ccache 4.8 or newer), which evicts the least recently used
+entries down to `CCACHE_REMOTE_MAX_SIZE`. Builds must keep `update-mtime=true` in the remote storage
+URL so that cache hits refresh the modification time used for eviction.
 
 ## Cloud Storage via Azure Blob Storage
 
@@ -176,12 +224,12 @@ key under the `container` key to make them accessible for `sccache` inside the c
 Build:
   ...
   needs: Docker
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: <self-hosted runner>
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.<image> }}
     volumes:
-      - /mount:/mount
-      - /home/runner/secrets/:/secrets:ro
+      - <shared drive path>:<shared drive path>
+      - <secrets path on runner>:/secrets:ro
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file

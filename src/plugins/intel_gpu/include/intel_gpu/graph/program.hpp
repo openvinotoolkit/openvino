@@ -176,7 +176,7 @@ public:
     const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
-    bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
+    bool has_node(const primitive_id& prim) const { return nodes_map.contains(prim); }
     program_node& get_node(primitive_id const& id);
     program_node const& get_node(primitive_id const& id) const;
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
@@ -301,7 +301,7 @@ public:
     }
     bool has_static_impl_type(primitive_type_id type) const {
         std::lock_guard<std::mutex> lock(_static_impl_types_mutex);
-        return _static_impl_types.count(type) != 0;
+        return _static_impl_types.contains(type);
     }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const { return _compilation_context; }

@@ -199,8 +199,9 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     };
 
     const auto value_transpose_order = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, transpose_v_order));
-    const auto find_value_transpose = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v1::Transpose> {
-        const auto transpose = ov::as_type_ptr<v1::Transpose>(output.get_node_shared_ptr());
+    // Identifies the node itself, not a specific output/input port, so it takes a node rather than an Output.
+    const auto find_value_transpose = [](const std::shared_ptr<ov::Node>& candidate) -> std::shared_ptr<v1::Transpose> {
+        const auto transpose = ov::as_type_ptr<v1::Transpose>(candidate);
         if (!transpose) {
             return {};
         }
@@ -215,10 +216,10 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     std::shared_ptr<v1::Transpose> present_value_transpose;
     // explicit attention hard-coded layout so don't fuse
     if (can_fuse_transpose_v) {
-        past_value_transpose = find_value_transpose(node->input_value(4));
+        past_value_transpose = find_value_transpose(node->input_value(4).get_node_shared_ptr());
         if (node->output(2).get_target_inputs().size() == 1) {
             const auto target = *node->output(2).get_target_inputs().begin();
-            present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
+            present_value_transpose = find_value_transpose(target.get_node()->shared_from_this());
         }
     }
     if (past_value_transpose && present_value_transpose) {

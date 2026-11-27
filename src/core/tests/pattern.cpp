@@ -1081,6 +1081,30 @@ TEST(pattern, wrap_type_multi_op) {
     }
 }
 
+TEST(pattern, wrap_type_checks_input_count_before_predicate) {
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto concat_1_input = make_shared<op::v0::Concat>(OutputVector{a}, 0);
+    auto concat_2_inputs = make_shared<op::v0::Concat>(OutputVector{a, b}, 0);
+
+    bool predicate_called = false;
+    auto predicate = [&](const Output<Node>& output) {
+        predicate_called = true;
+        // Safe only if the arity was verified before the predicate is invoked
+        return output.get_node()->input_value(1).get_element_type() == element::f32;
+    };
+
+    auto m = pattern::wrap_type<op::v0::Concat>({pattern::any_input(), pattern::any_input()}, predicate);
+    auto matcher = std::make_shared<pattern::Matcher>(m, "ConcatMatcher");
+
+    // The input count mismatch must be rejected before the predicate is evaluated
+    ASSERT_FALSE(matcher->match(concat_1_input->output(0)));
+    ASSERT_FALSE(predicate_called);
+
+    ASSERT_TRUE(matcher->match(concat_2_inputs->output(0)));
+    ASSERT_TRUE(predicate_called);
+}
+
 TEST(pattern, simple_model_and_pattern) {
     // Create a sample model
     PartialShape shape{2, 2};

@@ -278,11 +278,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_RISCV64(
-            "convolution_dnnl_ref_ncsp", ExecutorType::Dnnl, OperationType::Convolution,
+            "convolution_dnnl_ncsp_ncsp", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(config.attrs.postOps.empty(), UNSUPPORTED_POST_OPS);
+                VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);
                 return MatchesMemoryFormatFilter(config.descs,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
                                                  memoryFormatFilter,

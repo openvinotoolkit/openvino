@@ -36,22 +36,20 @@
 #endif
 
 #if __cplusplus > 201703L
-
-// Add operators `==` and `!=` for rapidjson::GenericMemberIterator for non const iterator when build with C++20,
-// is more strict regarding type checks.
 namespace rapidjson {
 
 template <typename Encoding, typename Allocator>
+concept NeedsMemberComparison =
+    !requires(const GenericMemberIterator<false, Encoding, Allocator>& it) {
+        it.template operator==<false>(it);
+    };
+
+template <typename Encoding, typename Allocator>
+    requires NeedsMemberComparison<Encoding, Allocator>
 inline bool operator==(GenericMemberIterator<false, Encoding, Allocator> lhs,
                        GenericMemberIterator<false, Encoding, Allocator> rhs) {
     return static_cast<GenericMemberIterator<true, Encoding, Allocator>>(lhs) ==
            static_cast<GenericMemberIterator<true, Encoding, Allocator>>(rhs);
-}
-
-template <typename Encoding, typename Allocator>
-inline bool operator!=(GenericMemberIterator<false, Encoding, Allocator> lhs,
-                       GenericMemberIterator<false, Encoding, Allocator> rhs) {
-    return !(lhs == rhs);
 }
 }  // namespace rapidjson
 #endif

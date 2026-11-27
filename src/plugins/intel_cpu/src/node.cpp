@@ -1134,8 +1134,9 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
+        const auto srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(internalBlob->getDescPtr());
         const auto string_hash = name + "_" + std::to_string(indx) + "_" +
-                                 DnnlExtensionUtils::computeWeightsStringHash(internalBlob, intDesc);
+                                 DnnlExtensionUtils::computeWeightsStringHash(internalBlob, srcDesc, intDesc);
         ptr = static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     } else {
         ptr = create();
@@ -1181,7 +1182,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(edgeMem, dstWeightDesc);
+        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(edgeMem, srcWeightDesc, dstWeightDesc);
         ptr = static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     } else {
         ptr = create();

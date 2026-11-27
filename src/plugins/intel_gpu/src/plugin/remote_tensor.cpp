@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include <cstdint>
@@ -38,6 +39,9 @@ namespace {
 ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
     if (element_type.bitwidth() < 8) {
+        if (ov::util::can_compute_byte_strides(element_type, shape)) {
+            strides = ov::util::get_dense_byte_strides(element_type, shape);
+        }
         return strides;
     }
 
@@ -190,6 +194,20 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
     OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
 #endif
+    if (m_mem_type == TensorType::BT_CPU_VA && m_va_mem.size < 0) {
+        // Resolve the "derive from tensor shape" size (-1) before the cache key is computed, so that the cache key,
+        // the imported host buffer and the reported cpu_va_size always agree. Otherwise re-wrapping the memory with
+        // the reported (explicit) size would miss the cache and import the same host memory into a second buffer.
+        // Zero dimensions are counted as 1, in the same way allocate() imports empty tensors.
+        auto import_shape = m_shape;
+        for (auto& dim : import_shape) {
+            if (dim == 0) {
+                dim = 1;
+            }
+        }
+        const cldnn::layout import_layout{ov::PartialShape{import_shape}, m_element_type, m_layout.format};
+        m_va_mem.size = static_cast<int64_t>(import_layout.bytes_count());
+    }
     update_hash();
     allocate();
 }
@@ -402,7 +420,8 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
+        // The size was resolved in the constructor if the tensor was created with size -1.
+        const auto buffer_size = static_cast<size_t>(m_va_mem.size);
         if (m_va_mem.access == ov::intel_gpu::AccessMode::READ) {
             // host_read_only is set for the file-mmap case, since the host side will never write it either.
             m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
@@ -557,14 +576,21 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
-    case TensorType::BT_CPU_VA:
+    case TensorType::BT_CPU_VA: {
+        // Report the size and access mode together with the pointer so that the properties returned by
+        // get_properties() are sufficient to re-wrap the same memory with create_tensor(), which requires
+        // cpu_va_size. This is the size the host buffer was imported with (resolved in the constructor for size -1),
+        // so it is also correct for tensors that were found in the memory cache.
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
             ov::intel_gpu::cpu_va(m_va_mem.ptr),
+            ov::intel_gpu::cpu_va_size(m_va_mem.size),
+            ov::intel_gpu::cpu_va_access(m_va_mem.access),
         };
         break;
+    }
     case TensorType::BT_USM_HOST_INTERNAL:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),

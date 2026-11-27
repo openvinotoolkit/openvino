@@ -849,29 +849,6 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     }
 }
 
-template <typename T>
-bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
-    auto ptr = node.get_attached_memory_ptr();
-    auto* engine = ptr->get_engine();
-    auto& stream = engine->get_service_stream();
-    auto num_elems = node.get_output_layout().count();
-    mem_lock<T, mem_lock_type::read> old_data{ptr, stream};
-    auto val = old_data[0];
-    for (size_t i = 1; i < num_elems; i++) {
-        if (val != old_data[i]) {
-            zp_val = DNNL_RUNTIME_S32_VAL;
-            return false;
-        }
-    }
-
-    zp_val = val;
-    return true;
-}
-
-template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
-template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
-template bool is_per_tensor<int32_t>(cldnn::data_node& node, int32_t& zp_val);
-
 static std::string get_external_order(const std::vector<size_t>& order, bool is_weights, bool is_grouped) {
     cldnn::format default_fmt = format::get_default_format(order.size(), is_weights, is_grouped);
     const auto& default_order = default_fmt.order();

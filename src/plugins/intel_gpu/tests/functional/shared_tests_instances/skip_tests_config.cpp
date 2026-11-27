@@ -39,6 +39,17 @@ bool is_xe2_or_newer() {
         return false;
     }
 }
+
+// Mirrors engine::can_use_host_usm_zero_copy(): integrated Xe2+ GPU with USM support.
+bool canUseHostUsmZeroCopy() {
+    ov::Core ie = ov::test::utils::create_core();
+    if (ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED)
+        return false;
+    auto caps = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::USM_MEMORY) == caps.end())
+        return false;
+    return is_xe2_or_newer();
+}
 } // namespace
 
 const std::vector<std::regex>& disabled_test_patterns() {
@@ -158,8 +169,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*compile_from_weightless_blob.*)"),
             // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
             std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
-            // MoE expert offload does not support per-group u3 zero points: the weights file stores them packed, the graph has them as u8
-            std::regex(R"(.*smoke_MoE3GemmCompressedOffload.*WP=u3_DS=full.*)"),
+            // Issue: https://github.com/openvinotoolkit/openvino/issues/38584, offloaded MoE output after a non-mmap
+            // read differs from the resident model
+            std::regex(R"(.*smoke_MoEOffload/MoEOffloadFromIRFile.InferWithOffloadRatioMatchesResident/mmap=false.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
@@ -175,6 +187,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow/GPU.1.*)"));
             patterns.push_back(std::regex(R"(.*nightly_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow/0.*)"));
             patterns.push_back(std::regex(R"(.*nightly_OVClassSeveralDevicesTest/OVClassSeveralDevicesTestCompileModel.CompileModelActualSeveralDevicesNoThrow/0.*)"));
+        }
+        if (!canUseHostUsmZeroCopy()) {
+            // The suite only exercises the USM host zero-copy cache-load path.
+            patterns.push_back(std::regex(R"(.*smoke_ZeroCopySingleFileCacheLoad_GPU/.*)"));
         }
         if (immadSupported()) {
             // Failure list
@@ -216,17 +232,12 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
             // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoEOffload.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
         }
 
         if (is_xe2_or_newer()) {
-            // MFDNN-15824. OOB read in oneDNN JIT GEMM
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight/.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_input_4d/.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_(unaligned|no_slm|fp4|fp8|mxfp4|mxfp8|scalar_wzp|precomputed_reduction_with_gs16)/.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_gemm_output_coherency/.*weights_shape=\[4096,6144\]_group_size=128_weights_precision=(u3|u4)_activations_precision=f16_.*transpose_weights=1_.*param_weights=0_dyn_quan_group_size=0_.*)"));
-
             // CVS-197687. Disable the rest of failed tests to run CI validation.
             patterns.push_back(std::regex(R"__(.*ConvolutionInPlaceCrop\.smoke_GPU_second_half_feature_crop_no_oob/.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_BasicRandomUniform/.*modelType=f16_alignment=tensorflow_.*)__"));

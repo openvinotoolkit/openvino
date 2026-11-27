@@ -11,16 +11,45 @@ the regular decoder path.
 audio branch. Built-in entries come from `projector_catalog` in
 [`mmproj_builder.cpp`](../src/builder/arch/mmproj_builder.cpp) and from the LFM3 builder.
 
-| Modality | Projectors |
-|---|---|
-| Vision | `gemma3`, `idefics3`, `janus_pro`, `mlp`, `internvl`, `resampler`, `minicpmv4_6`, `minicpmv4_7`, `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger`, `pixtral`, `phi4`, `lfm2`, `lfm3vl`, `gemma4v`, `gemma4uv`, `muse-glimmer`, `deepseekocr`, `deepseekocr2` |
-| Audio | `gemma4a`, `gemma4ua`, `lfm2a`, `lfm3a`, `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` |
-| Speech generation | `lfm3a_gen`; the LFM2.5 vocoder is a separate `lfm2.audio_vocoder` architecture |
+| Modality | Projector | Graph features |
+|---|---|---|
+| Vision | `gemma3`, `idefics3`, `janus_pro` | SigLIP; fused QKV and legacy FFN names |
+| Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors |
+| Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
+| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045; dimension-gated legacy FFN weight/bias names |
+| Vision | `gemma3nv` | MobileNet stem, UIR, attention and multiscale feature branches; vision-only support |
+| Vision | `minicpmv4_6` | window attention, two-stage merging |
+| Vision | `minicpmv4_7` | window-attention and direct 2x2 merging; packed-patch GenAI layout |
+| Vision | `minicpm_ocr_1_0` | MiniCPM-V 4.6 encoder graph; direct 2x2 merging in the published `-4x` projector |
+| Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
+| Vision | `pixtral` | 2D RoPE, patch merger, row separators |
+| Vision | `phi4` | dynamic resolution, resized positions |
+| Vision | `lfm2` | SigLIP, resized positions, pixel unshuffle, optional projector LayerNorm |
+| Vision | `lfm3vl` | temporal packed patches and streaming vision |
+| Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
+| Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
+| Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
+| Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap |
+| Audio | `gemma4ua` | raw 640-sample waveform frames |
+| Audio | `qwen3a` | Qwen3-ASR audio encoder |
+| Audio | `qwen3tts_spkenc` | speaker features |
+| Audio | `lfm2a`, `lfm3a` | LFM audio encoders |
+| Generated audio | `qwen3tts_gen` | code predictor and streaming codec |
+| Generated audio | `lfm3a_gen` | depthformer, feedback and codec components |
+| Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
-Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`,
+For `resampler`, legacy FFN names are swapped only when the dimensions distinguish the layout;
+square FFNs keep the canonical order.
+
+The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
+
+InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
+The LFM2.5 vocoder is a separate `lfm2.audio_vocoder` architecture.
+
+Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `llama4`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
-`granite4_vision`. An unsupported projector fails conversion of the whole file.
+`granite4_vision`, `cohere2v`. An unsupported projector fails conversion of the whole file.
 
 ## Validation coverage
 
@@ -31,6 +60,11 @@ Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qw
   [nightly](../../../../tests/model_hub_tests/gguf/gguf_mmproj_nightly) lists run real
   checkpoints with generated inputs. Per-checkpoint relaxations and skips are recorded in those
   lists.
+- `minicpm_ocr_1_0` needs llama.cpp `604cc43` or later. The model-hub oracle is pinned to an
+  older revision, so this projector is not in the model-hub lists. MiniCPM-OCR-1.0
+  `mmproj-model-f16-4x.gguf` (revision `0133ad8d`) was checked manually against
+  `mmproj_oracle` at `604cc43` on CPU with f32 inference precision at 448×448 and 280×420:
+  NMSE 8.1e-5 and 1.1e-4 on the BF16 file, 7.7e-7 and 6.7e-7 on its represented-F32 copy.
 - Encoder tests do not validate media preprocessing, media insertion or complete VLM/audio
   generation. A catalog entry is not a claim of coverage for every checkpoint, resolution,
   quantization or device.
@@ -39,11 +73,27 @@ See [testing](testing.md) for commands and acceptance criteria.
 
 ## Files with vision and audio encoders
 
-One file may carry at most one vision and one audio encoder (for example Gemma4 and Qwen2.5-Omni).
-`clip.has_vision_encoder` / `clip.has_audio_encoder` select the encoders, and each takes its
-projector from `clip.projector_type` or the per-modality `clip.<modality>.projector_type`. The
-encoders become disconnected branches of one model: vision reads `v.*` tensors and `vision.*`
-inputs and produces `vision.embeddings`; audio uses `a.*`, `audio.*` and `audio.embeddings`.
+A projector file holds at most one vision and one audio encoder; Gemma4 E2B/E4B/12B files carry
+both. Conversion builds the file's supported encoders into one model:
+
+1. `clip.has_vision_encoder` and `clip.has_audio_encoder` select the encoders. A file with
+   neither fails conversion unless the file declares supported speech-generation components.
+2. Each encoder takes its projector from the global `clip.projector_type`, or else from
+   `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
+   per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
+   (Qwen2.5 VL vision, Qwen2 audio). An unsupported projector fails conversion of the whole file,
+   except for the combined Gemma3n `gemma3nv` vision / `gemma3na` audio pair. As in the reference,
+   this pair builds only vision when no registered extension handles its audio branch.
+3. The encoders become disconnected branches of the same graph. Vision reads `v.*` tensors and
+   `vision.*` inputs and produces `vision.embeddings`; audio reads `a.*` tensors and `audio.*`
+   inputs and produces `audio.embeddings`.
+4. `gguf_mmproj` rt_info records each encoder's `<modality>.projector` and `<modality>.merge`.
+   The omitted Gemma3n audio branch retains `audio.projector=gemma3na` and
+   `audio.supported=false`; both fields survive serialization, and GenAI adaptation skips the
+   unsupported audio branch while returning the vision encoder.
+
+Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
+turns it into one encoder; apply it to a clone per modality to obtain both.
 Declared speech-generation components are built into the same model.
 
 ## Graph boundary
@@ -72,6 +122,11 @@ Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds derived val
 `<modality>.projector`, `<modality>.merge`, `vision.patch_size` and `vision.genai_layout`. Values
 are strings: numeric arrays are comma-separated, and string arrays use `length:value` entries
 flagged by a `<key>.encoding` companion. The metadata survives IR serialization and adaptation.
+
+Learned `v.image_newline`, `v.view_seperator` and `model.image_newline` weights, when present, are
+also preserved as comma-separated values under their source tensor names in `gguf_mmproj`.
+Consumers can use them to assemble image features outside the graph; DeepSeek OCR encoders already
+incorporate their separators into the native graph.
 
 ## Using the encoders and a language model
 
@@ -147,6 +202,11 @@ per-layer inputs. These passes expose graph contracts; they do not construct tok
 preprocessing or a complete GenAI pipeline. GenAI uses an F16 KV cache for GGUF multimodal models
 to match llama.cpp, unless cache precision is set explicitly.
 
+`gemma3nv` exposes `pixel_values`; `qwen3a` and `qwen3tts_spkenc` expose `features` in the
+native audio layout. These adapted graphs require consumer support: GenAI's GGUF VLM integration
+does not yet accept these projector pairings, and its existing Qwen3 audio encoder uses a different
+input interface.
+
 ## Speech generation components
 
 Builders declare speech components in `ModelContract::component_groups["audio_generation"]`,
@@ -155,14 +215,23 @@ audio groups describe their encoders the same way, so adaptation also works afte
 unadapted IR. The adapter keeps only the selected component's state and prunes other branches.
 For LFM3, `lfm3a_gen` provides `depthformer`, `feedback` and `codec` models; sampling and
 waveform reconstruction belong to the caller.
+Qwen3TTS `qwen3tts_gen` provides `predictor` and `codec` models. The codec keeps its
+`gen_audio.state_in.*` and `gen_audio.state_out.*` tensors as explicit streaming inputs and outputs.
 
 ### LFM2 audio components
 
 LFM2.5 Audio uses the `lfm2a` encoder for audio input and the standalone `lfm2.audio_vocoder`
 GGUF (depthformer, feedback and codec) for speech output; the publisher's architecture string is
-normalized on load. The vocoder is checked against pinned publisher PyTorch fixtures. GenAI
-supplies waveform preprocessing and speech reconstruction in the `gguf-frontend-mmproj`
-integration. Older Mimi-based LFM2 speech output is not supported.
+normalized on load. The encoder takes `audio.features` `[1,1,mel_bins,frames]` and
+`audio.pos_emb` `[1,1,2*ceil(frames/8)-1,encoder_width]`; its adapter exposes
+`audio_features` `[1,tokens,hidden]`. The vocoder exposes `audio.depth_logits`, `audio.feedback`,
+`audio.codec_features` and `audio.istft_window`.
+
+The Q4_0 encoder matches represented-F32 references with NMSE `3.81e-10` and `2.35e-9`.
+The vocoder is checked against pinned publisher PyTorch fixtures; Q4_0 depthformer and
+detokenizer represented-F32 comparisons have NMSE `2.62e-12` and `1.32e-9`. GenAI supplies
+waveform preprocessing and speech reconstruction in the `gguf-frontend-mmproj` integration.
+Older Mimi-based LFM2 speech output is not supported.
 
 ## Known limitations
 
@@ -189,7 +258,6 @@ do not indicate an mmproj integration regression.
 
 ## Projector extensions
 
-Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or
-replace one vision/audio branch under the `clip` coordinator; the
-[examples](../examples/architecture_extension/README.md) build and run one. A different
-whole-model format needs an `ArchitectureExtension`.
+Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
+vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
+build and run one. A different whole-model format needs an `ArchitectureExtension`.

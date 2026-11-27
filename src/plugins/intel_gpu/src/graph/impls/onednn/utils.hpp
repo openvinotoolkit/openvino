@@ -86,10 +86,6 @@ size_t get_post_ops_count(const program_node& node);
 bool is_supported_post_ops(const program_node& node);
 bool is_supported_pad(const layout& layout);
 
-// Check if data node is per-tensor
-template <typename T>
-bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val);
-
 int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                 const std::function<layout(int32_t)>& get_input_layout,
                                 int32_t slope_input_idx);

@@ -31,7 +31,10 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
     const auto input = util::f32_to_u32_bits(value);
     const auto input_exponent_bits = static_cast<uint8_t>((input & f32_exponent_bits_mask) >> f32_mantissa_bits);
 
-    if (std::signbit(value)) {
+    if (std::isnan(value)) {
+        // check NaN first, as NaN with sign bit set is still NaN
+        return 0b11111111;
+    } else if (std::signbit(value)) {
         return 0b00000000;
     } else if (input_exponent_bits >= 0b11111110) {
         return input_exponent_bits - static_cast<uint8_t>(std::isinf(value));

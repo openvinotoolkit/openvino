@@ -441,6 +441,14 @@ caching or selecting ``ov::CacheMode::OPTIMIZE_SPEED`` is not supported with off
 including when importing a compiled model or loading it from cache.
 MoE offloading requires a valid weights file and the corresponding constant offsets.
 
+Only the routed expert weights are offloaded. The scales and zero points of all the experts stay
+in GPU memory, and so do the slot copies of the cached experts. This costs about 3-5% of the routed
+expert weights, but the resident weights shrink as the ratio grows: at ``OFFLOAD_RATIO=90`` the same
+amount is roughly 13-16% of the remaining footprint. Take it into account when budgeting GPU memory.
+
+An offloaded MoE layer supports a single stream. Make sure that the number of streams is 1 when using
+``ov::intel_gpu::offload_ratio``.
+
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++
