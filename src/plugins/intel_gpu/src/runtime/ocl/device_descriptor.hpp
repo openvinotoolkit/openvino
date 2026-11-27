@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_gpu/runtime/device_info.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "openvino/core/except.hpp"
 
 #include <iomanip>
@@ -127,6 +128,7 @@ inline std::string serialize_device_info(const device_info& info,
                                          const std::vector<uint8_t>& onednn_device_info = {}) {
     std::ostringstream os;
     os << "version=" << device_descriptor_version << "\n";
+    os << "rt=" << get_runtime_cache_tag() << "\n";
     os << "onednn_version=" << onednn_version << "\n";
     os << "onednn_device_info=" << detail::to_hex(onednn_device_info.data(), onednn_device_info.size()) << "\n";
     os << "microkernels_supported=" << probes.microkernels_supported << "\n";
@@ -161,6 +163,10 @@ inline std::vector<uint8_t> deserialize_onednn_device_info(const std::string& de
 
 inline std::string deserialize_onednn_version(const std::string& descriptor) {
     return detail::parse_kv(descriptor)["onednn_version"];
+}
+
+inline std::string deserialize_runtime(const std::string& descriptor) {
+    return detail::parse_kv(descriptor)["rt"];
 }
 
 inline device_probes deserialize_device_probes(const std::string& descriptor) {

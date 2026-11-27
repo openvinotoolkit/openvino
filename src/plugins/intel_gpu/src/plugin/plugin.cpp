@@ -437,7 +437,8 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_map) {
     // Core owns the numbering when several libraries share a device name; adopt its ids for every
     // device we enumerated, so nothing downstream (contexts, configs, metrics) sees our own.
-    ensure_devices();
+    if (!ov::util::getenv_bool("OV_GPU_OFFLINE_COMPILE"))
+        ensure_devices();
     std::map<std::string, cldnn::device::ptr> renamed_devices;
     for (const auto& [internal_id, device] : m_device_map) {
         const auto it = id_map.find(internal_id);
@@ -1256,6 +1257,18 @@ void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
     try {
         // Read once per process: the debug override cannot change while the library is loaded.
         static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");
+
+        // HW-free: report the descriptor's device; only the library of the descriptor's runtime serves it.
+        if (ov::util::getenv_bool("OV_GPU_OFFLINE_COMPILE")) {
+            const auto desc = ov::util::getenv_string("OV_GPU_OFFLINE_COMPILE_DEVICE");
+            ov::EnumeratedDevice e;
+            e.internal_id = "0";
+            e.fingerprint = cldnn::make_fingerprint(cldnn::ocl::deserialize_device_info(desc));
+            e.score = cldnn::ocl::deserialize_runtime(desc) == cldnn::get_runtime_cache_tag() ? ov::PROBE_SCORE_PREFERRED
+                                                                                               : ov::PROBE_SCORE_INCOMPATIBLE;
+            out.push_back(std::move(e));
+            return;
+        }
 
         for (const auto& d : cldnn::lightweight_enumerate()) {
             ov::EnumeratedDevice e;
