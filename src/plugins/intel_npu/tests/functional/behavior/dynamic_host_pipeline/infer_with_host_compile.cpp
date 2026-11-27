@@ -1538,8 +1538,8 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<std::string> modelNames = {
-    "ESPCN_x2_DynHW_H480xW640",
-    "ESPCN_x2_DynNHW_H480xW640",
+    "ESPCN_x2_DynHW_H240xW320",
+    "ESPCN_x2_DynNHW_H240xW320",
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1556,8 +1556,8 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H480xW640_NCHW",
-                                                      "ESPCN_x2_DynNHW_H480xW640_NCHW"};
+const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H240xW320_NCHW",
+                                                      "ESPCN_x2_DynNHW_H240xW320_NCHW"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),
