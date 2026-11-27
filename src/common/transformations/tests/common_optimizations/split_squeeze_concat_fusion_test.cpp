@@ -24,7 +24,12 @@
 using namespace ov;
 using namespace testing;
 
-class SplitSqueezeConcatFusionConcatAxis : public TransformationTestsF, public testing::WithParamInterface<int64_t> {};
+class SplitSqueezeConcatFusionConcatAxis : public TransformationTestsF, public testing::WithParamInterface<int64_t> {
+public:
+    SplitSqueezeConcatFusionConcatAxis() {
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    }
+};
 
 TEST_P(SplitSqueezeConcatFusionConcatAxis, SplitSqueezeConcatFusion) {
     constexpr int64_t num_splits = 4;
