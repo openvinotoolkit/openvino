@@ -124,7 +124,6 @@ const std::vector<impl_desc_type>& GatedResidual::getDefaultImplPriority() {
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,
         impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,
         impl_desc_type::gemm_any,
         impl_desc_type::gemm,
         impl_desc_type::jit_gemm,
