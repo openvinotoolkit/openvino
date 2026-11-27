@@ -110,7 +110,9 @@ public:
             }
             if (input1_pshape.size() != 2) {
                 input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
-                // input1_layout.format = format::bfyx;
+                if (format::is_default_format(input1_layout.format)) {
+                    input1_layout.format = format::bfyx;
+                }
             }
 
             std::vector<layout> layouts{input0_layout, input1_layout};

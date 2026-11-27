@@ -191,6 +191,7 @@ jobs:
       device: 'CPU'
       test-suffix: 'CPU'
       use-pip-proxy: true
+      use-hf-proxy: true
       timeout-minutes: 30
 
   LLM_Accuracy_iGPU:

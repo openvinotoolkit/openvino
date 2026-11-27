@@ -6,12 +6,13 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <future>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <ranges>
+#include <span>
 #include <string>
 #include <system_error>
 #include <type_traits>
@@ -147,41 +148,7 @@ struct MemoryProperties {
 using PrefetchToken = std::shared_future<void>;
 
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
-class MemoryView {
-public:
-    constexpr MemoryView() noexcept = default;
-    constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
-
-    constexpr const std::byte* data() const noexcept {
-        return m_data;
-    }
-    constexpr size_t size() const noexcept {
-        return m_size;
-    }
-    constexpr const std::byte* begin() const noexcept {
-        return data();
-    }
-    constexpr const std::byte* end() const noexcept {
-        return data() + size();
-    }
-    constexpr bool empty() const noexcept {
-        return size() == 0 || data() == nullptr;
-    }
-
-private:
-    const std::byte* m_data = nullptr;
-    size_t m_size = 0;
-};
-
-/** @brief True for types with std::data() and std::size() (containers, arrays). */
-template <typename T, typename = void>
-struct IsContiguousRange : std::false_type {};
-
-template <typename T>
-struct IsContiguousRange<
-    T,
-    std::void_t<decltype(std::data(std::declval<const T&>())), decltype(std::size(std::declval<const T&>()))>>
-    : std::true_type {};
+using MemoryView = std::span<const std::byte>;
 
 /**
  * @brief Non-owning byte view of @p value; @p value must outlive the view.
@@ -190,20 +157,19 @@ struct IsContiguousRange<
  * any other trivially copyable type by its object representation.
  */
 template <typename T>
-MemoryView as_memory_view(const T& value) noexcept {
-    if constexpr (IsContiguousRange<T>::value) {
-        using element_type = std::remove_cv_t<std::remove_pointer_t<decltype(std::data(value))>>;
-        static_assert(std::is_trivially_copyable_v<element_type>,
+constexpr MemoryView as_memory_view(const T& value) noexcept {
+    if constexpr (std::ranges::contiguous_range<const T>) {
+        static_assert(std::is_trivially_copyable_v<std::ranges::range_value_t<const T>>,
                       "as_memory_view requires trivially copyable elements");
-        return {reinterpret_cast<const std::byte*>(std::data(value)), std::size(value) * sizeof(element_type)};
+        return std::as_bytes(std::span{value});
     } else {
         static_assert(std::is_trivially_copyable_v<T>, "as_memory_view requires a trivially copyable type");
-        return {reinterpret_cast<const std::byte*>(std::addressof(value)), sizeof(T)};
+        return std::as_bytes(std::span{std::addressof(value), 1});
     }
 }
 
-template <typename T, std::enable_if_t<!std::is_lvalue_reference_v<T>>* = nullptr>
-MemoryView as_memory_view(T&&) = delete;
+template <typename T>
+MemoryView as_memory_view(const T&&) = delete;
 
 /**
  * @brief Capability: hints for managing a buffer's physical-memory residency.

@@ -69,6 +69,28 @@ int main(int argc, char** argv) {
     std::ofstream out(argv[2], std::ios::binary);
     out.write(reinterpret_cast<const char*>(&vocab), sizeof(vocab));
     const auto* vocabulary = llama_model_get_vocab(model);
+    if (argc == 4 && std::string(argv[3]) == "--whole-prompt") {
+        // Stateless models (LFM3 D1) read one prompt in a single batch; write every token's logits.
+        const int32_t count = 6;
+        auto batch = llama_batch_init(count, 0, 1);
+        for (int32_t i = 0; i < count; ++i) {
+            batch.token[i] = i + 1;
+            batch.pos[i] = i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = true;
+        }
+        batch.n_tokens = count;
+        if (llama_decode(ctx, batch))
+            return 5;
+        for (int32_t i = 0; i < count; ++i)
+            out.write(reinterpret_cast<const char*>(llama_get_logits_ith(ctx, i)), vocab * sizeof(float));
+        llama_batch_free(batch);
+        llama_free(ctx);
+        llama_model_free(model);
+        llama_backend_free();
+        return out ? 0 : 6;
+    }
     const bool generation = argc == 4;
     const bool dflash = argc == 5 && std::string(argv[3]) == "--dflash";
     const bool draft = argc == 5 && (std::string(argv[3]) == "--draft" || dflash);

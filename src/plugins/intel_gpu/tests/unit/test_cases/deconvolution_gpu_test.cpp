@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 
 #include "deconvolution_inst.h"
 #include "openvino/op/constant.hpp"
@@ -3290,6 +3291,169 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_extended, deconvolution_random_test, testing::
     .add_all_3d(data_types::i8, data_types::i8, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16)
     .add_all_3d(data_types::u8, data_types::i8, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16)
 ), deconvolution_random_test_params::print_params);
+
+// A GroupConvolutionBackpropData with one spatial axis gives the deconvolution primitive 4D grouped weights
+// ([g, o, i, x]). The plugin swaps I and O of the original [g, i, o, x] weights with a permute, which is optimized into
+// a byfx view of the weights. The graph is built the way the plugin builds it for a dynamic op, a static op with new
+// shape inference, and a static op with legacy shape inference (2D vectors and a user-defined output size).
+enum class deconvolution_1d_grouped_mode { dynamic, static_new_shape_infer, static_legacy };
+
+struct deconvolution_1d_grouped_test_params {
+    uint32_t groups;
+    size_t in_features;
+    size_t out_features;
+    size_t kernel;
+    size_t stride;
+    ptrdiff_t pad_begin;
+    ptrdiff_t pad_end;
+    ptrdiff_t out_padding;
+    deconvolution_1d_grouped_mode mode;
+    bool permute_weights;
+};
+
+class deconvolution_1d_grouped_gpu : public testing::TestWithParam<deconvolution_1d_grouped_test_params> {};
+
+TEST_P(deconvolution_1d_grouped_gpu, ref_comparison) {
+    auto& engine = get_test_engine();
+    const auto p = GetParam();
+    const size_t in_len = 11;
+    const size_t ifm_per_group = p.in_features / p.groups;
+    const size_t ofm_per_group = p.out_features / p.groups;
+    const size_t out_len = (in_len - 1) * p.stride - p.pad_begin - p.pad_end + p.kernel + p.out_padding;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<float>(p.in_features * in_len, -1, 1);
+    auto weights_data = rg.generate_random_1d<float>(p.groups * ofm_per_group * ifm_per_group * p.kernel, -1, 1);
+    auto bias_data = rg.generate_random_1d<float>(p.out_features, -1, 1);
+
+    const ov::PartialShape input_pshape{1, static_cast<int64_t>(p.in_features), static_cast<int64_t>(in_len)};
+    const layout input_mem_layout{input_pshape, data_types::f32, format::bfyx};
+    // Stored as [g, i, o, x] when the permute swaps I and O, as [g, o, i, x] otherwise
+    const size_t stored_dim1 = p.permute_weights ? ifm_per_group : ofm_per_group;
+    const size_t stored_dim2 = p.permute_weights ? ofm_per_group : ifm_per_group;
+    const ov::PartialShape weights_pshape{static_cast<int64_t>(p.groups),
+                                          static_cast<int64_t>(stored_dim1),
+                                          static_cast<int64_t>(stored_dim2),
+                                          static_cast<int64_t>(p.kernel)};
+    const layout weights_layout{weights_pshape, data_types::f32, format::bfyx};
+    const layout bias_layout{ov::PartialShape{1, static_cast<int64_t>(p.out_features), 1}, data_types::f32, format::bfyx};
+
+    auto input_mem = engine.allocate_memory(input_mem_layout);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto bias_mem = engine.allocate_memory(bias_layout);
+    set_values(input_mem, input_data);
+    set_values(weights_mem, weights_data);
+    set_values(bias_mem, bias_data);
+
+    const bool dynamic = p.mode == deconvolution_1d_grouped_mode::dynamic;
+    const bool legacy = p.mode == deconvolution_1d_grouped_mode::static_legacy;
+    const layout input_layout_desc{dynamic ? ov::PartialShape{1, static_cast<int64_t>(p.in_features), -1} : input_pshape, data_types::f32, format::bfyx};
+
+    std::shared_ptr<deconvolution> deconv_prim;
+    if (legacy) {
+        deconv_prim = std::make_shared<deconvolution>(
+            "deconv",
+            input_info("input"),
+            "weights",
+            "bias",
+            p.groups,
+            ov::Strides{p.stride, 1},
+            ov::CoordinateDiff{p.pad_begin, 0},
+            ov::Strides{1, 1},
+            tensor(batch(1), feature(static_cast<tensor::value_type>(p.out_features)), spatial(1, static_cast<tensor::value_type>(out_len))),
+            true);
+        deconv_prim->pads_begin = ov::CoordinateDiff{p.pad_begin, 0};
+        deconv_prim->pads_end = ov::CoordinateDiff{p.pad_end};
+        deconv_prim->out_padding = ov::CoordinateDiff{p.out_padding};
+    } else {
+        deconv_prim = std::make_shared<deconvolution>("deconv",
+                                                      input_info("input"),
+                                                      "weights",
+                                                      "bias",
+                                                      p.groups,
+                                                      ov::Strides{p.stride},
+                                                      ov::CoordinateDiff{p.pad_begin},
+                                                      ov::Strides{1},
+                                                      ov::CoordinateDiff{p.pad_begin},
+                                                      ov::CoordinateDiff{p.pad_end},
+                                                      ov::CoordinateDiff{p.out_padding},
+                                                      true);
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_desc));
+    if (p.permute_weights) {
+        topology.add(data("weights_gioy", weights_mem));
+        topology.add(permute("weights", input_info("weights_gioy"), {0, 2, 1, 3}));
+    } else {
+        topology.add(data("weights", weights_mem));
+    }
+    topology.add(data("bias", bias_mem));
+    topology.add(*deconv_prim);
+    topology.add(reorder("output", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(!legacy));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto output_mem = outputs.at("output").get_memory();
+    ASSERT_EQ(output_mem->count(), p.out_features * out_len);
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+    for (size_t g = 0; g < p.groups; g++) {
+        for (size_t o = 0; o < ofm_per_group; o++) {
+            const size_t out_f = g * ofm_per_group + o;
+            for (size_t ox = 0; ox < out_len; ox++) {
+                double expected = bias_data[out_f];
+                for (size_t i = 0; i < ifm_per_group; i++) {
+                    for (size_t ix = 0; ix < in_len; ix++) {
+                        for (size_t k = 0; k < p.kernel; k++) {
+                            if (static_cast<ptrdiff_t>(ix * p.stride + k) - p.pad_begin != static_cast<ptrdiff_t>(ox)) {
+                                continue;
+                            }
+                            const size_t w_idx = p.permute_weights ? ((g * ifm_per_group + i) * ofm_per_group + o) * p.kernel + k
+                                                                   : ((g * ofm_per_group + o) * ifm_per_group + i) * p.kernel + k;
+                            expected += static_cast<double>(input_data[(g * ifm_per_group + i) * in_len + ix]) * weights_data[w_idx];
+                        }
+                    }
+                }
+                ASSERT_NEAR(expected, output_ptr[out_f * out_len + ox], 1e-4) << "f = " << out_f << ", x = " << ox;
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         deconvolution_1d_grouped_gpu,
+                         testing::ValuesIn([] {
+                             std::vector<deconvolution_1d_grouped_test_params> params;
+                             for (auto mode : {deconvolution_1d_grouped_mode::dynamic,
+                                               deconvolution_1d_grouped_mode::static_new_shape_infer,
+                                               deconvolution_1d_grouped_mode::static_legacy}) {
+                                 for (bool permute_weights : {false, true}) {
+                                     // groups, in, out, kernel, stride, pad begin, pad end, output padding
+                                     params.push_back({16, 16, 16, 3, 2, 1, 1, 1, mode, permute_weights});  // depthwise upsampling by 2
+                                     params.push_back({2, 16, 8, 3, 2, 1, 1, 1, mode, permute_weights});
+                                     params.push_back({16, 16, 16, 3, 1, 1, 1, 0, mode, permute_weights});
+                                     params.push_back({16, 16, 16, 3, 1, 0, 0, 0, mode, permute_weights});
+                                     params.push_back({4, 16, 32, 4, 2, 1, 1, 0, mode, permute_weights});
+                                 }
+                             }
+                             return params;
+                         }()),
+                         [](const testing::TestParamInfo<deconvolution_1d_grouped_test_params>& info) {
+                             const auto& p = info.param;
+                             const char* mode = p.mode == deconvolution_1d_grouped_mode::dynamic                  ? "dynamic"
+                                                : p.mode == deconvolution_1d_grouped_mode::static_new_shape_infer ? "static_new_shape_infer"
+                                                                                                                  : "static_legacy";
+                             std::stringstream ss;
+                             ss << mode << (p.permute_weights ? "_permuted" : "") << "_g" << p.groups << "_in" << p.in_features << "_out" << p.out_features
+                                << "_k" << p.kernel << "_s" << p.stride << "_pb" << p.pad_begin << "_pe" << p.pad_end << "_op" << p.out_padding;
+                             return ss.str();
+                         });
 
 using deconvolution_dynamic_auto_pad_params = std::tuple<ov::op::PadType,  // auto_pad
                                                          size_t,           // kernel size
