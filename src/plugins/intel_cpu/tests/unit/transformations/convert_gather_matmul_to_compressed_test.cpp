@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 
 #include <memory>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -34,6 +35,23 @@ struct ConvertBGMToCompressedParams {
 
 class ConvertBGMToCompressed : public testing::WithParamInterface<ConvertBGMToCompressedParams>,
                                public TransformationTestsF {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertBGMToCompressedParams>& info) {
+        const auto shape_name = [](const ov::Shape& shape) {
+            std::string name = shape.empty() ? "Scalar" : "";
+            for (const auto dim : shape) {
+                if (!name.empty()) {
+                    name += "x";
+                }
+                name += std::to_string(dim);
+            }
+            return name;
+        };
+        const auto& p = info.param;
+        return p.compressed_type.get_type_name() + "_Weights_" + shape_name(p.wei_shape) + "_ScaleZP_" +
+               shape_name(p.scale_zp_shape) + "_GroupSize_" + std::to_string(p.expected_group_size);
+    }
+
 protected:
     void TearDown() override {
         TransformationTestsF::TearDown();
@@ -180,4 +198,7 @@ const auto params = std::vector<ConvertBGMToCompressedParams>{
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertBGMToCompressed, ::testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertBGMToCompressed,
+                         ::testing::ValuesIn(params),
+                         ConvertBGMToCompressed::getTestCaseName);

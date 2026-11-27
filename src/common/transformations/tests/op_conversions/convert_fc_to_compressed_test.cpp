@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 
 #include <memory>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -33,6 +34,24 @@ struct ConvertFCToCompressedParams {
 
 class ConvertFCToCompressed : public testing::WithParamInterface<ConvertFCToCompressedParams>,
                               public TransformationTestsF {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertFCToCompressedParams>& info) {
+        const auto shape_name = [](const ov::Shape& shape) {
+            std::string name = shape.empty() ? "Scalar" : "";
+            for (const auto dim : shape) {
+                if (!name.empty()) {
+                    name += "x";
+                }
+                name += std::to_string(dim);
+            }
+            return name;
+        };
+        const auto& p = info.param;
+        return p.compressed_type.get_type_name() + "_Weights_" + shape_name(p.wei_shape) + "_ScaleZP_" +
+               shape_name(p.scale_zp_shape) + "_WithZP_" + std::to_string(p.with_zp) + "_Transposed_" +
+               std::to_string(p.transposed) + "_GroupSize_" + std::to_string(p.expected_group_size);
+    }
+
 protected:
     void TearDown() override {
         TransformationTestsF::TearDown();
@@ -159,7 +178,10 @@ const auto params = std::vector<ConvertFCToCompressedParams>{
 };
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertFCToCompressed, ::testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertFCToCompressed,
+                         ::testing::ValuesIn(params),
+                         ConvertFCToCompressed::getTestCaseName);
 
 // Regression test: when the matched Transpose acts on the weights tensor and
 // scale / zero-point are rank-1 per-output-channel Constants, the old code
