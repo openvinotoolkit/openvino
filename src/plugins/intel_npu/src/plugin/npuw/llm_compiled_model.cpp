@@ -20,6 +20,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/convert_sparse_attention_to_dense.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
@@ -938,6 +939,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 
+    // QSA layers reuse the lincache path; however, the prefix cache only stores and restores
+    // per-token KV blocks and never restores lincache states, so a prefix hit would leave the
+    // QSA states out of sync with the restored KV. Hence QSA models are rejected with prefix caching.
+    const bool converted_qsa =
+        ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
+    if (converted_qsa && m_enable_prefix_caching) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("QSA models do not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
+    }
+
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1403,7 +1413,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             return found;
         };
-        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc && npudesc->arch == "5010" &&
+        const auto device_routed_platform =
+            npudesc && (npudesc->arch == ov::intel_npu::Platform::NPU5010 ||
+                        ov::intel_npu::Platform::standardize(npudesc->arch) == ov::intel_npu::Platform::NPU6010);
+        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && device_routed_platform &&
             npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
             m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1 && !generate_model_variants.empty() &&
             std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
@@ -2105,6 +2118,9 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
         // A port can carry several names, so every one of them must clear the
         // exclusions; get_any_name() could return one that hides a match.
         for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_qsa_state(name)) {
+                return false;  // QSA state has no generate->prefill path
+            }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
                 return false;  // linear/hybrid state has no generate->prefill path
             }

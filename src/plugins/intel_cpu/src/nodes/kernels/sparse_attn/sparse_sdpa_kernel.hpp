@@ -5,73 +5,73 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
-#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
-#include "nodes/kernels/sparse_attn/sparse_sdpa_scratch.hpp"
+#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
+#include "nodes/kernels/scaled_attn/cache_spec.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu {
 
-// Describes how the key (or value) cache rows are stored. A plain cache is read as is (any of f32/f16/bf16, see
-// load_row_f32() in the kernel). A quantized cache (u8 / u4, per-token groups of `group_size` elements) holds the
-// quantized rows in `cache` and the {scale, zero point} pairs of the groups in `scale_zp`, laid out as
-// [L, B, H, 2 * D / group_size] -- the layout written by attn_quant_by_token() -- and the rows that are touched are
-// dequantized on the fly: only the selected blocks and the causal tail, never the whole history.
-// With `by_channel` (u8 only) the groups run along L instead: `group_size` consecutive tokens share one
-// {scale, zero point} per channel, and `scale_zp` is [2 * ceil(L / group_size), B, H, D] -- the layout written by
-// attn_quant_by_channel(): row 2 * g holds the scales of group g, row 2 * g + 1 its zero points.
-struct SparseKVQuant {
-    ov::element::Type prec = ov::element::dynamic;  // u8 / u4, anything else means "not quantized"
-    size_t group_size = 0;                          // elements of a row per group, or tokens per group when by_channel
-    bool by_channel = false;
-    const ov::intel_cpu::PlainTensor* scale_zp = nullptr;
+struct SparseSdpaConfig {
+    size_t num_heads = 0;            ///< query heads
+    size_t num_kv_heads = 0;         ///< key / value heads
+    size_t num_selection_heads = 1;  ///< heads of the block selection: 1, num_kv_heads or num_heads
+    size_t k_head_size = 0;          ///< E of the query and the keys
+    size_t v_head_size = 0;          ///< Ev of the values and the output
+    ov::element::Type data_precision = ov::element::f32;  ///< query, output and plain key / value type
+    size_t key_block_size = 0;
+    bool causal = true;
+    float scale = 1.0F;
+    ov::intel_cpu::CacheSpec key_spec;
+    ov::intel_cpu::CacheSpec value_spec;
+    /// The AMX prefill kernels; empty when the executor is not eligible. make_*_executor() fills it (the node leaves it
+    /// empty). The config owns them, so an executor that copies the config keeps them alive.
+    TileBrgemmKernels brgemm;
+};
 
-    // A compressed cache needs the scale / zero point tensor and a group; the by-channel layout exists for u8 only.
-    [[nodiscard]] bool enabled() const {
-        return scale_zp != nullptr && group_size > 0 &&
-               (prec == ov::element::u8 || (prec == ov::element::u4 && !by_channel));
-    }
+struct SparseSdpaTensors {
+    const ov::intel_cpu::PlainTensor& query;        ///< [N, H, L, E]
+    const ov::intel_cpu::PlainTensor& key;          ///< [N, Hkv, S, E]
+    const ov::intel_cpu::PlainTensor& value;        ///< [N, Hkv, S, Ev]
+    const ov::intel_cpu::PlainTensor& sel_indices;  ///< [N, Hs, L, KB]
+    const ov::intel_cpu::PlainTensor& sel_count;    ///< [N, Hs, L]
+    ov::intel_cpu::PlainTensor& out;                ///< [N, H, L, Ev]
+    const int32_t* key_length = nullptr;            ///< optional, 1 or N entries
+    size_t key_length_batch_stride = 0;             ///< 0: one key_length for all the batches, 1: one per batch
+    const ov::intel_cpu::PlainTensor* key_scale_zp = nullptr;    ///< compressed key cache only
+    const ov::intel_cpu::PlainTensor* value_scale_zp = nullptr;  ///< compressed value cache only
+};
+
+class SparseSdpaExecutor {
+public:
+    virtual ~SparseSdpaExecutor() = default;
+    /// The implementation type the node reports: the matrix extension of the prefill kernels when it has them, else
+    /// the SIMD stages of the variant.
+    [[nodiscard]] virtual ov::intel_cpu::impl_desc_type impl_type() const = 0;
+    [[nodiscard]] virtual size_t scratch_bytes(const SparseSdpaTensors& tensors,
+                                               const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
+    virtual void execute(const SparseSdpaTensors& tensors,
+                         const ov::intel_cpu::MemoryPtr& scratch,
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
 };
 
 }  // namespace ov::Extensions::Cpu
 
 namespace ov::Extensions::Cpu::XARCH {
 
-// Single cross-compiled entry point of SparseSDPA (see sparse_sdpa.h). The node marshals the MemoryPtrs and the
-// scratch, which needs GraphContext, then calls this once. The SIMD decode, the brgemm prefill and the row conversion
-// stay in sparse_sdpa_kernel.cpp so the per-ISA clones vectorize them.
-void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
-                         const ov::intel_cpu::PlainTensor& key,
-                         const ov::intel_cpu::PlainTensor& value,
-                         const ov::intel_cpu::PlainTensor& sel_indices,
-                         const ov::intel_cpu::PlainTensor& sel_count,
-                         ov::intel_cpu::PlainTensor& out,
-                         size_t num_heads,
-                         size_t num_kv_heads,
-                         size_t k_head_size,
-                         size_t v_head_size,
-                         size_t sel_block_size,
-                         size_t h_sel,
-                         bool causal,
-                         float scale,
-                         float* scratch_floats,
-                         size_t per_thread_floats,
-                         const SparseBrgemm& brgemm,
-                         const PackStateLayout& pack_layout,
-                         const SparseBrgemmLayout& brgemm_layout,
-                         uint8_t* brgemm_scratch,
-                         size_t brgemm_bytes_per_thread,
-                         const int32_t* key_length,
-                         size_t key_length_batch_stride,
-                         const SparseKVQuant& key_quant,
-                         const SparseKVQuant& value_quant,
-                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
+std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> make_sparse_sdpa_executor(
+    const ov::Extensions::Cpu::SparseSdpaConfig& config,
+    const ov::intel_cpu::MultiCachePtr& cache);
 
-// Dequantizes the rows [0, L) of the quantized cache (b, h) into dense f32 rows, `dst` is [L, D].
+// Dequantizes the rows [0, L) of the compressed cache (b, h) into dense f32 rows, `dst` is [L, D].
 void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,
-                               const SparseKVQuant& quant,
+                               const ov::intel_cpu::CacheSpec& spec,
+                               const ov::intel_cpu::PlainTensor& scale_zp,
                                size_t b,
                                size_t h,
                                size_t L,
