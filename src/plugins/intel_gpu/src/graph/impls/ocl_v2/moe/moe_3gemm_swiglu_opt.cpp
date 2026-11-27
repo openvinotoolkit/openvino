@@ -1918,7 +1918,7 @@ public:
                     _weight_provider->resident_capacity() > 0;
         const auto* multi_token_waves = std::getenv("MOE_LES_MULTITOKEN_WAVES");
         const bool split_les = demand_les && (token_num == 1 ||
-                       (multi_token_waves && std::string_view(multi_token_waves) == "1"));
+                       !multi_token_waves || std::string_view(multi_token_waves) == "1");
         const bool compare = demand_les && moe_otd::les_prediction_compare_enabled();
         std::vector<uint32_t> experts;
         if (split_les) {
