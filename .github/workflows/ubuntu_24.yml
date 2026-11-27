@@ -365,8 +365,10 @@ jobs:
   Megakernel_Build:
     name: Megakernel integration build
     needs: [ Docker, Smart_CI ]
-    #if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' && fromJSON(needs.smart_ci.outputs.affected_components).GPU.test }}
-    if: ${{ always() }}
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU
+      )
     timeout-minutes: 150
     runs-on: aks-linux-16-cores-32gb
     container:
@@ -419,8 +421,10 @@ jobs:
   Megakernel_Test:
     name: Megakernel integration test
     needs: [ Docker, Smart_CI, Megakernel_Build ]
-    #if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' && fromJSON(needs.smart_ci.outputs.affected_components).GPU.test }}
-    if: ${{ success() }}
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU
+      )
     timeout-minutes: 30
     runs-on:
       group: Intel-GPU
