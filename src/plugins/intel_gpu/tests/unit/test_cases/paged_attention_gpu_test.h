@@ -1075,8 +1075,25 @@ struct PagedAttentionReference {
         std::vector<ov::float16> ref_scores_output;
         std::vector<ov::float16> ref_diversity_output;
         size_t qq_bias_offset = 0;
+        size_t total_tokens = 0;
+        for (const auto& subsequence_desc : pam.subsequence_descs) {
+            total_tokens += subsequence_desc.num_tokens;
+        }
+        OPENVINO_ASSERT(pam.token_type_ids.empty() || pam.token_type_ids.size() == total_tokens,
+                        "token_type_ids size (",
+                        pam.token_type_ids.size(),
+                        ") must match the number of scheduled tokens (",
+                        total_tokens,
+                        ")");
+        size_t token_offset = 0;
         for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
             const auto& subsequence_desc = pam.subsequence_descs[i];
+            std::vector<int> token_type_ids;
+            if (!pam.token_type_ids.empty()) {
+                const auto subsequence_begin = pam.token_type_ids.begin() + token_offset;
+                token_type_ids.assign(subsequence_begin, subsequence_begin + subsequence_desc.num_tokens);
+            }
+            token_offset += subsequence_desc.num_tokens;
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
             auto key_data = pam.key_data[i];
@@ -1141,7 +1158,8 @@ struct PagedAttentionReference {
                                                          pam.get_default_scale(),
                                                          xattn_threshold,
                                                          xattn_block_size,
-                                                         qq_bias_ptr);
+                                                         qq_bias_ptr,
+                                                         token_type_ids);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(), subsequence_ref_results.first.begin(), subsequence_ref_results.first.end());
@@ -1172,6 +1190,7 @@ private:
                                                                                 double xattention_threshold,
                                                                                 size_t block_size,
                                                                                 const std::vector<uint8_t>* qq_bias = nullptr,
+                                                                                const std::vector<int>& token_type_ids = {},
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1295,7 +1314,8 @@ private:
                                                          sliding_window_size,
                                                          retained_blocks,
                                                          static_cast<int>(block_size),
-                                                         qq_bias);
+                                                         qq_bias,
+                                                         token_type_ids);
         cldnn::topology topology;
         if (num_heads == num_kv_heads) {
             topology.add(
@@ -1389,7 +1409,8 @@ private:
                                                         int sliding_window_size,
                                                         const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
                                                         int block_size,
-                                                        const std::vector<uint8_t>* qq_bias) {
+                                                        const std::vector<uint8_t>* qq_bias,
+                                                        const std::vector<int>& token_type_ids = {}) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1431,6 +1452,22 @@ private:
 
                         mem_ptr[i * num_keys + j] = is_min ? std::numeric_limits<ov::float16>::lowest() : ov::float16(0.f);
                     }
+                }
+            }
+            // A type-1 query also sees its whole run of type-1 tokens, inside a sliding window as well
+            if (!token_type_ids.empty()) {
+                const int past = num_keys - num_queries;
+                for (int i = 0; i < num_queries; i++) {
+                    if (token_type_ids[i] != 1)
+                        continue;
+                    int begin = i;
+                    while (begin > 0 && token_type_ids[begin - 1] == 1)
+                        begin--;
+                    int end = i + 1;
+                    while (end < num_queries && token_type_ids[end] == 1)
+                        end++;
+                    for (int j = past + begin; j < past + end; j++)
+                        mem_ptr[i * num_keys + j] = ov::float16(0.f);
                 }
             }
         } else {
