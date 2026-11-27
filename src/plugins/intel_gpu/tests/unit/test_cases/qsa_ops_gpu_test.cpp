@@ -3166,11 +3166,12 @@ TEST(qsa_ops_gpu_test, batched_stateful_indexer_block_cache_is_updated_in_place)
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
+    // 600 single-token decodes follow the two prefills; built with one resize to avoid a GCC 15 -Wstringop-overflow false positive.
     std::vector<size_t> q_lens{5, 300};
-    q_lens.insert(q_lens.end(), 600, 1);
+    q_lens.resize(q_lens.size() + 600, 1);
     // Rolled back to a block boundary: the rank-3 cache of several rows keeps its capacity too.
     const size_t rollback_step = q_lens.size();
-    q_lens.insert(q_lens.end(), {1, 1});
+    q_lens.resize(q_lens.size() + 2, 1);
     run_stateful_indexer_chain(2, q_lens, {{rollback_step, 400}});
 }
 
