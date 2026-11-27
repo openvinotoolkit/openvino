@@ -881,7 +881,8 @@ TEST(constant, uint2_string) {
 
     EXPECT_EQ(c.convert_value_to_string(1), "1");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("2", "1", "0", "3"));
-    EXPECT_THROW(c.get_strides(), Exception);
+    // 4 u2 elements == 1 byte, byte-aligned, so strides are now representable
+    EXPECT_EQ(c.get_strides(), Strides({1}));
 }
 
 TEST(constant, uint2_string_broadcast) {
@@ -1093,7 +1094,8 @@ TEST(constant, uint4_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
-    EXPECT_THROW(c.get_strides(), Exception);
+    // 4 u4 elements == 2 bytes, byte-aligned, so strides are now representable
+    EXPECT_EQ(c.get_strides(), Strides({1}));
 }
 
 TEST(constant, uint4_string_broadcast) {
@@ -2580,6 +2582,30 @@ TEST(constant, hold_tensor_custom_strides_revalidate) {
     EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
 
     const_op->revalidate_and_infer_types();
+
+    ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
+    EXPECT_EQ(const_op->get_strides(), strides);
+    EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
+}
+
+TEST(constant, strides_dense_sub_byte) {
+    // u4: 100 elements per row, byte-aligned (100 * 4 bits == 50 bytes).
+    ov::op::v0::Constant c(element::u4, Shape{2, 100});
+    EXPECT_EQ(c.get_strides(), Strides({50, 1}));
+}
+
+TEST(constant, hold_tensor_custom_strides_sub_byte) {
+    // u4: 100 real elements (50 bytes) per row, padded to 64 bytes per row.
+    const auto shape = Shape{2, 100};
+    const auto strides = Strides{64, 1};
+    void* shared_data_ptr = nullptr;
+    std::shared_ptr<op::v0::Constant> const_op;
+    auto storage = std::vector<uint8_t>(2 * 64);
+    {
+        auto strided_view = Tensor(element::u4, shape, storage.data(), strides);
+        shared_data_ptr = strided_view.data();
+        const_op = std::make_shared<op::v0::Constant>(strided_view);
+    }
 
     ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
     EXPECT_EQ(const_op->get_strides(), strides);
