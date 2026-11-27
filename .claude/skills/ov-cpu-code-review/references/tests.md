@@ -2,19 +2,13 @@
 
 Applies to `src/plugins/intel_cpu/tests/` (`functional/custom/`,
 `functional/shared_tests_instances/`, `unit/`) and to shared tests that CPU
-instantiates. For new ops, also check
-[add-cpu-op step 4](../../../../.github/agents-prototype/skills/add-cpu-op/step4-testing.md).
+instantiates. For new ops,
+[add-cpu-op step 4](../../../../.github/agents-prototype/skills/add-cpu-op/step4-testing.md)
+is an informational prototype checklist. Where it conflicts with this file
+(bf16 testing, namespaces, file placement), this file takes precedence. Don't
+report deviations from it as mandatory findings.
 For transformation unit tests, apply the `ov-transformation-tests` skill and
 `src/common/transformations/docs/writing_tests.md`.
-
-## Reuse first
-
-- **Mandatory.** Reuse rather than create. Before accepting a new test class,
-  fixture, reference, or utility, check whether a shared single-layer or
-  subgraph test class, `cpu_test_utils`, `filter_cpu_info`, an existing
-  reference implementation, or an existing suite already covers it. Add
-  instances to the existing suite instead of writing a new fixture. See "Check
-  reuse before accepting new code" in [SKILL.md](../SKILL.md).
 
 ## Test structure
 
@@ -57,8 +51,13 @@ For transformation unit tests, apply the `ov-transformation-tests` skill and
   `namespace ov::test {`. Don't reformat existing files in unrelated PRs.
 - **Check.** Place tests by architecture. Portable cases go in `common/`
   folders (`custom/single_layer_tests/instances/common`,
-  `custom/subgraph_tests/src/common`) so that ARM CI runs them too. ISA-specific
-  cases go in `x64/`, `arm/`, or `riscv64/`.
+  `custom/subgraph_tests/src/common`). ISA-specific cases go in `x64/`,
+  `arm/`, or `riscv64/`. Placement alone isn't enough for ARM: custom
+  functional tests are disabled on ARM except for files listed in the
+  matching `TMP_LIST_OF_COMMON_*` / `TMP_LIST_OF_*` lists in
+  `src/plugins/intel_cpu/tests/functional/sources.cmake`. On ARM, those
+  directories are also excluded from the source-listing check, so an
+  unlisted file is skipped silently.
 
 ## Precision coverage
 

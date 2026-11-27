@@ -4,16 +4,7 @@ Applies to `src/plugins/intel_cpu/src/nodes/kernels/` (JIT, intrinsics,
 `scaled_attn`, `sparse_attn`, `linear_attn`, `simd`, `x64`, `aarch64`,
 `acl`, `kai`, `riscv64`, and top-level kernel files), emitters
 (`emitters/plugin/`, `emitters/snippets/`), `cross_compiled_file` entries,
-`cpu_parallel.*`, `dnnl_scratch_pad.*`, and memory blocks.
-
-## Reuse first
-
-- **Mandatory.** Reuse rather than create. Before accepting a new kernel,
-  emitter, conversion, reduction, or utility function, search `nodes/kernels/`
-  (`simd`, `scaled_attn/common.hpp`, existing emitters, brgemm helpers) and
-  `utils/` for an existing one. Reuse, extend, or move it to a shared header
-  instead of copying it. See "Check reuse before accepting new code" in
-  [SKILL.md](../SKILL.md).
+`cpu_parallel.*`, `dnnl_scratch_pad.h`, and memory blocks.
 
 ## Build-time vs runtime ISA dispatch
 
@@ -81,8 +72,8 @@ Applies to `src/plugins/intel_cpu/src/nodes/kernels/` (JIT, intrinsics,
 - **Mandatory.** Use `CpuParallel` for parallel sections in new kernels.
 - **Check.** Per-thread buffers must be indexed the same way the
   partitioner counts threads. With the AUTO partitioner, which is chosen on
-  some hybrid CPU configs or set by the user, the thread index passed by
-  `cpu_parallel_for*` goes up to `nthr * get_multiplier()`. With STATIC, the
+  some hybrid CPU configs or set by the user, the `ithr` passed to
+  `CpuParallel::parallel_for*` lambdas goes up to `nthr * get_multiplier()`. With STATIC, the
   multiplier is forced to 1. Size per-thread buffers with
   `CpuParallel::get_num_threads()`, not `parallel_get_max_threads()`.
 - **Check.** Avoid nested parallel regions. TBB tolerates them, but OMP
@@ -169,7 +160,7 @@ Applies to `src/plugins/intel_cpu/src/nodes/kernels/` (JIT, intrinsics,
 ## JIT kernel caching and emitter contracts
 
 - **Check.** JIT kernels and executors built in `prepareParams` go through
-  the runtime params cache (`src/cache/multi_cache.h`). The key's hash and
+  the runtime params cache (`src/plugins/intel_cpu/src/cache/multi_cache.h`). The key's hash and
   equality cover every JIT parameter: ISA, precisions, shapes that change the
   generated code, and tail counts.
 - **Check.** Emitters declare correct `aux_vecs_count()` /

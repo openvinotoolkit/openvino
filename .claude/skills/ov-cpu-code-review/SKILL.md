@@ -14,8 +14,8 @@ threading contracts, kernel bounds and performance, and test placement and
 cost.
 
 This skill extends [code-review](../code-review/SKILL.md). Load it first and
-follow its review workflow, its evidence rules (step 5, "Challenge each
-candidate finding"), its severity and confidence rules, and its
+follow its review workflow, its evidence rules ("Challenge each candidate
+finding"), its severity and confidence rules, and its
 [delivery contract](../code-review/references/delivery.md). This file adds
 the CPU checks and references. It does not replace those rules.
 
@@ -33,7 +33,12 @@ When the PR adds a new CPU node or op, also check it against the
 - [step 4](../../../.github/agents-prototype/skills/add-cpu-op/step4-testing.md):
   tests.
 
-Report deviations from it under the mandatory-rule policy of `code-review`.
+`add-cpu-op` is a prototype checklist and is informational only. Don't
+report deviations from it as mandatory findings. Where it conflicts with
+this skill or with [cmake.md](../code-review/references/cmake.md) (for
+example on source lists in `sources.cmake`, ISA checks, how bf16 is tested,
+or test file placement), this skill and `cmake.md` take precedence.
+
 For a new internal op, also review the core op (`src/core/`), its shape
 inference, and its fusion transformation with the
 [runtime](../code-review/references/runtime.md) and
@@ -41,7 +46,8 @@ inference, and its fusion transformation with the
 
 ## CPU-specific workflow additions
 
-Apply these during `code-review` steps 3 and 4.
+Apply these during the `code-review` steps "Map scope and coverage" and
+"Investigate changed behavior".
 
 ### Map the CPU execution path
 
@@ -73,9 +79,12 @@ one.
 
 ### Know the defaults that make paths reachable
 
-- bf16/f16 run natively only when the host has native instructions for them.
-  Otherwise the node runs in f32, and the data goes through reorders around
-  it. Check `config.cpp` and `precision_support.cpp` at the reviewed revision.
+- By default (`PERFORMANCE` mode), bf16 is selected only on hosts with
+  native AVX512_BF16. An explicit `hint::inference_precision=bf16` is also
+  honored on plain `avx512_core` (bf16 is converted in software, e.g. by the
+  emitters) and on AVX2_VNNI_2. Elsewhere the node runs in f32, with reorders
+  around it. See the precision rules in [node.md](references/node.md) and
+  check `config.cpp` / `utils/precision_support.cpp` at the reviewed revision.
 - Functional test configs force f32 inference precision unless the test sets
   `inference_precision` or uses `ACCURACY` mode
   (`shared_tests_instances/core_config.cpp`). They also convert bf16/f16 to
@@ -89,9 +98,18 @@ one.
 For every new piece of code in the PR, whether it's a helper, kernel,
 executor, pass, pattern, or test class, search the repository for something
 that already does the job. Do this for every component, not only kernels.
-New code that duplicates an existing abstraction is a finding. The fix is to
-reuse or extend the existing code, or, when a real gap exists, to share one
-implementation between the new and old users.
+This is a **Check**, not a mandatory rule. Report duplication only when it
+creates a concrete correctness, compatibility, performance, or substantial
+maintenance risk, as `code-review` requires. Name the existing component and
+the risk. The fix is to reuse or extend the existing code or, when a real gap
+exists, to share one implementation between the new and old users. Concrete,
+verifiable reuse rules (load/store emitters, `CPU_NODE_ASSERT`,
+`TypeMapping`, etc.) are mandatory rules in the reference files.
+
+The in-repo architecture docs are the source of truth for the existing
+abstractions: [nodes/README.md](../../../src/plugins/intel_cpu/src/nodes/README.md),
+[nodes/executors/README.md](../../../src/plugins/intel_cpu/src/nodes/executors/README.md),
+and [nodes/kernels/simd/README.md](../../../src/plugins/intel_cpu/src/nodes/kernels/simd/README.md).
 
 Search at least these places:
 
@@ -128,7 +146,8 @@ The impact is likely big when the change does any of the following:
   locks, or shape-dependent setup moved into `execute()`;
 - changes the transformation pipeline so that a fusion appears or disappears
   on real models;
-- adds a new op or a newly enabled path for existing models.
+- adds a new op on a hot path, or enables a new path that existing models
+  take.
 
 When the impact is likely big, ask the author for results that match the
 changed path, if the PR doesn't already include them:
@@ -158,10 +177,17 @@ Load the references that match the changed behavior:
 | Changed paths or behavior | Reference |
 | --- | --- |
 | `src/plugins/intel_cpu/src/nodes/*.{h,cpp}`, `nodes_factory.cpp`, `cpu_types.*`, `shape_inference/`, executors (`nodes/executors/`), implementation lists and type mappings | [Nodes and executors](references/node.md) |
-| `nodes/kernels/` (JIT, intrinsics, `scaled_attn`, `simd`, `x64`, `aarch64`), emitters, `cross_compiled_file` entries, `cpu_parallel.*`, `dnnl_scratch_pad.*`, memory blocks | [Kernels](references/kernels.md) |
+| `nodes/kernels/` (JIT, intrinsics, `scaled_attn`, `simd`, `x64`, `aarch64`), emitters, `cross_compiled_file` entries, `cpu_parallel.*`, `dnnl_scratch_pad.h`, memory blocks | [Kernels](references/kernels.md) |
 | `src/plugins/intel_cpu/tests/` (functional `custom/`, `shared_tests_instances/`, `unit/`), shared tests used by CPU | [Tests](references/tests.md) |
 | `src/plugins/intel_cpu/src/transformations/` (`transformation_pipeline.cpp`, `cpu_opset/`), `graph_optimizer.*`, common passes registered for CPU | [CPU pipeline and graph optimizer](references/pipeline.md), plus [transformations](../code-review/references/transformations.md) and the `ov-write-transformations` / `ov-transformation-tests` skills |
 | `CMakeLists.txt`, `sources.cmake` under the CPU plugin | [CMake](../code-review/references/cmake.md), and the build-variant checks in [Kernels](references/kernels.md) |
+
+Not covered yet: plugin, graph, and runtime infrastructure (`plugin.cpp`,
+`config.cpp`, `compiled_model.cpp`, `infer_request.cpp`, `graph.cpp`,
+`edge.cpp`, `memory_state.cpp`, `weights_cache.cpp`, `cpu_memory.*`) and the
+CPU-side Snippets passes (`transformations/snippets/`). For those, apply only
+[Plugins](../code-review/references/plugins.md), and state in the review
+that CPU-specific coverage was not applied.
 
 The reference files contain two kinds of rules:
 
@@ -170,6 +196,64 @@ The reference files contain two kinds of rules:
   consequence, and give the prescribed fix.
 - **Check** items are investigative prompts. If you find no evidence for
   them, that doesn't make the code defective.
+
+## Review comment style
+
+Write the review report and each inline comment in this style. It applies on
+top of the `code-review` [delivery contract](../code-review/references/delivery.md),
+which still defines the report order.
+
+### Review summary (the top-level review comment)
+
+- Open with one line on what the PR does well or intends, without
+  flattery.
+- Name the main blocking issue and its location (`file:line`) in one
+  sentence.
+- Group the remaining inline comments by kind in one sentence, e.g.
+  "Additional inline comments cover factual inaccuracies, routing and scope
+  gaps, and minor cleanup."
+- Mention non-code items (PR description placeholders, missing ticket) at the
+  end.
+
+### Inline comments
+
+- **Start with a bold label** that names the kind of problem, followed by a
+  colon. Put the severity in the label when it matters:
+  `**Blocking — <short title>:**`, `**Factual inaccuracy:**`,
+  `**Missing <requirement>:**`, `Minor inaccuracy:`. Skip the label for short
+  nits.
+- **State the problem in one or two sentences**, as a fact about the code,
+  not as an opinion.
+- **Cite evidence inline** as backticked repo paths with line numbers, such
+  as `src/plugins/intel_cpu/sources.cmake:1181` or `cpu_parallel.hpp:115, 249`.
+  Cite the guide or rule that is violated, if any.
+- **List instances as a numbered list** when there is more than one. Give each
+  item its own evidence.
+- **End with `**Suggested fix:**`** and a concrete action: exact replacement
+  wording, the API to use, or the file and list to update. When there are
+  options, say which one is acceptable here and which can be a follow-up
+  ("either here or in a tracked follow-up").
+- **Keep one root cause per comment.** Mention related duplicates inside the
+  same comment ("Apply the same qualifier in `tests.md:5-6`") instead of
+  posting repeats.
+- **Be concise.** No preamble, no restating the diff, and no hedging beyond
+  what the evidence supports.
+
+Example:
+
+```markdown
+**Blocking — Mandatory conflict with `add-cpu-op`:** Reporting deviations from
+`add-cpu-op` as mandatory findings conflicts with this skill in at least two
+places:
+
+1. `add-cpu-op/step2-implementation.md:53` says sources are globbed, but
+   `src/plugins/intel_cpu/sources.cmake` lists them explicitly.
+2. `add-cpu-op/step4-testing.md:183` tests bf16 without
+   `hint::inference_precision`, which `core_config.cpp:15-19` overrides to f32.
+
+**Suggested fix:** Treat `add-cpu-op` as informational and state that this
+skill takes precedence on conflicts.
+```
 
 ## CPU priority checklist (summary)
 
@@ -212,8 +296,8 @@ Use the references for detail. Check at least:
    "for" a new kernel). So are changes to shared infrastructure that affect
    all nodes, unless they are justified and tested.
 10. **Reuse rather than create.** New helpers, kernels, executors, passes,
-    and test classes don't duplicate existing ones. See "Check reuse before
-    accepting new code" above.
+    and test classes don't duplicate existing ones in a way that creates a
+    concrete risk. See "Check reuse before accepting new code" above.
 11. **Performance and accuracy impact.** You estimated the impact as described
     in "Evaluate performance and accuracy impact" above.
     If it is big, the PR includes before/after performance and accuracy

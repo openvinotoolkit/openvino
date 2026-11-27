@@ -8,15 +8,6 @@ common passes registered for CPU. Always also apply the
 `ov-write-transformations` / `ov-transformation-tests` skills. Violations of
 those guides are mandatory findings.
 
-## Reuse first
-
-- **Mandatory.** Reuse rather than create. Before accepting a new pass,
-  pattern block, or graph-optimizer rule, check whether a common pass, an
-  existing CPU pipeline stage, `CompressedWeightsBlock`, or a pattern
-  predicate already does it. Extend or parameterize the existing pass instead
-  of adding a CPU-only copy. See "Check reuse before accepting new code" in
-  [SKILL.md](../SKILL.md).
-
 ## Pass placement
 
 - **Mandatory.** Register a fusion at the pipeline stage where its pattern
@@ -27,7 +18,9 @@ those guides are mandatory findings.
     disabled on CPU and the Scalar variant has a callback) moves eltwise ops
     above data-movement ops such as the decompression Reshape, so fusions in
     PostLpt or later see the moved form;
-  - `KeepConstPrecision` and `ConvertPrecision` change constant types;
+  - `ConvertPrecision` changes the types of unmarked constants.
+    `KeepConstPrecision` marks decompression constants so that
+    `ConvertPrecision` preserves their low-precision type;
   - Snippets tokenization (`MainSnippets`) captures eltwise chains, so
     eltwise-based fusions must run before it.
 
@@ -46,8 +39,10 @@ those guides are mandatory findings.
   CPU or get a callback, and node support checks belong in that callback
   through the node's `isSupportedOperation`.
 - **Check.** The pass is registered for every architecture and precision it
-  needs, and only those (`CPU_REGISTER_PASS_X64` / `_ARM` / `_ARM64` /
-  `_COMMON`, AMX- or bf16-gated blocks). Check each combination where it runs
+  needs, and only those: `CPU_REGISTER_PASS_*`, `CPU_DISABLE_PASS_*`,
+  `CPU_ENABLE_PASS_*`, and `CPU_SET_CALLBACK_*` for `COMMON`, `X64`, `X86`,
+  `ARM`, `ARM64`, `ARM32`, and `RISCV64` (`transformations/defs.hpp`), plus
+  AMX- or bf16-gated blocks. Check each combination where it runs
   or is skipped.
 - **Check.** Fusions that touch FakeQuantize or dequantization subgraphs
   work with LPT both enabled and disabled (`useLpt`), and with the x64 and ARM

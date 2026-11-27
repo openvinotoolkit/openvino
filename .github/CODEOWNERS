@@ -142,5 +142,6 @@
 /.claude/skills/code-review/references/runtime.md @openvinotoolkit/openvino-ngraph-maintainers @openvinotoolkit/openvino-ie-transformations-maintainers
 /.claude/skills/code-review/references/transformations.md @openvinotoolkit/openvino-ie-transformations-maintainers
 /.claude/skills/code-review/references/plugins.md @openvinotoolkit/openvino-ie-maintainers
+/.claude/skills/ov-cpu-code-review/ @openvinotoolkit/openvino-ie-cpu-maintainers
 /.claude/skills/code-review/references/bindings.md @openvinotoolkit/openvino-ie-python-api-maintainers @openvinotoolkit/openvino-c-api-maintainers @openvinotoolkit/openvino-js-api-maintainers
 /.claude/skills/code-review/references/ci.md @openvinotoolkit/openvino-ci-maintainers

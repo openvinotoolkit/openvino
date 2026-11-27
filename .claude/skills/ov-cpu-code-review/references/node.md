@@ -3,15 +3,6 @@
 Applies to `src/plugins/intel_cpu/src/nodes/`, `nodes/executors/`,
 `nodes_factory.cpp`, `cpu_types.*`, and `shape_inference/`.
 
-## Reuse first
-
-- **Mandatory.** Reuse rather than create. Before accepting a new node,
-  executor, shape-inference factory, or helper, check whether a similar node
-  or executor already covers it (FullyConnected, MatMul, GatherMatmul,
-  attention and paged nodes, `ExecutorFactory`, `TypeMapping`). Reuse or
-  extend it instead of adding a parallel implementation. See "Check reuse
-  before accepting new code" in [SKILL.md](../SKILL.md).
-
 ## Query-time support contract
 
 - **Mandatory.** `isSupportedOperation()` must reject every configuration
@@ -28,8 +19,9 @@ Applies to `src/plugins/intel_cpu/src/nodes/`, `nodes/executors/`,
   accepts at least one implementation. Compare the node's precision choice
   with the `supports()` conditions of each executor.
 - **Check.** If the node is registered for x86 only in `nodes_factory.cpp`,
-  its sources are listed in an x86-only list in `sources.cmake`, not in
-  `CPU_PLUGIN_SRCS`, which builds for all platforms. Headers that are
+  its sources are listed in `CPU_PLUGIN_X64_SRCS` in `sources.cmake`, which
+  is appended to `CPU_PLUGIN_SRCS` only under `if(X86_64)`. They must not be
+  in the initial platform-common `set(CPU_PLUGIN_SRCS ...)` list. Headers that are
   x64-only don't need `OPENVINO_ARCH_X86_64` guards (dead macros).
 - **Check.** `isSupportedOperation()` checks `op` for null before
   `ov::is_type`, or relies on a documented caller guarantee.
@@ -151,9 +143,9 @@ Applies to `src/plugins/intel_cpu/src/nodes/`, `nodes/executors/`,
 - **Check.** Don't create primitives or allocate placeholder buffers just
   to query a scratchpad size. Lay buffers out at fixed offsets on the shared
   scratchpad instead.
-- **Check.** Wrap buffers that live on the shared scratchpad as `Memory`
-  objects so `DnnlMemoryBlock::notifyUpdate` refreshes them when the
-  scratchpad is reallocated. Raw pointers kept across `update()` are stale.
+- **Check.** Buffers on the shared scratchpad follow the scratchpad rules
+  in [kernels.md](kernels.md) ("Scratchpad and memory footprint"): wrap them
+  as `Memory` objects, because raw pointers kept across `update()` go stale.
 - **Check.** Explain executor-variant selection criteria (e.g. in-place vs
   separate state) in a comment.
 - **Check.** Follow the existing executor pattern of comparable ops:
@@ -165,8 +157,10 @@ Applies to `src/plugins/intel_cpu/src/nodes/`, `nodes/executors/`,
 ## Non-x86 executors
 
 - **Check.** Executors in `acl/`, `aarch64/`, `kleidiai/`, `riscv64/`, and
-  `mlas/` have their own type mappings (e.g. `aclFCTypeMapping`) and
-  priorities. Check that a change to the x86 mapping or support conditions
+  `mlas/` have their own per-backend type mappings and priorities. The
+  mappings are defined next to `dnnl*TypeMapping` in
+  `nodes/executors/*_implementations.cpp` (e.g. `aclFCTypeMapping` and
+  `kleidiaiFCTypeMapping` in `fullyconnected_implementations.cpp`). Check that a change to the x86 mapping or support conditions
   has a matching change, or an explicit rejection, there. Remember that ARM
   defaults to f16 on fp16-capable hosts.
 
