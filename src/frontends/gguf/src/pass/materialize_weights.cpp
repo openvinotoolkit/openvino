@@ -27,6 +27,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "quant/weights.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -393,7 +394,11 @@ void lower_native_weights(const std::shared_ptr<ov::Model>& model) {
             if (!input.get_element_type().is_gguf_block())
                 continue;
             OPENVINO_ASSERT((ov::is_type<ov::op::internal::FullyConnectedCompressed>(node) && input.get_index() == 1) ||
-                                (ov::is_type<ov::op::internal::GatherCompressed>(node) && input.get_index() == 0),
+                                (ov::is_type<ov::op::internal::GatherCompressed>(node) && input.get_index() == 0) ||
+                                (ov::is_type<ov::op::internal::GatherMatmul>(node) && input.get_index() == 1 &&
+                                 input.get_element_type() == ov::element::gguf_q8_0 &&
+                                 input.get_partial_shape().rank() == 3 &&
+                                 ov::is_type<ov::op::v0::Constant>(input.get_source_output().get_node_shared_ptr())),
                                 "Unsupported raw GGUF consumer: ", node->get_friendly_name(),
                                 " (", node->get_type_name(), ", input ", input.get_index(), ")");
         }

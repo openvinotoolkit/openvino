@@ -23,7 +23,6 @@
 #include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "translate_session.hpp"
 
@@ -211,7 +210,6 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                                     ov::util::path_to_string(path));
         }
         const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
-        bool preserve = false;
         bool has_properties = false;
         for (const auto& variant : variants) {
             if (!variant.is<ov::AnyMap>()) {
@@ -219,13 +217,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             }
             FRONT_END_GENERAL_CHECK(!has_properties, "GGUF loading accepts only one property map");
             has_properties = true;
-            for (const auto& [name, value] : variant.as<ov::AnyMap>()) {
-                FRONT_END_GENERAL_CHECK(name == ov::hint::gguf_native_weights.name(),
-                                        "Unsupported GGUF loading property: ", name);
-                preserve = value.as<bool>();
-            }
+            FRONT_END_GENERAL_CHECK(variant.as<ov::AnyMap>().empty(), "Unsupported GGUF loading properties");
         }
-        const GGUFLoadOptions options{preserve, preserve, preserve, preserve, preserve, preserve};
+        const GGUFLoadOptions options{true, true, true, true, true, true};
         const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry, options)
                           : load_gguf_builder(*paths, m_impl->arch_registry, options);
         return std::make_shared<InputModel>(builder, m_extensions);

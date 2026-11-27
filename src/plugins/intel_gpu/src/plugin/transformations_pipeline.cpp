@@ -1017,6 +1017,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+    ov::util::lower_gguf_vocab_projection(*func);
 #if !defined(OV_GPU_WITH_OCL_RT)
     ov::util::lower_gguf_fc(*func,
                            {ov::element::gguf_q8_0,
@@ -1145,6 +1146,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             std::vector<ov::element::Type> supported_activation_types{ov::element::f16};
             if (infer_precision == ov::element::f16) {
                 supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
+                ov::util::lower_gguf_q8_0_experts(*func);
             }
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
                                                                                  supported_activation_types);

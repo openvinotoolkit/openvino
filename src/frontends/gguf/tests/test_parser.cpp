@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -15,28 +16,44 @@
 #include <utility>
 #include <pugixml.hpp>
 
-#include "builder/graph_emitter.hpp"
+#include "builder/arch_registry.hpp"
+#include "builder/gguf_builder.hpp"
 #include "builder/gguf_builder_decoder.hpp"
+#include "builder/graph_emitter.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
+#include "input_model.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/hash_util.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "quant/weights.hpp"
 #include "transformations/utils/gguf_weights.hpp"
 
@@ -2140,18 +2157,33 @@ TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
     OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{}), ov::Exception, testing::HasSubstr("empty"));
 }
 
+static std::shared_ptr<ov::Model> load_legacy_weight_reference(const std::string& path) {
+    FrontEnd frontend;
+    auto builder = load_gguf_builder(std::filesystem::path(path), default_arch_registry(), {});
+    auto input = std::make_shared<ov::frontend::gguf::InputModel>(std::move(builder),
+                                                                 std::vector<ov::Extension::Ptr>{});
+    return frontend.convert(input);
+}
+
 class GGUFProjection : public GGUFShards {
 protected:
+    static constexpr uint32_t vocabulary_size = 128;
     std::string write_projection_model(uint32_t width,
                                        GgufTensorType type,
                                        const std::vector<uint8_t>& payload,
-                                       uint32_t ffn_channels = 0);
+                                       uint32_t ffn_channels = 0,
+                                       bool output_projection = false,
+                                       bool tied_output = false,
+                                       bool soft_cap = false);
 };
 
 std::string GGUFProjection::write_projection_model(uint32_t width,
                                                    GgufTensorType type,
                                                    const std::vector<uint8_t>& payload,
-                                                   uint32_t ffn_channels) {
+                                                   uint32_t ffn_channels,
+                                                   bool output_projection,
+                                                   bool tied_output,
+                                                   bool soft_cap) {
     GgufWriter writer;
     writer.kv_str("general.architecture", "qwen3");
     writer.kv_u32("qwen3.block_count", 1);
@@ -2161,9 +2193,12 @@ std::string GGUFProjection::write_projection_model(uint32_t width,
     writer.kv_u32("qwen3.rope.dimension_count", width / 2);
     writer.kv_u32("qwen3.context_length", 32);
     writer.kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
+    if (soft_cap)
+        writer.kv_f32("qwen3.final_logit_softcapping", 2.0f);
     const auto intermediate = ffn_channels ? ffn_channels : 12u;
+    const auto embedding_rows = output_projection ? vocabulary_size : 16u;
     const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
-        {"token_embd.weight", {width, 16}}, {"output_norm.weight", {width}},
+        {"token_embd.weight", {width, embedding_rows}}, {"output_norm.weight", {width}},
         {"blk.0.attn_norm.weight", {width}}, {"blk.0.attn_k.weight", {width, width / 2}},
         {"blk.0.attn_v.weight", {width, width / 2}}, {"blk.0.attn_output.weight", {width, width}},
         {"blk.0.attn_q_norm.weight", {width / 2}}, {"blk.0.attn_k_norm.weight", {width / 2}},
@@ -2171,18 +2206,562 @@ std::string GGUFProjection::write_projection_model(uint32_t width,
         {"blk.0.ffn_down.weight", {intermediate, width}},
     };
     for (const auto& [name, shape] : tensors) {
-        writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
+        if (tied_output && name == "token_embd.weight") {
+            writer.raw_tensor(name, shape, type, payload);
+        } else {
+            writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
+        }
     }
-    if (ffn_channels) {
+    if (output_projection) {
+        writer.filled_tensor("blk.0.attn_q.weight", {width, width}, false);
+        writer.filled_tensor("blk.0.ffn_gate.weight", {width, intermediate}, false);
+        if (!tied_output)
+            writer.raw_tensor("output.weight", {width, vocabulary_size}, type, payload);
+    } else if (ffn_channels) {
         writer.filled_tensor("blk.0.attn_q.weight", {width, width}, false);
         writer.raw_tensor("blk.0.ffn_gate.weight", {width, ffn_channels}, type, payload);
     } else {
         writer.filled_tensor("blk.0.ffn_gate.weight", {width, intermediate}, false);
         writer.raw_tensor("blk.0.attn_q.weight", {width, width}, type, payload);
     }
-    const auto model_path = m_base + ".gguf";
+    const auto model_path = m_base + (tied_output ? "-tied.gguf" : soft_cap ? "-softcap.gguf" : ".gguf");
     m_paths.push_back(model_path);
     return writer.write(model_path) ? model_path : std::string{};
+}
+
+TEST_F(GGUFProjection, QuantizedOutputProjectionFromFile) {
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    const auto has_vocab_projection = [](const ov::Model& model) {
+        auto output = model.get_results().front()->input_value(0);
+        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(output.get_node_shared_ptr()))
+            output = reshape->input_value(0);
+        const auto head = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr());
+        if (!head || !head->get_transpose_b() || !head->get_input_partial_shape(1).is_static())
+            return false;
+        const auto head_shape = head->get_input_shape(1);
+        for (const auto& node : model.get_ordered_ops()) {
+            const auto gather = ov::is_type<ov::op::v8::Gather>(node) ||
+                                ov::is_type<ov::op::internal::GatherCompressed>(node);
+            if (gather && node->get_input_partial_shape(0).is_static() && node->get_input_shape(0) == head_shape)
+                return true;
+        }
+        return false;
+    };
+    const std::pair<const char*, GgufTensorType> formats[] = {{"q4_k", GGUF_TYPE_Q4_K}, {"q5_k", GGUF_TYPE_Q5_K}};
+    for (const auto& [format, type] : formats) {
+        SCOPED_TRACE(format);
+        const auto blocks = load_npy<uint8_t>(std::string(format) + "_qbytes");
+        std::vector<uint8_t> payload;
+        for (size_t group = 0; group < vocabulary_size / 4; ++group)
+            payload.insert(payload.end(), blocks.begin(), blocks.end());
+        const auto path = write_projection_model(256, type, payload, 0, true);
+        ASSERT_FALSE(path.empty());
+        ov::frontend::FrontEndManager manager;
+        const auto frontend = manager.load_by_framework("gguf");
+        ASSERT_TRUE(frontend);
+        const auto load_legacy = [&](const std::string& file) {
+            return ov::frontend::gguf::adapt_to_genai(load_legacy_weight_reference(file)).at("language");
+        };
+        const auto legacy = load_legacy(path);
+        const auto native = ov::frontend::gguf::adapt_to_genai(frontend->convert(frontend->load(path))).at("language");
+        const auto raw_type = gguf_raw_element_type(type);
+        ov::Tensor codes(type == GGUF_TYPE_Q4_K ? ov::element::u4 : ov::element::u8, {vocabulary_size, 8, 32});
+        ov::Tensor scales(ov::element::f16, {vocabulary_size, 8, 1});
+        ov::Tensor zero_points(ov::element::f16, scales.get_shape());
+        const auto unpack = type == GGUF_TYPE_Q4_K ? ov::util::unpack_gguf_q4_k : ov::util::unpack_gguf_q5_k_f16_zp;
+        unpack(payload.data(), payload.size(), codes, scales, zero_points);
+        auto output = legacy->get_results().front()->input_value(0);
+        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(output.get_node_shared_ptr()))
+            output = reshape->input_value(0);
+        ASSERT_TRUE(ov::is_type<ov::op::v0::MatMul>(output.get_node_shared_ptr()));
+        const auto expanded = output.get_node()->get_input_node_shared_ptr(1);
+        const auto weight_graph = std::make_shared<ov::Model>(ov::OutputVector{expanded}, ov::ParameterVector{});
+        const auto weight_ops = weight_graph->get_ordered_ops();
+        for (const auto& tensor : {codes, scales, zero_points}) {
+            EXPECT_TRUE(std::any_of(weight_ops.begin(), weight_ops.end(), [&](const auto& op) {
+                const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+                return constant && constant->get_element_type() == tensor.get_element_type() &&
+                       constant->get_byte_size() == tensor.get_byte_size() &&
+                       std::memcmp(constant->get_data_ptr(), tensor.data(), tensor.get_byte_size()) == 0;
+            })) << tensor.get_element_type() << ' ' << tensor.get_shape();
+        }
+        const auto has_raw_head = [&](const std::shared_ptr<ov::Model>& model) {
+            for (const auto& node : model->get_ordered_ops()) {
+                const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+                if (!fc || fc->get_input_element_type(1) != raw_type)
+                    continue;
+                                return true;
+            }
+            return false;
+        };
+        ASSERT_FALSE(has_raw_head(legacy));
+        ASSERT_TRUE(has_raw_head(native));
+        const auto softcap_path = write_projection_model(256, type, payload, 0, true, false, true);
+        ASSERT_FALSE(softcap_path.empty());
+        const auto softcap_legacy = load_legacy(softcap_path);
+        const auto softcap_native = ov::frontend::gguf::adapt_to_genai(frontend->convert(
+            frontend->load(softcap_path))).at("language");
+        ASSERT_TRUE(has_raw_head(softcap_native));
+        const auto softcap_ops = softcap_native->get_ordered_ops();
+        ASSERT_TRUE(std::any_of(softcap_ops.begin(), softcap_ops.end(), [](const auto& node) {
+            return ov::is_type<ov::op::v0::Tanh>(node);
+        }));
+        const auto softcap_lowered = softcap_native->clone();
+        ov::util::lower_gguf_vocab_projection(*softcap_lowered);
+        EXPECT_FALSE(has_raw_head(softcap_lowered));
+        EXPECT_TRUE(has_vocab_projection(*legacy));
+        auto lowered = native->clone();
+        ov::util::lower_gguf_vocab_projection(*lowered);
+        EXPECT_TRUE(has_vocab_projection(*lowered));
+        const auto native_ops = native->get_ordered_ops();
+        const auto candidate = std::find_if(native_ops.begin(), native_ops.end(), [&](const auto& node) {
+            const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+            return fc && fc->get_input_element_type(1) == raw_type;
+        });
+        ASSERT_NE(candidate, native_ops.end());
+        auto fc_inputs = (*candidate)->input_values();
+        auto activation = std::make_shared<ov::op::v0::Parameter>(fc_inputs[0].get_element_type(),
+                                                                  fc_inputs[0].get_partial_shape());
+        fc_inputs[0] = activation;
+        const auto ordinary_fc = (*candidate)->clone_with_new_inputs(fc_inputs);
+        auto non_vocab = std::make_shared<ov::Model>(ov::OutputVector{ordinary_fc}, ov::ParameterVector{activation});
+        ov::util::lower_gguf_vocab_projection(*non_vocab);
+        EXPECT_TRUE(has_raw_head(non_vocab));
+
+        std::shared_ptr<ov::Model> tied_legacy;
+        std::shared_ptr<ov::Model> tied_native;
+        std::shared_ptr<ov::Model> tied_native_gather_reference;
+        if (type == GGUF_TYPE_Q4_K) {
+            const auto tied_path = write_projection_model(256, type, payload, 0, true, true);
+            ASSERT_FALSE(tied_path.empty());
+            const auto tied = frontend->convert(frontend->load(tied_path));
+            EXPECT_TRUE(has_raw_head(tied));
+            auto lowered_tied = tied->clone();
+            ov::util::lower_gguf_vocab_projection(*lowered_tied);
+            EXPECT_TRUE(has_vocab_projection(*lowered_tied));
+            const auto ops = tied->get_ordered_ops();
+            EXPECT_TRUE(std::any_of(ops.begin(), ops.end(), [&](const auto& node) {
+                return ov::is_type<ov::op::internal::GatherCompressed>(node) && node->get_input_element_type(0) == raw_type;
+            }));
+            tied_legacy = load_legacy(tied_path);
+            tied_native = ov::frontend::gguf::adapt_to_genai(tied).at("language");
+            tied_native_gather_reference = tied_native->clone();
+            auto head_output = [](const ov::Model& model) {
+                auto value = model.get_results().front()->input_value(0);
+                if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(value.get_node_shared_ptr()))
+                    value = reshape->input_value(0);
+                return value.get_node_shared_ptr();
+            };
+            const auto reference_head = ov::as_type_ptr<ov::op::v0::MatMul>(head_output(*tied_legacy));
+            const auto raw_head = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+                head_output(*tied_native_gather_reference));
+            ASSERT_TRUE(reference_head && raw_head);
+            ov::replace_node_update_name(raw_head,
+                                         std::make_shared<ov::op::v0::MatMul>(raw_head->input_value(0),
+                                                                            reference_head->input_value(1),
+                                                                            false,
+                                                                            true));
+        }
+        std::vector<std::string> targets{"CPU"};
+#ifdef GGUF_GPU_NATIVE_TESTS
+        targets.emplace_back("GPU");
+#endif
+        for (const auto& device : targets) {
+            if (std::find(devices.begin(), devices.end(), device) == devices.end())
+                continue;
+            SCOPED_TRACE(device);
+            int64_t tokens[] = {1, 7, 3, 5, 2, 8};
+            int64_t mask[] = {1, 1, 1, 1, 1, 1};
+            int64_t positions[] = {0, 1, 2, 3, 4, 5};
+            int32_t beam[] = {0};
+            constexpr size_t steps = 4;
+            using KernelHistory = std::vector<std::vector<std::string>>;
+            const auto run = [&](const std::shared_ptr<ov::Model>& model, const char* label) {
+                auto request = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32),
+                                                  ov::hint::dynamic_quantization_group_size(0),
+                                                  ov::enable_profiling(device == "GPU")).create_infer_request();
+                request.set_tensor("beam_idx", ov::Tensor(ov::element::i32, {1}, beam));
+                ov::Tensor history(ov::element::f32, {1, steps, vocabulary_size});
+                KernelHistory kernels(steps);
+                for (size_t step = 0; step < steps; ++step) {
+                    const size_t count = step == 0 ? 3 : 1;
+                    const size_t offset = step == 0 ? 0 : step + 2;
+                    request.set_tensor("input_ids", ov::Tensor(ov::element::i64, {1, count}, tokens + offset));
+                    request.set_tensor("attention_mask", ov::Tensor(ov::element::i64, {1, offset + count}, mask));
+                    request.set_tensor("position_ids", ov::Tensor(ov::element::i64, {1, count}, positions + offset));
+                    try {
+                        request.infer();
+                    } catch (const std::exception& error) {
+                        throw std::runtime_error(std::string(format) + ' ' + device + ' ' + label + " step " +
+                                                 std::to_string(step) + ": " + error.what());
+                    }
+                    const auto logits = request.get_tensor("logits");
+                    OPENVINO_ASSERT(logits.get_shape() == (ov::Shape{1, 1, vocabulary_size}) &&
+                                        logits.get_element_type() == ov::element::f32,
+                                    "Expected one full vocabulary row per step");
+                    const auto* values = logits.data<const float>();
+                    EXPECT_TRUE(std::all_of(values, values + logits.get_size(), [](float value) {
+                        return std::isfinite(value);
+                    })) << "step " << step;
+                    std::copy_n(values, logits.get_size(), history.data<float>() + step * logits.get_size());
+                    if (device == "GPU") {
+                        for (const auto& entry : request.get_profiling_info()) {
+                            if (entry.status == ov::ProfilingInfo::Status::EXECUTED)
+                                kernels[step].push_back(entry.node_type + ':' + entry.exec_type);
+                        }
+                        std::sort(kernels[step].begin(), kernels[step].end());
+                        EXPECT_FALSE(kernels[step].empty()) << label << " step " << step;
+                    }
+                }
+                return std::make_pair(std::move(history), std::move(kernels));
+            };
+            const auto compare = [&](const auto& reference, const auto& candidate, const std::string& variant) {
+                SCOPED_TRACE(variant);
+                const auto [expected, expected_kernels] = run(reference, "reference");
+                const auto [actual, actual_kernels] = run(candidate, "native");
+                for (size_t step = 0; step < steps; ++step) {
+                    SCOPED_TRACE(step);
+                    EXPECT_EQ(actual_kernels[step], expected_kernels[step]);
+                    const auto offset = step * vocabulary_size;
+                    EXPECT_EQ(std::memcmp(actual.data<const float>() + offset,
+                                          expected.data<const float>() + offset,
+                                          vocabulary_size * sizeof(float)), 0);
+                }
+                RecordProperty(variant + '_' + device + "_logits", static_cast<int>(actual.get_size()));
+            };
+            compare(legacy, native, format);
+            compare(softcap_legacy, softcap_native, std::string(format) + "_softcap");
+            if (tied_native) {
+                compare(device == "CPU" ? tied_legacy : tied_native_gather_reference, tied_native, "q4_k_tied");
+            }
+        }
+    }
+}
+
+TEST_F(GGUFShards, NativeQ8ExpertsFromFile) {
+    constexpr uint32_t width = 64;
+    constexpr uint32_t channels = 2;
+    constexpr uint32_t experts = 2;
+    const std::string weight_name = "blk.0.ffn_gate_exps.weight";
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3moe");
+    writer.kv_u32("qwen3moe.block_count", 1);
+    writer.kv_u32("qwen3moe.embedding_length", width);
+    writer.kv_u32("qwen3moe.attention.head_count", 2);
+    writer.kv_u32("qwen3moe.attention.head_count_kv", 1);
+    writer.kv_u32("qwen3moe.rope.dimension_count", width / 2);
+    writer.kv_u32("qwen3moe.context_length", 32);
+    writer.kv_f32("qwen3moe.attention.layer_norm_rms_epsilon", 1e-5f);
+    writer.kv_u32("qwen3moe.expert_count", experts);
+    writer.kv_u32("qwen3moe.expert_used_count", 1);
+    writer.kv_u32("qwen3moe.expert_feed_forward_length", channels);
+    const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
+        {"token_embd.weight", {width, 16}}, {"output_norm.weight", {width}},
+        {"blk.0.attn_norm.weight", {width}}, {"blk.0.attn_q.weight", {width, width}},
+        {"blk.0.attn_k.weight", {width, width / 2}}, {"blk.0.attn_v.weight", {width, width / 2}},
+        {"blk.0.attn_output.weight", {width, width}}, {"blk.0.attn_q_norm.weight", {width / 2}},
+        {"blk.0.attn_k_norm.weight", {width / 2}}, {"blk.0.ffn_norm.weight", {width}},
+        {"blk.0.ffn_gate_inp.weight", {width, experts}},
+        {"blk.0.ffn_up_exps.weight", {width, channels, experts}},
+        {"blk.0.ffn_down_exps.weight", {channels, width, experts}},
+    };
+    for (const auto& [name, shape] : tensors) {
+        writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
+    }
+    std::vector<uint8_t> payload(experts * channels * (width / 32) * 34, 0);
+    for (size_t block = 0; block < payload.size() / 34; ++block) {
+        payload[block * 34 + 1] = block % 2 == 0 ? 0x3c : 0x38;
+        payload[block * 34 + 2] = static_cast<uint8_t>(block + 1);
+    }
+    writer.raw_tensor(weight_name, {width, channels, experts}, GGUF_TYPE_Q8_0, payload);
+    const auto model_path = m_base + ".gguf";
+    m_paths.push_back(model_path);
+    ASSERT_TRUE(writer.write(model_path));
+
+    ov::frontend::FrontEndManager manager;
+    const auto frontend = manager.load_by_framework("gguf");
+    ASSERT_TRUE(frontend);
+    const auto legacy = load_legacy_weight_reference(model_path);
+    const auto native = frontend->convert(frontend->load(model_path));
+    const auto collect_experts = [](const std::shared_ptr<ov::Model>& model) {
+        std::vector<std::shared_ptr<ov::op::internal::GatherMatmul>> result;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (const auto expert = ov::as_type_ptr<ov::op::internal::GatherMatmul>(node))
+                result.push_back(expert);
+        }
+        return result;
+    };
+    const auto legacy_ops = collect_experts(legacy);
+    const auto native_ops = collect_experts(native);
+    ASSERT_EQ(legacy_ops.size(), 3u);
+    ASSERT_EQ(native_ops.size(), legacy_ops.size());
+    const auto gate = std::find_if(native_ops.begin(), native_ops.end(), [](const auto& expert) {
+        return expert->get_input_element_type(1) == ov::element::gguf_q8_0;
+    });
+    ASSERT_NE(gate, native_ops.end());
+    const auto& native_gate = *gate;
+    const auto& legacy_gate = legacy_ops[std::distance(native_ops.begin(), gate)];
+    EXPECT_FALSE(legacy_gate->get_input_element_type(1).is_gguf_block());
+    const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(native_gate->get_input_node_shared_ptr(1));
+    ASSERT_TRUE(raw);
+    EXPECT_EQ(raw->get_element_type(), ov::element::gguf_q8_0);
+    EXPECT_EQ(raw->get_shape(), (ov::Shape{experts, channels, width}));
+    ASSERT_EQ(raw->get_byte_size(), payload.size());
+    EXPECT_EQ(std::memcmp(raw->get_data_ptr(), payload.data(), payload.size()), 0);
+
+    const auto activations = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, width});
+    const auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1});
+    const auto isolate = [&](const std::shared_ptr<ov::Node>& expert) {
+        const auto output = expert->clone_with_new_inputs({activations, expert->input_value(1), ids, expert->input_value(3)});
+        return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{activations, ids});
+    };
+    const auto legacy_expert = isolate(legacy_gate);
+    const auto native_expert = isolate(native_gate);
+    const auto legacy_language = ov::frontend::gguf::adapt_to_genai(legacy->clone()).at("language");
+    const auto native_language = ov::frontend::gguf::adapt_to_genai(native->clone()).at("language");
+#ifdef GGUF_GPU_ZE_FALLBACK_TESTS
+    const auto decompose = [](const std::shared_ptr<ov::Model>& model) {
+        ov::util::lower_gguf_q8_0_experts(*model);
+        using ov::op::v0::Constant;
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto expert = ov::as_type_ptr<ov::op::internal::GatherMatmul>(node);
+            if (!expert)
+                continue;
+            const auto order = Constant::create(ov::element::i64, {2}, {1, 0});
+            const auto axis = Constant::create(ov::element::i64, {}, {0});
+            const auto flatten = Constant::create(ov::element::i64, {1}, {-1});
+            const auto& shape = expert->get_input_shape(1);
+            const auto channels = Constant::create(ov::element::i64, {1}, {shape[1]});
+            const auto width = Constant::create(ov::element::i64, {1}, {shape[2]});
+            const auto type = expert->get_input_element_type(0);
+            const auto weights = std::make_shared<ov::op::v0::Convert>(expert->input_value(1),
+                                                                       type);
+            const auto ids_by_slot = std::make_shared<ov::op::v1::Transpose>(expert->input_value(2), order);
+            const auto flat_ids = std::make_shared<ov::op::v1::Reshape>(ids_by_slot, flatten, false);
+            const auto routing_shape = std::make_shared<ov::op::v3::ShapeOf>(ids_by_slot);
+            const auto activation_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{routing_shape, width}, 0);
+            const auto activations = std::make_shared<ov::op::v3::Broadcast>(expert->input_value(0), activation_shape);
+            const auto flat_input_shape = Constant::create(ov::element::i64, {2}, {int64_t{-1}, static_cast<int64_t>(shape[2])});
+            const auto rows = std::make_shared<ov::op::v1::Reshape>(activations, flat_input_shape, false);
+            const auto row_count = std::make_shared<ov::op::v3::ShapeOf>(flat_ids);
+            const auto result_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{row_count, channels}, 0);
+            ov::Output<ov::Node> result = std::make_shared<ov::op::v3::Broadcast>(Constant::create(type, {}, {0}), result_shape);
+            for (size_t id = 0; id < shape[0]; ++id) {
+                const auto expert_id = Constant::create(flat_ids->get_element_type(), {}, {id});
+                const auto mask = std::make_shared<ov::op::v1::Equal>(flat_ids, expert_id);
+                const auto indices = std::make_shared<ov::op::v3::NonZero>(mask, ov::element::i32);
+                const auto positions = std::make_shared<ov::op::v1::Reshape>(indices, flatten, false);
+                const auto selected = std::make_shared<ov::op::v8::Gather>(rows, positions, axis);
+                const auto weight = std::make_shared<ov::op::v8::Gather>(weights, expert_id, axis);
+                const auto product = std::make_shared<ov::op::v0::MatMul>(selected, weight, false, true);
+                result = std::make_shared<ov::op::v3::ScatterUpdate>(result, positions, product, axis);
+            }
+            const auto output_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{routing_shape, channels}, 0);
+            ov::replace_node(expert, std::make_shared<ov::op::v1::Reshape>(result, output_shape, false));
+        }
+        model->validate_nodes_and_infer_types();
+    };
+    if (const auto* count = std::getenv("OV_GGUF_ZE_BENCH_EXPERTS")) {
+        const auto expert_count = std::stoul(count);
+        ASSERT_TRUE(expert_count == 2 || expert_count == 8 || expert_count == 32 || expert_count == 128);
+        constexpr size_t input_width = 256;
+        constexpr size_t output_width = 128;
+        constexpr size_t slots = 2;
+        const ov::Shape weight_shape{expert_count, output_width, input_width};
+        std::vector<uint8_t> blocks(ov::shape_size(weight_shape) / 32 * 34, 0);
+        for (size_t expert = 0; expert < expert_count; ++expert) {
+            for (size_t row = 0; row < output_width; ++row) {
+                const auto offset = (expert * output_width + row) * (input_width / 32) * 34;
+                blocks[offset + 1] = 0x3c;
+                blocks[offset + 2] = static_cast<uint8_t>(1 + (expert + row) % 31);
+            }
+        }
+        const auto bench_weights = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q8_0, weight_shape, blocks.data());
+        const auto bench_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{slots, -1, input_width});
+        const auto bench_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, slots});
+        const auto expert = std::make_shared<ov::op::internal::GatherMatmul>(bench_input, bench_weights, bench_ids);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{expert}, ov::ParameterVector{bench_input, bench_ids});
+        using Clock = std::chrono::steady_clock;
+        const auto elapsed = [](Clock::time_point start) {
+            return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+        };
+        ov::Core bench_core;
+        auto start = Clock::now();
+        decompose(model);
+        RecordProperty("decompose_ms", std::to_string(elapsed(start)));
+        RecordProperty("graph_ops", static_cast<int>(model->get_ordered_ops().size()));
+        start = Clock::now();
+        auto compiled = bench_core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16));
+        RecordProperty("compile_ms", std::to_string(elapsed(start)));
+        RecordProperty("experts", static_cast<int>(expert_count));
+        RecordProperty("device", bench_core.get_property("GPU", ov::device::full_name));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {1u, 32u, 128u}) {
+            SCOPED_TRACE(tokens);
+            ov::Tensor input(ov::element::f32, {slots, tokens, input_width});
+            ov::Tensor routes(ov::element::i32, {tokens, slots});
+            std::fill_n(input.data<float>(), input.get_size(), 0.f);
+            for (size_t token = 0; token < tokens; ++token) {
+                for (size_t slot = 0; slot < slots; ++slot) {
+                    routes.data<int32_t>()[token * slots + slot] = static_cast<int32_t>((token * slots + slot) % expert_count);
+                    input.data<float>()[(slot * tokens + token) * input_width] = static_cast<float>(slot + 1);
+                }
+            }
+            request.set_input_tensor(0, input);
+            request.set_input_tensor(1, routes);
+            start = Clock::now();
+            request.infer();
+            RecordProperty("first_ms_t" + std::to_string(tokens), std::to_string(elapsed(start)));
+            std::vector<double> samples;
+            for (size_t trial = 0; trial < 11; ++trial) {
+                start = Clock::now();
+                request.infer();
+                samples.push_back(elapsed(start));
+            }
+            std::sort(samples.begin(), samples.end());
+            RecordProperty("median_ms_t" + std::to_string(tokens), std::to_string(samples[samples.size() / 2]));
+            const auto output = request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), (ov::Shape{slots, tokens, output_width}));
+            ASSERT_EQ(output.get_element_type(), ov::element::f32);
+            for (size_t slot = 0; slot < slots; ++slot) {
+                for (size_t token = 0; token < tokens; ++token) {
+                    const auto id = (token * slots + slot) % expert_count;
+                    for (size_t row = 0; row < output_width; ++row) {
+                        const auto expected = static_cast<float>((slot + 1) * (1 + (id + row) % 31));
+                        ASSERT_EQ(output.data<const float>()[(slot * tokens + token) * output_width + row], expected);
+                    }
+                }
+            }
+        }
+        return;
+    }
+#endif
+    std::vector<float> activation_data(3 * width, 0.f);
+    for (size_t token = 0; token < 3; ++token) {
+        activation_data[token * width] = static_cast<float>(token + 1);
+        activation_data[token * width + 32] = static_cast<float>(token + 1);
+    }
+    int32_t expert_ids[] = {1, 0, 1};
+    const ov::Tensor input(ov::element::f32, {1, 3, width}, activation_data.data());
+    const ov::Tensor indices(ov::element::i32, {3, 1}, expert_ids);
+    const float oracle[] = {8.f, 11.f, 4.f, 10.f, 24.f, 33.f};
+    ov::Core core;
+    const auto available = core.get_available_devices();
+    std::vector<std::pair<std::string, ov::element::Type>> configurations{{"CPU", ov::element::f32}};
+#if defined(GGUF_GPU_NATIVE_TESTS) || defined(GGUF_GPU_ZE_FALLBACK_TESTS)
+    configurations.emplace_back("GPU", ov::element::f16);
+#endif
+    for (const auto& [device, precision] : configurations) {
+        if (std::find(available.begin(), available.end(), device) == available.end())
+            continue;
+        SCOPED_TRACE(device);
+        const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+#ifdef GGUF_GPU_ZE_FALLBACK_TESTS
+            if (device == "GPU") {
+                const auto decomposed = model->clone();
+                decompose(decomposed);
+                return core.compile_model(decomposed, device, ov::hint::inference_precision(precision));
+            }
+#endif
+            return core.compile_model(model, device, ov::hint::inference_precision(precision));
+        };
+        const auto run = [&](const std::shared_ptr<ov::Model>& model) {
+            auto request = compile(model).create_infer_request();
+            request.set_input_tensor(0, input);
+            request.set_input_tensor(1, indices);
+            request.infer();
+            return request.get_output_tensor();
+        };
+        const auto expected = run(legacy_expert);
+        const auto actual = run(native_expert);
+        ASSERT_EQ(expected.get_shape(), (ov::Shape{1, 3, channels}));
+        ASSERT_EQ(expected.get_element_type(), ov::element::f32);
+        EXPECT_EQ(std::memcmp(expected.data(), oracle, sizeof(oracle)), 0);
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ASSERT_EQ(actual.get_element_type(), expected.get_element_type());
+        EXPECT_EQ(std::memcmp(actual.data(), expected.data(), expected.get_byte_size()), 0);
+        RecordProperty(device, core.get_property(device, ov::device::full_name));
+
+#ifdef GGUF_GPU_ZE_FALLBACK_TESTS
+        if (device == "GPU") {
+            constexpr size_t token_count = 128;
+            constexpr size_t slots = 2;
+            const auto slot_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                                           ov::PartialShape{slots, -1, width});
+            const auto slot_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32,
+                                                                         ov::PartialShape{-1, slots});
+            ov::Tensor inputs(ov::element::f32, {slots, token_count, width});
+            ov::Tensor routes(ov::element::i32, {token_count, slots});
+            std::fill_n(inputs.data<float>(), inputs.get_size(), 0.f);
+            for (size_t token = 0; token < token_count; ++token) {
+                for (size_t slot = 0; slot < slots; ++slot) {
+                    routes.data<int32_t>()[token * slots + slot] = static_cast<int32_t>((token / 2 + slot) % experts);
+                    const auto offset = (slot * token_count + token) * width;
+                    inputs.data<float>()[offset] = static_cast<float>(slot + 1);
+                    inputs.data<float>()[offset + 32] = 1.f;
+                }
+            }
+            for (const auto& gate : {legacy_gate, native_gate}) {
+                const auto output = gate->clone_with_new_inputs({slot_input, gate->input_value(1), slot_ids, gate->input_value(3)});
+                const auto model = std::make_shared<ov::Model>(ov::OutputVector{output},
+                                                               ov::ParameterVector{slot_input, slot_ids});
+                auto request = compile(model).create_infer_request();
+                request.set_input_tensor(0, inputs);
+                request.set_input_tensor(1, routes);
+                request.infer();
+                const auto rows = request.get_output_tensor();
+                ASSERT_EQ(rows.get_shape(), (ov::Shape{slots, token_count, channels}));
+                ASSERT_EQ(rows.get_element_type(), ov::element::f32);
+                for (size_t slot = 0; slot < slots; ++slot) {
+                    for (size_t token = 0; token < token_count; ++token) {
+                        for (size_t row = 0; row < channels; ++row) {
+                            const auto expert = (token / 2 + slot) % experts;
+                            const auto first_code = 2 * (expert * channels + row) + 1;
+                            const auto reference = static_cast<float>((slot + 1) * first_code) +
+                                                   0.5f * static_cast<float>(first_code + 1);
+                            EXPECT_EQ(rows.data<const float>()[(slot * token_count + token) * channels + row], reference);
+                        }
+                    }
+                }
+            }
+            RecordProperty("ZE_grouped_expert_tokens", static_cast<int>(token_count));
+        }
+#endif
+        int64_t tokens[] = {1, 7, 3};
+        int64_t mask[] = {1, 1, 1};
+        int64_t positions[] = {0, 1, 2};
+        int32_t beam[] = {0};
+        const auto run_model = [&](ov::CompiledModel& model, size_t count) {
+            auto request = model.create_infer_request();
+            request.set_tensor("input_ids", ov::Tensor(ov::element::i64, {1, count}, tokens));
+            request.set_tensor("attention_mask", ov::Tensor(ov::element::i64, {1, count}, mask));
+            request.set_tensor("position_ids", ov::Tensor(ov::element::i64, {1, count}, positions));
+            request.set_tensor("beam_idx", ov::Tensor(ov::element::i32, {1}, beam));
+            request.infer();
+            return request.get_tensor("logits");
+        };
+        SCOPED_TRACE("full model logits");
+        auto legacy_compiled = compile(legacy_language);
+        auto native_compiled = compile(native_language);
+        for (size_t count : {1u, 2u, 3u}) {
+            SCOPED_TRACE(count);
+            const auto legacy_logits = run_model(legacy_compiled, count);
+            const auto native_logits = run_model(native_compiled, count);
+            ASSERT_EQ(legacy_logits.get_shape(), (ov::Shape{1, 1, 16}));
+            ASSERT_EQ(legacy_logits.get_element_type(), ov::element::f32);
+            ASSERT_EQ(native_logits.get_shape(), legacy_logits.get_shape());
+            ASSERT_EQ(native_logits.get_element_type(), legacy_logits.get_element_type());
+            const auto* values = legacy_logits.data<const float>();
+            EXPECT_TRUE(std::all_of(values, values + legacy_logits.get_size(), [](float value) {
+                return std::isfinite(value);
+            }));
+            EXPECT_EQ(std::memcmp(native_logits.data(), legacy_logits.data(), legacy_logits.get_byte_size()), 0);
+        }
+        RecordProperty(device + "_full_model", 48);
+    }
+    EXPECT_EQ(native_gate->get_input_node_shared_ptr(1), raw);
+    EXPECT_EQ(std::memcmp(raw->get_data_ptr(), payload.data(), payload.size()), 0);
 }
 
 class GGUFQ8Projection : public GGUFProjection {
@@ -2200,7 +2779,7 @@ std::string GGUFQ8Projection::write_projection_model() {
     return GGUFProjection::write_projection_model(32, GGUF_TYPE_Q8_0, payload);
 }
 
-TEST_F(GGUFQ8Projection, NativeWeightsPropertyIsScopedToEachLoad) {
+TEST_F(GGUFQ8Projection, FileLoadPreservesNativeWeights) {
     const auto model_path = write_projection_model();
     ASSERT_FALSE(model_path.empty());
     std::vector<uint8_t> payload(32 * 34, 1);
@@ -2209,42 +2788,25 @@ TEST_F(GGUFQ8Projection, NativeWeightsPropertyIsScopedToEachLoad) {
         payload[block * 34 + 1] = 0x3c;
         payload[block * 34 + 2] = static_cast<uint8_t>(240 + block);
     }
-    constexpr std::array<bool, 3> native_modes{false, true, false};
-    const auto models = [&] {
-        FrontEnd frontend;
-        std::array<std::shared_ptr<ov::Model>, native_modes.size() + 1> converted;
-        for (size_t index = 0; index < native_modes.size(); ++index) {
-            converted[index] = frontend.convert(frontend.load(
-                model_path, ov::AnyMap{ov::hint::gguf_native_weights(native_modes[index])}));
-        }
-        converted.back() = frontend.convert(frontend.load(model_path));
-        return converted;
-    }();
-    const auto check_model = [&](const std::shared_ptr<ov::Model>& model, bool enabled) {
-        size_t raw_constants = 0;
-        for (const auto& node : model->get_ordered_ops()) {
-            if (node->get_output_size() && node->get_output_element_type(0).is_gguf_block()) {
-                const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(node);
-                ASSERT_NE(weight, nullptr);
-                EXPECT_EQ(weight->get_element_type(), ov::element::gguf_q8_0);
-                EXPECT_EQ(weight->get_shape(), (ov::Shape{32, 32}));
-                ASSERT_EQ(weight->get_byte_size(), payload.size());
-                EXPECT_EQ(std::memcmp(weight->get_data_ptr(), payload.data(), payload.size()), 0);
-                const auto consumers = weight->output(0).get_target_inputs();
-                ASSERT_EQ(consumers.size(), 1);
-                ASSERT_TRUE(ov::is_type<ov::op::internal::FullyConnectedCompressed>(consumers.begin()->get_node()));
-                EXPECT_EQ(consumers.begin()->get_index(), 1);
-                ++raw_constants;
-            }
-        }
-        EXPECT_EQ(raw_constants, enabled ? 1u : 0u);
-    };
-    for (size_t index = 0; index < native_modes.size(); ++index) {
-        ASSERT_NO_FATAL_FAILURE(check_model(models[index], native_modes[index]));
-    }
-    ASSERT_NO_FATAL_FAILURE(check_model(models.back(), false));
     FrontEnd frontend;
-    EXPECT_THROW(frontend.load(model_path, ov::AnyMap{{"GGUF_NATIVE_WEIGHTS", "invalid"}}), ov::Exception);
+    const auto model = frontend.convert(frontend.load(model_path));
+    size_t raw_constants = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_output_size() && node->get_output_element_type(0).is_gguf_block()) {
+            const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            ASSERT_NE(weight, nullptr);
+            EXPECT_EQ(weight->get_element_type(), ov::element::gguf_q8_0);
+            EXPECT_EQ(weight->get_shape(), (ov::Shape{32, 32}));
+            ASSERT_EQ(weight->get_byte_size(), payload.size());
+            EXPECT_EQ(std::memcmp(weight->get_data_ptr(), payload.data(), payload.size()), 0);
+            const auto consumers = weight->output(0).get_target_inputs();
+            ASSERT_EQ(consumers.size(), 1);
+            ASSERT_TRUE(ov::is_type<ov::op::internal::FullyConnectedCompressed>(consumers.begin()->get_node()));
+            EXPECT_EQ(consumers.begin()->get_index(), 1);
+            ++raw_constants;
+        }
+    }
+    EXPECT_EQ(raw_constants, 1u);
     EXPECT_THROW(frontend.load(model_path, ov::AnyMap{{"UNKNOWN_GGUF_PROPERTY", true}}), ov::Exception);
 }
 
@@ -2257,8 +2819,8 @@ TEST_F(GGUFQ8Projection, NativeFCMatchesCompatibleCPU) {
     const auto model_path = write_projection_model();
     ASSERT_FALSE(model_path.empty());
     FrontEnd frontend;
-    const auto legacy = frontend.convert(frontend.load(model_path));
-    const auto native = frontend.convert(frontend.load(model_path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    const auto legacy = load_legacy_weight_reference(model_path);
+    const auto native = frontend.convert(frontend.load(model_path));
     const auto constants = [](const std::shared_ptr<ov::Model>& model) {
         std::vector<std::shared_ptr<ov::op::v0::Constant>> result;
         for (const auto& node : model->get_ordered_ops()) {
@@ -2344,7 +2906,7 @@ TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
     const auto path = write_projection_model();
     ASSERT_FALSE(path.empty());
     FrontEnd frontend;
-    const auto native = frontend.convert(frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    const auto native = frontend.convert(frontend.load(path));
     std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
     for (const auto& node : native->get_ordered_ops()) {
         const auto candidate = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
@@ -2493,7 +3055,7 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
     ASSERT_FALSE(path.empty());
     const auto native = [&] {
         FrontEnd frontend;
-        return frontend.convert(frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+        return frontend.convert(frontend.load(path));
     }();
     std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
     for (const auto& node : native->get_ordered_ops()) {
@@ -2768,7 +3330,7 @@ TEST_P(GGUFZeDenseFallback, CompilesNativeFileProjectionWithoutMutatingSource) {
     const auto path = write_projection_model(width, type, payload, channels);
     ASSERT_FALSE(path.empty());
     FrontEnd frontend;
-    const auto graph = frontend.convert(frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    const auto graph = frontend.convert(frontend.load(path));
     std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
     const std::string weight_type = std::string("gguf_") + fixture;
     for (const auto& node : graph->get_ordered_ops()) {
@@ -2900,10 +3462,6 @@ TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs)
         {std::vector<std::string>{path(1), path(0)}, true},
         {path(0), path(1)},
         {std::vector<std::filesystem::path>{path(1), path(0)}},
-        {reference_path, ov::AnyMap{ov::hint::gguf_native_weights(false)}},
-        {path(0), ov::AnyMap{ov::hint::gguf_native_weights(true)}, true},
-        {std::vector<std::filesystem::path>{path(1), path(0)}, true,
-         ov::AnyMap{ov::hint::gguf_native_weights(true)}},
     };
     for (const auto& representation : representations) {
         EXPECT_TRUE(frontend.supported(representation));

@@ -16,11 +16,20 @@
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
 
 namespace ov::util {
 
@@ -283,6 +292,42 @@ inline void dequantize_gguf_q5_k_block(const uint8_t* block, float* values) {
     }
 }
 
+inline void unpack_gguf_q5_k_f16_zp(const uint8_t* payload,
+                                   size_t byte_size,
+                                   Tensor& weights,
+                                   Tensor& scales,
+                                   Tensor& zero_points) {
+    constexpr size_t block_bytes = 176;
+    constexpr size_t groups_per_block = 8;
+    constexpr size_t group_size = 32;
+    const auto blocks = byte_size / block_bytes;
+    OPENVINO_ASSERT(byte_size % block_bytes == 0 && scales.get_size() == blocks * groups_per_block &&
+                        zero_points.get_size() == scales.get_size() && weights.get_size() == scales.get_size() * group_size,
+                    "Invalid GGUF Q5_K payload or output size");
+    auto* codes = weights.data<uint8_t>();
+    auto* factors = scales.data<float16>();
+    auto* offsets = zero_points.data<float16>();
+    parallel_for(blocks, [&](size_t index) {
+        const auto* block = payload + index * block_bytes;
+        const float block_scale = float16::from_bits(static_cast<uint16_t>(block[0] | (block[1] << 8)));
+        const float block_min = float16::from_bits(static_cast<uint16_t>(block[2] | (block[3] << 8)));
+        for (int group = 0; group < 8; ++group) {
+            uint8_t scale_code, min_code;
+            get_gguf_k_scale_min(group, block + 4, &scale_code, &min_code);
+            const float scale = block_scale * scale_code;
+            const float minimum = block_min * min_code;
+            const auto offset = index * groups_per_block + group;
+            factors[offset] = float16(scale);
+            offsets[offset] = float16(scale != 0.f ? minimum / scale : 0.f);
+            const auto* low = block + 48 + (group / 2) * group_size;
+            for (size_t lane = 0; lane < group_size; ++lane) {
+                codes[offset * group_size + lane] = static_cast<uint8_t>(
+                    ((low[lane] >> ((group % 2) * 4)) & 15) | (((block[16 + lane] >> group) & 1) << 4));
+            }
+        }
+    });
+}
+
 inline void unpack_gguf_q5_k_i8(const uint8_t* payload, size_t byte_size, Tensor& weights, Tensor& scales) {
     constexpr size_t block_bytes = 176;
     constexpr size_t block_elements = 256;
@@ -359,6 +404,101 @@ inline void unpack_gguf_q8_0(const uint8_t* payload, size_t byte_size, Tensor& w
         factors[index] = float16::from_bits(static_cast<uint16_t>(block[0] | (block[1] << 8)));
         std::memcpy(codes + index * block_elements, block + 2, block_elements);
     });
+}
+
+inline void lower_gguf_q8_0_experts(Model& model) {
+    for (const auto& node : model.get_ordered_ops()) {
+        const auto matmul = as_type_ptr<op::internal::GatherMatmul>(node);
+        if (!matmul || matmul->get_input_element_type(1) != element::gguf_q8_0)
+            continue;
+        const auto weights = as_type_ptr<op::v0::Constant>(matmul->get_input_node_shared_ptr(1));
+        if (!weights)
+            continue;
+        const auto& shape = weights->get_shape();
+        constexpr size_t group_size = 32;
+        if (shape.size() != 3 || !shape[0] || !shape[1] || !shape[2] || shape[2] % group_size)
+            continue;
+        const auto groups = shape[2] / group_size;
+        Tensor codes(element::i8, {shape[0], shape[1], groups, group_size});
+        Tensor scales(element::f16, {shape[0], shape[1], groups, 1});
+        unpack_gguf_q8_0(static_cast<const uint8_t*>(weights->get_data_ptr()), weights->get_byte_size(), codes, scales);
+        const auto code_node = std::make_shared<op::v0::Constant>(codes);
+        const auto scale_node = std::make_shared<op::v0::Constant>(scales);
+        const auto target = op::v0::Constant::create(element::i64, {shape.size()}, shape);
+        const auto decoded = decomposition::low_precision_dequantize(code_node, scale_node, {}, target);
+        const auto converted = std::make_shared<op::v0::Convert>(decoded, element::f32);
+        matmul->input(1).replace_source_output(converted);
+    }
+}
+
+inline void lower_gguf_vocab_projection(Model& model) {
+    if (model.get_results().empty())
+        return;
+    auto output = model.get_results().front()->input_value(0);
+    for (size_t depth = 0; depth < 6; ++depth) {
+        const auto node = output.get_node_shared_ptr();
+        if (is_type<op::v1::Reshape>(node) || is_type<op::v0::Unsqueeze>(node) || is_type<op::v0::Tanh>(node)) {
+            output = node->input_value(0);
+        } else if (is_type<op::v1::Multiply>(node) || is_type<op::v1::Divide>(node)) {
+            const auto scalar = as_type_ptr<op::v0::Constant>(node->get_input_node_shared_ptr(1));
+            if (!scalar || shape_size(scalar->get_shape()) != 1)
+                return;
+            output = node->input_value(0);
+        } else {
+            break;
+        }
+    }
+    const auto head = as_type_ptr<op::internal::FullyConnectedCompressed>(output.get_node_shared_ptr());
+    if (!head || head->get_input_element_type(0) != element::f32 || head->get_element_type() != element::f32)
+        return;
+    const auto weight = as_type_ptr<op::v0::Constant>(head->get_input_node_shared_ptr(1));
+    if (!weight)
+        return;
+    const auto type = weight->get_element_type();
+    const auto& shape = weight->get_shape();
+    if ((type != element::gguf_q4_k && type != element::gguf_q5_k) || shape.size() != 2 || !shape[0] || !shape[1] ||
+        shape[1] % type.block_elem_count() != 0)
+        return;
+    for (size_t port = 2; port < head->get_input_size(); ++port) {
+        const auto absent = as_type_ptr<op::v0::Constant>(head->get_input_node_shared_ptr(port));
+        if (!absent || shape_size(absent->get_shape()) != 0)
+            return;
+    }
+    const auto ops = model.get_ordered_ops();
+    const bool has_token_embedding = std::any_of(ops.begin(), ops.end(), [&](const auto& node) {
+        if ((!is_type<op::v8::Gather>(node) && !is_type<op::internal::GatherCompressed>(node)) ||
+            !node->get_input_partial_shape(0).is_static() || node->get_input_shape(0) != shape)
+            return false;
+        const auto axis = as_type_ptr<op::v0::Constant>(node->get_input_node_shared_ptr(2));
+        if (!axis || axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
+            return false;
+        auto indices = node->get_input_node_shared_ptr(1);
+        while (is_type<op::v0::Squeeze>(indices) || is_type<op::v0::Unsqueeze>(indices) ||
+               is_type<op::v1::Reshape>(indices) || is_type<op::v0::Convert>(indices)) {
+            indices = indices->get_input_node_shared_ptr(0);
+        }
+        return is_type<op::v0::Parameter>(indices) && indices->get_element_type().is_integral_number();
+    });
+    if (!has_token_embedding)
+        return;
+
+    const bool q4_k = type == element::gguf_q4_k;
+    const size_t groups = shape[1] / 32;
+    Tensor codes(q4_k ? element::u4 : element::u8, {shape[0], groups, 32});
+    Tensor scales(element::f16, {shape[0], groups, 1});
+    Tensor zero_points(element::f16, scales.get_shape());
+    const auto unpack = q4_k ? unpack_gguf_q4_k : unpack_gguf_q5_k_f16_zp;
+    unpack(weight->get_data_ptr<uint8_t>(), weight->get_byte_size(), codes, scales, zero_points);
+    const auto as_f32 = [](const Tensor& tensor) {
+        return std::make_shared<op::v0::Convert>(std::make_shared<op::v0::Constant>(tensor), element::f32);
+    };
+    const auto centered = std::make_shared<op::v1::Subtract>(as_f32(codes), as_f32(zero_points));
+    const auto scaled = std::make_shared<op::v1::Multiply>(centered, as_f32(scales));
+    const auto matrix = std::make_shared<op::v1::Reshape>(
+        scaled, op::v0::Constant::create(element::i64, {2}, shape), false);
+    const auto replacement = std::make_shared<op::v0::MatMul>(head->input_value(0), matrix, false, true);
+    copy_runtime_info(head, replacement);
+    replace_node_update_name(head, replacement);
 }
 
 inline std::shared_ptr<Node> make_gguf_fc_compatible(const op::internal::FullyConnectedCompressed& fc,

@@ -143,15 +143,20 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
         const auto input = node_context.get_input(static_cast<int>(index));
         const auto deferred = ov::as_type_ptr<GGUFConstant>(input.get_node_shared_ptr());
         if (input.get_element_type().is_gguf_block() || (deferred && deferred->source().preserve_raw)) {
-            FRONT_END_OP_CONVERSION_CHECK((operation_type == "GGML_OP_MUL_MAT" ||
-                                          operation_type == "GGML_OP_GET_ROWS") && index == 0 ||
+            const bool raw_q8_experts = deferred ? deferred->source().qtype == GGUF_TYPE_Q8_0 &&
+                                        deferred->source().shape.size() == 3
+                                    : input.get_element_type() == ov::element::gguf_q8_0 &&
+                                        input.get_partial_shape().rank() == 3;
+            FRONT_END_OP_CONVERSION_CHECK((index == 0 && (operation_type == "GGML_OP_MUL_MAT" ||
+                                          operation_type == "GGML_OP_GET_ROWS" ||
+                                          (operation_type == "GGML_OP_MUL_MAT_ID" && raw_q8_experts))) ||
                                              (deferred && (operation_type == "GGML_OP_VIEW" ||
                                                            operation_type == "GGML_OP_CONCAT")),
                                           "Unsupported raw GGUF consumer ",
                                           operation_type,
                                           " at ",
                                           decoder->get_op_name(),
-                                          "; only the MatMul or GetRows weight input is supported");
+                                          "; expected a MatMul, GetRows, or supported MulMatId weight input");
         }
     }
     converted_outputs = it->second(node_context);

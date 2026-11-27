@@ -6,7 +6,7 @@ import typing
 """
 openvino.properties.hint submodule that simulates ov::hint
 """
-__all__: list[str] = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_cpu_reservation', 'enable_hyper_threading', 'execution_mode', 'gguf_native_weights', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
+__all__: list[str] = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_cpu_reservation', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
 class ExecutionMode:
     """
     Members:
@@ -285,12 +285,6 @@ def enable_hyper_threading() -> str:
     ...
 @typing.overload
 def enable_hyper_threading(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
-    ...
-@typing.overload
-def gguf_native_weights() -> str:
-    ...
-@typing.overload
-def gguf_native_weights(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def execution_mode() -> str:

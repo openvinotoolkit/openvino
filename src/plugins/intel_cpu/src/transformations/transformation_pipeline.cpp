@@ -43,6 +43,11 @@
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/grouped_matmul.hpp"
@@ -478,8 +483,128 @@ static void lower_gguf_q4_k_gather(ov::Model& model) {
     }
 }
 
+static void align_gguf_q5_k_gdn_projection(ov::Model& model) {
+    using ov::op::v0::Constant;
+    using ov::op::v1::Multiply;
+    using ov::op::v1::Reshape;
+    using ov::op::v8::Gather;
+    const auto tiled_head_count = [](const ov::Output<ov::Node>& input) -> int64_t {
+        const auto tile = ov::as_type_ptr<ov::op::v0::Tile>(input.get_node_shared_ptr());
+        if (!tile)
+            return 0;
+        const auto repeats = ov::as_type_ptr<Constant>(tile->get_input_node_shared_ptr(1));
+        const auto& shape = tile->get_input_partial_shape(0);
+        if (!repeats || repeats->get_shape() != ov::Shape{4} || shape.rank() != 4 || shape[2].is_dynamic())
+            return 0;
+        const auto factors = repeats->cast_vector<int64_t>();
+        return factors[0] == 1 && factors[1] == 1 && factors[2] > 1 && factors[3] == 1 ? shape[2].get_length() : 0;
+    };
+    for (const auto& node : model.get_ordered_ops()) {
+        const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+        if (!fc || fc->get_input_element_type(1) != ov::element::gguf_q5_k ||
+            fc->get_input_element_type(0) != ov::element::f32 || fc->get_output_element_type(0) != ov::element::f32)
+            continue;
+        const auto weight = ov::as_type_ptr<Constant>(fc->get_input_node_shared_ptr(1));
+        auto merged_input = fc->input_value(0);
+        if (const auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(merged_input.get_node_shared_ptr())) {
+            const auto axes = ov::as_type_ptr<Constant>(unsqueeze->get_input_node_shared_ptr(1));
+            if (!axes || axes->cast_vector<int64_t>() != std::vector<int64_t>{1})
+                continue;
+            merged_input = unsqueeze->input_value(0);
+        }
+        const auto merged = ov::as_type_ptr<Reshape>(merged_input.get_node_shared_ptr());
+        if (!weight || !merged || fc->get_input_partial_shape(0).rank() != 4)
+            continue;
+        bool has_auxiliary_inputs = false;
+        for (size_t port = 2; port < fc->get_input_size(); ++port) {
+            const auto absent = ov::as_type_ptr<Constant>(fc->get_input_node_shared_ptr(port));
+            has_auxiliary_inputs |= !absent || ov::shape_size(absent->get_shape()) != 0;
+        }
+        if (has_auxiliary_inputs)
+            continue;
+        const auto gated = ov::as_type_ptr<Multiply>(merged->get_input_node_shared_ptr(0));
+        if (!gated || !ov::is_type<ov::op::v4::Swish>(gated->get_input_node_shared_ptr(1)))
+            continue;
+        const auto scaled = ov::as_type_ptr<Multiply>(gated->get_input_node_shared_ptr(0));
+        if (!scaled || !ov::is_type<Constant>(scaled->get_input_node_shared_ptr(1)))
+            continue;
+        const auto norm = ov::as_type_ptr<Multiply>(scaled->get_input_node_shared_ptr(0));
+        if (!norm || norm->input_value(0).get_index() != 0)
+            continue;
+        const auto gdn_output = norm->input_value(0);
+        ov::Output<ov::Node> query;
+        ov::Output<ov::Node> key;
+        if (const auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(gdn_output.get_node_shared_ptr())) {
+            query = gdn->input_value(0);
+            key = gdn->input_value(1);
+        } else {
+            const auto restored = ov::as_type_ptr<Reshape>(gdn_output.get_node_shared_ptr());
+            if (!restored || restored->input_value(0).get_index() != 0)
+                continue;
+            const auto paged =
+                ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(restored->get_input_node_shared_ptr(0));
+            if (!paged)
+                continue;
+            const auto flat_query = ov::as_type_ptr<Reshape>(paged->get_input_node_shared_ptr(0));
+            const auto flat_key = ov::as_type_ptr<Reshape>(paged->get_input_node_shared_ptr(1));
+            if (!flat_query || !flat_key)
+                continue;
+            query = flat_query->input_value(0);
+            key = flat_key->input_value(0);
+        }
+        const auto key_heads = tiled_head_count(query);
+        const auto& heads_shape = gdn_output.get_partial_shape();
+        if (key_heads <= 0 || tiled_head_count(key) != key_heads || heads_shape.rank() != 4 ||
+            heads_shape[2].is_dynamic() || heads_shape[3].is_dynamic())
+            continue;
+        const auto value_heads = heads_shape[2].get_length();
+        const auto head_size = heads_shape[3].get_length();
+        constexpr int64_t group_size = 32;
+        const auto& shape = weight->get_shape();
+        if (value_heads <= key_heads || value_heads % key_heads != 0 || head_size <= 0 ||
+            head_size % group_size != 0 || head_size % weight->get_element_type().block_elem_count() == 0 ||
+            shape.size() != 2 || !shape[0] || shape[1] % weight->get_element_type().block_elem_count() != 0 ||
+            shape[1] / static_cast<size_t>(head_size) != static_cast<size_t>(value_heads) ||
+            shape[1] % static_cast<size_t>(head_size) != 0)
+            continue;
+
+        const auto repeat = value_heads / key_heads;
+        const auto groups_per_head = head_size / group_size;
+        std::vector<int64_t> columns;
+        std::vector<int64_t> groups;
+        for (int64_t head = 0; head < value_heads; ++head) {
+            const auto source_head = (head % repeat) * key_heads + head / repeat;
+            for (int64_t channel = 0; channel < head_size; ++channel)
+                columns.push_back(source_head * head_size + channel);
+            for (int64_t group = 0; group < groups_per_head; ++group)
+                groups.push_back(source_head * groups_per_head + group);
+        }
+        ov::Tensor codes(ov::element::i8, {shape[0], groups.size(), group_size});
+        ov::Tensor scales(ov::element::f16, {shape[0], groups.size(), 1});
+        ov::util::unpack_gguf_q5_k_i8(weight->get_data_ptr<uint8_t>(), weight->get_byte_size(), codes, scales);
+        const auto group_indices = Constant::create(ov::element::i64, {groups.size()}, groups);
+        const auto group_axis = Constant::create(ov::element::i64, {}, {1});
+        const auto reorder_groups = [&](const ov::Tensor& tensor) {
+            return std::make_shared<Gather>(std::make_shared<Constant>(tensor), group_indices, group_axis);
+        };
+        const auto target = Constant::create(ov::element::i64, {2}, shape);
+        const auto dequantized =
+            ov::decomposition::low_precision_dequantize(reorder_groups(codes), reorder_groups(scales), {}, target);
+        const auto activation = std::make_shared<Gather>(fc->input_value(0),
+                                                        Constant::create(ov::element::i64, {columns.size()}, columns),
+                                                        Constant::create(ov::element::i64, {}, {3}));
+        const auto replacement = std::make_shared<ov::op::v0::MatMul>(
+            activation, std::make_shared<ov::op::v0::Convert>(dequantized, ov::element::f32), false, true);
+        ov::copy_runtime_info(fc, {activation, replacement});
+        ov::replace_node_update_name(fc, replacement);
+    }
+}
+
 void Transformations::UpToLpt() {
+    ov::util::lower_gguf_vocab_projection(*model);
+    align_gguf_q5_k_gdn_projection(*model);
     lower_gguf_q4_k_gather(*model);
+    ov::util::lower_gguf_q8_0_experts(*model);
     ov::util::lower_gguf_fc(*model,
                           {ov::element::gguf_q8_0, ov::element::gguf_q4_0, ov::element::gguf_q4_1,
                            ov::element::gguf_q6_k, ov::element::gguf_q4_k, ov::element::gguf_q5_k});

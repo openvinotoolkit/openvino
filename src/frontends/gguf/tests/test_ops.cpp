@@ -32,6 +32,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/gather_matmul.hpp"
+#include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -1428,6 +1430,112 @@ TEST(GGUFOps, MulMatIdActivationsPerExpert) {
     // tok1: e2 . [5,6] = [15,18]; e0 . [7,8] = [7,8]
     std::vector<float> expected{1, 2, 6, 8, 15, 18, 7, 8};
     expect_near(out, expected, 1e-4f);
+}
+
+TEST(GGUFOps, MulMatIdQ8_0NativeFallbackMatchesCompatibility) {
+    using namespace ov::frontend::gguf;
+    constexpr size_t width = 32;
+    constexpr size_t block_bytes = 34;
+    const ov::Shape weights_shape{2, 2, width};
+    const ov::Shape activations_shape{1, 3, 1, width};
+    const ov::Shape ids_shape{1, 1, 3, 1};
+    const ov::PartialShape activations_partial{1, -1, 1, width};
+    const ov::PartialShape ids_partial{1, 1, -1, 1};
+    const auto decoder = SingleOpBuilder()
+                             .op("GGML_OP_MUL_MAT_ID")
+                             .input("w", ov::element::f32, weights_shape)
+                             .input("a", ov::element::f32, activations_partial)
+                             .input("ids", ov::element::i32, ids_partial)
+                             .output("out", ov::element::f32, {1, -1, 1, 2})
+                             .decoder();
+    GgufWeight packed;
+    packed.shape = weights_shape;
+    packed.qtype = GGUF_TYPE_Q8_0;
+    packed.source_name = "blk.0.ffn_gate_exps.weight";
+    packed.data = ov::Tensor(ov::element::u8, {4 * block_bytes});
+    auto* bytes = packed.data.data<uint8_t>();
+    std::fill_n(bytes, 4 * block_bytes, uint8_t{0});
+    for (size_t block = 0; block < 4; ++block) {
+        bytes[block * block_bytes + 1] = 0x3c;
+        bytes[block * block_bytes + 2] = static_cast<uint8_t>(block + 1);
+    }
+    const auto weights = make_weight_node(packed);
+    const auto activations = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, activations_partial);
+    const auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ids_partial);
+    activations->output(0).set_names({"a"});
+    ids->output(0).set_names({"ids"});
+    auto tensors = std::make_shared<TensorMap>();
+    (*tensors)["w"] = weights;
+    (*tensors)["a"] = activations;
+    (*tensors)["ids"] = ids;
+    const auto model = std::make_shared<ov::Model>(op::translate_mul_mat_id(NodeContext(decoder, tensors)),
+                                                   ov::ParameterVector{activations, ids});
+    const auto operations = model->get_ops();
+    EXPECT_TRUE(std::any_of(operations.begin(), operations.end(), [](const auto& node) {
+        return std::string(node->get_type_name()) == "GatherMatmul";
+    }));
+
+    std::vector<float> activation_data(3 * width, 0.f);
+    activation_data[0] = 1.f;
+    activation_data[width] = 2.f;
+    activation_data[2 * width] = 3.f;
+    ov::Tensor ids_tensor(ov::element::i32, ids_shape);
+    const std::vector<int32_t> expert_ids{1, 0, 1};
+    std::copy(expert_ids.begin(), expert_ids.end(), ids_tensor.data<int32_t>());
+    const auto output = run_on_cpu(model, {{"a", make_f32_tensor(activations_shape, activation_data)}, {"ids", ids_tensor}});
+    ASSERT_EQ(output.get_shape(), (ov::Shape{1, 3, 1, 2}));
+    expect_near(output, {3.f, 4.f, 2.f, 4.f, 9.f, 12.f}, 1e-4f);
+
+    const auto native_weights =
+        std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q8_0, weights_shape, bytes);
+    const auto native_model = model->clone();
+    std::shared_ptr<ov::op::internal::GatherMatmul> native_matmul;
+    for (const auto& node : native_model->get_ordered_ops()) {
+        if (const auto candidate = ov::as_type_ptr<ov::op::internal::GatherMatmul>(node)) {
+            native_matmul = candidate;
+            break;
+        }
+    }
+    ASSERT_TRUE(native_matmul);
+    ASSERT_EQ(native_weights->get_byte_size(), packed.data.get_byte_size());
+    native_matmul->input(1).replace_source_output(native_weights);
+    native_model->validate_nodes_and_infer_types();
+    ov::Core core;
+    const auto supported = core.query_model(native_model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    EXPECT_EQ(supported.count(native_matmul->get_friendly_name()), 1u);
+    const auto actual =
+        run_on_cpu(native_model, {{"a", make_f32_tensor(activations_shape, activation_data)}, {"ids", ids_tensor}});
+    ASSERT_EQ(actual.get_shape(), output.get_shape());
+    ASSERT_EQ(actual.get_element_type(), output.get_element_type());
+    EXPECT_EQ(std::memcmp(actual.data(), output.data(), output.get_byte_size()), 0);
+    EXPECT_EQ(native_matmul->get_input_node_shared_ptr(1), native_weights);
+    EXPECT_EQ(std::memcmp(native_weights->get_data_ptr(), bytes, packed.data.get_byte_size()), 0);
+#ifdef GGUF_GPU_NATIVE_TESTS
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "GPU") != devices.end()) {
+        auto gpu_request = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16))
+                               .create_infer_request();
+        gpu_request.set_tensor("a", make_f32_tensor(activations_shape, activation_data));
+        gpu_request.set_tensor("ids", ids_tensor);
+        gpu_request.infer();
+        const auto gpu_output = gpu_request.get_output_tensor();
+        ASSERT_EQ(gpu_output.get_shape(), output.get_shape());
+        expect_near(gpu_output, {3.f, 4.f, 2.f, 4.f, 9.f, 12.f}, 1e-4f);
+        const auto precision = ov::hint::inference_precision(ov::element::f16);
+        EXPECT_EQ(core.query_model(native_model, "GPU", precision).count(native_matmul->get_friendly_name()), 1u);
+        auto gpu_native = core.compile_model(native_model, "GPU", precision).create_infer_request();
+        gpu_native.set_tensor("a", make_f32_tensor(activations_shape, activation_data));
+        gpu_native.set_tensor("ids", ids_tensor);
+        gpu_native.infer();
+        const auto gpu_actual = gpu_native.get_output_tensor();
+        ASSERT_EQ(gpu_actual.get_shape(), gpu_output.get_shape());
+        ASSERT_EQ(gpu_actual.get_element_type(), gpu_output.get_element_type());
+        EXPECT_EQ(std::memcmp(gpu_actual.data(), gpu_output.data(), gpu_output.get_byte_size()), 0);
+        EXPECT_EQ(native_matmul->get_input_node_shared_ptr(1), native_weights);
+        EXPECT_EQ(std::memcmp(native_weights->get_data_ptr(), bytes, packed.data.get_byte_size()), 0);
+        RecordProperty("gpu_fallback_device", core.get_property("GPU", ov::device::full_name));
+    }
+#endif
 }
 
 struct MulMatIdSkippedIdsCase {

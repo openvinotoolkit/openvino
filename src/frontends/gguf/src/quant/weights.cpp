@@ -939,9 +939,10 @@ std::shared_ptr<ov::Node> make_weight_node(const GgufWeight& source) {
     if (source.preserve_raw) {
         const auto tensors = unpack_gguf_weight(source);
         const auto type = tensors.weight.get_element_type();
-        OPENVINO_ASSERT(type == gguf_raw_element_type(source.qtype) && source.shape.size() == 2 &&
-                            source.shape[0] > 0 && source.shape[1] > 0 &&
-                            source.shape[1] % type.block_elem_count() == 0,
+        const auto& shape = source.shape;
+        OPENVINO_ASSERT(type == gguf_raw_element_type(source.qtype) &&
+                    (shape.size() == 2 || (shape.size() == 3 && type == ov::element::gguf_q8_0)) &&
+                    ov::shape_size(shape) > 0 && shape.back() % type.block_elem_count() == 0,
                         "Unsupported raw GGUF weight contract: ", source.source_name);
         auto constant = std::make_shared<ov::op::v0::Constant>(tensors.weight);
         if (!source.external_source.empty()) {

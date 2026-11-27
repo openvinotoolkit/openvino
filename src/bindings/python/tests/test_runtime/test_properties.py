@@ -364,7 +364,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((64, 64),),
         ),
         (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
-        (hints.gguf_native_weights, "GGUF_NATIVE_WEIGHTS", ((True, True), (False, False))),
         (
             hints.activations_scale_factor,
             "ACTIVATIONS_SCALE_FACTOR",

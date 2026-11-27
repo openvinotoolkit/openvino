@@ -164,6 +164,8 @@ ov_add_test_target(
         OV UNIT GGUF_FE
 )
 
+add_dependencies(${TARGET_NAME} openvino_gguf_frontend)
+
 if(TARGET openvino_ir_frontend)
     add_dependencies(${TARGET_NAME} openvino_ir_frontend)
 endif()

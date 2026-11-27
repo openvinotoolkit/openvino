@@ -637,13 +637,6 @@ static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precis
  */
 static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
 
-/**
- * @brief Preserve native Q4_K, Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 weights when loading a GGUF file.
- * Pass to the GGUF frontend load parameters. Disabled by default; this is not a device compilation property.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<bool> gguf_native_weights{"GGUF_NATIVE_WEIGHTS"};
-
 /** @brief  Hint for device to use model compiled blob.
  * @ingroup ov_runtime_cpp_prop_api
  *

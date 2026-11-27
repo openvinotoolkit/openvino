@@ -118,16 +118,12 @@ Projections sharing an activation input retain grouped zero points if any projec
 that fallback, including a singleton group. This keeps their layouts compatible with
 horizontal fusion without changing plugins; all-ternary projection groups remain scalar.
 
-## Experimental Raw GPU Loading
+## Native Block Loading
 
-The boolean `ov::hint::gguf_native_weights` property (`GGUF_NATIVE_WEIGHTS`) opts the
-file-based FrontEnd loader into preserving Q4_K, Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 blocks.
-Pass it per load with `frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)})`.
-It defaults to false and does not affect other loads. The former
-`OV_GGUF_NATIVE_WEIGHTS` environment variable is no longer read.
-In GenAI, pass `GGUF_READER="FRONTEND", GGUF_NATIVE_WEIGHTS=True` to the pipeline;
-the legacy reader does not accept this property. This is a loading property, not a
-device compilation property. Use a matching runtime/frontend/GPU build, not an older install.
+The file-based frontend preserves Q4_K, Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 blocks
+when they can be represented natively. Plugins choose native execution or expand
+the weights during compilation. In GenAI, use `GGUF_READER="FRONTEND"` to select
+the file-based frontend. Ordinary F16 and BF16 weights retain their existing representation.
 
 The internal `GGUFLoadOptions` fields select raw formats independently and default
 to false; the existing `GGUFLoadOptions{true}` still selects only Q4_K. A preserved tensor
@@ -139,7 +135,7 @@ element/byte counts apply before creating a view. Other formats retain their def
 The appended `preserve_q3_k` field additionally permits explicit internal file-to-FC
 loading of Q3_K (GGUF type 11, 110 bytes per 256 values). The existing OCL FC reads its
 raw blocks; default large-M prefill can transcode to F16. Q3_K has no raw Gather, SG or
-CM implementation and is not added to the property's six-format selection.
+CM implementation and is not part of the public loader's six-format selection.
 Its file regression checks F32/F16 inference, shuffle on/off without selecting SG,
 dynamic input rebinding and actual raw/transcode stages against existing ggml fixtures.
 Unsupported GetRows and other raw consumers remain rejected. This is not a full Q3_K

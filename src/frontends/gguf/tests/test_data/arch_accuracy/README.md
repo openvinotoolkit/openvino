@@ -99,9 +99,8 @@ It does not claim exact logit agreement for the frontend's lossy quantized-weigh
 Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
 
 `OV_GGUF_ACCURACY_DEVICE=GPU` runs this replay with GPU F16 inference; the default
-remains CPU F32. Experimental dense raw-block loading is selected per frontend load
-with `ov::hint::gguf_native_weights(true)`, rather than a process environment variable.
-The standalone accuracy executable uses its default loading mode. The original
+remains CPU F32. File-based frontend loading preserves supported native blocks
+without an explicit loading property. The original
 first-prediction/90%-agreement gates remain unchanged. XML properties record raw Constant
 bytes, consumer counts, and executed GGUF FC/Gather implementations by weight type.
 These implementation counts do not distinguish native decode from transcode prefill;

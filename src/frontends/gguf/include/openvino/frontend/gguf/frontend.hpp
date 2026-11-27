@@ -60,7 +60,6 @@ protected:
 
     /// \brief Load a GgufDecoder, or parse a .gguf file and select its builder for convert().
     /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
-    /// File paths may be followed by an ov::AnyMap containing ov::hint::gguf_native_weights.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
