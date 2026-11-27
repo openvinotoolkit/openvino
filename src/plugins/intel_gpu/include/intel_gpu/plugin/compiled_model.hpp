@@ -6,7 +6,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -29,15 +28,13 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
-                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr,
-                  std::optional<uint64_t> cache_source_id = std::nullopt);
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
     CompiledModel(cldnn::BinaryInputBuffer& ib,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
                   bool loaded_from_cache,
-                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr,
-                  std::optional<uint64_t> cache_source_id = std::nullopt);
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
     ~CompiledModel() override {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
         streams_executor->cpu_reset();
@@ -120,7 +117,6 @@ private:
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
-    std::optional<uint64_t> m_cache_source_id;
 
     // The member m_weight_sharing_context holds the context for weight sharing currently used by cross-plugin sharing.
     // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the source buffer, where the weights are stored.

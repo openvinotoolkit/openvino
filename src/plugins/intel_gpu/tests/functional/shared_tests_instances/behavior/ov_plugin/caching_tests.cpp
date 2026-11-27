@@ -26,11 +26,9 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "intel_gpu/plugin/hsm_common.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
-#include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/relu.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
@@ -273,40 +271,47 @@ public:
     }
 };
 
-TEST_P(GPUHsmRegressionTest, ReplacingModelAtSamePathInvalidatesHsmCache) {
+TEST_P(GPUHsmRegressionTest, StandaloneExportCanReplacePathCacheEntry) {
     const auto xml = cache_path.string() + ".xml";
     const auto bin = cache_path.string() + ".bin";
-    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
-    const auto relu = std::make_shared<ov::op::v0::Relu>(param);
-    auto original = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{param}, "original");
-    const auto abs = std::make_shared<ov::op::v0::Abs>(param);
-    auto replacement =
-        std::make_shared<ov::Model>(ov::OutputVector{abs}, ov::ParameterVector{param}, "replacement_with_new_output");
+    ov::serialize(model, xml, bin);
+    const auto standalone = export_blob(core.compile_model(xml, target_device, configuration));
+    ASSERT_TRUE(is_hsm(standalone));
+
     auto config = configuration;
     config.emplace(ov::cache_path(cache_path));
-
-    ov::serialize(original, xml, bin);
-    const auto original_size = std::filesystem::file_size(xml);
     auto first = core.compile_model(xml, target_device, config);
     ASSERT_FALSE(first.get_property(ov::loaded_from_cache));
     const auto cache_blob = read_cache_blob();
-    ASSERT_TRUE(is_hsm(cache_blob));
     EXPECT_EQ(cache_blob, export_blob(first));
     std::stringstream stream(cache_blob);
-    EXPECT_TRUE(core.import_model(stream, target_device, configuration));
-    ASSERT_TRUE(core.compile_model(xml, target_device, config).get_property(ov::loaded_from_cache));
+    auto imported = core.import_model(stream, target_device);
+    expect_same_inference(imported);
 
-    ov::serialize(replacement, xml, bin);
-    ASSERT_NE(original_size, std::filesystem::file_size(xml));
-    auto compiled = core.compile_model(xml, target_device, config);
-    EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache));
-    ov::Tensor data(ov::element::f32, {1, 4});
-    std::fill_n(data.data<float>(), data.get_size(), -2.0f);
-    auto request = compiled.create_infer_request();
-    request.set_input_tensor(data);
-    request.infer();
-    EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[0], 2.0f);
-    EXPECT_TRUE(core.compile_model(xml, target_device, config).get_property(ov::loaded_from_cache));
+    ASSERT_NO_FATAL_FAILURE(write_cache_blob(standalone));
+    for (const bool use_mmap : {false, true}) {
+        SCOPED_TRACE(use_mmap);
+        core.set_property(ov::enable_mmap(use_mmap));
+        auto cached = core.compile_model(xml, target_device, config);
+        EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+        expect_same_inference(cached);
+        EXPECT_EQ(read_cache_blob(), standalone);
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, ImportUsesStoredCacheMode) {
+    const auto xml = cache_path.string() + ".xml";
+    const auto bin = cache_path.string() + ".bin";
+    ov::serialize(model, xml, bin);
+    auto config = configuration;
+    config.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+    const auto blob = export_blob(core.compile_model(xml, target_device, config));
+    ASSERT_TRUE(is_hsm(blob));
+
+    std::stringstream stream(blob);
+    auto imported = core.import_model(stream, target_device, {ov::weights_path(bin)});
+    EXPECT_EQ(imported.get_property(ov::cache_mode), ov::CacheMode::OPTIMIZE_SIZE);
+    expect_same_inference(imported);
 }
 
 TEST_P(GPUHsmRegressionTest, CacheHitsUsePerCallExportFormat) {

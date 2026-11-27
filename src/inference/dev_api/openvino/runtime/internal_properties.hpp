@@ -129,10 +129,6 @@ static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignme
  */
 static constexpr Property<bool, PropertyMutability::RO> emit_hsm_format{"EMIT_HSM_FORMAT"};
 
-// Plugins advertising this property accept a source fingerprint for cached compilation and import,
-// persist and validate it in HSM, and report the effective emit_hsm_format on their compiled model.
-static constexpr Property<uint64_t> cache_source_id{"CACHE_SOURCE_ID"};
-
 /**
  * @brief Enum to define possible cache quant schema hints.
  */

@@ -13,7 +13,7 @@
 //   [ model                ]  page-aligned GPU section: the legacy compiled-model payload (inputs, outputs, graph,
 //                             kernels, constants) without its cache-mode and requirements prefix; ciphertext
 //                             only when cache encryption is on (length from the manifest)
-//   [ manifest             ]  one entry per section, including inline GPU payload_info and optional model_id
+//   [ manifest             ]  one entry per section, including inline GPU payload_info
 //
 // Constants inside the model section are page-aligned relative to the section start, so a page-aligned blob in
 // memory can be used for zero-copy weights.
@@ -33,8 +33,6 @@ struct SectionId {
 
 /// Inline GPU section, PayloadInfo.
 inline constexpr SectionId payload_info{runtime::hsm::gpu_device_id, runtime::hsm::SectionTag::make_device_tag(0, true)};
-/// Source fingerprint for path-backed Core caching, absent when there is no source path.
-inline constexpr SectionId model_id{runtime::hsm::any_device_id, runtime::hsm::model_id_tag};
 /// The string checked by CompiledModel::is_runtime_requirements_compatible() on import.
 // CVS-196454: use the common Runtime Requirements codec instead of the plain string.
 inline constexpr SectionId runtime_requirements{runtime::hsm::any_device_id, runtime::hsm::runtime_requirements_tag};

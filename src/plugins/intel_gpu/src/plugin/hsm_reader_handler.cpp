@@ -12,7 +12,6 @@
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "openvino/runtime/hsm_compile_options_codec.hpp"
-#include "openvino/runtime/hsm_model_id_codec.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov::intel_gpu::hsm {
@@ -92,10 +91,6 @@ bool ReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, con
         OPENVINO_ASSERT(info.version == PayloadInfo::current_version && (info.flags & ~encrypted_flag) == 0 &&
                             info.requirements_version == CompiledModel::runtime_requirements_version && info.reserved32 == 0 && info.reserved == 0,
                         "[GPU] Unsupported HSM payload info");
-    } else if (is_section(entry, model_id)) {
-        check_section(m_source_id.has_value(), model_id, entry);
-        m_source_id = runtime::hsm::decode_model_id(section);
-        OPENVINO_ASSERT(m_source_id, "[GPU] Invalid HSM source fingerprint");
     } else if (is_section(entry, runtime_requirements)) {
         check_section(m_requirements.has_value(), runtime_requirements, entry);
         OPENVINO_ASSERT(section.size() > 0 && section.size() <= CompiledModel::runtime_requirements_max_size, "[GPU] Invalid HSM runtime requirements size");
@@ -126,16 +121,9 @@ ov::CacheMode ReaderHandler::cache_mode() const {
     return *m_cache_mode;
 }
 
-bool ReaderHandler::is_encrypted() const {
-    return (m_info->flags & encrypted_flag) != 0;
-}
-
-std::optional<uint64_t> ReaderHandler::source_id() const {
-    return m_source_id;
-}
-
 bool ReaderHandler::open_encrypted_model(const ov::EncryptionCallbacks& callbacks) {
-    if (!is_encrypted()) {
+    if ((m_info->flags & encrypted_flag) == 0) {
+        OPENVINO_ASSERT(!callbacks.encrypt, "[GPU] HSM payload is not encrypted");
         return false;
     }
     OPENVINO_ASSERT(callbacks.decrypt, "[GPU] Encrypted HSM payload requires a decryption callback");

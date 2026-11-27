@@ -5,7 +5,6 @@
 #pragma once
 
 #include <functional>
-#include <optional>
 #include <ostream>
 #include <string>
 
@@ -23,7 +22,6 @@ class WriterHandler final : public runtime::hsm::ISectionWriterHandler {
 public:
     WriterHandler(ov::CacheMode cache_mode,
                   std::string requirements,
-                  std::optional<uint64_t> cache_source_id,
                   std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
                   const decltype(ov::EncryptionCallbacks::encrypt)& encrypt);
 
@@ -32,7 +30,6 @@ public:
 private:
     PayloadInfo m_info;
     std::string m_requirements;
-    std::optional<uint64_t> m_cache_source_id;
     ov::AnyMap m_compile_options;
     runtime::hsm::SectionEncoderPtr m_encoder;
 };
@@ -43,7 +40,6 @@ private:
 void write_model(std::ostream& destination,
                  ov::CacheMode cache_mode,
                  const std::string& requirements,
-                 std::optional<uint64_t> cache_source_id,
                  std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
                  const decltype(ov::EncryptionCallbacks::encrypt)& encrypt);
 

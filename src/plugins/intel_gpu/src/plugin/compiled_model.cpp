@@ -58,8 +58,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
-                             ov::internal::WeightSharingCtxPtr weightSharingContext,
-                             std::optional<uint64_t> cache_source_id)
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
       m_context(context),
       m_config(config),
@@ -69,7 +68,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false),
-      m_cache_source_id(cache_source_id),
       m_weight_sharing_context(std::move(weightSharingContext)) {
     m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0, m_weight_sharing_context);
@@ -85,8 +83,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
                              const bool loaded_from_cache,
-                             ov::internal::WeightSharingCtxPtr weightSharingContext,
-                             std::optional<uint64_t> cache_source_id)
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ov::ICompiledModel(nullptr,
                          plugin,
                          context,
@@ -96,7 +93,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_loaded_from_cache(loaded_from_cache)
-    , m_cache_source_id(cache_source_id)
     , m_weight_sharing_context(std::move(weightSharingContext)) {
     // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
     // compatibility descriptor. Any rejection below throws ov::Exception;
@@ -247,7 +243,6 @@ void CompiledModel::export_model(std::ostream& model) const {
             model,
             cache_mode,
             m_runtime_requirements,
-            m_cache_source_id,
             [&](cldnn::BinaryOutputBuffer& output) {
                 export_payload(output);
             },
@@ -399,9 +394,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::loaded_from_cache) {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
-    }
-    if (name == ov::internal::emit_hsm_format) {
-        return m_config.get_export_hsm_format();
     }
     if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_num_streams();

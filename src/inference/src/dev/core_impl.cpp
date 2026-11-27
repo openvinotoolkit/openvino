@@ -1923,15 +1923,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                                     const CacheContent& cache_content) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
 
-    const bool tracks_cache_source = device_supports_internal_property(plugin, ov::internal::cache_source_id);
     auto cfg = parsed_config;
     if (cache_content.m_shared_ctx && device_supports_internal_property(plugin, ov::internal::model_sharing_context)) {
         cfg.emplace(ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
-    }
-    if (tracks_cache_source && !cache_content.m_model_path.empty()) {
-        cfg.insert_or_assign(
-            ov::internal::cache_source_id.name(),
-            static_cast<uint64_t>(std::stoull(ModelCache::calculate_file_info(cache_content.m_model_path))));
     }
 
     auto compiled_model = context ? plugin.compile_model(model, context, cfg) : plugin.compile_model(model, cfg);
@@ -1941,8 +1935,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
             const bool emits_hsm =
                 device_supports_internal_property(plugin, ov::internal::emit_hsm_format) &&
-                (tracks_cache_source ? compiled_model->get_property(ov::internal::emit_hsm_format.name()).as<bool>()
-                                     : plugin.get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>());
+                plugin.get_property(ov::internal::emit_hsm_format.name(), parsed_config).as<bool>();
             std::string compiled_model_runtime_properties;
             if (!emits_hsm &&
                 device_supports_internal_property(plugin, ov::internal::compiled_model_runtime_properties.name())) {
@@ -2063,12 +2056,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
-                if (is_hsm && !cache_content.m_model_path.empty() &&
-                    device_supports_internal_property(plugin, ov::internal::cache_source_id)) {
-                    update_config.insert_or_assign(ov::internal::cache_source_id.name(),
-                                                   static_cast<uint64_t>(std::stoull(
-                                                       ModelCache::calculate_file_info(cache_content.m_model_path))));
-                }
                 if (cache_content.model && plugin.is_property_supported(ov::hint::model.name())) {
                     update_config[ov::hint::model.name()] = cache_content.model;
                 }
