@@ -283,19 +283,6 @@ private:
 
 namespace {
 
-// ---- normalizeM helper -------------------------------------------------------
-
-Dim normalizeM(Dim M) {
-    if (M < 512) {
-        M = rnd_up(M, 16);
-    } else if (M < 1024) {
-        M = rnd_up(M, 32);
-    } else {
-        M = rnd_up(M, 256);
-    }
-    return M;
-}
-
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
 dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasMem) {
@@ -490,7 +477,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         m_implType = m_gemvImpl->get_impl_type();
         return true;
     }
-    const Dim M = normalizeM(srcShape[1]);
+    const Dim M = utils::normalizeRowsBucket(srcShape[1]);
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     const auto srcPrc = srcMem->getDesc().getPrecision();
 
@@ -615,7 +602,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
 
             // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
             // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
-            const size_t gemm_rows = normalizeM(num_valid_rows);
+            const size_t gemm_rows = utils::normalizeRowsBucket(num_valid_rows);
             auto& gemmImpl = gemmBySize[gemm_rows];
             if (!gemmImpl) {
                 gemmImpl = createGemm(gemm_rows);

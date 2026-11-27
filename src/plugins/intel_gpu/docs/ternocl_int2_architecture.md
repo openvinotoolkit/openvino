@@ -299,7 +299,7 @@ Bonsai 2 stores its ternary weights in a rotated basis: every folded
 projection expects its input `x` replaced by `H_1024 (s * x) / 32`, per
 1024-wide block along K with a fixed `+-1` sign vector `s`. In the IR this
 arrives as `[Multiply(s)] -> Reshape(..., K/1024, 1024) -> MatMul(H) -> Reshape(..., K)`
-in front of the compressed FC (produced by `tools/int2/bonsai2_gguf_to_ir.py`).
+in front of the compressed FC (produced by `tools/int2_bonsai/bonsai2_gguf_to_ir.py`).
 
 `FuseHadamardIntoFC` (registered after the horizontal FC fusion, so a merged
 gate/up FC absorbs the shared rotation once) recognises the chain, verifies the

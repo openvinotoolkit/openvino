@@ -16,9 +16,15 @@ struct MatMulDecompressionShapeParams {
         : data_shape(std::move(data_shape)),
           weights_shape(std::move(weights_shape)),
           decompression_group_size(decompression_group_size) {}
+    MatMulDecompressionShapeParams(InputShape data_shape, ov::Shape weights_shape, ov::Shape post_multiply_shape, int decompression_group_size = -1)
+        : data_shape(std::move(data_shape)),
+          weights_shape(std::move(weights_shape)),
+          post_multiply_shape(std::move(post_multiply_shape)),
+          decompression_group_size(decompression_group_size) {}
 
     InputShape data_shape;
     ov::Shape weights_shape;
+    std::optional<ov::Shape> post_multiply_shape;
     // Decompression group size. If the value is equal to -1, ordinary decompression is used
     int decompression_group_size;
 };
