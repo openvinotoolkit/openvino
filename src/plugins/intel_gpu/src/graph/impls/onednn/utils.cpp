@@ -128,22 +128,67 @@ int64_t get_compressed_weights_rank(const layout& weights_layout) {
     return std::max<int64_t>(2, rank);
 }
 
-int64_t get_ngroups(const layout& weights_layout, const layout& compressed_layout, bool weights_transposed) {
+static int64_t get_param_ifm_dim_idx(const layout& param_layout, bool param_transposed, int64_t weights_rank) {
+    const auto& pshape = param_layout.get_partial_shape();
+    const auto rank = static_cast<int64_t>(pshape.size());
+    if (rank <= 1) {
+        return rank;
+    }
+
+    const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, weights_rank));
+    const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
+        return d.is_static() && d.get_length() == 1;
+    });
+    const int64_t base = trailing_padded ? 0 : rank - logical_rank;
+    return std::max<int64_t>(0, base + (param_transposed ? logical_rank - 1 : logical_rank - 2));
+}
+
+bool is_decompression_oc_broadcast(const layout& weights_layout,
+                                   const layout& compressed_layout,
+                                   bool weights_transposed,
+                                   bool compressed_transposed) {
+    const auto weights_rank = get_compressed_weights_rank(weights_layout);
+    const auto param_rank = static_cast<int64_t>(compressed_layout.get_partial_shape().size());
+    if (param_rank <= 1) {
+        return false;
+    }
+
+    const auto ifm_dim_idx = get_param_ifm_dim_idx(compressed_layout, compressed_transposed, weights_rank);
+    const auto param_oc_dim_idx = compressed_transposed ? ifm_dim_idx - 1 : ifm_dim_idx + 1;
+    const auto weights_oc_dim_idx = weights_transposed ? weights_rank - 2 : weights_rank - 1;
+    if (param_oc_dim_idx < 0 || param_oc_dim_idx >= param_rank || weights_oc_dim_idx < 0 ||
+        weights_oc_dim_idx >= static_cast<int64_t>(weights_layout.get_partial_shape().size())) {
+        return false;
+    }
+
+    return compressed_layout.get_dim(param_oc_dim_idx) == 1 && weights_layout.get_dim(weights_oc_dim_idx) > 1;
+}
+
+int64_t get_ngroups(const layout& weights_layout,
+                    const layout& compressed_layout,
+                    bool weights_transposed,
+                    bool compressed_transposed) {
     const auto weights_rank = get_compressed_weights_rank(weights_layout);
     const auto ifm_dim_idx = weights_transposed ? (weights_rank - 1) : (weights_rank - 2);
     const auto oc_dim_idx = weights_transposed ? (weights_rank - 2) : (weights_rank - 1);
     const auto ifm = std::max<int64_t>(1, weights_layout.get_dim(ifm_dim_idx));
     const auto oc = std::max<int64_t>(1, weights_layout.get_dim(oc_dim_idx));
     const auto batch = std::max<int64_t>(1, static_cast<int64_t>(weights_layout.count()) / (ifm * oc));
+    if (is_decompression_oc_broadcast(weights_layout, compressed_layout, weights_transposed, compressed_transposed)) {
+        return std::max<int64_t>(1, compressed_layout.get_dim(get_param_ifm_dim_idx(compressed_layout,
+                                                                                    compressed_transposed,
+                                                                                    weights_rank)));
+    }
     return std::max<int64_t>(1, static_cast<int64_t>(compressed_layout.count()) / (oc * batch));
 }
 
 std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
                                              const layout& scale_layout,
-                                             bool weights_transposed) {
+                                             bool weights_transposed,
+                                             bool scale_transposed) {
     const auto weights_rank = get_compressed_weights_rank(weights_layout);
     const int64_t ifm = weights_layout.get_dim(weights_transposed ? weights_rank - 1 : weights_rank - 2);
-    const int64_t ngroups = get_ngroups(weights_layout, scale_layout, weights_transposed);
+    const int64_t ngroups = get_ngroups(weights_layout, scale_layout, weights_transposed, scale_transposed);
     return {ngroups, ifm / ngroups};
 }
 

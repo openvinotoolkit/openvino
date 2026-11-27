@@ -39,12 +39,20 @@ int64_t get_compressed_weights_rank(const layout& weights_layout);
 
 // Number of decompression groups along IFM of a scale/zero-point tensor. Derived from element counts
 // (count / (OC * batch)), so it doesn't depend on where an extra size-1 axis sits in the scale/zp shape.
-int64_t get_ngroups(const layout& weights_layout, const layout& compressed_layout, bool weights_transposed);
+bool is_decompression_oc_broadcast(const layout& weights_layout,
+                                   const layout& compressed_layout,
+                                   bool weights_transposed,
+                                   bool compressed_transposed);
+int64_t get_ngroups(const layout& weights_layout,
+                    const layout& compressed_layout,
+                    bool weights_transposed,
+                    bool compressed_transposed);
 
 // Returns {ngroups, group_size} of the weight-decompression scale along IFM.
 std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
                                              const layout& scale_layout,
-                                             bool weights_transposed);
+                                             bool weights_transposed,
+                                             bool scale_transposed);
 
 // oneDNN grouped weight scales need group_size == 1, a single group, or group_size % 16 == 0.
 bool is_supported_scale_group(int64_t ngroups, int64_t group_size);
