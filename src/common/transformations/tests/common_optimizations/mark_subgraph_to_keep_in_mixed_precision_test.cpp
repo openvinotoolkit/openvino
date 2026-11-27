@@ -5,14 +5,18 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -22,9 +26,11 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
@@ -38,6 +44,15 @@ using namespace std;
 using namespace ov::opset10;
 
 namespace v0 = ov::op::v0;
+
+namespace {
+void disable_fp16_conversion(const std::vector<std::shared_ptr<Node>>& nodes) {
+    for (const auto& node : nodes) {
+        disable_conversion(node, element::f16);
+    }
+}
+}  // namespace
+
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
@@ -1384,4 +1399,161 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
+}
+
+TEST(TransformationTests, keep_precission_sensitive_integer_to_float_subgraph) {
+    // DeBERTa-like relative position bucket computation:
+    // integer positions -> f32 -> elementwise math -> integer buckets.
+    // Rounding the f32 chain to f16 can change the result of Ceiling and silently
+    // produce a wrong bucket index, so the whole chain must stay in f32.
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto relative_position = make_shared<Parameter>(element::i64, Shape{2, 4});
+        auto relative_position_f = make_shared<Convert>(relative_position, element::f32);
+        auto abs = make_shared<Abs>(relative_position_f);
+        auto zero = Constant::create(element::f32, Shape{}, {0});
+        auto greater = make_shared<Greater>(abs, zero);
+        auto less = make_shared<Less>(abs, zero);
+        auto condition = make_shared<LogicalAnd>(greater, less);
+        auto select_1 = make_shared<Select>(condition, abs, zero);
+        auto two = Constant::create(element::f32, Shape{}, {2});
+        auto divide_1 = make_shared<Divide>(select_1, two);
+        auto log = make_shared<Log>(divide_1);
+        auto divide_2 = make_shared<Divide>(log, two);
+        auto multiply_1 = make_shared<Multiply>(divide_2, two);
+        auto ceiling = make_shared<Ceiling>(multiply_1);
+        auto add = make_shared<Add>(ceiling, zero);
+        auto multiply_2 = make_shared<Multiply>(add, two);
+        auto select_2 = make_shared<Select>(condition, multiply_2, zero);
+        auto bucket = make_shared<Convert>(select_2, element::i64);
+
+        model = make_shared<Model>(OutputVector{bucket}, ParameterVector{relative_position});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto relative_position = make_shared<Parameter>(element::i64, Shape{2, 4});
+        auto relative_position_f = make_shared<Convert>(relative_position, element::f32);
+        auto abs = make_shared<Abs>(relative_position_f);
+        auto zero = Constant::create(element::f32, Shape{}, {0});
+        auto greater = make_shared<Greater>(abs, zero);
+        auto less = make_shared<Less>(abs, zero);
+        auto condition = make_shared<LogicalAnd>(greater, less);
+        auto select_1 = make_shared<Select>(condition, abs, zero);
+        auto two = Constant::create(element::f32, Shape{}, {2});
+        auto divide_1 = make_shared<Divide>(select_1, two);
+        auto log = make_shared<Log>(divide_1);
+        auto divide_2 = make_shared<Divide>(log, two);
+        auto multiply_1 = make_shared<Multiply>(divide_2, two);
+        auto ceiling = make_shared<Ceiling>(multiply_1);
+        auto add = make_shared<Add>(ceiling, zero);
+        auto multiply_2 = make_shared<Multiply>(add, two);
+        auto select_2 = make_shared<Select>(condition, multiply_2, zero);
+        auto bucket = make_shared<Convert>(select_2, element::i64);
+
+        disable_fp16_conversion({relative_position,
+                                 relative_position_f,
+                                 abs,
+                                 zero,
+                                 greater,
+                                 less,
+                                 condition,
+                                 select_1,
+                                 divide_1,
+                                 log,
+                                 divide_2,
+                                 multiply_1,
+                                 ceiling,
+                                 add,
+                                 multiply_2,
+                                 select_2,
+                                 two});
+        mark_as_precision_sensitive(bucket->input(0));
+
+        model_ref = make_shared<Model>(OutputVector{bucket}, ParameterVector{relative_position});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_integer_to_float_subgraph) {
+    // The marking must also survive the real f16 compression pass: the whole
+    // integer -> float -> integer chain stays in f32.
+    auto relative_position = make_shared<Parameter>(element::i64, Shape{2, 4});
+    auto relative_position_f = make_shared<Convert>(relative_position, element::f32);
+    auto abs = make_shared<Abs>(relative_position_f);
+    auto ceiling = make_shared<Ceiling>(abs);
+    auto bucket = make_shared<Convert>(ceiling, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{relative_position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    EXPECT_EQ(relative_position_f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(abs->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ceiling->get_output_element_type(0), element::f32);
+    EXPECT_EQ(bucket->get_input_element_type(0), element::f32);
+    EXPECT_EQ(bucket->get_output_element_type(0), element::i64);
+}
+
+TEST(TransformationTests, do_not_mark_integer_to_float_subgraph_with_matmul) {
+    // MatMul is a natural boundary of the elementwise index math, so the subgraph must not be marked.
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto relative_position = make_shared<Parameter>(element::i64, Shape{2, 4});
+    auto relative_position_f = make_shared<Convert>(relative_position, element::f32);
+    auto weights = make_shared<Parameter>(element::f32, Shape{4, 4});
+    auto matmul = make_shared<MatMul>(relative_position_f, weights);
+    auto bucket = make_shared<Convert>(matmul, element::i64);
+
+    model = make_shared<Model>(OutputVector{bucket}, ParameterVector{relative_position, weights});
+    model_ref = model->clone();
+
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, do_not_mark_integer_to_float_subgraph_without_integer_result) {
+    // The same integer-to-float conversion is not precision sensitive when its result stays floating point.
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto relative_position = make_shared<Parameter>(element::i64, Shape{2, 4});
+    auto relative_position_f = make_shared<Convert>(relative_position, element::f32);
+    auto abs = make_shared<Abs>(relative_position_f);
+    auto sqrt = make_shared<Sqrt>(abs);
+
+    model = make_shared<Model>(OutputVector{sqrt}, ParameterVector{relative_position});
+    model_ref = model->clone();
+
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
 }
