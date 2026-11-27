@@ -71,6 +71,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_rotary_positional_embeddings.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fused_names_cleanup.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/gated_residual_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/gelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/glu_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/group_normalization_fusion_tests.cpp
@@ -181,6 +182,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_offsets15_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_packed15_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_fc_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gated_residual_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_0d_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_to_compressed_test.cpp

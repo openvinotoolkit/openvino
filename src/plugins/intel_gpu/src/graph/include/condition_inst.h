@@ -29,6 +29,12 @@ public:
     condition::branch get_branch_true() const { return _branch_true; }
     condition::branch get_branch_false() const { return _branch_false; }
 
+    // Dependencies whose buffer may become the output of this primitive at runtime: a skipped body passes the outer
+    // input memory through, and a body output shares the buffer of a body parameter that it reaches through in-place
+    // views, nested conditions that pass it through, or oneDNN in-place post-ops (sum or binary_mul_inplace), which
+    // write the output into the buffer of their eltwise input.
+    std::vector<program_node*> get_inputs_forwarded_to_outputs() const;
+
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);

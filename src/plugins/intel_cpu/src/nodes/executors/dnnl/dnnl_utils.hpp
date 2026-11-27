@@ -15,6 +15,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/executor.hpp"
+#include "utils/general_utils.h"
 #include "weights_cache.hpp"
 
 namespace ov::intel_cpu::utils {
@@ -35,4 +36,15 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                bool needShiftSignedToUnsigned = false);
 
 bool isNonNegativeI8(const IMemory& mem);
+
+/// Rounds a row count up to a bucket, bounding the number of distinct GEMM shapes (cached primitives, JIT builds).
+inline size_t normalizeRowsBucket(size_t m) {
+    if (m < 512) {
+        return rnd_up(m, 16);
+    }
+    if (m < 1024) {
+        return rnd_up(m, 32);
+    }
+    return rnd_up(m, 256);
+}
 }  // namespace ov::intel_cpu::utils

@@ -305,7 +305,7 @@ projection expects its input `x` replaced by `H_B (s * x) / sqrt(B)`, per
 B-wide block along K with a fixed `+-1` sign vector `s`. B comes from the checkpoint
 (`prism.hadamard.block_size`): 512 for Bonsai 2 2B and 4B, 1024 for 27B, 4096 for 9B.
 In the IR this arrives as `[Multiply(s)] -> Reshape(..., K/B, B) -> MatMul(H_B) -> Reshape(..., K)`
-in front of the compressed FC (produced by `tools/int2/bonsai2_gguf_to_ir.py`). The
+in front of the compressed FC (produced by `tools/int2_bonsai/bonsai2_gguf_to_ir.py`). The
 Reshapes are absent when K = B.
 
 `FuseHadamardIntoFC` (registered after the horizontal FC fusion, so a merged
