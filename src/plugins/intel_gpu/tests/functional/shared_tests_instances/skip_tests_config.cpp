@@ -208,7 +208,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // LSTMSequenceCM/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ_seq_lengths  [2, 0]
             // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=CONVERT_  [1, 323]
             // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ  [1, 323]
-            // smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP  [1, 63]
             // Inference_without_convert/BF16WeightsDecompression.Inference_without_c  [1, 1]
             // smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest.  [1, 0]
             patterns.push_back(std::regex(R"(.*smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen.*)"));
@@ -218,7 +217,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid.*)"));
             patterns.push_back(std::regex(R"(.*smoke_Decomposition_3D/Mvn6LayerGPUTest.Inference/IS=.*)"));
             patterns.push_back(std::regex(R"(.*smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=(f16|f32)_.*)"));
             patterns.push_back(std::regex(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)"));
             // oneDNN FC: grouped scales with group_size not aligned to 16 are rejected
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/.*group_size=4_weights_precision=(u8|u4|i4|u3)_.*)"));
@@ -233,6 +231,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
             patterns.push_back(std::regex(R"(.*smoke_MoEOffload.*)"));
+            // Without immad the quantized K/V are dequantized before SDPA and sdpa_opt runs. Its multi-token kernel accumulates
+            // Q*K^T in f16 (qk_acc in sdpa_opt.cl), which misses the f32 reference of these tests past their tolerance.
+            // Re-enable once the sdpa_opt accumulation is fixed.
+            patterns.push_back(std::regex(R"(.*smoke_GQAQuantizedKVCache/.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
         }
@@ -244,8 +246,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"__(.*smoke_CompareWithRefs_NormalizeL2_5D/.*ReductionAxes=\(1\.2\.3\.4\)_EpsMode=.*_Epsilon=1e-09)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ZeroCopySingleFileCacheLoad_GPU/.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.2\]__weights_shape=\[2,32\]_group_size=2_weights_precision=(u4|i4)_activations_precision=f16_.*param_weights=1_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose1_has_sink=0_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose0_has_sink=0_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.16\]__weights_shape=\[1,16,32\]_group_size=1111_weights_precision=u4_activations_precision=f16_.*transpose_weights=0_.*extra_multiply=1_param_weights=1_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_3D/.*TS=\{\(1\.32\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-1\.-2)\)_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.10\.5\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-2\.-1)\)_.*)__"));

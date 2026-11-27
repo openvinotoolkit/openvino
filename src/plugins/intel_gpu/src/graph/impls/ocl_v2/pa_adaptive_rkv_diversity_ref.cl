@@ -4,31 +4,27 @@
 
 #include "include/batch_headers/common.cl"
 
-// Key cache offset macros (all offsets in bytes: int8=1, half=2)
+// Key cache offset macros (all offsets in bytes: int8=1, half=2). The K page is token-major (paged_attention.hpp).
 #if KV_CACHE_COMPRESSED
-    #if KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL: per-dimension scale/zp
-        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, BLOCK_SIZE+4]
+    #if KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL
+        // Layout: [num_blocks, KV_HEADS_NUM, BLOCK_SIZE+4, K_HEAD_SIZE]: the BLOCK_SIZE token rows, then one
+        // interleaved (scale, zp) half pair per channel (pa_kv_cache_update_ref.cl, BC_COMP_OFF).
+        #define KEY_CACHE_PAGE_OFFSET(physical_block) \
+            ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             head_idx * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS))
         #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
-            ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * \
-             (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
-             head_idx * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
-             (d) * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + (token_offset))
+            (KEY_CACHE_PAGE_OFFSET(physical_block) + (token_offset) * K_HEAD_SIZE + (d))
         #define KEY_CACHE_SCALE_OFFSET(physical_block, d) \
-            ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * \
-             (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
-             head_idx * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
-             (d) * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
-             PAGED_ATTENTION_BLOCK_SIZE)
+            (KEY_CACHE_PAGE_OFFSET(physical_block) + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + (d) * 2 * SIZEOF_HALF)
         #define KEY_CACHE_ZP_OFFSET(physical_block, d) \
             (KEY_CACHE_SCALE_OFFSET(physical_block, d) + SIZEOF_HALF)
     #elif KEY_CACHE_QUANT_MODE == 2  // BY_TOKEN: per-token scale/zp
-        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE+4, BLOCK_SIZE]
-        // Scale at [K_HEAD_SIZE], ZP at [K_HEAD_SIZE+2] (token_offset * 2 for half)
+        // Layout: [num_blocks, KV_HEADS_NUM, BLOCK_SIZE, K_HEAD_SIZE+4]: the token rows, then the scale and zp arrays.
         #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
             ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
              PAGED_ATTENTION_BLOCK_SIZE + \
              head_idx * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * PAGED_ATTENTION_BLOCK_SIZE + \
-             (d) * PAGED_ATTENTION_BLOCK_SIZE + (token_offset))
+             (token_offset) * K_HEAD_SIZE + (d))
         #define KEY_CACHE_SCALE_OFFSET(physical_block, token_offset) \
             ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
              PAGED_ATTENTION_BLOCK_SIZE + \
@@ -38,11 +34,11 @@
             (KEY_CACHE_SCALE_OFFSET(physical_block, token_offset) + SIZEOF_HALF * PAGED_ATTENTION_BLOCK_SIZE)
     #endif
 #else
-    // Uncompressed layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE]
+    // [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE, K_HEAD_SIZE]: head dims contiguous, as in the value cache.
     #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
         ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
          head_idx * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
-         (d) * PAGED_ATTENTION_BLOCK_SIZE + (token_offset))
+         (token_offset) * K_HEAD_SIZE + (d))
 #endif
 
 // Helper macro for normalizing a buffer in-place

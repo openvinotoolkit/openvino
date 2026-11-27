@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
@@ -70,8 +72,25 @@ struct SDPABase : public KernelGenerator {
                                                      const std::vector<int64_t>& input_v_transpose_order);
 
     static bool is_int4_kv_cache(const kernel_impl_params& params);
+    // Plain SDPA whose compressed K/V carry one scale (and zero point) per head-dim channel of a KV head, shared by every
+    // token: the GPU GroupQueryAttentionDecomposition's quantized cache, scale tensors [B or 1, KV heads or 1, 1, head
+    // size]. Per-token compression (kv_cache_compression.cpp) groups the head dim instead and has [B, KV heads, tokens, 1].
+    static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
+    // Plain SDPA whose V order swaps the last two dims ({.., 3, 2}): V is stored [value][key], e.g. the GPU
+    // GroupQueryAttentionDecomposition's [B, KV heads, head size, S] cache.
+    static bool has_transposed_v(const kernel_impl_params& params);
+    // has_transposed_v() with what sdpa_ocl's transposed-V readers take, on the sdpa_ocl lane: an f16 uncompressed V
+    // (v_tile_t) or a per-channel compressed i8 or 4-bit one (v_t_i8_read).
+    static bool transposed_v_reader_ok(const kernel_impl_params& params);
+    // xe_hpg: the opt single-token stage reads a transposed V too (V_TRANSPOSED_READ: f16, or the per-channel cache of
+    // opt_single_token_reads_per_channel()), and SDPAOptImpl gives it the op's one-query steps at the heads it takes;
+    // elsewhere sdpa_ocl is the one reader.
+    static bool opt_single_token_reads_transposed_v(const kernel_impl_params& params);
+    // xe_hpg: the opt single-token stage reads per-channel compressed KV too (KV_COMP_PER_CHANNEL: a planar i8 or 4-bit
+    // cache, f16 queries), and SDPAOptImpl gives it the op's one-query steps at the heads it takes.
+    static bool opt_single_token_reads_per_channel(const kernel_impl_params& params);
 
-    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
     // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
     // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
     // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
@@ -123,6 +142,29 @@ public:
         bool is_prefill = state_layout.count() == 0;
         return !is_prefill;
     }
+};
+
+// The params of a rank-3 SDPA seen as the canonical 4D problem (SDPABase::static_canonicalize_shapes), which is what the
+// sdpa_ocl kernels' orders and layouts are written against. Any other op, the 4D hot path included, is referenced as it
+// is: no copy of the params.
+class SDPACanonicalParams {
+public:
+    explicit SDPACanonicalParams(const kernel_impl_params& params) : m_params(&params) {
+        if (params.is_type<scaled_dot_product_attention>() && SDPABase::requires_shape_canonicalization(params)) {
+            m_canonical.emplace(SDPABase::static_canonicalize_shapes(params));
+            m_params = &*m_canonical;
+        }
+    }
+    SDPACanonicalParams(const SDPACanonicalParams&) = delete;
+    SDPACanonicalParams& operator=(const SDPACanonicalParams&) = delete;
+
+    [[nodiscard]] const kernel_impl_params& get() const {
+        return *m_params;
+    }
+
+private:
+    std::optional<kernel_impl_params> m_canonical;
+    const kernel_impl_params* m_params;
 };
 
 }  // namespace ov::intel_gpu::ocl

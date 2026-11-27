@@ -103,6 +103,12 @@ ov_gpu_add_backend_target(
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
+# TEMP(ttft32): build without the sdpa_ocl getenv switches (see sdpa/sdpa_ocl_utils.hpp).
+option(SDPA_OCL_NO_GETENV "TEMP(ttft32): build without the sdpa_ocl getenv switches; OFF restores them" ON)
+if(SDPA_OCL_NO_GETENV)
+    target_compile_definitions(${TARGET_NAME} PRIVATE SDPA_OCL_NO_GETENV)
+endif()
+
 if(OV_GPU_RT STREQUAL "SYCL")
     # Some sources include oneDNN headers that require SYCL backend support.
     # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.

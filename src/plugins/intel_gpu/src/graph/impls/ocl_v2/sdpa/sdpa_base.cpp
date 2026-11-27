@@ -87,7 +87,78 @@ bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
     return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
-// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+bool SDPABase::has_transposed_v(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return false;
+    }
+    const auto& order = params.typed_desc<scaled_dot_product_attention>()->input_v_transpose_order;
+    if (order.empty()) {
+        return false;
+    }
+    const auto ext = extend_order_in_num_heads_dim(order);
+    return ext.size() == 4 && ext[2] == 3 && ext[3] == 2;
+}
+
+bool SDPABase::transposed_v_reader_ok(const kernel_impl_params& params) {
+    if (!has_transposed_v(params)) {
+        return false;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto& v = params.get_input_layout(2);
+    // f16 (v_tile_t), or the per-channel i8 cache (v_t_i8_read; on xe_hpg also the xe_hpg PREFILL kernel's and the opt
+    // single-token stage's reads), or the packed 4-bit one (two channels per byte, the same rows and readers).
+    const bool f16_v = !desc->is_kv_compressed && v.data_type == ov::element::f16;
+    const bool per_channel_v = desc->is_kv_compressed && has_per_channel_compressed_kv(params);
+    const bool i8_per_channel_v = per_channel_v && !is_int4_kv_cache(params) && v.data_type == ov::element::i8;
+    const bool u4_per_channel_v = per_channel_v && is_int4_kv_cache(params) && data_type_traits::is_i8_u8(v.data_type);
+    return cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && (f16_v || i8_per_channel_v || u4_per_channel_v) &&
+           v.get_partial_shape().size() == 4 && format::is_simple_data_format(v.format);
+}
+
+bool SDPABase::opt_single_token_reads_transposed_v(const kernel_impl_params& params) {
+    const bool f16_v = !params.typed_desc<scaled_dot_product_attention>()->is_kv_compressed && params.get_input_layout(2).data_type == ov::element::f16;
+    return params.get_device_info().arch == cldnn::gpu_arch::xe_hpg && transposed_v_reader_ok(params) && (f16_v || opt_single_token_reads_per_channel(params));
+}
+
+bool SDPABase::opt_single_token_reads_per_channel(const kernel_impl_params& params) {
+    if (params.get_device_info().arch != cldnn::gpu_arch::xe_hpg || !has_per_channel_compressed_kv(params)) {
+        return false;
+    }
+    const auto& qa = params.typed_desc<scaled_dot_product_attention>()->quantization_attributes;
+    const auto k_dt = params.get_input_layout(1).data_type;
+    const auto v_dt = params.get_input_layout(2).data_type;
+    // An i8 cache, or a 4-bit one (two channels per i8 / u8 byte, IS_INT4_COMPRESSED).
+    const bool i8 = qa.quantization_dt == ov::element::i8 && k_dt == ov::element::i8 && v_dt == ov::element::i8;
+    const bool int4 = (qa.quantization_dt == ov::element::u4 || qa.quantization_dt == ov::element::i4) && data_type_traits::is_i8_u8(k_dt) &&
+                      data_type_traits::is_i8_u8(v_dt);
+    return qa.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar && params.get_input_layout(0).data_type == ov::element::f16 &&
+           (i8 || int4);
+}
+
+bool SDPABase::has_per_channel_compressed_kv(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return false;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed) {
+        return false;
+    }
+    // The attribute decides when it says so (the scale shapes may be dynamic at build time): a head dim that is not
+    // grouped means a scale per channel. Per-token compression always groups it.
+    const auto& group_sizes = desc->quantization_attributes.group_sizes;
+    if (!group_sizes.empty() && group_sizes.back() == 1) {
+        return true;
+    }
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    const auto is_per_channel_scale = [&params](size_t scale_idx) {
+        const auto& shape = params.input_layouts[scale_idx].get_partial_shape();
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() && shape[2].get_length() == 1 && shape[3].is_static() &&
+               shape[3].get_length() > 1;
+    };
+    return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
+}
+
+// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
 // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
 // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
 // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
@@ -475,7 +546,11 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
     // it to a false higher-rank shape, otherwise it becomes indistinguishable from a real static mask.
     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
-        if (attn_mask_shape.size() != 0) {
+        // A rank-3 mask [B, Lq, Lk] of a rank-3 SDPA is aligned with Q/K/V [B, L, E]: the generic loop below inserts its
+        // num_heads dim (shape and padding) like theirs. Prepending a 1 ([1, B, Lq, Lk]) would read B as num_heads and
+        // make every batch use mask[0].
+        const bool mask_aligned_with_3d_qkv = attn_mask_shape.size() == 3 && updated_impl_params.input_layouts[0].get_partial_shape().size() == 3;
+        if (attn_mask_shape.size() != 0 && !mask_aligned_with_3d_qkv) {
             updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
         }
     }

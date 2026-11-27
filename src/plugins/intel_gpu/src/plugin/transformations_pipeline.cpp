@@ -71,6 +71,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
@@ -469,8 +470,49 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
     return false;
 }
 
+// A static rank-3 SDPA that stays fused on sdpa_ocl instead of the decomposed Gemm + Softmax + Gemm: the DPAS kernel on, an
+// sdpa_ocl_plain_3d_ok() device, f16, non-causal, no mask or one f16 mask of rank >= 2, at most a constant scalar scale, one
+// equal static head size that sdpa_ocl_plain_3d_head_ok() accepts. Anything else keeps should_decompose_sdpa_for_memory_size()
+// (docs/sdpa_ocl.md, "Rank-3 plain SDPA").
+static bool is_fused_sdpa_ocl_3d_faster(const cldnn::device_info& info,
+                                        bool dpas_kernel_enabled,
+                                        const std::shared_ptr<const ov::op::v13::ScaledDotProductAttention>& sdpa) {
+    if (!dpas_kernel_enabled || !cldnn::paged_attention::sdpa_ocl_plain_3d_ok(info) || sdpa->get_causal()) {
+        return false;
+    }
+    for (size_t i = 0; i < 3; ++i) {
+        if (sdpa->get_input_element_type(i) != ov::element::f16) {
+            return false;
+        }
+    }
+    const auto inputs = sdpa->get_input_size();
+    if (inputs > 5) {
+        return false;
+    }
+    if (inputs >= 4 && (sdpa->get_input_element_type(3) != ov::element::f16 || sdpa->get_input_partial_shape(3).rank().is_dynamic() ||
+                        sdpa->get_input_partial_shape(3).size() < 2)) {
+        return false;
+    }
+    // A scale is a constant scalar (a jit constant of the kernel); a runtime scale input is another kernel path.
+    if (inputs == 5) {
+        const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(sdpa->get_input_node_shared_ptr(4));
+        if (!scale || ov::shape_size(scale->get_shape()) != 1) {
+            return false;
+        }
+    }
+    const auto& q = sdpa->get_input_partial_shape(0);
+    const auto& k = sdpa->get_input_partial_shape(1);
+    const auto& v = sdpa->get_input_partial_shape(2);
+    if (q.size() != 3 || k.size() != 3 || v.size() != 3 || q[2].is_dynamic() || k[2].is_dynamic() || v[2].is_dynamic()) {
+        return false;
+    }
+    // Only the verified heads: an unaligned head or one outside the DPAS tilings may be refused by sdpa_ocl, and the op
+    // would then run sdpa_opt instead of the decomposition.
+    const auto head_size = q[2].get_length();
+    return head_size == k[2].get_length() && head_size == v[2].get_length() && cldnn::paged_attention::sdpa_ocl_plain_3d_head_ok(head_size);
+}
+
 namespace cldnn {
-extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
 
@@ -1305,14 +1347,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
             }
 
-            // KVCache layout with default attention -
-            // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
+            // KVCache layout with default attention (token-major K on every device and for every kind of page,
+            // paged_attention.hpp) -
+            // k: [num_blocks, num_kv_heads, block_size(16), head_size]
             // v: [num_blocks, num_kv_heads, block_size(16), head_size]
             // KVCache layout with XAttention -
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
-            ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+
+            ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             auto kv_cache_precision = config.get_kv_cache_precision();
             // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
             // XAttention builds its dedicated KV layout in this pass, so normalize the
@@ -1328,7 +1372,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
@@ -1358,8 +1402,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                             block_size);
                             block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            // INT4 BY_CHANNEL with {0,1,3,2}: block_size is innermost dim (packed)
-                            // Pack 16 u4 tokens → 8 bytes, plus scale/zp = 4 bytes → 12 bytes per column
+                            // INT4 BY_CHANNEL: a channel's 16 u4 tokens take 8 bytes, plus its scale/zp (4 bytes in f16):
+                            // the page is [16 tokens][head_size / 2] bytes, then the per-channel pairs (paged_attention.hpp)
                             block_size = block_size / 2 + infer_precision.size() * 2;
                         }
                     } else {
@@ -1424,18 +1468,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // sdpa_opt will be selected for 3d-tensor sdpa.
+            // sdpa_opt will be selected for 3d-tensor sdpa, except where it stays fused on sdpa_ocl (is_fused_sdpa_ocl_3d_faster()).
             // sdpa_opt has performance issue on GPUs with XMX. If memory size allows, it is preferrable to decompose sdpa.
             // If intermediate buffer is expected to be very large, we need to use sdpa_opt to be functional.
             const auto max_size = m_context->get_engine().get_max_memory_size();
-            if (device_info.supports_immad && should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
+            if (device_info.supports_immad && !is_fused_sdpa_ocl_3d_faster(device_info, config.get_enable_sdpa_micro(), sdpa) &&
+                should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
                 GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. Q*K size : query " << query_ps
                                 << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
                  return false;
-             }
+            }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256) {
+            // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX
+            // devices (xe_hp, unknown arch) take the rules below. The 256 limit is not sdpa_ocl's (it serves heads up to
+            // 512); raising it would change which models keep SDPA fused.
+            if (device_info.supports_immad && cldnn::paged_attention::sdpa_ocl_selected(device_info) && head_size <= 256) {
                 return true;
             }
 

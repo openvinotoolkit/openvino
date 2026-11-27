@@ -27,6 +27,10 @@ struct PA_KV_reorder : public ImplementationManager {
         }
 
         const auto desc = node.as<cldnn::pa_kv_reorder>().get_primitive();
+        // A 4-bit K cache is BY_CHANNEL only (the token-major page has no 4-bit BY_TOKEN K kind, paged_attention.hpp).
+        if (desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->cache_dt) && !desc->is_key_by_channel) {
+            return false;
+        }
         return !desc->has_xattention;
     }
 };

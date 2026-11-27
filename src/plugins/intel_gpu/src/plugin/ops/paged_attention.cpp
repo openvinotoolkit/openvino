@@ -40,9 +40,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (value_cache_ps[2].get_length() == cldnn::paged_attention::block_size_xattn) {
         prim.has_xattention = true;
     }
-    const auto k_head_size_idx = prim.has_xattention ? 3 : 2;
 
-    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
+    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[3].get_length();
     auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
     auto kv_heads_num = has_rt_params ? rt_info.at(num_k_heads_id).as<int64_t>() : key_cache_ps[1].get_length();
     if (prim.has_xattention) {

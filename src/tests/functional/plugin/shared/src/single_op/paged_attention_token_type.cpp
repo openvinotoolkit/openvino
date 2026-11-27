@@ -84,11 +84,12 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto v = ov::test::utils::make_param(data_type, PartialShape{-1, head_num * head_size}, "v");
 
     // GPU plugin expects 4-dim cache with concrete element type
-    // key_cache: [num_blocks, num_kv_heads, head_size, block_size]
+    // The GPU plugin's cache layout, token-major for K as for V:
+    // key_cache: [num_blocks, num_kv_heads, block_size, head_size]
     // value_cache: [num_blocks, num_kv_heads, block_size, head_size]
     const int64_t block_size = helpers::BLOCK_SIZE;
     auto key_cache =
-        ov::test::utils::make_param(data_type, PartialShape{-1, head_num, head_size, block_size}, "key_cache.0");
+        ov::test::utils::make_param(data_type, PartialShape{-1, head_num, block_size, head_size}, "key_cache.0");
     auto value_cache =
         ov::test::utils::make_param(data_type, PartialShape{-1, head_num, block_size, head_size}, "value_cache.0");
     auto past_lens = ov::test::utils::make_param(ov::element::i32, PartialShape{-1}, "past_lens");
@@ -258,7 +259,7 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
     const size_t block_nums = batch_size * max_blocks_per_sequence;
     ov::Tensor key_cache_tensor = ov::test::utils::create_and_fill_tensor(
         inType,
-        {block_nums, static_cast<size_t>(head_num), static_cast<size_t>(head_size), block_size},
+        {block_nums, static_cast<size_t>(head_num), block_size, static_cast<size_t>(head_size)},
         InputGenerateData(-1, 2, 32, 5));
     ov::Tensor value_cache_tensor = ov::test::utils::create_and_fill_tensor(
         inType,
