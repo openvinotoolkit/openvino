@@ -4,10 +4,12 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
 #include "assign_inst.h"
+#include "condition_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
@@ -96,6 +98,62 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
         }
 
         return;
+    }
+}
+
+// condition passes its input buffers as they are to the parameters of the branch programs, and input_layout_inst::set_data()
+// requires them to be in the layout of the parameter. Reorder each input to the format and padding of the branch parameter it
+// is mapped to (the default format without padding for bodies built by the plugin), e.g. an output in a blocked format or
+// padded for another user.
+void reorder_condition_inputs(program& p, condition_node& node) {
+    for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+        const auto [input, port] = node.get_dependency_with_port(idx);
+        const auto& in_layout = input->get_output_layout(false, port);
+        if (in_layout.is_dynamic()) {
+            continue;
+        }
+
+        // Layout of the static branch parameters the input is mapped to: set_data() doesn't check dynamic ones, and the
+        // predicate is not mapped.
+        std::optional<layout> param_layout;
+        for (const auto* branch : {&node.get_branch_true(), &node.get_branch_false()}) {
+            const auto it = branch->input_map.find(input->id());
+            if (it == branch->input_map.end() || !branch->inner_program->has_node(it->second)) {
+                continue;
+            }
+            const auto& branch_layout = branch->inner_program->get_node(it->second).get_output_layout();
+            if (branch_layout.is_dynamic()) {
+                continue;
+            }
+            if (param_layout) {
+                OPENVINO_ASSERT(param_layout->format == branch_layout.format && param_layout->data_padding == branch_layout.data_padding,
+                                "[GPU] Input ",
+                                input->id(),
+                                " of condition ",
+                                node.id(),
+                                " is mapped to branch parameters with different layouts: ",
+                                param_layout->to_short_string(),
+                                " and ",
+                                branch_layout.to_short_string());
+            }
+            param_layout = branch_layout;
+        }
+        if (!param_layout) {
+            continue;
+        }
+
+        auto expected_layout = in_layout;
+        expected_layout.format = param_layout->format;
+        expected_layout.data_padding = param_layout->data_padding;
+        if (in_layout == expected_layout) {
+            continue;
+        }
+
+        auto new_reorder =
+            std::make_shared<reorder>(input->id() + "_reorder_" + node.id() + "_p" + std::to_string(idx), input_info(input->id(), port), expected_layout);
+        auto& new_reorder_node = p.get_or_create(new_reorder);
+        p.add_intermediate(new_reorder_node, node, idx);
+        new_reorder_node.recalc_output_layouts(false);
     }
 }
 }  // namespace
@@ -258,6 +316,10 @@ void add_required_reorders::run(program& p) {
                     new_reorder_node.recalc_output_layout(false);
                 }
             }
+        }
+
+        if (usr->is_type<condition>()) {
+            reorder_condition_inputs(p, usr->as<condition>());
         }
 
         // Remove padded-inputs in spatial axes not to use ref kernel which causes huge perf drop

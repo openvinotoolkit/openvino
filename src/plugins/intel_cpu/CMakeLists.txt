@@ -276,39 +276,49 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/gated_residual_mix.cpp
+        API         src/nodes/kernels/gated_residual_mix.hpp
+        NAME        gated_residual_mix
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp
         API         src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp
         NAME        turboq_quantize_head turboq_quantize
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
-        API         src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
-        NAME        sparse_sdpa_compute sparse_kv_dequantize_rows
-        NAMESPACE   ov::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
-        API         src/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
-        NAME        sparse_pa_compute
-        NAMESPACE   ov::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
-        API         src/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
-        NAME        qsa_indexer_compute
-        NAMESPACE   ov::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
-        API         src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
-        NAME        paged_qsa_indexer_compute
-        NAMESPACE   ov::Extensions::Cpu::XARCH
-)
+## The sparse attention and QSA kernels belong to the x64-only nodes (see CPU_PLUGIN_X64_SRCS).
+if(X86_64)
+    cross_compiled_file(${TARGET_NAME}
+            ARCH AVX512F AVX2 ANY
+                        src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
+            API         src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
+            NAME        make_sparse_sdpa_executor sparse_kv_dequantize_rows
+            NAMESPACE   ov::Extensions::Cpu::XARCH
+    )
+    cross_compiled_file(${TARGET_NAME}
+            ARCH AVX512F AVX2 ANY
+                        src/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
+            API         src/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
+            NAME        make_sparse_pa_executor
+            NAMESPACE   ov::Extensions::Cpu::XARCH
+    )
+    cross_compiled_file(${TARGET_NAME}
+            ARCH AVX512F AVX2 ANY
+                        src/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
+            API         src/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
+            NAME        make_indexer_executor
+            NAMESPACE   ov::Extensions::Cpu::XARCH
+    )
+    cross_compiled_file(${TARGET_NAME}
+            ARCH AVX512F AVX2 ANY
+                        src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
+            API         src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
+            NAME        make_paged_indexer_executor
+            NAMESPACE   ov::Extensions::Cpu::XARCH
+    )
+endif()
 ## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);
 ## SIMD WHT butterfly is inline in turboq_rotation.hpp and gets ISA-specialized
 ## when included by cross-compiled translation units.

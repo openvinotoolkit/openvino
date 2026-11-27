@@ -62,7 +62,7 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     }
 
     std::vector<std::size_t> sub_inds{};
-    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
+    sub_inds = ::intel_npu::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
     }
@@ -1187,17 +1187,56 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 }
 
 bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
+    // conv/ssm: the linear-attention states of hybrid models
     static const std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
     static const std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
     const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
     return std::regex_match(input, regex_pattern);
 }
 
+const std::vector<std::string>& ov::npuw::util::get_qsa_state_kinds() {
+    static const std::vector<std::string> kinds = {"block_index_key", "incomplete_index_key", "incomplete_index_rope"};
+    return kinds;
+}
+
+const std::string& ov::npuw::util::qsa_state_kinds_alternation() {
+    static const std::string alternation = [] {
+        std::string result;
+        for (const auto& kind : get_qsa_state_kinds()) {
+            result += (result.empty() ? "" : "|") + kind;
+        }
+        return result;
+    }();
+    return alternation;
+}
+
+bool ov::npuw::util::matchQSAStateString(const std::string& input, const std::string& past_or_present) {
+    // the QSA states renamed by ConvertSparseAttentionToDense (see get_qsa_state_kinds)
+    static const std::regex past_regex_pattern("^cache_params\\.past\\.(" + qsa_state_kinds_alternation() +
+                                               ")\\.(\\d+)$");
+    static const std::regex present_regex_pattern("^cache_params\\.present\\.(" + qsa_state_kinds_alternation() +
+                                                  ")\\.(\\d+)$");
+    const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
+    return std::regex_match(input, regex_pattern);
+}
+
 bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
-    static constexpr const char* past_lin_conv_cache = "cache_params.past.conv";
-    static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
-    return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
-           ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
+    static constexpr const char* past_lin_caches[] = {"cache_params.past.conv", "cache_params.past.ssm"};
+    for (const auto* prefix : past_lin_caches) {
+        if (ov::npuw::util::starts_with(input_name, prefix)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ov::npuw::util::starts_with_past_qsa_state(const std::string& input_name) {
+    for (const auto& kind : get_qsa_state_kinds()) {
+        if (ov::npuw::util::starts_with(input_name, "cache_params.past." + kind)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ov::npuw::util::is_swa_kv_cache_name(const std::string& input_name) {
