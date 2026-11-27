@@ -43,6 +43,7 @@ class DnnlConvolutionPrimitive {
 
         bool fcSemantic = false;
         bool constantWeights = true;
+        bool usePreselectedPrimitive = false;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
@@ -68,7 +69,8 @@ public:
                              const dnnl::engine& engine,
                              const std::shared_ptr<ThreadPool>& threadPool,
                              const std::vector<impl_desc_type>& implPriorities,
-                             impl_desc_type defaultImplType);
+                             impl_desc_type defaultImplType,
+                             const dnnl::primitive_desc& preselectedPrimitive);
 
     void execute(dnnl_primitive_args& primArgs);
 

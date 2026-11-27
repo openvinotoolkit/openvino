@@ -52,6 +52,10 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
+#endif
+
 namespace ov::intel_cpu {
 
 using namespace dnnl;
@@ -105,6 +109,16 @@ DnnlConvolutionPrimitive::IntermediateReorders::IntermediateReorders(const Key& 
             createIfNotEqual(key.wei->getDnnlDesc(), primDesc.weights_desc(), AllocateMemoryFor::Dst, engine);
     }
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+    if (key.usePreselectedPrimitive && !key.bias->empty()) {
+        const auto biasDesc = primDesc.query_md(dnnl::query::exec_arg_md, DNNL_ARG_BIAS);
+        if (key.bias->getDnnlDesc() != biasDesc) {
+            m_inputReorders[DNNL_ARG_BIAS] =
+                createIfNotEqual(key.bias->getDnnlDesc(), biasDesc, AllocateMemoryFor::Dst, engine);
+        }
+    }
+#endif
+
     if (key.dst->getDnnlDesc() != primDesc.dst_desc()) {
         m_outputReorders[DNNL_ARG_DST] =
             createIfNotEqual(primDesc.dst_desc(), key.dst->getDnnlDesc(), AllocateMemoryFor::Src, engine);
@@ -145,6 +159,7 @@ size_t DnnlConvolutionPrimitive::Key::hash() const {
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, fcSemantic);
     seed = hash_combine(seed, constantWeights);
+    seed = hash_combine(seed, usePreselectedPrimitive);
 
     return seed;
 }
@@ -171,6 +186,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
     result = result && *attr.get() == *rhs.attr.get();
     result = result && fcSemantic == rhs.fcSemantic;
     result = result && constantWeights == rhs.constantWeights;
+    result = result && usePreselectedPrimitive == rhs.usePreselectedPrimitive;
 
     return result;
 }
@@ -275,7 +291,7 @@ static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttribu
     const std::vector<size_t>& dilation,
     const std::vector<ptrdiff_t>& paddingL,
     const std::vector<ptrdiff_t>& paddingR,
-    const std::vector<dnnl::primitive_attr>& attrs,
+    const std::vector<DnnlPrimitiveAttrs>& attrs,
     const std::vector<impl_desc_type>& implPriorities) {
     auto createPrimitiveDescriptor = [&](const dnnl::primitive_attr& attr) {
         return createConvolutionDescriptor(inputDesc,
@@ -301,7 +317,7 @@ static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttribu
 
     // try all the provided attributes and select the one which results in a primitive desc with the highest priority
     for (size_t attrId = 0; attrId < attrs.size(); attrId++) {
-        const auto& attr = attrs[attrId];
+        const auto& attr = attrs[attrId].attr;
 
         auto cur_desc = createPrimitiveDescriptor(attr);
 
@@ -444,9 +460,11 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           engine);
 }
 
-static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& attrs,
-                                                            const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr& context) {
+static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(
+    const ConvAttrs& attrs,
+    const MemoryArgs& memory,
+    const ExecutorContext::CPtr& context,
+    memory::data_type executionDataType = memory::data_type::undef) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
@@ -456,7 +474,9 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
 
     auto isINT8 =
         any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
-    auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
+    const auto outputDataType = executionDataType != memory::data_type::undef
+                                    ? executionDataType
+                                    : DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
     const auto weightScaleMask = attrs.isGrouped ? 3 : 1 << 0;
     constexpr int channelDimIdx = 1;
@@ -466,8 +486,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     // the fast indirect-gemm ACL implementation to the slower im2col gemm
     // Requesting the relaxed accumulation mode for f16:f16:f16 convolutions lets oneDNN keep f16 accumulation
     const bool relaxedF16Acc = srcDesc->getPrecision() == ov::element::f16 &&
-                               weiDesc->getPrecision() == ov::element::f16 &&
-                               dstDesc->getPrecision() == ov::element::f16;
+                               weiDesc->getPrecision() == ov::element::f16 && outputDataType == memory::data_type::f16;
     auto applyRelaxedF16Accumulation = [&relaxedF16Acc](auto& primitiveAttrs) {
         if (relaxedF16Acc) {
             primitiveAttrs.attr.set_accumulation_mode(dnnl::accumulation_mode::relaxed);
@@ -728,38 +747,82 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
     const bool autoPadding = attrs.autoPadding != AutoPaddingType::None;
     const bool calculatePadding = undefinedInputShapes && autoPadding;
-    auto [paddingL, paddingR] = calculatePadding ? apply_auto_pad(srcDesc->getShape().getDims(),
-                                                                  weiDesc->getShape().getDims(),
-                                                                  attrs.stride,
-                                                                  attrs.dilation,
-                                                                  attrs.autoPadding)
-                                                 : std::tuple(attrs.paddingL, attrs.paddingR);
+    const auto paddings = calculatePadding ? apply_auto_pad(srcDesc->getShape().getDims(),
+                                                            weiDesc->getShape().getDims(),
+                                                            attrs.stride,
+                                                            attrs.dilation,
+                                                            attrs.autoPadding)
+                                           : std::tuple(attrs.paddingL, attrs.paddingR);
+    // Use regular references in the lambda because Clang 14 cannot capture structured bindings.
+    const auto& paddingL = std::get<0>(paddings);
+    const auto& paddingR = std::get<1>(paddings);
 
     const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();
     const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
-    const auto primitiveAttributes = createPrimitiveAttrs(attrs, memory, context);
+    auto selectPrimitive = [&](const dnnl::memory::desc& src,
+                               const dnnl::memory::desc& bias,
+                               const dnnl::memory::desc& dst,
+                               const std::vector<DnnlPrimitiveAttrs>& primitiveAttrs,
+                               const std::vector<impl_desc_type>& priorities) {
+        return selectPrimitiveDescWithMultipleAttributes(context->getEngine(),
+                                                         src,
+                                                         weiDnnlDesc,
+                                                         bias,
+                                                         dst,
+                                                         attrs.stride,
+                                                         attrs.dilation,
+                                                         paddingL,
+                                                         paddingR,
+                                                         primitiveAttrs,
+                                                         priorities);
+    };
 
-    std::vector<dnnl::primitive_attr> dnnlAttrVariants;
-    dnnlAttrVariants.reserve(primitiveAttributes.size());
+    auto primitiveAttributes = createPrimitiveAttrs(attrs, memory, context);
+    const auto& priorities = context->getImplPriorities();
+    auto [primitiveDesc, attrId] =
+        selectPrimitive(srcDnnlDesc, biaDnnlDesc, dstDnnlDesc, primitiveAttributes, priorities);
+    dnnl::primitive_desc preselectedPrimitive;
 
-    for (const auto& postOp : primitiveAttributes) {
-        dnnlAttrVariants.push_back(postOp.attr);
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+    // Keep the native implementation whenever it is optimized. On SVE, ACL can leave
+    // some shapes to oneDNN JIT kernels that are absent from the default priority list.
+    if (primitiveDesc && (parse_impl_name(primitiveDesc.impl_info_str()) & impl_desc_type::ref) != 0 &&
+        priorities.front() == impl_desc_type::unknown && !undefinedInputShapes && !attrs.fcSemantic &&
+        !attrs.isGrouped && attrs.stride.size() == 2 && !hasPostOp<SumPostOp>(attrs.postOps) &&
+        dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve)) {
+        static const std::vector<impl_desc_type> svePriorities{impl_desc_type::unknown,
+                                                               impl_desc_type::brgconv,
+                                                               impl_desc_type::jit,
+                                                               parse_impl_name("brgconv_1x1:sve_128"),
+                                                               parse_impl_name("jit_1x1:sve_128")};
+        auto [svePrimitive, sveAttrId] =
+            selectPrimitive(srcDnnlDesc, biaDnnlDesc, dstDnnlDesc, primitiveAttributes, svePriorities);
+
+        if (!svePrimitive && srcDesc->getPrecision() == ov::element::f16 &&
+            weiDesc->getPrecision() == ov::element::f16 && dstDesc->getPrecision() == ov::element::f16) {
+            auto useFP32 = [](const MemoryDescPtr& desc) {
+                return MemoryDescUtils::convertToDnnlMemoryDesc(desc->cloneWithNewPrecision(ov::element::f32))
+                    ->getDnnlDesc();
+            };
+            auto fp32Attributes = createPrimitiveAttrs(attrs, memory, context, memory::data_type::f32);
+            const auto fp32BiasDesc = biasDesc->empty() ? biaDnnlDesc : useFP32(biasDesc);
+            std::tie(svePrimitive, sveAttrId) =
+                selectPrimitive(useFP32(srcDesc), fp32BiasDesc, useFP32(dstDesc), fp32Attributes, svePriorities);
+            if (svePrimitive) {
+                primitiveAttributes = std::move(fp32Attributes);
+            }
+        }
+
+        if (svePrimitive) {
+            primitiveDesc = svePrimitive;
+            attrId = sveAttrId;
+            preselectedPrimitive = std::move(svePrimitive);
+        }
     }
-
-    auto [primitiveDesc, attrId] = selectPrimitiveDescWithMultipleAttributes(context->getEngine(),
-                                                                             srcDnnlDesc,
-                                                                             weiDnnlDesc,
-                                                                             biaDnnlDesc,
-                                                                             dstDnnlDesc,
-                                                                             attrs.stride,
-                                                                             attrs.dilation,
-                                                                             paddingL,
-                                                                             paddingR,
-                                                                             dnnlAttrVariants,
-                                                                             context->getImplPriorities());
+#endif
 
     // with all the current hacks it is not guaranteed that a primitive descriptor will be created
     if (cacheWeights && primitiveDesc) {
@@ -770,7 +833,9 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
     const auto defaultImpType = primitiveDesc ? parse_impl_name(primitiveDesc.impl_info_str()) : impl_desc_type::undef;
 
-    return std::make_shared<DnnlShapeAgnosticData>(primitiveAttributes.at(attrId), defaultImpType);
+    return std::make_shared<DnnlShapeAgnosticData>(std::move(primitiveAttributes.at(attrId)),
+                                                   defaultImpType,
+                                                   std::move(preselectedPrimitive));
 }
 
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& fcAttrs,
@@ -871,6 +936,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
 
     auto [paddingL, paddingR] = getPaddings(srcDesc->getShape().getDims(), weiDesc->getShape().getDims());
 
+    const auto& preselectedPrimitive = shapeAgnosticData->m_preselectedPrimitive;
     const Key dnnlConvKey{srcDesc,
                           weiDesc,
                           biaDesc,
@@ -881,16 +947,18 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
                           paddingR,
                           shapeAgnosticData->m_primAttrs.attr,
                           attrs.fcSemantic,
-                          attrs.constantWeights};
+                          attrs.constantWeights,
+                          static_cast<bool>(preselectedPrimitive)};
 
     const auto defaultImplType = shapeAgnosticData->m_implType;
 
-    auto builder = [&context, defaultImplType](const Key& dnnlKey) {
+    auto builder = [&context, defaultImplType, &preselectedPrimitive](const Key& dnnlKey) {
         return std::make_shared<DnnlConvolutionPrimitive>(dnnlKey,
                                                           context->getEngine(),
                                                           context->getThreadPool(),
                                                           context->getImplPriorities(),
-                                                          defaultImplType);
+                                                          defaultImplType,
+                                                          preselectedPrimitive);
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -1036,21 +1104,23 @@ DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    const dnnl::engine& engine,
                                                    const std::shared_ptr<ThreadPool>& threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
-                                                   const impl_desc_type defaultImplType)
+                                                   const impl_desc_type defaultImplType,
+                                                   const dnnl::primitive_desc& preselectedPrimitive)
     : m_stream(make_stream(engine, threadPool)),
-      m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
-                                     key.wei->getDnnlDesc(),
-                                     key.bias->getDnnlDesc(),
-                                     key.dst->getDnnlDesc(),
-                                     key.stride,
-                                     key.dilation,
-                                     key.paddingL,
-                                     key.paddingR,
-                                     {key.attr},
-                                     engine,
-                                     key.fcSemantic,
-                                     implPriorities,
-                                     defaultImplType)),
+      m_primDesc(preselectedPrimitive ? preselectedPrimitive
+                                      : createPrimitiveDesc(key.src->getDnnlDesc(),
+                                                            key.wei->getDnnlDesc(),
+                                                            key.bias->getDnnlDesc(),
+                                                            key.dst->getDnnlDesc(),
+                                                            key.stride,
+                                                            key.dilation,
+                                                            key.paddingL,
+                                                            key.paddingR,
+                                                            {key.attr},
+                                                            engine,
+                                                            key.fcSemantic,
+                                                            implPriorities,
+                                                            defaultImplType)),
       m_implType(parse_impl_name(m_primDesc.impl_info_str())),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),
