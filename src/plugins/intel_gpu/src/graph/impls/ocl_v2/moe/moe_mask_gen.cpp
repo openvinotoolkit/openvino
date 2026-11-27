@@ -23,9 +23,7 @@ protected:
         auto prim = params.typed_desc<moe_mask_gen>();
         jit.make("NUM_EXPERTS_PER_TOKEN", prim->num_experts_per_token);
         jit.make("ONEDNN_GROUPED_GEMM_USED", prim->onednn_grouped_gemm_used);
-        // The expert sort mode has no list of the activated experts but the inverse permutation
-        jit.make("COMPACT_EXPERTS", !prim->expert_sort);
-        jit.make("ROW_LUT_ENABLE", prim->expert_sort);
+        jit.make("MOE_3GEMM", prim->moe_type == moe_mask_gen::expert_type::GEMM3_SWIGLU);
 
         return jit;
     }

@@ -36,7 +36,7 @@ std::vector<layout> moe_mask_gen_inst::calc_output_layouts(moe_mask_gen_node con
     // out1: experts_info_start_idx
     auto experts_info_start_idx_shape = ov::Shape{static_cast<size_t>(num_total_experts)};
      output_layouts.emplace_back(experts_info_start_idx_shape, data_types::i32, format::bfyx);
-    if (impl_param.typed_desc<moe_mask_gen>()->expert_sort) {
+    if (impl_param.typed_desc<moe_mask_gen>()->moe_type == moe_mask_gen::expert_type::GEMM3_SWIGLU) {
         // out2: row_lut, one entry per (token, top-k slot) pair like out0
         output_layouts.push_back(output_layouts[0]);
         return output_layouts;

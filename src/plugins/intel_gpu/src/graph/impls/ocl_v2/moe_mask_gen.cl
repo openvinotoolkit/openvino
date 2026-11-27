@@ -4,26 +4,19 @@
 
 #include "include/batch_headers/common.cl"
 
-// COMPACT_EXPERTS: the list of the activated experts (experts_id, tokens_lens_per_expert, num_actual_used_experts) is produced.
-// ROW_LUT_ENABLE without it (expert sort): the outputs are tokens_per_expert, experts_info_start_idx and row_lut.
-#if COMPACT_EXPERTS
-#    define ROW_LUT_TYPE OUTPUT5_TYPE
-#else
-#    define ROW_LUT_TYPE OUTPUT2_TYPE
-#endif
-
+// MOE_3GEMM (moe_3gemm_fused_compressed, GroupedMatMul): tokens_per_expert, inclusive end offsets of all the experts, row_lut.
+// Otherwise (2GEMM moe_gemm): tokens_per_expert, experts_info_start_idx, the list of the activated experts and its size.
 KERNEL(moe_mask_gen)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* topk_idx,
     __global OUTPUT_TYPE* tokens_per_expert,
-    __global OUTPUT1_TYPE* experts_info_start_idx
-#if COMPACT_EXPERTS
-    , __global OUTPUT2_TYPE* experts_id,
+    __global OUTPUT1_TYPE* experts_info_start_idx,
+#if MOE_3GEMM
+    __global OUTPUT2_TYPE* row_lut
+#else
+    __global OUTPUT2_TYPE* experts_id,
     __global OUTPUT3_TYPE* tokens_lens_per_expert,
     __global OUTPUT4_TYPE* num_actual_used_experts
-#endif
-#if ROW_LUT_ENABLE
-    , __global ROW_LUT_TYPE* row_lut
 #endif
 #if SET_TOKEN_LEN
     , const int token_len
@@ -46,14 +39,19 @@ KERNEL(moe_mask_gen)(
     }
 
     int tokens_per_expert_iter = work_group_scan_exclusive_add(num_tokens_per_curr_expert);
-#if COMPACT_EXPERTS
+#if MOE_3GEMM
+    experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
+
+    if (num_tokens_per_curr_expert == 0) {
+        return;
+    }
+#else
     int is_used = (num_tokens_per_curr_expert > 0) ? 1 : 0;
     int experts_id_iter = work_group_scan_exclusive_add(is_used);
 
     if ((expert_id + 1) == get_local_size(0)) {
         num_actual_used_experts[0] = experts_id_iter + is_used;
     }
-#endif
 
     #if ONEDNN_GROUPED_GEMM_USED
         experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
@@ -63,7 +61,6 @@ KERNEL(moe_mask_gen)(
         return;
     }
 
-#if COMPACT_EXPERTS
     #if !ONEDNN_GROUPED_GEMM_USED
         experts_info_start_idx[experts_id_iter] = tokens_per_expert_iter;
     #endif
@@ -75,7 +72,7 @@ KERNEL(moe_mask_gen)(
     for (int t = 0; t < num_tokens; ++t) {
         for (int e = 0; e < NUM_EXPERTS_PER_TOKEN; ++e) {
             if (topk_idx[token_idx] == expert_id) {
-#if ROW_LUT_ENABLE
+#if MOE_3GEMM
                 // inverse mapping: (token, topk) pair -> gathered row
                 row_lut[token_idx] = tokens_per_expert_iter;
 #endif

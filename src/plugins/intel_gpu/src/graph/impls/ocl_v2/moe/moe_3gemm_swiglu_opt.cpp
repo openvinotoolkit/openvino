@@ -114,8 +114,6 @@ protected:
 
 class MoE3GemmSwigluPrefillMaskGen : public KernelGenerator {
 public:
-    // experts_info_start_idx holds cumulative end-offsets for all experts (OneDNN grouped memory descriptor),
-    // and an extra row_lut output (inverse of tokens_per_expert) is written.
     MoE3GemmSwigluPrefillMaskGen() : KernelGenerator("moe_mask_gen", "grouped_mask_gen") {}
 
 protected:
@@ -127,14 +125,9 @@ protected:
         }
         jit.make("INPUT0_TYPE", "int");   // topk_id
         jit.make("OUTPUT_TYPE", "int");   // tokens_per_expert
-        jit.make("OUTPUT1_TYPE", "int");  // experts_info_start_idx
-        jit.make("OUTPUT2_TYPE", "int");  // experts_id
-        jit.make("OUTPUT3_TYPE", "int");  // tokens_lens_per_expert
-        jit.make("OUTPUT4_TYPE", "int");  // num_actual_used_experts
-        jit.make("COMPACT_EXPERTS", 1);
-        jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
-        jit.make("ROW_LUT_ENABLE", 1);
-        jit.make("OUTPUT5_TYPE", "int");  // row_lut
+        jit.make("OUTPUT1_TYPE", "int");  // expert end offsets
+        jit.make("OUTPUT2_TYPE", "int");  // row_lut
+        jit.make("MOE_3GEMM", 1);
 
         const auto& config = desc->_config;
         jit.make("NUM_EXPERTS_PER_TOKEN", config.top_k);
@@ -1525,20 +1518,13 @@ public:
                                << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
         // for grouped_gemm: scatter_reduce via moe_scatter_reduction_row_lut; gather uses the token idx buffer, OneDNN desc uses the grouped offsets
         if (prefill_impl == MoeGemmImpl::grouped_gemm && needs_gather_scratch(token_num)) {
-            // Only the grouped GPU mask gen writes the per-expert buffers (one entry per activated expert).
-            layout layout_unused(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
-            layout layout_per_expert(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
-            const bool grouped_decode = needs_grouped_gpu_mask_gen();
-            internal_buffers.emplace_back(grouped_decode ? layout_per_expert : layout_unused, false);  // 7: activated expert ids
-            internal_buffers.emplace_back(grouped_decode ? layout_per_expert : layout_unused, false);  // 8: token len per activated expert
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_token_idx, false);  // 9: flat token idx per expert (for gather)
-            internal_buffers.emplace_back(layout_unused, false);     // 10: actual_used_expert_num (written by the mask gen, not read back)
+            internal_buffers.emplace_back(layout_token_idx, false);  // 7: flat token idx per expert (for gather)
             // int32_t end-offsets per expert for OneDNN grouped memory descriptor
             // offsets[e] = sum(n_0..n_e), the exclusive end index of expert e in the flat buffer
             layout layout_grouped_offsets(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_grouped_offsets, false);  // 11: grouped end-offsets
-            internal_buffers.emplace_back(layout_token_idx, false);        // 12: row_lut
+            internal_buffers.emplace_back(layout_grouped_offsets, false);  // 8: grouped end-offsets
+            internal_buffers.emplace_back(layout_token_idx, false);        // 9: row_lut
         }
 
         if (_weight_provider->is_offloaded()) {
@@ -1557,10 +1543,10 @@ public:
                 return BufferDescriptor(get_slot_layout(input_layout, _weight_provider->resident_capacity(), expert_num), false, false);
             };
             for (size_t i = 0; i < 3; i++) {
-                internal_buffers.push_back(slots(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0) + 3 * i));  // 14-16: scales
+                internal_buffers.push_back(slots(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0) + 3 * i));  // 10-12: scales
             }
             for (size_t i = 0; i < 3; i++) {
-                internal_buffers.push_back(slots(static_cast<size_t>(MOE3GemmInputIndex::ZP_0) + 3 * i));  // 17-19: zero points
+                internal_buffers.push_back(slots(static_cast<size_t>(MOE3GemmInputIndex::ZP_0) + 3 * i));  // 13-15: zero points
             }
         }
         return internal_buffers;
@@ -2676,9 +2662,6 @@ public:
                                        {scratch.topk_id},
                                        {intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
                                         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM],
                                         intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]},
                                        {num_total_experts, 1, 1},
                                        {num_total_experts, 1, 1},
