@@ -185,6 +185,9 @@ TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
     };
     for (const auto& test : {Case{"5010", (7 << 16) | 28, false},
                              Case{"5010", (7 << 16) | 29, true},
+                             Case{"6010", (7 << 16) | 28, false},
+                             Case{"6010", (7 << 16) | 29, true},
+                             Case{"NPU6010", (8 << 16) | 3, true},
                              Case{"4000", (8 << 16) | 3, false}}) {
         SCOPED_TRACE(test.arch + "/" + std::to_string(test.compiler));
         auto plugin = std::make_shared<ArchAwarePlugin>(test.arch, 3, test.compiler);
