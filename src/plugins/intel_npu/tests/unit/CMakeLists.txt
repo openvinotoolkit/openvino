@@ -121,6 +121,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/collapse_unqdq.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/conv_to_matmul.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/convert_sparse_attention_to_dense.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/cut_lm_head.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/drop_zp_subtract.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/fold_scalar_dq.cpp
@@ -177,6 +178,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-attributes)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    # GCC 15 emits a false-positive -Wstringop-overflow for the bounds-checked raw buffer
+    # patch helpers in npuw/serialization.cpp (deliberately crafted malformed-blob tests).
+    # See src/core/tests/CMakeLists.txt for the same GCC 15 regression hit elsewhere.
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow)
+endif()
+
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
@@ -228,6 +236,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/resolve_dynamic_quant_storage_types_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/compiled_model_orc_import_validation_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/convert_sparse_attention_to_dense_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sdpa_pattern_nodes_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sdpa_pattern_matcher_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_pipeline.cpp
