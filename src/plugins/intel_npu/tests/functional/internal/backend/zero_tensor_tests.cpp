@@ -128,12 +128,13 @@ TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
 
     auto new_shape = Shape{1, 10, 10, 10};
     auto new_shape_size = ov::shape_size(new_shape);
-    // Reallocation is not required.
     zero_tensor->set_shape(new_shape);
+
     EXPECT_EQ(new_shape, zero_tensor->get_shape());
     EXPECT_EQ(new_shape_size, zero_tensor->get_size());
     EXPECT_EQ(new_shape_size * element_type.size(), zero_tensor->get_byte_size());
-    EXPECT_EQ(data, zero_tensor->data());
+    EXPECT_NE(data, zero_tensor->data());
+    ASSERT_TRUE(zero_tensor->memory_address_changed());
     ASSERT_TRUE(
         ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor->data()));
 }
