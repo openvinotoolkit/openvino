@@ -40,6 +40,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const auto& key_cache_ps = impl_param.get_input_layout(key_cache_idx).get_partial_shape();
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
     const auto key_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+    const auto infer_precision = impl_param.get_program().get_config().get_inference_precision();
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
                                 data_type_traits::is_i4_u4(key_cache_dt);
@@ -48,8 +49,8 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         if (is_int4) {
-            // INT4 BY_CHANNEL: block_size dim is packed (u4→u8) + scale/zp = block_size/2 + sizeof(fp16)*2
-            expected_block_size = expected_block_size / 2 + 4;
+            // INT4 BY_CHANNEL: packed block bytes plus scale/zp stored in inference precision.
+            expected_block_size = expected_block_size / 2 + infer_precision.size() * 2;
         } else {
             constexpr size_t kv_sub_block_size = 16;
             OPENVINO_ASSERT(expected_block_size % kv_sub_block_size == 0,
@@ -57,7 +58,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                             expected_block_size,
                             ". Expected multiple of ",
                             kv_sub_block_size);
-            expected_block_size += expected_block_size / kv_sub_block_size * 4;
+            expected_block_size += expected_block_size / kv_sub_block_size * infer_precision.size() * 2;
         }
     }
 

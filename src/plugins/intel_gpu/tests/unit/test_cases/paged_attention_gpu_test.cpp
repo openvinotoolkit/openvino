@@ -4,6 +4,8 @@
 
 #include "paged_attention_gpu_test.h"
 
+#include "graph/impls/ocl/kernel_selector_helper.h"
+
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
@@ -64,7 +66,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         paged_attention_test_params{{{25, 34}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
         paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
-
 
 class paged_attention_h256_mixed_qtile64_test : public PagedAttentionTest<paged_attention_test_params> {};
 
@@ -139,6 +140,68 @@ INSTANTIATE_TEST_SUITE_P(
         make_h256_mixed_qtile64_params({{63, 200}}, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
         make_h256_mixed_qtile64_params({{65, 200}}, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)));
 #endif
+
+class paged_attention_by_channel_precision_path_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_by_channel_precision_path_test, selects_precision_compatible_kernel_path) {
+    auto p = GetParam();
+    auto& engine = tests::get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto config = tests::get_test_default_config(engine);
+    const bool micro_sdpa_runtime_eligible = device_info.supports_immad && device_info.arch >= cldnn::gpu_arch::xe_hpg &&
+                                             cldnn::query_microkernels_supported(engine, config);
+    if (p.inference_precision != ov::element::f32 && !micro_sdpa_runtime_eligible) {
+        GTEST_SKIP() << "F16 Micro-SDPA expectation requires DPAS/XMX, Xe HPG or newer, and supported microkernels";
+    }
+
+    ASSERT_TRUE(this->pam.has_value());
+    auto result = run_gpu_inference(*this->pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+
+    const bool uses_micro_sdpa = dump.find("sdpa_micro") != std::string::npos;
+    if (p.inference_precision == ov::element::f32) {
+        EXPECT_FALSE(uses_micro_sdpa) << "F32 compressed BY_CHANNEL must fall back from Micro-SDPA: " << dump;
+        EXPECT_NE(dump.find("paged_attention_opt"), std::string::npos) << "Expected the OCL PagedAttention fallback: " << dump;
+    } else {
+        EXPECT_TRUE(uses_micro_sdpa) << "F16 Micro-SDPA eligibility should remain unchanged: " << dump;
+    }
+}
+
+static paged_attention_test_params make_by_channel_precision_path_params(const ov::element::Type& kv_cache_precision,
+                                                                           const ov::element::Type& inference_precision) {
+    paged_attention_test_params p{{{25, 34}},
+                                  32,
+                                  2,
+                                  128,
+                                  128,
+                                  16,
+                                  0,
+                                  ENABLE_CACHE_COMPRESSION,
+                                  ov::internal::CacheQuantMode::BY_CHANNEL,
+                                  DYNAMIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  DISABLE_FA_V2};
+    p.kv_cache_precision = kv_cache_precision;
+    p.inference_precision = inference_precision;
+    return p;
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention_by_channel_micro_precision_f16,
+                         paged_attention_by_channel_precision_path_test,
+                         ::testing::Values(make_by_channel_precision_path_params(ov::element::u4, ov::element::f16),
+                                           make_by_channel_precision_path_params(ov::element::i8, ov::element::f16)));
+#endif
+
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention_by_channel_micro_precision_f32,
+                         paged_attention_by_channel_precision_path_test,
+                         ::testing::Values(make_by_channel_precision_path_params(ov::element::u4, ov::element::f32),
+                                           make_by_channel_precision_path_params(ov::element::i8, ov::element::f32)));
 
 class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};
 
@@ -391,6 +454,37 @@ static paged_attention_test_params make_zero_key_regression_params(const ov::ele
     p.run_reference = false;
     return p;
 }
+
+static paged_attention_test_params make_by_channel_precision_regression_params(const ov::element::Type& kv_cache_precision,
+                                                                                const ov::element::Type& inference_precision) {
+    paged_attention_test_params p{{{32, 0}},
+                                  2,
+                                  2,
+                                  64,
+                                  64,
+                                  16,
+                                  0,
+                                  ENABLE_CACHE_COMPRESSION,
+                                  ov::internal::CacheQuantMode::BY_CHANNEL,
+                                  STATIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  DISABLE_FA_V2};
+    p.kv_cache_precision = kv_cache_precision;
+    p.inference_precision = inference_precision;
+    p.disable_sdpa_micro = true;
+    return p;
+}
+
+// Network construction exercises paged_attention_inst::calc_output_layouts validation;
+// each case then runs the cache-update and attention kernels. Disable Micro-SDPA here to
+// target the OCL kernel's inference-precision-aware metadata path.
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention_by_channel_precision,
+                         paged_attention_test,
+                         ::testing::Values(make_by_channel_precision_regression_params(ov::element::u4, ov::element::f16),
+                                           make_by_channel_precision_regression_params(ov::element::u4, ov::element::f32),
+                                           make_by_channel_precision_regression_params(ov::element::i8, ov::element::f16),
+                                           make_by_channel_precision_regression_params(ov::element::i8, ov::element::f32)));
 
 INSTANTIATE_TEST_SUITE_P(regression_paged_attention,
                          paged_attention_test,
