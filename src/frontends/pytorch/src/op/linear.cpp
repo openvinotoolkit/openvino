@@ -326,6 +326,37 @@ OutputVector translate_linear_ct(const NodeContext& context) {
     num_inputs_check(context, 5, 7);
     auto x = context.get_input(0);
     auto weight_packed = context.get_input(1);
+
+    auto Wconstant =
+        ov::as_type_ptr<ov::op::v0::Constant>(
+            weight_packed.get_node_shared_ptr()
+        );
+    
+    const auto initial_shape = Wconstant->get_shape();
+
+    const auto* src = Wconstant->get_data_ptr<uint8_t>();
+
+    size_t num_u32 = Wconstant->get_byte_size() / sizeof(uint32_t);
+
+    std::vector<uint32_t> data(num_u32);
+
+    std::memcpy(
+        data.data(),
+        src,
+        num_u32 * sizeof(uint32_t)
+    );
+
+    auto new_constant = ov::op::v0::Constant::create(
+        ov::element::u32,
+        {initial_shape[0], initial_shape[1] / 4},
+        data
+    );
+
+    auto weight_u32 = new_constant->output(0);
+
+    weight_packed = weight_u32;
+
+    
     auto scales = context.get_input(2);
     const auto group_size = context.const_input<int64_t>(3);
     const auto sym = context.const_input<bool>(4);
