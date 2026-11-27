@@ -5,7 +5,6 @@
 #include "pa_compiled_model.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -54,7 +53,15 @@ std::size_t pa_block_size(const std::string& device, const ov::SoPtr<ov::ICompil
     OPENVINO_THROW("PA: the model has no value cache input");
 }
 
-constexpr std::array<std::size_t, 5> kChunkSizes = {1024u, 128u, 8u, 4u, 1u};
+// The 8- and 4-token variants take decode batches and short prefill pieces off
+// the CPU. With PA on a GPU these stay on the dynamic model: it runs them
+// faster, and several sequences in one static GPU PA call give wrong results.
+std::vector<std::size_t> chunk_sizes(const std::string& pa_device) {
+    if (is_gpu(pa_device)) {
+        return {1024u, 128u, 1u};
+    }
+    return {1024u, 128u, 8u, 4u, 1u};
+}
 
 // The PA op takes its controls as i32; the lm_head gather index is i64.
 template <typename T>
@@ -144,9 +151,10 @@ std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov:
 std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_variants(
     const std::shared_ptr<ov::Model>& base_model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& variant_config) {
+    const ov::AnyMap& variant_config,
+    const std::vector<std::size_t>& chunk_sizes) {
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
-    for (const auto chunk_size : kChunkSizes) {
+    for (const auto chunk_size : chunk_sizes) {
         auto derived = derive_pa_semi_static_model(base_model, chunk_size);
         auto compiled = plugin->get_core()->compile_model(derived, plugin->get_device_name(), variant_config);
         OPENVINO_ASSERT(compiled != nullptr, "PA semi-static derivation failed to compile chunk_size=", chunk_size);
@@ -283,7 +291,7 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
         for (const auto& key : cache_keys) {
             variant_config[key] = m_compiled_model->get_property(key);
         }
-        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, variant_config);
+        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, variant_config, chunk_sizes(device));
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
     }
@@ -427,24 +435,31 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
     set("position_ids", slice("position_ids", global_start, n_chunk_tokens));
 
     // The subsequences the chunk's tokens belong to, each past its tokens
-    // before the chunk, with its full block table.
+    // before the chunk, with the blocks its context takes so far. A GPU sizes
+    // a prefill by the block count, so blocks for later chunks must not come.
     const auto& sub = d.subsequence_begins;
     const auto first = static_cast<int32_t>(global_start);
     const auto last = static_cast<int32_t>(global_start + n_chunk_tokens);
+    const auto block_size = static_cast<int32_t>(m_block_size);
     const auto seq = std::upper_bound(sub.begin(), sub.end(), first) - sub.begin() - 1;
-    const auto blocks_begin = d.block_indices_begins[seq];
     std::vector<int32_t> past_lens;
     std::vector<int32_t> subsequence_begins = {0};
+    std::vector<int32_t> block_indices;
     std::vector<int32_t> block_indices_begins = {0};
     auto seq_end = seq;
     for (; sub[seq_end] < last; ++seq_end) {
-        past_lens.push_back(d.past_lens[seq_end] + std::max(first - sub[seq_end], 0));
-        subsequence_begins.push_back(std::min(sub[seq_end + 1], last) - first);
-        block_indices_begins.push_back(d.block_indices_begins[seq_end + 1] - blocks_begin);
+        const auto past = d.past_lens[seq_end] + std::max(first - sub[seq_end], 0);
+        const auto end = std::min(sub[seq_end + 1], last);
+        const auto context = past + end - std::max(first, sub[seq_end]);
+        const auto table = d.block_indices.begin() + d.block_indices_begins[seq_end];
+        block_indices.insert(block_indices.end(), table, table + (context + block_size - 1) / block_size);
+        past_lens.push_back(past);
+        subsequence_begins.push_back(end - first);
+        block_indices_begins.push_back(static_cast<int32_t>(block_indices.size()));
     }
     set("past_lens", make_vec_tensor(past_lens));
     set("subsequence_begins", make_vec_tensor(subsequence_begins));
-    set("block_indices", slice("block_indices", blocks_begin, block_indices_begins.back()));
+    set("block_indices", make_vec_tensor(block_indices));
     set("block_indices_begins", make_vec_tensor(block_indices_begins));
     if (m_inputs_by_name.count("score_aggregation_window") > 0) {
         set("score_aggregation_window", slice("score_aggregation_window", seq, seq_end - seq));
