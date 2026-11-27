@@ -1,5 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include "recurrent_replay_fusion.hpp"
 #include "recurrent_replay_graph.hpp"
 #include "intel_gpu/op/recurrent_cache_replay.hpp"

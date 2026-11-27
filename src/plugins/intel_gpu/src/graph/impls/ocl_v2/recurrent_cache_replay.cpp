@@ -1,5 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include "recurrent_cache_replay.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
