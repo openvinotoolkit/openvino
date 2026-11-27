@@ -383,6 +383,9 @@ jobs:
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       CMAKE_BUILD_PARALLEL_LEVEL: 15
     steps:
+      - name: Update CA certificates
+        run: update-ca-certificates
+
       - name: Checkout OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
