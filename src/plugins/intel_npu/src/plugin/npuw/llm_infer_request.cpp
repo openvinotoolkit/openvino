@@ -764,10 +764,26 @@ void ov::npuw::LLMInferRequest::init_past_name_lists() {
     m_kvcache_past_names.clear();
     m_lincache_past_names.clear();
     m_swa_past_names.clear();
+    m_qsa_key_block_size = 0u;
 
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
+            if (ov::npuw::util::starts_with_past_qsa_state(name)) {
+                // QSA states are not linear-attention ones but are carried the same way:
+                // static shapes, full-tensor present -> past copy
+                m_lincache_past_names.push_back(name);
+                if (ov::npuw::util::starts_with(name, "cache_params.past.incomplete_index_key")) {
+                    const auto& shape = input_port.get_partial_shape();
+                    OPENVINO_ASSERT(shape.rank().is_static() && shape.size() == 3 && shape[1].is_static(),
+                                    "Unexpected QSA state shape ",
+                                    shape,
+                                    " of ",
+                                    name);
+                    m_qsa_key_block_size = static_cast<uint32_t>(shape[1].get_length()) + 1u;
+                }
+                break;
+            }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
                 m_lincache_past_names.push_back(name);
                 break;
@@ -1260,6 +1276,20 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     if (dirty_num > 0) {
         LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id_u32
                                         << " length");
+        // The QSA states are overwritten after every generate step and cannot be rewound. The incomplete block of the
+        // accepted prefix is only intact when no block was completed since it: the rollback stays within that block,
+        // or the prefix ends at a block boundary (no pending tokens). The block keys past the prefix are masked anyway.
+        if (m_qsa_key_block_size > 0u) {
+            const auto r = m_qsa_key_block_size;
+            OPENVINO_ASSERT(position_id_u32 % r == 0u || position_id_u32 / r == kvcache_desc.num_stored_tokens / r,
+                            "NPUW: rolling back the QSA states from ",
+                            kvcache_desc.num_stored_tokens,
+                            " to ",
+                            position_id_u32,
+                            " tokens across a key block boundary (block size ",
+                            r,
+                            ") is not supported");
+        }
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }

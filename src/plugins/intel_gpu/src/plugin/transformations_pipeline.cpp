@@ -1196,7 +1196,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+        // Last-axis GPU RMS kernels use the same gamma for every normalization row.
+        manager.register_pass<ov::pass::RMSFusion>(false, true, true, /*restrict_last_axis_gamma=*/true);
         manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         const bool fp16_activation_scaling_enabled =
@@ -1888,7 +1889,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Ternary (u2) checkpoints on the TernOCL path run faster with gate/up merged into
         // one FC followed by the SwiGLU primitive.
-        const bool ternocl_int2 = m_context->get_engine().runtime_type() == cldnn::runtime_types::ocl && config.get_enable_ternocl_int2() &&
+        const auto runtime = m_context->get_engine().runtime_type();
+        const bool ternocl_int2 = (runtime == cldnn::runtime_types::ocl || runtime == cldnn::runtime_types::ze) && config.get_enable_ternocl_int2() &&
                                   device_info.arch >= cldnn::gpu_arch::xe2 && device_info.supports_immad;
         bool has_u2_weights = false;
         for (const auto& op : func->get_ops()) {

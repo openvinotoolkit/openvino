@@ -351,8 +351,11 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
         branch.nodes.push_back(sigmoid);
         x = sigmoid->output(0);
         auto times_two = ov::as_type_ptr<ov::op::v1::Multiply>(single_consumer(x));
+        if (!times_two) {
+            continue;
+        }
         float two = 0.0F;
-        const auto other = times_two ? other_operand(times_two, x) : std::nullopt;
+        const auto other = other_operand(times_two, x);
         if (!other || !get_scalar_f32(*other, two) || !close(two, 2.0F)) {
             continue;
         }

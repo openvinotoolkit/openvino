@@ -6,8 +6,12 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -43,7 +47,13 @@ struct Conv1x1ToMatmulTestParams {
     bool with_act_new_reshape;
     bool with_batched_input;
     std::string activation_op_type;
+    ov::PartialShape input_shape = ov::PartialShape::dynamic();
+    bool special_zero = false;
+    ov::element::Type reshape_pattern_type = ov::element::i32;
 };
+
+using Conv1x1ToMatmulParams =
+    std::tuple<bool, bool, bool, bool, bool, bool, bool, std::string, ov::PartialShape, bool, ov::element::Type>;
 
 std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     size_t input_batch = p.with_batched_input ? 4 : 1;
@@ -53,10 +63,15 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     size_t input_w =
         ((p.activation_op_type == "Reshape" || p.activation_op_type == "Reshape_None") && p.with_act_new_reshape) ? 5
                                                                                                                   : 10;
-    auto input_shape = (p.activation_op_type == "None_Transpose" || p.activation_op_type == "None_Reshape" ||
-                        p.activation_op_type == "None")
-                           ? ov::Shape{input_batch, input_w, 1, input_h}
-                           : ov::Shape{(size_t)input_batch, 1, input_h, input_w};
+    const auto input_shape =
+        p.input_shape.rank().is_static()
+            ? p.input_shape
+            : ov::PartialShape((p.activation_op_type == "None_Transpose" || p.activation_op_type == "None_Reshape" ||
+                                p.activation_op_type == "None")
+                                   ? ov::Shape{input_batch, input_w, 1, input_h}
+                                   : ov::Shape{input_batch, 1, input_h, input_w});
+    const int64_t reshape_batch =
+        p.input_shape.rank().is_static() ? (p.special_zero ? 0 : -1) : static_cast<int64_t>(input_batch);
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, input_shape);
 
     std::shared_ptr<ov::Node> act_node = input;
@@ -64,8 +79,10 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
         act_node = std::make_shared<ov::opset1::Transpose>(input, transpose_const);
     } else if ((p.activation_op_type == "Reshape" || p.activation_op_type == "Reshape_None")) {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {(int)input_batch, 10, 1, 1});
-        act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
+        auto reshape_const = ov::opset1::Constant::create(p.reshape_pattern_type,
+                                                          ov::Shape{4},
+                                                          std::vector<int64_t>{reshape_batch, 10, 1, 1});
+        act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, p.special_zero);
     }
 
     std::shared_ptr<ov::Node> weights_node;
@@ -143,9 +160,14 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
     size_t input_w =
         ((p.activation_op_type == "Reshape" || p.activation_op_type == "Reshape_None") && p.with_act_new_reshape) ? 5
                                                                                                                   : 10;
-    auto input_shape = (p.activation_op_type == "None_Transpose" || p.activation_op_type == "None_Reshape")
-                           ? ov::Shape{input_batch, input_w, 1, input_h}
-                           : ov::Shape{(size_t)input_batch, 1, input_h, input_w};
+    const auto input_shape =
+        p.input_shape.rank().is_static()
+            ? p.input_shape
+            : ov::PartialShape((p.activation_op_type == "None_Transpose" || p.activation_op_type == "None_Reshape")
+                                   ? ov::Shape{input_batch, input_w, 1, input_h}
+                                   : ov::Shape{input_batch, 1, input_h, input_w});
+    const int64_t reshape_batch =
+        p.input_shape.rank().is_static() ? (p.special_zero ? 0 : -1) : static_cast<int64_t>(input_batch);
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, input_shape);
 
     std::shared_ptr<ov::Node> weights_node;
@@ -192,8 +214,10 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
         act_node = std::make_shared<ov::opset1::Transpose>(act_node, transpose_const);
     }
     if ((p.activation_op_type == "Reshape" || p.activation_op_type == "Reshape_None") && p.with_act_new_reshape) {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, (int)input_batch, 10});
-        act_node = std::make_shared<ov::opset1::Reshape>(act_node, reshape_const, false);
+        auto reshape_const = ov::opset1::Constant::create(p.reshape_pattern_type,
+                                                          ov::Shape{4},
+                                                          std::vector<int64_t>{reshape_batch, 1, 1, 10});
+        act_node = std::make_shared<ov::opset1::Reshape>(act_node, reshape_const, p.special_zero);
     }
     auto matmul = std::make_shared<ov::op::v0::MatMul>(act_node, mul, false, true);
     current_node = matmul;
@@ -222,14 +246,43 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
 
     return std::make_shared<ov::Model>(ov::OutputVector{out_node}, params);
 }
+
+std::vector<Conv1x1ToMatmulParams> get_reshape_input_test_params() {
+    const auto make_params = [](const ov::PartialShape& input_shape, bool special_zero, bool with_act_new_reshape) {
+        return Conv1x1ToMatmulParams{false,
+                                     false,
+                                     false,
+                                     false,
+                                     false,
+                                     with_act_new_reshape,
+                                     false,
+                                     "Reshape_None",
+                                     input_shape,
+                                     special_zero,
+                                     ov::element::i64};
+    };
+    return {make_params(ov::PartialShape{2, 10}, false, true),
+            make_params(ov::PartialShape{-1, 10}, false, true),
+            make_params(ov::PartialShape{2, 1, 10}, false, true),
+            make_params(ov::PartialShape{-1, 1, 10}, false, true),
+            make_params(ov::PartialShape{2, 10, 1, 1}, false, true),
+            make_params(ov::PartialShape{-1, 10, 1, 1}, false, true),
+            make_params(ov::PartialShape{2, 1, 1, 1, 10}, false, true),
+            make_params(ov::PartialShape{20}, false, true),
+            make_params(ov::PartialShape{-1}, false, true),
+            make_params(ov::PartialShape{2, 1, 1, 10}, false, false),
+            make_params(ov::PartialShape{2, 10}, true, true),
+            make_params(ov::PartialShape{-1, 10}, true, true),
+            make_params(ov::PartialShape{2, 1, 10}, true, true),
+            make_params(ov::PartialShape{-1, 1, 10}, true, true),
+            make_params(ov::PartialShape{2, 1, 1, 10}, true, false)};
+}
 }  // namespace
 
-class ConvertWeightCompressedConv1x1ToMatmulTest
-    : public TransformationTestsF,
-      public WithParamInterface<std::tuple<bool, bool, bool, bool, bool, bool, bool, std::string>> {
+class ConvertWeightCompressedConv1x1ToMatmulTest : public TransformationTestsF,
+                                                   public WithParamInterface<Conv1x1ToMatmulParams> {
 public:
-    static std::string get_test_case_name(
-        const testing::TestParamInfo<std::tuple<bool, bool, bool, bool, bool, bool, bool, std::string>>& obj) {
+    static std::string get_test_case_name(const testing::TestParamInfo<Conv1x1ToMatmulParams>& obj) {
         const auto& [with_group_quant,
                      with_zp,
                      with_bias,
@@ -237,7 +290,10 @@ public:
                      with_param_weight,
                      with_act_new_reshape,
                      with_batched_input,
-                     activation_op_type] = obj.param;
+                     activation_op_type,
+                     input_shape,
+                     special_zero,
+                     reshape_pattern_type] = obj.param;
 
         std::ostringstream result;
         result << "with_group_quant=" << with_group_quant << "_";
@@ -248,6 +304,13 @@ public:
         result << "with_act_new_reshape=" << with_act_new_reshape << "_";
         result << "with_batched_input=" << with_batched_input << "_";
         result << "activation_op_type=" << activation_op_type;
+        if (input_shape.rank().is_static()) {
+            result << "_input_shape";
+            for (const auto& dimension : input_shape) {
+                result << "_" << (dimension.is_dynamic() ? "Dynamic" : std::to_string(dimension.get_length()));
+            }
+            result << "_special_zero=" << special_zero << "_reshape_pattern_type=" << reshape_pattern_type;
+        }
         return result.str();
     }
 
@@ -261,7 +324,10 @@ protected:
                      with_param_weight,
                      with_act_new_reshape,
                      with_batched_input,
-                     activation_op_type] = GetParam();
+                     activation_op_type,
+                     input_shape,
+                     special_zero,
+                     reshape_pattern_type] = GetParam();
         Conv1x1ToMatmulTestParams params{with_group_quant,
                                          with_zp,
                                          with_bias,
@@ -269,7 +335,12 @@ protected:
                                          with_param_weight,
                                          with_act_new_reshape,
                                          with_batched_input,
-                                         activation_op_type};
+                                         activation_op_type,
+                                         input_shape,
+                                         special_zero,
+                                         reshape_pattern_type};
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
         model = gen_model(params);
         model_ref = (activation_op_type == "None") ? model->clone() : gen_model_ref(params);
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
@@ -293,7 +364,15 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                                                               "Reshape_None",
                                                               "None_Transpose",
                                                               "None_Reshape",
-                                                              "None")),
+                                                              "None"),
+                                            ::testing::Values(ov::PartialShape::dynamic()),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::element::i32)),
+                         ConvertWeightCompressedConv1x1ToMatmulTest::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests_ReshapeInput,
+                         ConvertWeightCompressedConv1x1ToMatmulTest,
+                         ::testing::ValuesIn(get_reshape_input_test_params()),
                          ConvertWeightCompressedConv1x1ToMatmulTest::get_test_case_name);
 
 // Checked blocked cases
@@ -331,6 +410,44 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3) {
         return model;
     };
     model = CreateConv3x3();
+}
+
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, converted_scale) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 2, 2, 3});
+    auto order = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+    auto transpose = std::make_shared<ov::opset1::Transpose>(input, order);
+    auto weights = ov::opset1::Constant::create(ov::element::i8, ov::Shape{4, 3, 1, 1}, {1});
+    auto weights_convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+    auto scale = ov::opset1::Constant::create(ov::element::f32, ov::Shape{4, 1, 1, 1}, {0.25f});
+    auto scale_convert = std::make_shared<ov::opset1::Convert>(scale, ov::element::f16);
+    auto multiply = std::make_shared<ov::opset1::Multiply>(weights_convert, scale_convert);
+    auto conv = std::make_shared<ov::opset1::Convolution>(transpose,
+                                                          multiply,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::Strides{1, 1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
+}
+
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, parameter_zero_point) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 2, 2, 3});
+    auto order = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+    auto transpose = std::make_shared<ov::opset1::Transpose>(input, order);
+    auto weights = ov::opset1::Constant::create(ov::element::i8, ov::Shape{4, 3, 1, 1}, {1});
+    auto weights_convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+    auto zero_point = std::make_shared<ov::opset1::Parameter>(ov::element::i8, ov::Shape{4, 1, 1, 1});
+    auto zero_point_convert = std::make_shared<ov::opset1::Convert>(zero_point, ov::element::f16);
+    auto subtract = std::make_shared<ov::opset1::Subtract>(weights_convert, zero_point_convert);
+    auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4, 1, 1, 1}, {0.25f});
+    auto multiply = std::make_shared<ov::opset1::Multiply>(subtract, scale);
+    auto conv = std::make_shared<ov::opset1::Convolution>(transpose,
+                                                          multiply,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::Strides{1, 1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input, zero_point});
 }
 
 // Regression test for the NCHW/NHWC layout mismatch when the Convolution output is consumed by a

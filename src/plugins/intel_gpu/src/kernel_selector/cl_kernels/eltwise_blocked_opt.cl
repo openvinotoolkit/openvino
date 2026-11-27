@@ -13,10 +13,12 @@
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
-KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
-                              __global OUTPUT_TYPE* output
+KERNEL(eltwise_blocked_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    INPUTS_DECLS
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-, FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 )
 {
@@ -45,11 +47,11 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint outer_b = bf / (uint)OUT_F_BLOCK;
 #else
     const uint z = 0;
-    const uint x = zyx % OUTPUT_SIZE_X;
-    const uint bfy = zyx / OUTPUT_SIZE_X;
+    const uint xy = zyx % (uint)OUTPUT_SIZE_XY;
+    const uint bf = zyx / (uint)OUTPUT_SIZE_XY;
 
-    const uint y = bfy % OUTPUT_SIZE_Y;
-    const uint bf = bfy / OUTPUT_SIZE_Y;
+    const uint x = xy % OUTPUT_SIZE_X;
+    const uint y = xy / OUTPUT_SIZE_X;
 
     const uint outer_f = bf % (uint)OUT_F_BLOCK;
     const uint outer_b = bf / (uint)OUT_F_BLOCK;
@@ -59,39 +61,49 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint b = inner_b + outer_b * INNER_BATCH_SIZE;
     const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
-    // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+    if (b >= OUTPUT_BATCH_NUM) {
         return;
     }
 
-    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
-    if ((OUT_F_BLOCK * 2 > OUT_F_BLOCK_VEC_SIZE) && (OUT_F_BLOCK_VEC_SIZE == f_block)) {
-        res = TO_ACCUMULATOR_TYPE(0);
-    } else {
-        DO_ELTWISE
+#if PADDED_OUTPUT
+    if ((OUTPUT_PAD_BEFORE_FEATURE_NUM + f_block * VEC_SIZE) >=
+        ALIGN(OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM, INNER_FEATURE_BLOCK_SIZE)) {
+        return;
     }
+#endif
+
+    OUTPUT_TYPE_BLOCK out;
+    if ((f_block * VEC_SIZE) >= OUTPUT_FEATURE_NUM) {
+        out = (OUTPUT_TYPE_BLOCK)(TO_OUTPUT_TYPE(OUTPUT_VAL_ZERO));
+    } else {
+        MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
+        DO_ELTWISE
 
 #if HAS_FUSED_OPS
-    FUSED_OPS;
-    OUTPUT_TYPE_BLOCK out = TO_TYPE(OUTPUT_TYPE_BLOCK, FUSED_OPS_RESULT);
+        FUSED_OPS;
+        out = TO_TYPE(OUTPUT_TYPE_BLOCK, FUSED_OPS_RESULT);
 #else
-    OUTPUT_TYPE_BLOCK out = TO_OUTPUT_VECTOR_TYPE(ACTIVATION_TYPED(TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, VEC_SIZE), res), ACTIVATION_PARAMS_TYPED), VEC_SIZE);
+        out = TO_OUTPUT_VECTOR_TYPE(ACTIVATION_TYPED(TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, VEC_SIZE), res), ACTIVATION_PARAMS_TYPED), VEC_SIZE);
 #endif
 
 #ifdef LEFTOVERS
-    // Overwrite
-    if ((f_block*VEC_SIZE + VEC_SIZE) > OUTPUT_FEATURE_NUM) {
-        for (uint fp = OUTPUT_FEATURE_NUM % VEC_SIZE; fp < VEC_SIZE; fp++) {
-            out[fp] = TO_OUTPUT_TYPE(OUTPUT_VAL_ZERO);
+        // Overwrite unused feature lanes in the partial vector block with zero
+        if ((f_block * VEC_SIZE + VEC_SIZE) > OUTPUT_FEATURE_NUM) {
+            const uint valid_lanes = OUTPUT_FEATURE_NUM - f_block * VEC_SIZE;
+            unroll_for (uint fp = 0; fp < VEC_SIZE; fp++) {
+                if (fp >= valid_lanes) {
+                    out[fp] = TO_OUTPUT_TYPE(OUTPUT_VAL_ZERO);
+                }
+            }
         }
-    }
 #endif
+    }
 
 #if PADDED_OUTPUT
 #if OUTPUT_DIMS == 5
-    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*VEC_SIZE), z, y, x)]);
+    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX_RAW(b, (f_block * VEC_SIZE), z, y, x)]);
 #else
-    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*VEC_SIZE), y, x)]);
+    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX_RAW(b, (f_block * VEC_SIZE), y, x)]);
 #endif
 #else
     VSTORE_N(out, global_id, output);

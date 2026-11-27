@@ -11,13 +11,10 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
-
-namespace ov::intel_cpu::node::qsa {
-class QsaBrgemm;  // x64 only, see kernels/sparse_attn/qsa_brgemm.hpp
-}  // namespace ov::intel_cpu::node::qsa
 
 namespace ov::intel_cpu::node {
 
@@ -28,7 +25,8 @@ namespace ov::intel_cpu::node {
 /// append, completed-block summary pooling, per-selection-head scoring + top-k), but every
 /// cache access (index_key_cache, index_block_rope_cache, block_index_keys_cache) is addressed
 /// through the shared PagedAttention page table (block_indices/block_indices_begins/
-/// subsequence_begins/past_lens) instead of a flat dense [B, ...] layout.
+/// subsequence_begins/past_lens) instead of a flat dense [B, ...] layout. The page table is validated on every call
+/// (check_paged_page_table); the caches are written in place and keep the inference precision.
 class PagedQSAIndexer : public Node {
 public:
     PagedQSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -49,13 +47,15 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    // The computation is the cross-compiled kernel paged_qsa_indexer_compute (AVX-512 / AVX2 / plain C++ by the CPU);
-    // the scoring of the blocks runs on brgemm instead where the CPU, the precisions and the head counts allow it.
+    // The computation is the PagedQSAIndexerExecutor: cross-compiled stages (AVX-512 / AVX2 / plain C++ by the CPU),
+    // where the scoring of the blocks runs on the brgemm scorer instead if the CPU, the precisions and the head counts
+    // allow it.
     ov::op::internal::PagedQSAIndexer::Config m_config;
-#ifdef OPENVINO_ARCH_X86_64
-    std::shared_ptr<const qsa::QsaBrgemm> m_brgemm;  // null: the kernel scores the blocks itself
-#endif
-    impl_desc_type m_impl = impl_desc_type::ref;
+    // Shared by the layers of the same configuration (params cache of the graph context).
+    std::shared_ptr<const ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor> m_executor;
+    // Fixed by the model.
+    size_t m_index_query_heads = 0;
+    size_t m_index_key_heads = 0;
 };
 
 }  // namespace ov::intel_cpu::node
