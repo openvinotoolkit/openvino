@@ -208,6 +208,28 @@ TEST(VulkanMemorySmoke, ValidatesTensorSizeArithmetic) {
     EXPECT_THROW(validate_tensor_shape({large_extent}, ov::element::u8), ov::Exception);
 }
 
+TEST(VulkanMemorySmoke, ValidatesBufferAndViewLayouts) {
+    using namespace cldnn;
+    const auto devices = device_query(engine_types::vulkan, runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    auto engine = engine::create(engine_types::vulkan, runtime_types::vulkan, devices.begin()->second);
+    auto buffer = engine->allocate_memory(byte_layout(64), allocation_type::vk_buffer, false);
+
+    const auto padded = byte_layout(4).with_padding(padding({0, 0, 0, 2}));
+    const auto padded_buffer = engine->allocate_memory(padded, allocation_type::vk_buffer, false);
+    EXPECT_EQ(padded_buffer->size(), 8U);
+    EXPECT_EQ(engine->create_subbuffer(*buffer, padded, 4)->size(), 8U);
+    EXPECT_EQ(engine->reinterpret_buffer(*buffer, padded)->size(), 8U);
+
+    const ov::Shape unsupported_shape(layout::max_rank() + 1, 1);
+    const layout unsupported_rank{ov::PartialShape(unsupported_shape), ov::element::u8, format::bfyx};
+    EXPECT_THROW(engine->create_subbuffer(*buffer, unsupported_rank, 0), ov::Exception);
+    EXPECT_THROW(engine->reinterpret_buffer(*buffer, unsupported_rank), ov::Exception);
+
+    const layout blocked{ov::PartialShape{1, 2, 1, 2}, ov::element::u8, format::b_fs_yx_fsv16};
+    EXPECT_THROW(engine->allocate_memory(blocked, allocation_type::vk_buffer, false), ov::Exception);
+}
+
 TEST(VulkanMemorySmoke, ReportsAllocationLimitWithinDeviceLimits) {
     const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
     ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";

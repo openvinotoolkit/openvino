@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "openvino/core/except.hpp"
+#include "openvino/util/math_util.hpp"
 #include "vulkan_engine_factory.hpp"
 #include "vulkan_memory.hpp"
 #include "vulkan_stream.hpp"
@@ -16,6 +17,35 @@
 
 namespace cldnn {
 namespace vulkan {
+namespace {
+
+size_t checked_buffer_byte_size(const layout& layout) {
+    OPENVINO_ASSERT(layout.data_type != ov::element::string, "[GPU][Vulkan] String tensors are unsupported");
+    OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU][Vulkan] Buffer layouts require bounded shapes");
+    OPENVINO_ASSERT(format::is_simple_data_format(layout.format) && !layout.data_padding.is_dynamic(),
+                    "[GPU][Vulkan] Buffer layouts require a plain format and static padding");
+
+    auto shape = layout.get_partial_shape().get_max_shape();
+    validate_tensor_shape(shape, layout.data_type);
+    if (layout.data_padding != padding{}) {
+        // Check the padded extents before layout computes the storage size.
+        shape.resize(std::max(shape.size(), layout.format.dimension()), 1);
+        for (size_t axis = 0; axis < shape.size(); ++axis) {
+            auto dimension = static_cast<ov::Dimension::value_type>(shape[axis]);
+            OPENVINO_ASSERT(!ov::util::add_overflow(dimension, layout.data_padding._upper_size[axis], dimension) &&
+                                !ov::util::add_overflow(dimension, layout.data_padding._lower_size[axis], dimension) && dimension >= 0,
+                            "[GPU][Vulkan] Padded buffer dimension is out of range");
+            const auto padded_dimension = static_cast<size_t>(dimension);
+            OPENVINO_ASSERT(static_cast<ov::Dimension::value_type>(padded_dimension) == dimension, "[GPU][Vulkan] Padded buffer dimension is out of range");
+            shape[axis] = padded_dimension;
+        }
+        validate_tensor_shape(shape, layout.data_type);
+    }
+    return layout.bytes_count();
+}
+
+}  // namespace
+
 vulkan_engine::vulkan_engine(const device::ptr& device, runtime_types runtime_type) : engine(device) {
     OPENVINO_ASSERT(runtime_type == runtime_types::vulkan, "[GPU][Vulkan] Invalid runtime type for Vulkan engine");
     const auto vulkan_device = get_vulkan_device_object_impl();
@@ -65,13 +95,8 @@ std::shared_ptr<vulkan_device> vulkan_engine::get_vulkan_device_object() const {
 }
 
 memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
-    OPENVINO_ASSERT(layout.data_type != ov::element::string, "[GPU][Vulkan] String tensors are unsupported");
-    OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU][Vulkan] Cannot allocate an unbounded dynamic layout");
-    OPENVINO_ASSERT(!layout.format.is_image(), "[GPU][Vulkan] Image allocations are not supported");
     OPENVINO_ASSERT(type == allocation_type::vk_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
-    validate_tensor_shape(layout.get_partial_shape().get_max_shape(), layout.data_type);
-
-    const auto byte_size = layout.bytes_count();
+    const auto byte_size = checked_buffer_byte_size(layout);
     const auto max_byte_size = get_device_info().max_alloc_mem_size;
     OPENVINO_ASSERT(byte_size <= max_byte_size,
                     "[GPU][Vulkan] Exceeded max size of memory object allocation: requested ",
@@ -102,8 +127,8 @@ memory_ptr vulkan_engine::reinterpret_handle(const layout& /*layout*/, shared_me
 memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& layout, size_t byte_offset) {
     const auto* source = dynamic_cast<const vulkan_buffer*>(&memory);
     OPENVINO_ASSERT(source != nullptr && memory.get_engine() == this, "[GPU][Vulkan] Cannot create a subbuffer from memory owned by another backend");
-    OPENVINO_ASSERT(byte_offset <= source->size() && layout.bytes_count() <= source->size() - byte_offset,
-                    "[GPU][Vulkan] Subbuffer range exceeds its parent buffer");
+    const auto byte_size = checked_buffer_byte_size(layout);
+    OPENVINO_ASSERT(byte_offset <= source->size() && byte_size <= source->size() - byte_offset, "[GPU][Vulkan] Subbuffer range exceeds its parent buffer");
     return std::make_shared<vulkan_buffer>(this, layout, source->get_region(), source->get_view_offset() + byte_offset, source->get_mem_tracker());
 }
 
@@ -118,9 +143,9 @@ memory_ptr vulkan_engine::create_hostbuffer(const void* /*address*/, size_t /*si
 memory_ptr vulkan_engine::reinterpret_buffer(const memory& memory, const layout& layout) {
     const auto* source = dynamic_cast<const vulkan_buffer*>(&memory);
     OPENVINO_ASSERT(source != nullptr && memory.get_engine() == this, "[GPU][Vulkan] Cannot reinterpret memory owned by another backend");
-    OPENVINO_ASSERT(
-        source->get_view_offset() <= source->get_region()->get_size() && layout.bytes_count() <= source->get_region()->get_size() - source->get_view_offset(),
-        "[GPU][Vulkan] Reinterpreted layout exceeds the underlying allocation");
+    const auto byte_size = checked_buffer_byte_size(layout);
+    OPENVINO_ASSERT(source->get_view_offset() <= source->get_region()->get_size() && byte_size <= source->get_region()->get_size() - source->get_view_offset(),
+                    "[GPU][Vulkan] Reinterpreted layout exceeds the underlying allocation");
     auto result = std::make_shared<vulkan_buffer>(this, layout, source->get_region(), source->get_view_offset(), source->get_mem_tracker());
     result->from_memory_pool = memory.from_memory_pool;
     return result;
