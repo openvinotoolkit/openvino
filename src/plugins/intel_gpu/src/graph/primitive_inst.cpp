@@ -1064,7 +1064,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     // stateless_kv picks both outputs from its Result in realloc_outputs_for_stateless_kv().
-    if (!get_node().is_type<stateless_kv>() && users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+    // Other multi-output nodes allocate their outputs below: only _outputs[0] could take the user's memory.
+    if (!get_node().is_type<stateless_kv>() && actual_layouts.size() == 1 && users.size() == 1 && users.front()->get_node().is_type<reorder>() &&
+        users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
@@ -1093,7 +1095,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // ext_block memory directly so this node's kernel writes into it, achieving
     // zero-copy.  This handles arbitrary-depth chains like:
     //   ComputeNode -> Reshape(opt) -> Reorder(opt) -> Result(opt, ext_block)
-    {
+    // Only _outputs[0] is bound, so multi-output nodes allocate their outputs below.
+    if (actual_layouts.size() == 1) {
         auto* cursor = this;
         while (cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
             auto* next = cursor->get_user_insts().front();
