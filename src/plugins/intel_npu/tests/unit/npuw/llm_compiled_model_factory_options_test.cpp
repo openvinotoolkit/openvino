@@ -1318,6 +1318,7 @@ struct Sub128Shifts {
     std::size_t prefill = 0;
     std::size_t generate = 0;
     std::size_t lm_head = 0;
+    std::size_t generate_models = 0;
 };
 
 class LLMCompiledModelSharedVocabularyTest : public LLMCompiledModelFactoryOptionsTest {
@@ -1344,6 +1345,7 @@ protected:
                 shifts.prefill += count;
             } else if (name.find("_kv") != std::string::npos) {
                 shifts.generate += count;
+                ++shifts.generate_models;
             } else if (name.find("_lm_head") != std::string::npos) {
                 shifts.lm_head += count;
             }
@@ -1381,12 +1383,25 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, WhisperDoesNotUseSharedVocabularyWi
     EXPECT_EQ(shifts.generate, 0u);
 }
 
-// With the default stage configs the vocabulary is a closure; only the separate LM head model is shifted.
-TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefaultConfigs) {
+// With the default stage configs the vocabulary is a closure. The LM head model and the embedding Gather in
+// the prefill and generate models are all shifted, so that they share one i8 table.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsShiftedInAllStagesWithDefaultConfigs) {
     const auto shifts = compile_llm({});
     EXPECT_EQ(shifts.lm_head, 2u);
-    EXPECT_EQ(shifts.prefill, 0u);
-    EXPECT_EQ(shifts.generate, 0u);
+    EXPECT_EQ(shifts.prefill, 2u);
+    EXPECT_EQ(shifts.generate_models, 1u);
+    EXPECT_EQ(shifts.generate, 2u);
+}
+
+// Every generate model variant reads the vocabulary, so each of them is shifted.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsShiftedInEveryGenerateVariant) {
+    const auto shifts = compile_llm({{"NPUW_LLM_GENERATE_PYRAMID", "YES"},
+                                     {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                                     {"NPUW_LLM_MIN_RESPONSE_LEN", "128"}});
+    EXPECT_EQ(shifts.lm_head, 2u);
+    EXPECT_EQ(shifts.prefill, 2u);
+    EXPECT_GT(shifts.generate_models, 1u);
+    EXPECT_EQ(shifts.generate, 2u * shifts.generate_models);
 }
 
 // NPUW_CWAI is used only without NPUW_FOLD and does not run Partitioner::optimize(), which resolves the shifts.
