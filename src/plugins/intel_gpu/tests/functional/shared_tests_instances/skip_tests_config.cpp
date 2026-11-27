@@ -40,6 +40,12 @@ bool is_xe2_or_newer() {
     }
 }
 
+bool is_uhd_770() {
+    ov::Core ie = ov::test::utils::create_core();
+    const auto name = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::full_name);
+    return name.find("UHD Graphics 770") != std::string::npos;
+}
+
 // Mirrors engine::can_use_host_usm_zero_copy(): integrated Xe2+ GPU with USM support.
 bool canUseHostUsmZeroCopy() {
     ov::Core ie = ov::test::utils::create_core();
@@ -237,16 +243,20 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
         }
 
-        if (is_xe2_or_newer()) {
+        const bool xe2_or_newer = is_xe2_or_newer();
+        if (xe2_or_newer) {
             // CVS-197687. Disable the rest of failed tests to run CI validation.
             patterns.push_back(std::regex(R"__(.*ConvolutionInPlaceCrop\.smoke_GPU_second_half_feature_crop_no_oob/.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_BasicRandomUniform/.*modelType=f16_alignment=tensorflow_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_CompareWithRefs_NormalizeL2_5D/.*ReductionAxes=\(1\.2\.3\.4\)_EpsMode=.*_Epsilon=1e-09)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ZeroCopySingleFileCacheLoad_GPU/.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.2\]__weights_shape=\[2,32\]_group_size=2_weights_precision=(u4|i4)_activations_precision=f16_.*param_weights=1_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose1_has_sink=0_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose0_has_sink=0_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.16\]__weights_shape=\[1,16,32\]_group_size=1111_weights_precision=u4_activations_precision=f16_.*transpose_weights=0_.*extra_multiply=1_param_weights=1_.*)__"));
+        }
+
+        if (xe2_or_newer || is_uhd_770()) {
+            patterns.push_back(std::regex(R"__(.*smoke_BasicRandomUniform/.*modelType=f16_alignment=tensorflow_.*)__"));
+            patterns.push_back(std::regex(R"__(.*smoke_CompareWithRefs_NormalizeL2_5D/.*ReductionAxes=\(1\.2\.3\.4\)_EpsMode=.*_Epsilon=1e-09)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_3D/.*TS=\{\(1\.32\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-1\.-2)\)_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.10\.5\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-2\.-1)\)_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.3\.8\.9\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-2\.-1|-2\.-1\.-3)\)_.*)__"));
