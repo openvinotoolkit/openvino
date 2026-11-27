@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -134,8 +135,15 @@ static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_W
  * @note CPU pinning defaults to false with this property, since inline inference would otherwise
  * change the caller thread's own affinity. Explicitly passing ov::hint::enable_cpu_pinning(true)
  * together with this property is rejected with an exception at compile_model() time.
- * @note Known limitation: more concurrent application threads than NUM_STREAMS can collide on the
- * same internal graph slot and serialize; results stay correct, only parallelism degrades.
+ * @note Each call runs on a free internal graph slot. Up to NUM_STREAMS concurrent application threads
+ * run in parallel. Beyond that, extra threads wait for a slot to free up. Results stay correct, but
+ * parallelism is capped at NUM_STREAMS.
+ * @note On multi-socket (NUMA) systems, CPU pinning is disabled, so the OS can schedule caller threads
+ * on any NUMA node. Each internal graph's memory, however, stays on the NUMA node of its stream.
+ * This includes memory migrated under ov::hint::performance_mode(LATENCY). Callers running on a
+ * different node therefore see remote memory access latency and reduced NUMA locality. To keep
+ * locality, bind each application thread to the node of the stream it is expected to use, or limit
+ * the model to one NUMA node.
  */
 static constexpr Property<bool> multi_app_thread_sync_execution{"CPU_MULTI_APP_THREAD_SYNC_EXECUTION"};
 

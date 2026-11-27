@@ -678,9 +678,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     ASSERT_EQ(enable_tensor_parallel, true);
 }
 
-// ---------------------------------------------------------------------------
-// B6: Default value is false at compiled model level
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncDefaultIsFalse) {
     ov::Core core;
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
@@ -690,9 +687,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncDefaultIsFals
     ASSERT_FALSE(value);
 }
 
-// ---------------------------------------------------------------------------
-// B7: Compile with true — get_property reads back true
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetTrue) {
     ov::Core core;
     // Pinning must be disabled here since it's rejected alongside this property (see the
@@ -707,9 +701,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetTrue) {
     ASSERT_TRUE(value);
 }
 
-// ---------------------------------------------------------------------------
-// B8: Compile with explicit false — get_property reads back false
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetFalse) {
     ov::Core core;
     ov::CompiledModel compiledModel = core.compile_model(
@@ -720,10 +711,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetFalse) {
     ASSERT_FALSE(value);
 }
 
-// ---------------------------------------------------------------------------
-// B9: Inference with multi_app_thread_sync_execution=true must not throw
-//     and must produce a non-empty output tensor
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncInferNoThrow) {
     ov::Core core;
     ov::CompiledModel compiledModel = core.compile_model(
@@ -745,9 +732,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncInferNoThrow)
     ASSERT_GT(outputTensor.get_size(), 0u);
 }
 
-// ---------------------------------------------------------------------------
-// B10: Output with true must match output with false (same arithmetic result)
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncResultsMatchDefault) {
     ov::Core core;
 

@@ -352,9 +352,6 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
 #endif
 }
 
-// ---------------------------------------------------------------------------
-// B2: Default value is false at plugin level
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuPluginMultiAppThreadSyncDefaultIsFalse) {
     ov::Core core;
     bool value = true;
@@ -363,9 +360,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuPluginMultiAppThreadSyncDefaultIsFalse) {
     ASSERT_FALSE(value);
 }
 
-// ---------------------------------------------------------------------------
-// B3: Set true at plugin level and read back
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuPluginSetMultiAppThreadSyncTrue) {
     ov::Core core;
     OV_ASSERT_NO_THROW(core.set_property(deviceName,
@@ -376,9 +370,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuPluginSetMultiAppThreadSyncTrue) {
     ASSERT_TRUE(value);
 }
 
-// ---------------------------------------------------------------------------
-// B4: Set false at plugin level and read back
-// ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuPluginSetMultiAppThreadSyncFalse) {
     ov::Core core;
     // First set to true, then explicitly set back to false
