@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cmath>
+#include <unordered_map>
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -61,7 +62,8 @@ size_t hadamard_block_of(const std::shared_ptr<ov::op::v0::Constant>& c) {
 
 // True if Reshape `r` only splits ([..., K] -> [..., K/B, B]) or merges ([..., K/B, B] -> [..., K]) the trailing
 // dims: its target is a constant whose trailing entries multiply to K and whose leading entries each keep the input
-// dim (0 with special_zero, the same static value, or the single -1, which the fixed trailing size then pins).
+// dim (0 with special_zero or the same static value). A single -1 is accepted only when the reshaped input dims are
+// static and multiply to K; otherwise the -1 could absorb part of them (e.g. [2, 128] -> [-1, 1, 256]).
 bool reshapes_trailing_dims_only(const std::shared_ptr<ov::op::v1::Reshape>& r, size_t K, bool split) {
     const auto target = ov::as_type_ptr<ov::op::v0::Constant>(r->get_input_node_shared_ptr(1));
     const auto& in = r->get_input_partial_shape(0);
@@ -97,13 +99,28 @@ bool reshapes_trailing_dims_only(const std::shared_ptr<ov::op::v1::Reshape>& r, 
             return false;
         }
     }
-    return inferred <= 1;
+    if (inferred == 0) {
+        return true;
+    }
+    if (inferred > 1) {
+        return false;
+    }
+    int64_t reshaped = 1;
+    for (size_t i = lead; i < in_rank; ++i) {
+        if (!in[i].is_static()) {
+            return false;
+        }
+        reshaped *= in[i].get_length();
+    }
+    return reshaped == static_cast<int64_t>(K);
 }
 
 }  // namespace
 
 bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
     size_t fused = 0;
+    // The converter shares one H constant across the projections; check each one once (H_4096 is 16M values).
+    std::unordered_map<const ov::Node*, size_t> blocks;
     for (const auto& node : model->get_ordered_ops()) {
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(node);
         // K = wshape[1] below only holds for NK weights.
@@ -127,7 +144,14 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (ov::as_type_ptr<ov::op::v0::MatMul>(mm) || ov::as_type_ptr<op::FullyConnected>(mm)) {
             h = constant_behind(mm->input_value(1));
         }
-        const size_t block = hadamard_block_of(h);
+        size_t block = 0;
+        if (h) {
+            auto it = blocks.find(h.get());
+            if (it == blocks.end()) {
+                it = blocks.emplace(h.get(), hadamard_block_of(h)).first;
+            }
+            block = it->second;
+        }
         if (block == 0 || K % block != 0) {
             GPU_DEBUG_TRACE_DETAIL << "[hadamard-fc] " << fc->get_friendly_name() << ": no Hadamard constant dividing K=" << K << " behind "
                                    << mm->get_type_name() << std::endl;
@@ -155,9 +179,14 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 sc = constant_behind(mul->input_value(p));
                 data_port = 1 - p;
             }
-            // Only a [1, ..., 1, K] sign vector, which does not broadcast the data.
+            // Only a [1, ..., 1, K] sign vector applied to data that is provably K wide, so the Multiply does not
+            // broadcast. Otherwise (e.g. a dynamic last dim, which could be 1) the Multiply stays in the graph and
+            // only the rotation is fused.
             const auto& data_shape = mul->get_input_partial_shape(data_port);
-            if (sc && ov::shape_size(sc->get_shape()) == K && !sc->get_shape().empty() && sc->get_shape().back() == K && data_shape.rank().is_static() &&
+            const bool data_is_k_wide = data_shape.rank().is_static() && data_shape.rank().get_length() > 0 &&
+                                        data_shape[data_shape.rank().get_length() - 1].is_static() &&
+                                        data_shape[data_shape.rank().get_length() - 1].get_length() == static_cast<int64_t>(K);
+            if (sc && data_is_k_wide && ov::shape_size(sc->get_shape()) == K && !sc->get_shape().empty() && sc->get_shape().back() == K &&
                 sc->get_shape().size() <= static_cast<size_t>(data_shape.rank().get_length())) {
                 const auto vals = sc->cast_vector<float>();
                 bool ok = true;

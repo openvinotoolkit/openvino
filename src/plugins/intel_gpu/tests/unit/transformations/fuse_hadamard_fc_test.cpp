@@ -179,6 +179,41 @@ TEST_F(TransformationTestsF, FuseHadamardIntoFC_DynamicSourceLastDimFused) {
     manager.register_pass<FuseHadamardIntoFC>();
 }
 
+// A leading -1 could absorb part of a dynamic last dim: [?, ?] -> Reshape([-1, 1, 256]) -> MatMul(H) -> Reshape([-1, 256]) -> FC
+// turns a runtime [2, 128] into [1, 256]; bypassing the Reshapes would hand [2, 128] to the FC.
+TEST_F(TransformationTestsF, FuseHadamardIntoFC_InferredDimWithDynamicSourceNotFused) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1});
+    auto split =
+        std::make_shared<ov::op::v1::Reshape>(input, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{-1, 1, 256}), false);
+    auto mm = std::make_shared<ov::op::v0::MatMul>(split, hadamard(256));
+    auto merge = std::make_shared<ov::op::v1::Reshape>(mm, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 256}), false);
+    model = std::make_shared<ov::Model>(ov::OutputVector{make_fc(merge, 256)}, ov::ParameterVector{input});
+    manager.register_pass<FuseHadamardIntoFC>();
+}
+
+// A sign Multiply on data with a dynamic last dim may broadcast it (a runtime [2, 1] becomes [2, 256]), so it stays in
+// the graph and only the rotation is fused: [?, ?] -> Multiply(signs) -> MatMul(H) -> FC.
+TEST_F(TransformationTestsF, FuseHadamardIntoFC_BroadcastingSignsKept) {
+    constexpr size_t k = 256;
+    const auto s = make_signs(k);
+    auto make_mul = [&](const ov::Output<ov::Node>& in) {
+        return std::make_shared<ov::op::v1::Multiply>(in, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{k}, std::vector<float>(s.begin(), s.end())));
+    };
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1});
+        auto mm = std::make_shared<ov::op::v0::MatMul>(make_mul(input), hadamard(k));
+        model = std::make_shared<ov::Model>(ov::OutputVector{make_fc(mm, k)}, ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1});
+        auto fc = make_fc(make_mul(input), k);
+        fc->get_rt_info()[int2_hadamard_block_key] = static_cast<int64_t>(k);
+        fc->get_rt_info()[int2_hadamard_signs_key] = std::vector<int8_t>{};
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+    manager.register_pass<FuseHadamardIntoFC>();
+}
+
 // K == B with an unpaired flatten in front of the MatMul: [2, 3, 256] -> Reshape([6, 256]) -> MatMul(H) -> FC.
 // Bypassing the Reshape would turn the FC output [6, N] into [2, 3, N].
 TEST_F(TransformationTestsF, FuseHadamardIntoFC_UnpairedReshapeNotFused) {
