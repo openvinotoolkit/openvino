@@ -1024,3 +1024,148 @@ TEST(LazySubtract128Test, RejectsNonU8Input) {
     EXPECT_THROW(shifted.eval(), ov::Exception);
     EXPECT_THROW(shifted.eval_meta(), ov::Exception);
 }
+
+namespace {
+
+// A tied u8 vocabulary with a hidden size that enables the quantized host gather (>= 2048).
+struct SharedVocab {
+    std::shared_ptr<ov::opset10::Constant> weight;
+    std::shared_ptr<ov::opset10::Constant> zero_point;
+    std::shared_ptr<ov::opset10::Constant> scale;
+};
+
+SharedVocab make_shared_vocab() {
+    constexpr std::size_t vocab_size = 4;
+    constexpr std::size_t hidden_size = 2048;
+    return {
+        ov::opset10::Constant::create(ov::element::u8,
+                                      ov::Shape{vocab_size, hidden_size},
+                                      std::vector<uint8_t>(vocab_size * hidden_size, 200)),
+        ov::opset10::Constant::create(ov::element::u8, ov::Shape{vocab_size, 1}, std::vector<uint8_t>(vocab_size, 128)),
+        ov::opset10::Constant::create(ov::element::f16,
+                                      ov::Shape{vocab_size, 1},
+                                      std::vector<float>(vocab_size, 0.5f))};
+}
+
+// Other Constant nodes over the same buffers: the LM head model is a clone, as after CutLMHead.
+SharedVocab view_of_shared_vocab(const SharedVocab& vocab) {
+    const auto view = [](const std::shared_ptr<ov::opset10::Constant>& constant) {
+        return std::make_shared<ov::opset10::Constant>(ov::Tensor(constant->get_element_type(),
+                                                                  constant->get_shape(),
+                                                                  const_cast<void*>(constant->get_data_ptr())));
+    };
+    return {view(vocab.weight), view(vocab.zero_point), view(vocab.scale)};
+}
+
+ov::Output<ov::Node> make_shared_vocab_dequantization(const SharedVocab& vocab) {
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(vocab.weight, ov::element::f16);
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(vocab.zero_point, ov::element::f16);
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, vocab.scale);
+    return std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
+}
+
+std::shared_ptr<ov::Model> make_shared_vocab_embedding_model(const SharedVocab& vocab) {
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::opset10::Gather>(make_shared_vocab_dequantization(vocab), ids, axis);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::opset10::Result>(gather)},
+                                       ov::ParameterVector{ids});
+}
+
+std::shared_ptr<ov::Model> make_shared_vocab_lm_head_model(const SharedVocab& vocab) {
+    const auto hidden_size = vocab.weight->get_shape()[1];
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 1, hidden_size});
+    auto matmul = std::make_shared<ov::opset10::MatMul>(hidden, make_shared_vocab_dequantization(vocab), false, true);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::opset10::Result>(matmul)},
+                                       ov::ParameterVector{hidden});
+}
+
+using ClosureSources = std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Constant>>;
+
+// Replaces the vocabulary Constants with Parameters, as the partitioning does with the closures of a
+// function, and returns the Constant behind each new Parameter.
+ClosureSources extract_vocab_closures(const std::shared_ptr<ov::Model>& model, const SharedVocab& vocab) {
+    const std::set<const void*> buffers{vocab.weight->get_data_ptr(),
+                                        vocab.zero_point->get_data_ptr(),
+                                        vocab.scale->get_data_ptr()};
+    ClosureSources sources;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (!constant || buffers.count(constant->get_data_ptr()) == 0) {
+            continue;
+        }
+        auto closure = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
+        ov::replace_node(constant, closure);
+        model->add_parameters({closure});
+        sources[closure] = constant;
+    }
+    return sources;
+}
+
+// The lazy tensors which the partitioning adds for the Sub128 closures (see Partitioner::optimize).
+std::vector<ov::npuw::weights::LazyTensor> shifted_closures(const ov::npuw::patterns::opt::Context& context,
+                                                            const ClosureSources& sources) {
+    std::vector<ov::npuw::weights::LazyTensor> closures;
+    for (const auto& shifted_and_source : context.closures_to_subtract_128) {
+        EXPECT_EQ(shifted_and_source.first->get_element_type(), ov::element::i8);
+        closures.push_back(ov::npuw::weights::LazyTensor(sources.at(shifted_and_source.second)).subtract_128());
+    }
+    return closures;
+}
+
+// The LM head side as in LLMCompiledModel and the partitioning: InsertVocabSub128, then ConvertDQVocab.
+std::vector<ov::npuw::weights::LazyTensor> lm_head_closures(const SharedVocab& vocab,
+                                                            std::vector<ov::npuw::Vocab>& shifted) {
+    const auto lm_head = make_shared_vocab_lm_head_model(vocab);
+    EXPECT_TRUE(ov::npuw::InsertVocabSub128(shifted).run_on_model(lm_head));
+    const auto sources = extract_vocab_closures(lm_head, vocab);
+    ov::npuw::patterns::opt::Context context(lm_head, 1);
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(context));
+    EXPECT_TRUE(rewrite.run_on_model(lm_head));
+    return shifted_closures(context, sources);
+}
+
+// The embedding side: InsertEmbeddingSub128 (if LM head vocabularies are given), DQLiftGatherAsymCW as
+// in pre_load_transform, then HostGatherQuantAsymm in the partitioning.
+std::vector<ov::npuw::weights::LazyTensor> embedding_closures(const SharedVocab& vocab,
+                                                              const std::vector<ov::npuw::Vocab>* lm_head_vocabs) {
+    const auto embedding = make_shared_vocab_embedding_model(vocab);
+    if (lm_head_vocabs) {
+        EXPECT_TRUE(ov::npuw::InsertEmbeddingSub128(*lm_head_vocabs).run_on_model(embedding));
+    }
+    EXPECT_TRUE(run_lift(embedding));
+    const auto sources = extract_vocab_closures(embedding, vocab);
+    ov::npuw::patterns::opt::Context context(embedding, 1);
+    EXPECT_TRUE(run_host_gather(embedding, context));
+    EXPECT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    return shifted_closures(context, sources);
+}
+
+}  // namespace
+
+// The weights bank keeps one copy of equal lazy tensors. With the embedding shifted, the embedding and
+// the LM head read the same i8 tables, so the u8 tables are not kept.
+TEST(SharedVocabularyClosuresTest, EmbeddingAndLmHeadReadTheSameI8Tables) {
+    const auto vocab = make_shared_vocab();
+    std::vector<ov::npuw::Vocab> shifted;
+    const auto lm_head = lm_head_closures(view_of_shared_vocab(vocab), shifted);
+    ASSERT_EQ(shifted.size(), 1u);
+    const auto embedding = embedding_closures(vocab, &shifted);
+
+    ASSERT_EQ(lm_head.size(), 2u);
+    ASSERT_EQ(embedding.size(), 2u);
+    for (const auto& closure : embedding) {
+        EXPECT_NE(std::find(lm_head.begin(), lm_head.end(), closure), lm_head.end());
+    }
+}
+
+// Only the LM head is shifted: the embedding keeps the u8 tables and nothing is shared.
+TEST(SharedVocabularyClosuresTest, UnshiftedEmbeddingKeepsU8Tables) {
+    const auto vocab = make_shared_vocab();
+    std::vector<ov::npuw::Vocab> shifted;
+    EXPECT_EQ(lm_head_closures(view_of_shared_vocab(vocab), shifted).size(), 2u);
+
+    EXPECT_TRUE(embedding_closures(vocab, nullptr).empty());
+}
