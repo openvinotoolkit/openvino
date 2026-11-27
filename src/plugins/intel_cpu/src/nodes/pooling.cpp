@@ -58,6 +58,7 @@
 
 #    include "executors/acl/acl_utils.hpp"
 #    include "nodes/executors/acl/acl_pooling.hpp"
+#    include "nodes/executors/common/common_utils.hpp"
 #    include "utils/debug_capabilities.h"
 #endif
 
@@ -605,6 +606,20 @@ void Pooling::executeDynamicImpl(const dnnl::stream& strm) {
 
 bool Pooling::created() const {
     return getType() == Type::Pooling;
+}
+
+bool Pooling::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_ACL)
+    // ACL int8 pooling takes a single destination scale and zero point, so only a per-tensor FakeQuantize whose
+    // output scale/shift folds into them can be fused (see AclPoolingExecutor::init).
+    if (const auto* fq = dynamic_cast<const FakeQuantize*>(node.get())) {
+        if (fq->getBroadcastingPolicy() != FakeQuantize::BroadcastingPolicy::PerTensor ||
+            !canFoldFakeQuantizeOutputShift(fq->getOutputScale(), fq->getOutputShift())) {
+            return false;
+        }
+    }
+#endif
+    return node->getType() == Type::FakeQuantize && node->getAlgorithm() != Algorithm::FQBinarization;
 }
 
 dnnl::algorithm Pooling::getPoolingAlgorithm() const {

@@ -179,7 +179,7 @@ public:
         core->set_property(ov::cache_dir(m_cacheFilePath));
         compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
         EXPECT_EQ(false, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
-        const auto expected_output = infer(compiledModel);
+        const auto expected_output = infer_model(compiledModel);
 
         std::stringstream strm;
         compiledModel.export_model(strm);
@@ -192,7 +192,7 @@ public:
         compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
         EXPECT_EQ(true, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
 
-        const auto actual_output = infer(compiledModel);
+        const auto actual_output = infer_model(compiledModel);
         ASSERT_EQ(expected_output.size(), actual_output.size());
         for (size_t i = 0; i < expected_output.size(); ++i) {
             EXPECT_NEAR(expected_output[i], actual_output[i], 1e-4f) << "Output mismatch at index " << i;
@@ -200,7 +200,7 @@ public:
     }
 
 private:
-    static std::vector<float> infer(ov::CompiledModel& model) {
+    static std::vector<float> infer_model(ov::CompiledModel& model) {
         auto request = model.create_infer_request();
         auto input = request.get_input_tensor();
         for (size_t i = 0; i < input.get_size(); ++i) {

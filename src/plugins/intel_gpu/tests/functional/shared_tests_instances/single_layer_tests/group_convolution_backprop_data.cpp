@@ -43,6 +43,70 @@ const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 const std::vector<size_t> numOutChannels = {16, 32};
 const std::vector<size_t> numGroups = {2, 8, 16};
 
+/* ============= 1D GroupConvolution ============= */
+// Weights of a 1D GroupConvolutionBackpropData have rank 4 ([G, I, O, X])
+const std::vector<std::vector<ov::Shape>> inputShapes1D = {{{1, 16, 10}}, {{1, 32, 10}}};
+
+const std::vector<std::vector<size_t>> kernels1D = {{1}, {3}};
+const std::vector<std::vector<size_t>> strides1D = {{1}, {2}};
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = {{0}, {1}};
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = {{0}};
+const std::vector<std::vector<size_t>> dilations1D = {{1}};
+
+const auto groupConvBackpropData1DParams_ExplicitPadding = ::testing::Combine(::testing::ValuesIn(kernels1D),
+                                                                              ::testing::ValuesIn(strides1D),
+                                                                              ::testing::ValuesIn(padBegins1D),
+                                                                              ::testing::ValuesIn(padEnds1D),
+                                                                              ::testing::ValuesIn(dilations1D),
+                                                                              ::testing::ValuesIn(numOutChannels),
+                                                                              ::testing::ValuesIn(numGroups),
+                                                                              ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                              ::testing::ValuesIn(emptyOutputPadding));
+
+// Depthwise and grouped upsampling by 2, e.g. the AdainResBlk1d pool of Kokoro TTS
+const std::vector<ov::Shape> inputShape1DUpsampling = {{1, 16, 58}};
+const std::vector<size_t> numOutChannels1DUpsampling = {16};
+const std::vector<size_t> numGroups1DUpsampling = {2, 16};
+
+const auto groupConvBackpropData1DParams_OutputPadding = ::testing::Combine(::testing::Values(std::vector<size_t>({3})),
+                                                                            ::testing::Values(std::vector<size_t>({2})),
+                                                                            ::testing::Values(std::vector<ptrdiff_t>({1})),
+                                                                            ::testing::Values(std::vector<ptrdiff_t>({1})),
+                                                                            ::testing::ValuesIn(dilations1D),
+                                                                            ::testing::ValuesIn(numOutChannels1DUpsampling),
+                                                                            ::testing::ValuesIn(numGroups1DUpsampling),
+                                                                            ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                            ::testing::Values(std::vector<ptrdiff_t>({1})));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_ExplicitPadding,
+                         GroupConvBackpropLayerTest,
+                         ::testing::Combine(groupConvBackpropData1DParams_ExplicitPadding,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes1D)),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_OutputPadding,
+                         GroupConvBackpropLayerTest,
+                         ::testing::Combine(groupConvBackpropData1DParams_OutputPadding,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(inputShape1DUpsampling)),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
+const std::vector<ov::test::InputShape> inputShapes1DDynamic = {{{1, 16, -1}, {{1, 16, 58}, {1, 16, 21}, {1, 16, 58}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_OutputPadding_DynamicShape,
+                         GroupConvBackpropLayerTest,
+                         ::testing::Combine(groupConvBackpropData1DParams_OutputPadding,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(inputShapes1DDynamic),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> inputShapes2D = {
         {{1, 16, 10, 10}},
