@@ -128,9 +128,6 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
     const __global int* token_type_ids,
 #endif
-#if HAS_RELATIVE_BIAS
-    const __global RELATIVE_BIAS_TYPE* relative_bias,
-#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -502,18 +499,6 @@ KERNEL(pa_sdpa_opt)(
 #endif
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
                 GET_VECTOR_ELEMENT(qk_acc, q_idx) += alibi_slopes[head_num_idx + q_idx] * alibi_val;
-            }
-#endif
-
-#if HAS_RELATIVE_BIAS
-#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
-            const uint rb_distance = min(causal_len - 1 - token_idx, (uint)RELATIVE_BIAS_SPAN);
-#else
-            const uint rb_distance = min(seq_len - 1 - token_idx, (uint)RELATIVE_BIAS_SPAN);
-#endif
-            unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
-                GET_VECTOR_ELEMENT(qk_acc, q_idx) +=
-                    TO_SOFTMAX_ACCUMULATOR_TYPE(relative_bias[(seq_idx * HEADS_NUM + head_num_idx + q_idx) * (RELATIVE_BIAS_SPAN + 1) + rb_distance]);
             }
 #endif
 

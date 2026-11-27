@@ -641,42 +641,6 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion12) {
     }
 }
 
-TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusionWithSink) {
-    const std::vector<int64_t> order = {0, 2, 1, 3};
-    const std::vector<int64_t> out_order = {0, 1, 2, 3};
-    const bool is_causal = false;
-    const auto make = [&](bool fused) {
-        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto key_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, -1, 2, 32}, ov::element::f32, "v0"});
-        auto value_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, -1, 2, 32}, ov::element::f32, "v1"});
-        auto key_token = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 2, 32});
-        auto value_token = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 2, 32});
-        auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 32, -1, -1});
-        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
-        auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 1, 1});
-        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(std::make_shared<ov::intel_gpu::op::ReadValue>(key_variable), key_token, key_variable, 2, ov::element::f32);
-        auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(std::make_shared<ov::intel_gpu::op::ReadValue>(value_variable), value_token, value_variable, 2, ov::element::f32);
-        ov::Output<ov::Node> k = key_cache, v = value_cache;
-        if (!fused) {
-            const auto expand = [](const ov::Output<ov::Node>& x) {
-                auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(x, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-2}));
-                auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze,
-                                                                         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, {1, 1, 1, 16, 1}),
-                                                                         ov::op::BroadcastType::BIDIRECTIONAL);
-                return std::make_shared<ov::op::v1::Reshape>(broadcast, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 32, 32}), true);
-            };
-            k = expand(key_cache);
-            v = expand(value_cache);
-        }
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_q, k, v, mask, scale, sink}, is_causal, order, order, order, out_order);
-        return std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, key_token, value_token, mask, scale, sink});
-    };
-    model = make(false);
-    manager.register_pass<ExpandBroadcastReshapeSDPAFusion>();
-    model_ref = make(true);
-    comparator.enable(FunctionsComparator::ATTRIBUTES);
-}
-
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

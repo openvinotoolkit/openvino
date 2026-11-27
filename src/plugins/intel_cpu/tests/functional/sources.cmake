@@ -354,7 +354,6 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_adaptive_rkv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_qq_bias.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_relative_bias.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_score.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_token_type.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/powerstatic_bf16_saturation.cpp

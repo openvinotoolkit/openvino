@@ -36,8 +36,7 @@ public:
     StateManagementPattern(ov::pass::paged_attention::PaParams& pa_params,
                            ov::pass::paged_attention::PaResults& results,
                            const ov::pass::paged_attention::Options& options,
-                           std::unordered_set<std::string>& var_ids_to_remove,
-                           std::unordered_set<std::string>& position_vars_to_remove);
+                           std::unordered_set<std::string>& var_ids_to_remove);
 
 private:
     KvCacheParams find_or_create_kv_params(const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,

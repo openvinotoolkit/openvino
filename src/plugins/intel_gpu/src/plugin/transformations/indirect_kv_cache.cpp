@@ -155,17 +155,12 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
 
     auto input_attn_mask = any_input();
     auto input_scale = any_input();
-    auto input_sink = any_input();
     auto sdpa_without_attn_mask_m = wrap_type<ov::intel_gpu::op::SDPA>({ any_input(), kv_cache_0, kv_cache_1 });
     auto sdpa_with_attn_mask_m = wrap_type<ov::intel_gpu::op::SDPA>({ any_input(), kv_cache_0, kv_cache_1, input_attn_mask });
     auto sdpa_with_attn_mask_and_scale_m =
         wrap_type<ov::intel_gpu::op::SDPA>({ any_input(), kv_cache_0, kv_cache_1, input_attn_mask, input_scale });
 
-    auto sdpa_with_sink_m =
-        wrap_type<ov::intel_gpu::op::SDPA>({ any_input(), kv_cache_0, kv_cache_1, input_attn_mask, input_scale, input_sink });
-
-    auto sdpa_m = std::make_shared<Or>(
-        OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m, sdpa_with_sink_m});
+    auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
@@ -210,8 +205,11 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         data_inputs.push_back(sdpa->input_value(1)); // K
         data_inputs.push_back(sdpa->input_value(2)); // V
 
-        for (size_t i = 3; i < sdpa->get_input_size(); ++i) {
-            data_inputs.push_back(sdpa->get_input_source_output(i));
+        if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
+            data_inputs.push_back(sdpa->get_input_source_output(3));
+        } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
+            data_inputs.push_back(sdpa->get_input_source_output(3));
+            data_inputs.push_back(sdpa->get_input_source_output(4));
         }
 
         auto indirect_sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(data_inputs,

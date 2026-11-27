@@ -246,37 +246,3 @@ TEST_F(TransformationTestsF, IndirectKVCache5) {
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
-
-TEST_F(TransformationTestsF, IndirectKVCacheSDPAWithSink) {
-    const std::vector<int64_t> order = {0, 1, 2, 3};
-    const bool is_causal = false;
-    const auto make = [&](bool fused) {
-        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-        auto key_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 8, -1, 64}, ov::element::f16, "k"});
-        auto value_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 8, -1, 64}, ov::element::f16, "v"});
-        auto key_new = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 8, -1, 64});
-        auto value_new = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 8, -1, 64});
-        auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 8, -1, 64});
-        auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 8, -1, -1});
-        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{});
-        auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 1, 1});
-        auto key_past = std::make_shared<ov::intel_gpu::op::ReadValue>(key_variable);
-        auto value_past = std::make_shared<ov::intel_gpu::op::ReadValue>(value_variable);
-        std::shared_ptr<ov::Node> sdpa;
-        if (!fused) {
-            auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
-            auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(std::make_shared<ov::op::v8::Gather>(key_past, beam_idx, axis), key_new, key_variable, 2, ov::element::f16);
-            auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(std::make_shared<ov::op::v8::Gather>(value_past, beam_idx, axis), value_new, value_variable, 2, ov::element::f16);
-            sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{query, key_cache, value_cache, mask, scale, sink}, is_causal, order, order, order, order);
-        } else {
-            auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_past, key_new, beam_idx, key_variable, 2, 0, ov::element::f16);
-            auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(value_past, value_new, beam_idx, value_variable, 2, 0, ov::element::f16);
-            sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(ov::OutputVector{query, key_cache, value_cache, mask, scale, sink}, key_cache->output(1), is_causal, 0, order, order, order, order);
-        }
-        return std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{beam_idx, key_new, value_new, query, mask, scale, sink});
-    };
-    model = make(false);
-    manager.register_pass<IndirectKVCache>();
-    model_ref = make(true);
-    comparator.enable(FunctionsComparator::ATTRIBUTES);
-}

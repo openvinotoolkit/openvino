@@ -74,10 +74,10 @@ void IndirectSDPA::validate_and_infer_types() {
 
     const auto compression_inputs = get_compression_inputs_num();
     NODE_VALIDATION_CHECK(this,
-        input_size >= 4 + compression_inputs && input_size <= 7 + compression_inputs,
+        input_size >= 4 + compression_inputs && input_size <= 6 + compression_inputs,
         "Number of inputs is incorrect. Current value is: ",
         input_size,
-        ", expected 4 to 7 inputs including the beam table and ", compression_inputs, " KV-cache compression related inputs");
+        ", expected 4, 5 or 6 data inputs and ", compression_inputs, " KV-cache compression related inputs");
 
 
     std::vector<ov::PartialShape> input_shapes;

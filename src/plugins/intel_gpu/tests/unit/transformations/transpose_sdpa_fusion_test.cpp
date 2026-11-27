@@ -346,43 +346,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSDPAFusionInputPrecision,
                              return info.param.get_type_name();
                          });
 
-TEST_F(TransformationTestsF, TransposeSDPAFusionWithSink) {
-    const bool is_causal = false;
-    const auto make_inputs = [] {
-        ov::ParameterVector params;
-        for (const auto& shape : {ov::PartialShape{1, -1, 8, 64},
-                                  ov::PartialShape{1, -1, 8, 64},
-                                  ov::PartialShape{1, -1, 8, 64},
-                                  ov::PartialShape{1, 8, -1, -1},
-                                  ov::PartialShape{},
-                                  ov::PartialShape{1, 8, 1, 1}})
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape));
-        return params;
-    };
-    {
-        auto params = make_inputs();
-        ov::OutputVector inputs(params.begin(), params.end());
-        for (size_t i = 0; i < 3; ++i)
-            inputs[i] = std::make_shared<ov::op::v1::Transpose>(params[i], ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
-        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], is_causal);
-        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, params);
-        manager.register_pass<TransposeFusion>();
-    }
-    {
-        auto params = make_inputs();
-        const std::vector<int64_t> order = {0, 2, 1, 3};
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector(params.begin(), params.end()),
-                                                              is_causal,
-                                                              order,
-                                                              order,
-                                                              order,
-                                                              std::vector<int64_t>{0, 1, 2, 3},
-                                                              ov::element::dynamic);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, params);
-        comparator.enable(FunctionsComparator::ATTRIBUTES);
-    }
-}
-
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

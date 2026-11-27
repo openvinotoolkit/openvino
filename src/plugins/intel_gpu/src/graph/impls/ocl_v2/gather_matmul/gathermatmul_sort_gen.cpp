@@ -11,19 +11,6 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
-namespace {
-// Group count of the single-work-group local-memory sort, or 0 for the sequential fallback.
-size_t sort_local_groups(const RuntimeParams& params) {
-    const auto& indices = params.input_layouts[gather_matmul::BGMInputIdx::INDICES].get_partial_shape();
-    const auto& weights = params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT].get_partial_shape();
-    if (indices.rank().is_dynamic() || indices.size() < 2 || weights.rank().is_dynamic() || weights.size() < 1 ||
-        indices[1].is_dynamic() || weights[0].is_dynamic())
-        return 0;
-    const auto groups = static_cast<size_t>(indices[1].get_length() * weights[0].get_length());
-    return groups <= 2048 ? groups : 0;
-}
-}  // namespace
-
 JitConstants GatherMatmulSortGenerator::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = make_base_jit_constants(params);
 
@@ -40,7 +27,6 @@ JitConstants GatherMatmulSortGenerator::get_jit_constants(const kernel_impl_para
     jit.make("N_TOKENS", input_jitter.dim(ChannelName::FEATURE));
     jit.make("TOP_K", indices_jitter.dim(ChannelName::FEATURE));
     jit.make("N_ALL_EXPERTS", weight_jitter.dim(ChannelName::BATCH));
-    jit.make("SORT_LOCAL_GROUPS", sort_local_groups(params));
 
     return jit;
 }
@@ -65,9 +51,9 @@ Arguments GatherMatmulSortGenerator::get_arguments_desc(const kernel_impl_params
 DispatchDataFunc GatherMatmulSortGenerator::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
-        const size_t threads = sort_local_groups(params) ? 256 : 1;
-        wgs.global = {threads, 1, 1};
-        wgs.local = {threads, 1, 1};
+        // Single-WG sequential.
+        wgs.global = {1, 1, 1};
+        wgs.local = {1, 1, 1};
     }};
 }
 
