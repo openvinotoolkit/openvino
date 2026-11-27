@@ -184,7 +184,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         try {
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
-        } catch (ov::Exception&) {
+        } catch (const std::runtime_error&) {
             LOG_DEBUG_TAG("get default device id failed for %s", device_name.c_str());
             return "";
         }
@@ -243,7 +243,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                 if (device_id_list.empty()) {
                     device_id_list.push_back(parsed.get_device_name());
                 }
-            } catch (const ov::Exception&) {
+            } catch (const std::runtime_error&) {
                 device_list_with_id.push_back(parsed.get_device_name());
                 LOG_DEBUG_TAG("Failed to get available devices for ", parsed.get_device_name().c_str());
             }
@@ -275,7 +275,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             if (new_parsed.get_device_name() == "GPU") {
                 try {
                     full_device_name = get_core()->get_property(device_name_with_id, ov::device::full_name);
-                } catch (ov::Exception&) {
+                } catch (const std::runtime_error&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
                 }
             }
@@ -296,7 +296,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                                         default_device_id,
                                         unique_name,
                                         device_priority});
-            } catch (const ov::Exception&) {
+            } catch (const std::runtime_error&) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),
@@ -334,7 +334,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             try {
                 auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
-            } catch (const ov::Exception&) {
+            } catch (const std::runtime_error&) {
                 LOG_DEBUG_TAG("Failed to get capabilities for device: ", device.c_str());
             }
         }
@@ -1330,7 +1330,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                     if (device_id_list.empty()) {
                         device_id_list.push_back(parsed.get_device_name());
                     }
-                } catch (const ov::Exception&) {
+                } catch (const std::runtime_error&) {
                     device_list.push_back(parsed.get_device_name());
                     LOG_DEBUG_TAG("no available devices found for %s", device.c_str());
                 }

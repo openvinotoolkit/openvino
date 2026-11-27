@@ -2262,6 +2262,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<Aligne
 std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& device_name) const {
     std::map<std::string, ov::Version> versions;
     std::vector<std::string> deviceNames;
+    std::vector<std::string> optional_devices;
 
     {
         // for compatibility with samples / demo
@@ -2281,6 +2282,7 @@ std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string&
             auto pos = device_name.find_first_of(":");
             if (pos != std::string::npos) {
                 deviceNames = ov::DeviceIDParser::get_multi_devices(device_name.substr(pos + 1));
+                optional_devices = deviceNames;
             }
             deviceNames.emplace_back("AUTO");
         } else if (device_name.find("BATCH") == 0) {
@@ -2304,6 +2306,10 @@ std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string&
         } catch (const ov::Exception& ex) {
             std::string exception(ex.what());
             if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                throw;
+            }
+        } catch (const std::runtime_error&) {
+            if (!util::contains(optional_devices, deviceName_)) {
                 throw;
             }
         }
