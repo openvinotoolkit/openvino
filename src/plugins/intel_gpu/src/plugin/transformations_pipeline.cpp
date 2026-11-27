@@ -1908,11 +1908,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_horizontal_fc_fusion) {
 #ifdef _WIN32
             // CVS-198510
-            const bool prefetch_fused_weights = false;
+            const bool evict_folded_weights = false;
 #else
-            const bool prefetch_fused_weights = config.get_offload_ratio() == 0;
+            const bool evict_folded_weights = config.get_offload_ratio() == 0;
 #endif
-            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu, prefetch_fused_weights);
+            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu, evict_folded_weights);
 
             if (config.get_enable_lora_operation()) {
                 manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();

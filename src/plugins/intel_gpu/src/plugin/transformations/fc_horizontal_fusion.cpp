@@ -4,7 +4,6 @@
 
 #include "fc_horizontal_fusion.hpp"
 
-#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -15,7 +14,6 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/multiply.hpp"
@@ -28,7 +26,7 @@
 
 namespace ov::intel_gpu {
 
-FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool prefetch_weights) {
+FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool evict_folded_weights) {
     using namespace ov::pass::pattern;
 
     // Three FCs connected to the same input
@@ -177,7 +175,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // Concatenates and folds the given constant-like nodes into a Constant right away, instead of relying on ConstantFolding pass:
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
-        auto concat_and_fold = [prefetch_weights](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+        auto concat_and_fold = [evict_folded_weights](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
             const auto& reference_shape = outputs.front().get_partial_shape();
             if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
                 return nullptr;
@@ -194,8 +192,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 }
             }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
-            // Folding reads the weights from the mapped file; with prefetch_weights they are evicted after use.
-            auto folded = prefetch_weights ? ov::util::get_constant_from_source_and_evict(concat) : ov::util::get_constant_from_source(concat);
+            auto folded = evict_folded_weights ? ov::util::get_constant_from_source_and_evict(concat) : ov::util::get_constant_from_source(concat);
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;

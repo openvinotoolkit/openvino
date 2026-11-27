@@ -748,13 +748,13 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_matching_i8_group32)
     model_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{input});
 }
 
-TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_prefetch_weights_same_result) {
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_evict_folded_weights_same_result) {
     model = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
     model_ref = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
     ov::pass::Manager ref_manager;
-    ref_manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*prefetch_weights=*/false);
+    ref_manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*evict_folded_weights=*/false);
     ref_manager.run_passes(model_ref);
-    manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*prefetch_weights=*/true);
+    manager.register_pass<FullyConnectedHorizontalFusion>(/*fuse_mlp_swiglu=*/false, /*evict_folded_weights=*/true);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
 }
