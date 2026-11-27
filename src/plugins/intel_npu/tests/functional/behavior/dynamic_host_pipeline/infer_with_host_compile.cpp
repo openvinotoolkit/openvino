@@ -283,11 +283,6 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(importedModel = core.import_model(modelStream, target_device));
     OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
-    const auto input = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
-                                                               makeInputShape(model, 1, true),
-                                                               100,
-                                                               0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(input));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
@@ -1529,11 +1524,6 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
         }
     }
 
-    const auto input = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
-                                                               makeInputShape(model, 1, true),
-                                                               100,
-                                                               0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(input));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
