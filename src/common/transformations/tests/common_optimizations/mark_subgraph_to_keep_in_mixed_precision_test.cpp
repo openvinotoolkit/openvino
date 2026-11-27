@@ -1557,3 +1557,30 @@ TEST(TransformationTests, do_not_mark_integer_to_float_subgraph_without_integer_
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
+
+TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_value) {
+    // Numerical counterpart of ConvertPrecision_keep_precission_sensitive_integer_to_float_subgraph.
+    // 48 * 1.0000625 is 48.003 in f32, so Ceiling must return 49. Near 48 the f16 spacing is
+    // 0.03125, so a compressed chain rounds the value to 48.0 and Ceiling returns 48 instead.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
+    auto scaled = make_shared<Multiply>(position_f, scale);
+    auto ceiling = make_shared<Ceiling>(scaled);
+    auto bucket = make_shared<Convert>(ceiling, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    std::vector<int64_t> position_data{48};
+    TensorVector inputs{Tensor(element::i64, Shape{1}, position_data.data())};
+    TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    EXPECT_EQ(outputs[0].data<int64_t>()[0], 49)
+        << "f16 compression must not change the integer bucket produced by Ceiling";
+}
