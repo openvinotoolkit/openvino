@@ -37,6 +37,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "partitioning/patterns/sdpa.hpp"
+#include "pipelines/vision_merger/vision_merger_compiled_model.hpp"
 #include "pyramid_attention.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -865,6 +866,26 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
     EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
+}
+
+TEST_F(SubgraphBehaviorInferTest, DisabledVisionMergerOptionsDoNotReachTheRegularCompiledModel) {
+    const std::vector<ov::AnyMap> extra_options = {
+        {{"NPUW_VISION_MERGER", "NO"}},
+        {{"NPUW_VISION_MERGER_MAX_LEN", "512"}},
+        {{"NPUW_VISION_MERGER", "NO"}, {"NPUW_VISION_MERGER_MAX_LEN", "512"}}};
+    for (const auto& extra : extra_options) {
+        auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+        auto plugin = std::make_shared<TestPlugin>();
+        auto core = make_core(plugin);
+        plugin->set_core(core);
+
+        auto props = base_props();
+        props.insert(extra.begin(), extra.end());
+        std::shared_ptr<ov::npuw::ICompiledModel> compiled;
+        ASSERT_NO_THROW(compiled = ov::npuw::ICompiledModel::create(model, plugin, props));
+        ASSERT_NE(compiled, nullptr);
+        EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::VisionMergerCompiledModel>(compiled), nullptr);
+    }
 }
 
 TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsOutOfRangeMaskIdx) {

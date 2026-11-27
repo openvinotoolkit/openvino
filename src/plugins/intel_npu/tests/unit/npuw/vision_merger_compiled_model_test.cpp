@@ -328,3 +328,26 @@ TEST_F(VisionMergerTest, ThrowsWhenAStaticDimensionDoesNotMatch) {
     m_request->set_tensor(m_compiled->inputs()[1], ov::get_tensor_impl(mask));
     OV_EXPECT_THROW_HAS_SUBSTRING(m_request->infer(), ov::Exception, "does not match the port shape");
 }
+
+TEST_F(VisionMergerTest, KeepsEveryElementOfAPartialMaskInPlace) {
+    constexpr std::size_t len = 4;
+    ov::Tensor hidden(ov::element::f32, ov::Shape{len, kHidden});
+    std::iota(hidden.data<float>(), hidden.data<float>() + hidden.get_size(), 1.0f);
+    ov::Tensor mask(ov::element::f32, ov::Shape{1, len, len});
+    for (std::size_t row = 0; row < len; ++row) {
+        for (std::size_t col = 0; col < len; ++col) {
+            mask.data<float>()[row * len + col] = static_cast<float>(row * 100 + col);
+        }
+    }
+    m_request->set_tensor(m_compiled->inputs()[0], ov::get_tensor_impl(hidden));
+    m_request->set_tensor(m_compiled->inputs()[1], ov::get_tensor_impl(mask));
+    m_request->infer();
+
+    ASSERT_EQ(m_seen->mask.size(), kMaxLen * kMaxLen);
+    for (std::size_t row = 0; row < len; ++row) {
+        for (std::size_t col = 0; col < len; ++col) {
+            EXPECT_EQ(m_seen->mask[row * kMaxLen + col], static_cast<float>(row * 100 + col))
+                << "row " << row << ", col " << col;
+        }
+    }
+}

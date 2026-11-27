@@ -5,6 +5,8 @@
 #include "vision_merger_compiled_model.hpp"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <map>
 #include <optional>
@@ -43,6 +45,45 @@ ov::SoPtr<ov::ITensor> prefix_view(ov::SoPtr<ov::ITensor> tensor,
         tensor = ov::npuw::util::view(tensor, d, 0, valid_shape[d]);
     }
     return tensor;
+}
+
+// ITensor::copy_to moves one element per memcpy once the strides of the two tensors differ, so copy whole
+// innermost rows whenever both sides keep them contiguous.
+void copy_rows(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+    const auto& shape = src->get_shape();
+    const auto elem_size = src->get_element_type().size();
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
+    const auto rank = shape.size();
+    if (rank == 0 || src->get_element_type() != dst->get_element_type() || src->get_element_type().bitwidth() < 8 ||
+        src_strides.back() != elem_size || dst_strides.back() != elem_size) {
+        src->copy_to(dst._ptr);
+        return;
+    }
+    if (ov::shape_size(shape) == 0) {
+        return;
+    }
+
+    const auto row_bytes = shape.back() * elem_size;
+    const auto rows = ov::shape_size(shape) / shape.back();
+    const auto* src_base = static_cast<const uint8_t*>(src->data());
+    auto* dst_base = static_cast<uint8_t*>(dst->data());
+    std::vector<std::size_t> index(rank - 1, 0);
+    for (std::size_t row = 0; row < rows; ++row) {
+        std::size_t src_offset = 0;
+        std::size_t dst_offset = 0;
+        for (std::size_t d = 0; d + 1 < rank; ++d) {
+            src_offset += index[d] * src_strides[d];
+            dst_offset += index[d] * dst_strides[d];
+        }
+        std::memcpy(dst_base + dst_offset, src_base + src_offset, row_bytes);
+        for (std::size_t d = rank - 1; d-- > 0;) {
+            if (++index[d] < shape[d]) {
+                break;
+            }
+            index[d] = 0;
+        }
+    }
 }
 
 // A [1, N, N] attention mask: valid queries must not attend to the padded keys.
@@ -275,7 +316,7 @@ void ov::npuw::VisionMergerInferRequest::infer() {
             }
             auto dst = m_inner->get_tensor(inner_in_ports[i]);
             ov::npuw::util::fill_tensor_bytes(dst, 0);
-            src->copy_to(prefix_view(dst, dims, src->get_shape())._ptr);
+            copy_rows(src, prefix_view(dst, dims, src->get_shape()));
             if (is_attention_mask(in_ports[i], dims)) {
                 block_padded_keys(dst, len);
             }
@@ -307,7 +348,7 @@ void ov::npuw::VisionMergerInferRequest::infer() {
             }
             auto dst = get_tensor(out_ports[i]);
             dst->set_shape(valid_shape);
-            prefix_view(src, dims, valid_shape)->copy_to(dst._ptr);
+            copy_rows(prefix_view(src, dims, valid_shape), dst);
         }
     });
 }

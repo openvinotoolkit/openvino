@@ -333,6 +333,11 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const bool kokoro_requested = properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true;
     const bool vision_merger_requested =
         properties.count(use_vision_merger_key) && properties.at(use_vision_merger_key).as<bool>() == true;
+    if (!vision_merger_requested) {
+        // Only the vision merger registers its options; the other front-ends reject them.
+        config.erase(use_vision_merger_key);
+        config.erase(ov::intel_npu::npuw::vision_merger::max_len.name());
+    }
 
     const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
     const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
