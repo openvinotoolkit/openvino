@@ -292,6 +292,7 @@ REGISTER_FACTORY(v16, SegmentMax);
 // ------------------------------ Supported v17 ops ----------------------------- //
 REGISTER_FACTORY(v17, ErfInv);
 REGISTER_FACTORY(v17, GroupedMatMul);
+REGISTER_FACTORY(v17, SparseAttention);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -340,5 +341,6 @@ REGISTER_FACTORY(internal, MLIR);
 REGISTER_FACTORY(internal, GatedResidual);
 REGISTER_FACTORY(internal, PagedQSAIndexer);
 REGISTER_FACTORY(internal, QSAIndexer);
-REGISTER_FACTORY(internal, SparsePA);
+REGISTER_FACTORY(internal, QSAIndexerInPlace);
+REGISTER_FACTORY(internal, PagedSparseAttention);
 REGISTER_FACTORY(internal, SparseSDPA);

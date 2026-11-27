@@ -41,13 +41,14 @@ using ov::test::InputShape;
  *          Convert(F16)
  */
 using RMSNormDecompositionParams = std::tuple<std::vector<InputShape>,             // input shapes
-                                              ov::element::Type>;                  // input precision
+                                              ov::element::Type,                   // input precision
+                                              ov::Shape>;                          // gamma shape; empty uses the last-axis shape
 
 class RMSNormDecomposition : public testing::WithParamInterface<RMSNormDecompositionParams>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RMSNormDecompositionParams>& obj) {
-        const auto& [input_shapes, input_precision] = obj.param;
+        const auto& [input_shapes, input_precision, gamma_shape] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -66,13 +67,17 @@ public:
             result << ")_";
         }
         result << "input_precision=" << input_precision;
+        if (!gamma_shape.empty()) {
+            result << "_gamma_shape=" << ov::test::utils::vec2str(gamma_shape);
+        }
         return result.str();
     }
 
 protected:
     std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
                                              const ov::Shape& target_shape,
-                                             const ov::element::Type input_precision) {
+                                             const ov::element::Type input_precision,
+                                             const ov::Shape& gamma_shape) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0])};
 
         // x^2
@@ -100,7 +105,9 @@ protected:
         // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
         auto dim = *target_shape.rbegin();
 
-        auto tensor = ov::test::utils::create_and_fill_tensor(input_precision, ov::Shape{dim});
+        auto tensor = ov::test::utils::create_and_fill_tensor(
+            input_precision,
+            gamma_shape.empty() ? ov::Shape{dim} : gamma_shape);
         auto gamma = std::make_shared<ov::op::v0::Constant>(tensor);
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(gamma, mul1);
 
@@ -112,13 +119,17 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto& [input_shapes, input_precision] = GetParam();
+        const auto& [input_shapes, input_precision, gamma_shape] = GetParam();
 
         init_input_shapes(input_shapes);
 
         inType = outType = input_precision;
 
-        function = init_subgraph(inputDynamicShapes, targetStaticShapes.front().front(), input_precision);
+        if (!gamma_shape.empty()) {
+            rel_threshold = 1e-3f;
+        }
+
+        function = init_subgraph(inputDynamicShapes, targetStaticShapes.front().front(), input_precision, gamma_shape);
     }
 };
 
@@ -155,6 +166,18 @@ const std::vector<std::vector<InputShape>> input_shapes_basic = {
 INSTANTIATE_TEST_SUITE_P(smoke_RMSNormDecomposition_basic,
                          RMSNormDecomposition,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
-                                            ::testing::ValuesIn(input_precisions)),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::Values(ov::Shape{})),
+                         RMSNormDecomposition::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> input_shapes_grouped_gamma = {
+    {{{1, -1, 2, 2}, {{1, 2, 2, 2}}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_RMSNormDecomposition_grouped_gamma,
+                         RMSNormDecomposition,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_grouped_gamma),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::Shape{1, 1, 2, 2})),
                          RMSNormDecomposition::getTestCaseName);
 } // namespace

@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <optional>
 #include <string>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -47,6 +48,17 @@ inline void check_float_inputs(const ov::Node* node, std::initializer_list<size_
 
 inline ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
     return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
+}
+
+/// The size runtime info `key` of `node`, if set (e.g. the head geometry the paged-attention conversion stamps on
+/// PagedSparseAttention: `num_k_heads`, `k_head_size`, `num_v_heads`, `v_head_size`).
+inline std::optional<size_t> rt_size(const ov::Node& node, const std::string& key) {
+    const auto& rt = node.get_rt_info();
+    const auto it = rt.find(key);
+    if (it == rt.end()) {
+        return std::nullopt;
+    }
+    return it->second.as<size_t>();
 }
 
 /// Config rules for SparseSDPA::Config.
