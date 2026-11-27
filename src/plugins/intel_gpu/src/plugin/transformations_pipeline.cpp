@@ -1907,7 +1907,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         fuse_mlp_swiglu |= int2_merge_mlp;
         if (!disable_horizontal_fc_fusion) {
 #ifdef _WIN32
-            // CVS-198510
+            // CVS-200876
             const bool evict_folded_weights = false;
 #else
             const bool evict_folded_weights = config.get_offload_ratio() == 0;

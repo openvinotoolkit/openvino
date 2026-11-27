@@ -171,7 +171,6 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
         }
-
         // Concatenates and folds the given constant-like nodes into a Constant right away, instead of relying on ConstantFolding pass:
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
