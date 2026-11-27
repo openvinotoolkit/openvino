@@ -91,6 +91,9 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
         if (const auto* const fq = std::any_cast<const FakeQuantizePostOp>(attrs.postOps.data())) {
             fqInputScale = fq->inputScale();
             fqInputShift = fq->inputShift();
+            // FullyConnected::canFuse fuses only such FakeQuantize: the destination has a single scale and zero point.
+            OPENVINO_ASSERT(canFoldFakeQuantizeOutputShift(fq->outputScale(), fq->outputShift()),
+                            "ACLLowpFullyConnectedExecutor: FakeQuantize output scale/shift cannot be folded");
             foldFakeQuantizeOutputShift(fqInputShift, fq->outputScale(), fq->outputShift());
         }
     }

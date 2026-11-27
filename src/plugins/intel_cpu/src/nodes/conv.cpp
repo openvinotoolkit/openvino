@@ -54,6 +54,11 @@
 #include "shape_inference/custom/convolution.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "fake_quantize.h"
+#    include "nodes/executors/common/common_utils.hpp"
+#endif
+
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
@@ -562,6 +567,14 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
+    // ACL int8 convolution applies a fused FakeQuantize only through the destination scale and zero point, so only
+    // a FakeQuantize whose output scale/shift folds into them can be fused (see ACLConvolutionExecutor).
+    if (const auto* fq = dynamic_cast<const FakeQuantize*>(node.get())) {
+        if (!canFoldFakeQuantizeOutputShift(fq->getOutputScale(), fq->getOutputShift())) {
+            return false;
+        }
+    }
+
     // A Multiply by a constant is not fused: Eltwise::fuseInto() fills its scales only where
     // canBePerformedAsScaleShift() holds (x86 only), and a post-op with empty scales fails to compose.
     auto isSwish = [](const NodePtr& n) -> bool {

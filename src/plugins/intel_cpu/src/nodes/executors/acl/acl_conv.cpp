@@ -100,6 +100,9 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                 }
             }
 
+            // Convolution::canFuse fuses only such FakeQuantize: the destination has a single scale and zero point.
+            OPENVINO_ASSERT(canFoldFakeQuantizeOutputShift(fqOutputScale, fqOutputShift),
+                            "ACLConvolutionExecutor: FakeQuantize output scale/shift cannot be folded");
             foldFakeQuantizeOutputShift(fqInputShift, fqOutputScale, fqOutputShift);
             fqOutputShift.clear();
         } else {
