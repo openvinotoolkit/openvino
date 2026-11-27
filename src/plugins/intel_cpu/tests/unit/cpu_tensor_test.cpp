@@ -7,18 +7,21 @@
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <openvino/core/shape.hpp>
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
-#include "memory_desc/blocked_memory_desc.h"
-#include "openvino/core/except.hpp"
-#include "openvino/core/partial_shape.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/runtime/itensor.hpp"
-#include "common_test_utils/test_assertions.hpp"
-
+#include "openvino/runtime/so_ptr.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -188,6 +191,98 @@ TEST_F(CPUTensorTest, canAccessF16Tensor) {
         EXPECT_THROW(t->data<std::uint16_t>(), ov::Exception);
         EXPECT_THROW(t->data<std::int16_t>(), ov::Exception);
     }
+}
+
+TEST_F(CPUTensorTest, canAccessSubByteTensorStrides) {
+    // BlockedMemoryDesc strides are always element-granular; for a dense u4 tensor of shape
+    // {2, 100} that is {100, 1}.
+    Shape shape{2, 100};
+    auto strides = ov::Strides({100, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::u4, t->get_element_type());
+    // byte strides: 100 elements * 4 bits / 8 bits = 50 bytes; the innermost dimension's byte
+    // stride is a non-addressable placeholder and must equal the element type size (1 byte).
+    ASSERT_EQ(ov::Strides({50, 1}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, canAccessSubBytePaddedTensorStrides) {
+    // row padded to 128 elements (64 bytes) instead of the dense 100 elements (50 bytes).
+    Shape shape{2, 100};
+    auto strides = ov::Strides({128, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::u4, t->get_element_type());
+    ASSERT_EQ(ov::Strides({64, 1}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, canAccessNonUnitInnermostStrideForByteGranularType) {
+    // Every other f16 element is used: innermost element stride is 2, not 1.
+    Shape shape{2, 3};
+    auto strides = ov::Strides({6, 2});
+
+    auto memptr = create_memory(create_memdesc(ov::element::f16, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::f16, t->get_element_type());
+    ASSERT_EQ(ov::Strides({12, 4}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, avoidsOverflowConvertingLargeElementStridesToByteStrides) {
+    // element stride * bitwidth would overflow size_t before the division for a stride this
+    // large, but the byte stride itself is representable and must be computed correctly.
+    constexpr auto safe_shift = std::numeric_limits<size_t>::digits - 4;
+    Shape shape{2, 1};
+    auto strides = ov::Strides({size_t{1} << safe_shift, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::f32, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::f32, t->get_element_type());
+    ASSERT_EQ(ov::Strides({size_t{1} << (safe_shift + 2), 4}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, throwsInsteadOfOverflowingWhenConvertingGenuinelyHugeElementStridesToByteStrides) {
+    constexpr auto overflow_shift = std::numeric_limits<size_t>::digits - 1;
+    Shape shape{2, 1};
+    auto strides = ov::Strides({size_t{1} << overflow_shift, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::f32, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    OV_EXPECT_THROW(t->get_strides(), ov::Exception, testing::HasSubstr("overflow"));
+}
+
+TEST_F(CPUTensorTest, u1StridesAreNotBitPacked) {
+    Shape shape{2, 8};
+    auto strides = ov::Strides({8, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u1, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::u1, t->get_element_type());
+    ASSERT_EQ(ov::Strides({8, 1}), t->get_strides());
+    ASSERT_EQ(16U, t->get_byte_size());
+}
+
+TEST_F(CPUTensorTest, u1StridesSurviveDescToTensorToDescRoundTrip) {
+    Shape shape{2, 8};
+    auto strides = ov::Strides({8, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u1, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+
+    const auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(ov::SoPtr<ov::ITensor>(t));
+
+    ASSERT_EQ(VectorDims({8, 1}), desc->getStrides());
+    ASSERT_EQ(16U, desc->getCurrentMemSize());
+}
+
+TEST_F(CPUTensorTest, isContinuousDoesNotThrowForDenseSubByteTensorWithUnalignedShape) {
+    Shape shape{3, 5};
+    auto strides = ov::row_major_strides(ov::Shape{3, 5});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    EXPECT_NO_THROW(EXPECT_TRUE(t->is_continuous()));
 }
 
 // SetShape

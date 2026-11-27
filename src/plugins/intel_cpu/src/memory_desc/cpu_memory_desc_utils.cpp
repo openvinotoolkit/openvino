@@ -7,6 +7,7 @@
 #include <cpu_memory.h>
 
 #include <algorithm>
+#include <climits>
 #include <cstddef>
 #include <memory>
 #include <numeric>
@@ -23,7 +24,9 @@
 #include "memory_desc/dnnl_memory_desc.h"
 #include "memory_desc/empty_memory_desc.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -82,28 +85,34 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
     std::iota(blk_order.begin(), blk_order.end(), 0);
 
     auto element_type = tensor->get_element_type();
-    const auto& byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
+    // u1 strides are never bit-packed in CpuBlockedMemoryDesc (see getCurrentMemSizeImp()).
+    const auto can_compute_byte_strides =
+        element_type != ov::element::u1 && ov::util::can_compute_byte_strides(element_type, tensor->get_shape());
 
     VectorDims blk_strides;
 
-    if (byte_strides.empty()) {
+    if (!can_compute_byte_strides) {
         blk_strides = ov::row_major_strides(shape);
     } else if (tensor->get_size() == 0) {
         blk_strides.resize(shape.size());
     } else {
         // ROI tensor need figure out correct blk_strides
+        const auto& byte_strides = tensor->get_strides();
+        const auto bitwidth = element_type.bitwidth();
         blk_strides.resize(byte_strides.size());
-        std::transform(byte_strides.begin(),
-                       byte_strides.end(),
-                       blk_strides.begin(),
-                       [&element_type](size_t byte_stride) {
-                           OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
-                                           "Limitation: Stride in bytes ",
-                                           byte_stride,
-                                           " must be divisible by size of element ",
-                                           element_type.size());
-                           return byte_stride / element_type.size();
-                       });
+        std::ranges::transform(byte_strides, blk_strides.begin(), [&element_type](size_t byte_stride) {
+            OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                            "Limitation: Stride in bytes ",
+                            byte_stride,
+                            " must be divisible by size of element ",
+                            element_type.size());
+            return ov::util::get_elements_capacity(element_type, byte_stride);
+        });
+        // the innermost dimension always steps by exactly one element for sub-byte types, since
+        // its byte stride is an unaddressable placeholder that cannot go through the formula above
+        if (bitwidth < CHAR_BIT) {
+            blk_strides.back() = 1;
+        }
     }
 
     return std::make_shared<CpuBlockedMemoryDesc>(element_type,

@@ -5,6 +5,7 @@
 #include "cpu_tensor.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -14,6 +15,7 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -25,6 +27,12 @@ namespace ov::intel_cpu {
 namespace {
 constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
     return any_of(type, ov::element::dynamic, tensor_type);
+}
+
+constexpr bool has_unpacked_blocked_desc_byte_size(const ov::element::Type& type) {
+    // CpuBlockedMemoryDesc::getCurrentMemSizeImp() skips the bits-to-bytes conversion for u1 only;
+    // u8/i8/boolean already round-trip correctly through the general formula since size() == 1.
+    return type == ov::element::u1;
 }
 }  // namespace
 
@@ -94,9 +102,20 @@ void Tensor::update_strides() const {
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     const auto& strides = blocked_desc->getStrides();
     m_strides.resize(strides.size());
-    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
-        return stride * m_element_type.size();
-    });
+    if (has_unpacked_blocked_desc_byte_size(m_element_type)) {
+        std::ranges::copy(strides, m_strides.begin());
+    } else {
+        std::ranges::transform(strides, m_strides.begin(), [this](const size_t stride) {
+            const auto byte_stride = ov::util::get_memory_size_safe(m_element_type, stride);
+            OPENVINO_ASSERT(byte_stride, "Tensor::update_strides: stride to bytes conversion overflow");
+            return *byte_stride;
+        });
+        if (!m_strides.empty() && m_element_type.bitwidth() < CHAR_BIT && strides.back() != 0) {
+            // the innermost dimension's byte stride is a non-addressable placeholder for sub-byte
+            // types (unless the tensor is degenerate, i.e. its element stride is already 0)
+            m_strides.back() = m_element_type.size();
+        }
+    }
 }
 
 void* Tensor::data() {
