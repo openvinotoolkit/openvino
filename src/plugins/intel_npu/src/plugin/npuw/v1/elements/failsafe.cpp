@@ -8,6 +8,7 @@
 #include <exception>
 #include <utility>
 
+#include "../../logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace {
@@ -78,6 +79,8 @@ ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel
             return m_active_state.value();
         } catch (...) {
             last_failure = std::current_exception();
+            LOG_WARN("Failed to compile for "
+                     << m_devices[idx] << (idx + 1 < m_devices.size() ? "; trying the next fallback device." : "."));
         }
     }
 
@@ -103,6 +106,7 @@ ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel
             return m_active_state.value();
         } catch (...) {
             failure = std::current_exception();
+            LOG_WARN("Failed to compile for " << m_devices[idx] << " during failover.");
         }
     }
 
@@ -193,48 +197,52 @@ void ov::npuw::failsafe::InferRequest::ensure_inner_request_locked() const {
     m_request = m_failsafe_compiled_model->create_request(m_generation);
 }
 
-ov::npuw::failsafe::InferRequest::PortKey ov::npuw::failsafe::InferRequest::port_key_locked(
+ov::Output<const ov::Node> ov::npuw::failsafe::InferRequest::inner_port_locked(
     const ov::Output<const ov::Node>& port) const {
     auto found = find_port(port);
     OPENVINO_ASSERT(found.found(), "Cannot find failsafe port ", port);
-    return PortKey{port.get_node(), port.get_index(), found.is_output()};
-}
-
-bool ov::npuw::failsafe::InferRequest::is_output_port_locked(const ov::Output<const ov::Node>& port) const {
-    return port_key_locked(port).is_output;
+    // Device models may expose cloned nodes, so use the public I/O position.
+    const auto& model = m_request->get_compiled_model();
+    const auto& ports = found.is_output() ? model->outputs() : model->inputs();
+    OPENVINO_ASSERT(found.idx < ports.size(), "Failsafe device model has incompatible ports");
+    return ports[found.idx];
 }
 
 void ov::npuw::failsafe::InferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    using Binding = std::pair<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>>;
-    std::vector<Binding> input_tensors;
-    std::vector<Binding> output_tensors;
+    std::vector<ov::SoPtr<ov::ITensor>> input_tensors;
+    std::vector<ov::SoPtr<ov::ITensor>> output_tensors;
     bool need_rebind = false;
 
     ensure_inner_request_locked();
-    for (auto&& port : m_failsafe_compiled_model->inputs()) {
-        input_tensors.push_back(Binding{port, m_request->get_tensor(port)});
+    for (const auto& port : m_request->get_compiled_model()->inputs()) {
+        input_tensors.push_back(m_request->get_tensor(port));
     }
-    for (auto&& port : m_failsafe_compiled_model->outputs()) {
-        output_tensors.push_back(Binding{port, m_request->get_tensor(port)});
+    for (const auto& port : m_request->get_compiled_model()->outputs()) {
+        output_tensors.push_back(m_request->get_tensor(port));
     }
 
     while (true) {
         ensure_inner_request_locked();
         try {
             if (need_rebind) {
-                for (auto&& binding : input_tensors) {
-                    m_request->set_tensor(binding.first, binding.second);
+                const auto& inputs = m_request->get_compiled_model()->inputs();
+                const auto& outputs = m_request->get_compiled_model()->outputs();
+                OPENVINO_ASSERT(inputs.size() == input_tensors.size() && outputs.size() == output_tensors.size(),
+                                "Failsafe device model has incompatible port counts");
+                for (size_t i = 0; i < inputs.size(); ++i) {
+                    m_request->set_tensor(inputs[i], input_tensors[i]);
                 }
-                for (auto&& binding : output_tensors) {
-                    m_request->set_tensor(binding.first, binding.second);
+                for (size_t i = 0; i < outputs.size(); ++i) {
+                    m_request->set_tensor(outputs[i], output_tensors[i]);
                 }
             }
             m_request->infer();
             need_rebind = false;
             return;
         } catch (...) {
+            LOG_WARN("Subgraph inference failed; attempting a fallback device.");
             {
                 std::lock_guard<std::mutex> model_lock(m_failsafe_compiled_model->m_mutex);
                 m_failsafe_compiled_model->failover_from_locked(m_generation, "infer", std::current_exception());
@@ -249,14 +257,14 @@ void ov::npuw::failsafe::InferRequest::infer() {
 ov::SoPtr<ov::ITensor> ov::npuw::failsafe::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-    return m_request->get_tensor(port);
+    return m_request->get_tensor(inner_port_locked(port));
 }
 
 void ov::npuw::failsafe::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                                   const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-    m_request->set_tensor(port, tensor);
+    m_request->set_tensor(inner_port_locked(port), tensor);
 }
 
 void ov::npuw::failsafe::InferRequest::check_tensors() const {}

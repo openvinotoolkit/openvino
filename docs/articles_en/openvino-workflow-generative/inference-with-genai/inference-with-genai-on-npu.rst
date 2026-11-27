@@ -224,6 +224,40 @@ controlled by the new property ``NPUW_LLM_PREFILL_CHUNK_SIZE`` (default: 1024).
 If the ``MAX_PROMPT_LEN`` property is set to a value greater than the chunk size, the mechanism
 is activated automatically. Set ``PREFILL_HINT`` to ``STATIC`` to disable this feature.
 
+.. note::
+
+   Experimental NPUW support for Qwen4 sparse-attention models requires batch size 1,
+   static non-chunked prefill, static attention, and single-token generation.
+   Prefix caching, block-based KV caching, generate-cache pyramids, and EAGLE are not supported
+   for these models. Both the supported unfused Qwen export and exports containing
+   ``QSAPrepare``, ``SparseAttentionIndexer``, and ``SparseAttention`` are handled before
+   partitioning. The indexer is expressed using regular operations and TopK. The attention
+   path gathers the selected key/value blocks and the causal tail before performing
+   MatMul and Softmax over that compact set.
+   Grouped query attention retains the KV-head grouping. Fused QSA lowering currently
+   requires FP32 indexer inputs, nonempty RoPE and normalization weights, one selection
+   head, and unweighted indexer scores.
+
+   For a 2048-token selection budget and block size 4, a 4096-token KV buffer produces
+   2051 static gathered positions per query; unused positions remain masked but are still
+   included in the MatMul shapes. When the KV buffer is no longer than the selection budget,
+   there is no reduction in attention-matrix size. KV gathering and logical-to-physical
+   position lookup add compute and intermediate memory, especially for long prefill; fewer
+   attention-matrix elements do not guarantee lower latency.
+
+   For numerical stability, the default Qwen4 partition configuration disables function folding
+   and FP16 interconnect and uses the ``JUST`` online partitioning pipeline. Explicit overrides
+   are experimental and should be checked against a reference implementation. Actual NPU
+   compatibility depends on the NPU compiler and model; validate both prefill and generation
+   on the target device. FP16 KV-cache storage can cause additional numerical differences;
+   ``ov::hint::kv_cache_precision(ov::element::f32)`` can be used when the target supports it.
+
+   As an opt-in diagnostic configuration, set ``NPUW_DEVICES`` to ``NPU,CPU``,
+   ``NPUW_ACC_CHECK`` to ``YES``, ``NPUW_ACC_DEVICE`` to ``CPU``, and choose an
+   ``NPUW_ACC_THRESH`` appropriate for the model. The accuracy check compares subgraph
+   outputs against CPU and may switch subgraphs to CPU; it increases compilation and
+   inference costs and does not replace end-to-end accuracy validation.
+
 Use the following code snippet to change the default settings:
 
 .. tab-set::

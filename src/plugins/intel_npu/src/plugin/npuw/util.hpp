@@ -277,6 +277,12 @@ bool matchLoRAMatMulAlphaString(const std::string& input);
 
 bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
 
+bool matchQSAIndexCacheString(const std::string& input, const std::string& past_or_present = "past");
+
+bool isQSABlockIndexCache(const std::string& input, const std::string& past_or_present = "past");
+
+size_t qsaIndexBlockSize(const std::shared_ptr<const ov::Model>& model, const std::string& block_cache_name);
+
 bool starts_with_past_lincache(const std::string& input_name);
 
 // Matches past_key_values.N.key/value Parameter (and present.N.key/value output) names of

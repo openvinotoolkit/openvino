@@ -1202,7 +1202,24 @@ void ov::npuw::LLMInferRequest::copy_lincache(
 
         NPUW_ASSERT(to_tensor._ptr &&
                     "destination request returned null tensor for output port — request may be uninitialized");
-        from_tensor->copy_to(to_tensor._ptr);
+        if (uu::isQSABlockIndexCache(input_name) && from_tensor->get_shape() != to_tensor->get_shape()) {
+            const auto& from_shape = from_tensor->get_shape();
+            const auto& to_shape = to_tensor->get_shape();
+            OPENVINO_ASSERT(from_shape.size() == 3 && to_shape.size() == 3 && from_shape[0] == 1 &&
+                                to_shape[0] == 1 && from_shape[2] == to_shape[2] && from_shape[1] <= to_shape[1] &&
+                                from_tensor->get_element_type() == to_tensor->get_element_type(),
+                            "Incompatible QSA block-index cache shapes for ",
+                            input_name,
+                            ": ",
+                            from_shape,
+                            " -> ",
+                            to_shape);
+            uu::fill_tensor_bytes(to_tensor, 0u);
+            auto destination = uu::make_tensor_slice(to_tensor, 1u, 0u, static_cast<uint32_t>(from_shape[1]));
+            from_tensor->copy_to(destination._ptr);
+        } else {
+            from_tensor->copy_to(to_tensor._ptr);
+        }
     });
     LOG_DEBUG("Done.");
 }

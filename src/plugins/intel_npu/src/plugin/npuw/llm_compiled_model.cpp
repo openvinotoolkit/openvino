@@ -25,11 +25,15 @@
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/lower_qsa_indexing.hpp"
+#include "npuw_transformations/lower_sparse_attention.hpp"
 #include "npuw_transformations/mask_linear_attention_padding.hpp"
 #include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/prepare_qsa_index_cache.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
+#include "npuw_transformations/qwen_sparse_attention_fusion.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
@@ -42,6 +46,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
@@ -69,6 +74,76 @@
 namespace opp = ov::pass::pattern;
 
 namespace {
+size_t count_qsa_block_caches(const std::shared_ptr<const ov::Model>& model) {
+    size_t count = 0;
+    for (const auto& input : model->inputs()) {
+        for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::isQSABlockIndexCache(name)) {
+                ++count;
+                break;
+            }
+        }
+    }
+    return count;
+}
+
+void fuse_and_lower_qsa(const std::shared_ptr<ov::Model>& model) {
+    const auto expected = count_qsa_block_caches(model);
+    if (expected == 0) {
+        return;
+    }
+    size_t already_fused = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        already_fused += ov::is_type<ov::op::v17::SparseAttention>(node);
+    }
+    ov::npuw::QwenSparseAttentionFusion fusion;
+    fusion.run_on_model(model);
+    OPENVINO_ASSERT(fusion.fused_count() + already_fused == expected,
+                    "NPUW could not recognize every QSA layer before partitioning: expected ",
+                    expected,
+                    ", matched ",
+                    fusion.fused_count() + already_fused,
+                    ".");
+    if (already_fused) {
+        OPENVINO_ASSERT(ov::npuw::LowerQSAPrepare().run_on_model(model),
+                        "NPUW could not lower the exported QSA index-cache preparation.");
+        model->validate_nodes_and_infer_types();
+    }
+    std::shared_ptr<ov::Node> attention_mask;
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->output(0).get_names().count("attention_mask")) {
+            attention_mask = parameter;
+            break;
+        }
+    }
+    OPENVINO_ASSERT(attention_mask, "NPUW QSA requires a physical attention_mask input.");
+    OPENVINO_ASSERT(ov::npuw::LowerSparseAttentionToGathered(attention_mask).run_on_model(model),
+                    "NPUW could not lower QSA to gathered sparse attention.");
+    fusion.lower_indexers();
+    if (already_fused) {
+        OPENVINO_ASSERT(ov::npuw::LowerSparseAttentionIndexer().run_on_model(model),
+                        "NPUW could not lower the exported QSA indexer.");
+    }
+    for (const auto& node : model->get_ordered_ops()) {
+        const bool is_sparse = ov::is_type_any_of<ov::op::v17::QSAPrepare,
+                                                  ov::op::v17::SparseAttention,
+                                                  ov::op::v17::SparseAttentionIndexer>(node);
+        OPENVINO_ASSERT(!is_sparse,
+                        "NPUW cannot partition an unlowered sparse attention operation: ",
+                        node->get_friendly_name());
+    }
+    model->validate_nodes_and_infer_types();
+}
+
+void set_qsa_partition_defaults(ov::AnyMap& config, bool partition) {
+    config["NPUW_FOLD"] = "NO";
+    config["NPUW_FUNCALL_FOR_ALL"] = "NO";
+    config["NPUW_F16IC"] = "NO";
+    if (partition) {
+        config["NPUW_ONLINE_PIPELINE"] = "JUST";
+    }
+}
+
 template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
 T align_to(T value, T alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -649,9 +724,12 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
                              << "): reshaping to static");
 
+        ov::npuw::PrepareQSAIndexCache(kv_size).run_on_model(generate_variant);
+
         // Reshape to target size
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
+        fuse_and_lower_qsa(generate_variant);
 
         // The pass treats attention_mask as a 2D 0/1 mask, which an additive 4D float mask is not.
         if (!m_attention_mask_is_4d_float) {
@@ -930,6 +1008,33 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
 
+    const bool has_qsa = count_qsa_block_caches(kvcache_model) != 0;
+    if (has_qsa) {
+        if (m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>()) {
+            OPENVINO_ASSERT(npuw_llm_props.count("NPUW_LLM_GENERATE_PYRAMID") == 0,
+                            "NPUW QSA does not support NPUW_LLM_GENERATE_PYRAMID=YES.");
+            m_cfg.update({{"NPUW_LLM_GENERATE_PYRAMID", "NO"}});
+            LOG_INFO("QSA model: disabling generate-cache variants.");
+        }
+        OPENVINO_ASSERT(!m_use_chunk_prefill, "NPUW QSA does not support chunked prefill.");
+        OPENVINO_ASSERT(!m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>(),
+                        "NPUW QSA does not support prefix caching.");
+        OPENVINO_ASSERT(!m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>(),
+                        "NPUW QSA does not support block-based KV caching.");
+        OPENVINO_ASSERT(max_generation_token_len == 1 && !m_is_eagle,
+                        "NPUW QSA currently requires single-token generation without EAGLE.");
+        OPENVINO_ASSERT(
+            m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::STATIC,
+            "NPUW QSA currently requires NPUW_LLM_GENERATE_ATTENTION_HINT=STATIC.");
+        if (m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() !=
+            ::intel_npu::npuw::llm::AttentionHint::STATIC) {
+            OPENVINO_ASSERT(npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT") == 0,
+                            "NPUW QSA currently requires NPUW_LLM_PREFILL_ATTENTION_HINT=STATIC.");
+            m_cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "STATIC"}});
+            LOG_INFO("QSA model: using static prefill attention to preserve the indexer-generated mask.");
+        }
+    }
+
     // Reported after the embedding branch, since an encoder embedding model turns chunking off and
     // may clamp the prompt length. Logging earlier would print values that never took effect.
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
@@ -1051,6 +1156,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
+    ov::npuw::PrepareQSAIndexCache(m_kvcache_desc.max_prompt_size).run_on_model(prefill_model);
     if (m_use_chunk_prefill) {
         ov::npuw::ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
                                   m_kvcache_desc.max_prompt_size,
@@ -1071,6 +1177,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   whisper_lhs_seq_size,
                                   true)
             .run_on_model(prefill_model);
+    }
+    fuse_and_lower_qsa(prefill_model);
+    if (has_qsa && !m_use_chunk_prefill) {
+        const auto parameters = prefill_model->get_parameters();
+        const bool has_linear_state = std::any_of(parameters.begin(), parameters.end(), [](const auto& parameter) {
+            const auto& names = parameter->output(0).get_names();
+            return std::any_of(names.begin(), names.end(), [](const auto& name) {
+                return ov::npuw::util::matchLinCacheString(name);
+            });
+        });
+        OPENVINO_ASSERT(!has_linear_state || ov::npuw::MaskLinearAttentionPadding().run_on_model(prefill_model),
+                        "NPUW could not make every QSA model linear-attention state padding-safe.");
     }
     if (!m_attention_mask_is_4d_float) {
         ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
@@ -1224,6 +1342,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
+    if (has_qsa) {
+        if (!prefill_config_opt.has_value()) {
+            set_qsa_partition_defaults(prefill_config, true);
+        }
+        if (!generate_config_opt.has_value()) {
+            set_qsa_partition_defaults(generate_config, true);
+        }
+        LOG_WARN("QSA uses gathered sparse attention, with folding and FP16 interconnect disabled by default. "
+                 "Explicit partitioning overrides and NPU execution are experimental; validate their outputs "
+                 "against a reference implementation. Long prefill may require substantial intermediate memory.");
+    }
+
     const std::optional<std::string> default_compilation_mode_params =
         [&prefill_config]() -> std::optional<std::string> {
         if (const auto it = prefill_config.find("NPU_COMPILATION_MODE_PARAMS"); it != prefill_config.end()) {
@@ -1248,6 +1378,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         prefill_config.erase("NPUW_SLICE_OUT");
     }
     merge_config_with(generate_config, generate_config_addition_value);
+    if (has_qsa) {
+        for (const auto* config : {&prefill_config, &generate_config}) {
+            const auto it = config->find("NPUW_ATTN");
+            OPENVINO_ASSERT(it == config->end() || it->second.as<std::string>() == "STATIC",
+                            "NPUW QSA does not support dynamic attention isolation: NPUW_ATTN must be STATIC.");
+        }
+    }
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
         LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
@@ -1521,6 +1658,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap lm_head_config;
     if (lm_head_model) {
         lm_head_config = get_default_lm_head_config(npudesc);
+        if (has_qsa) {
+            set_qsa_partition_defaults(lm_head_config, false);
+        }
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);

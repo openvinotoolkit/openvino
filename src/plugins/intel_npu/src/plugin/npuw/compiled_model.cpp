@@ -2062,13 +2062,14 @@ void ov::npuw::CompiledModel::detach_memory() {
             continue;  // optimized-out OR already cleared - skip
         }
 
-        // Ask the failsafe wrapper whether runtime fallover to another device is still
-        // possible.  If it is, keep the ov::Model alive so the factory (which captures
-        // it by weak_ptr) can recompile.  For non-failsafe compiled models (single
-        // device) there is no fallback, so we can always release.
+        // Keep the model while a failsafe wrapper, including one inside an accuracy
+        // checker, may still need it to compile a fallback device.
         bool can_clear = true;
-        auto failsafe =
-            std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(proto_comp_model_desc.compiled_model._ptr);
+        auto underlying = proto_comp_model_desc.compiled_model._ptr;
+        if (const auto checked = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(underlying)) {
+            underlying = checked->main_compiled_model()._ptr;
+        }
+        auto failsafe = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(underlying);
         if (failsafe && !failsafe->is_at_last_device() && !no_runtime_fallback) {
             can_clear = false;
         }

@@ -60,6 +60,21 @@ TEST(MatchLinCacheStringTest, DefaultParameterIsPast) {
     EXPECT_FALSE(ov::npuw::util::matchLinCacheString("cache_params.present.conv.0"));  // default = "past"
 }
 
+TEST(QSAIndexCacheNamesTest, RecognizesOnlySupportedIndexerStates) {
+    for (const auto* kind : {"block_index_key", "incomplete_index_key", "incomplete_index_rope"}) {
+        const auto past = "cache_params.past." + std::string(kind) + ".2";
+        const auto present = "cache_params.present." + std::string(kind) + ".2";
+        EXPECT_TRUE(ov::npuw::util::matchQSAIndexCacheString(past));
+        EXPECT_TRUE(ov::npuw::util::matchQSAIndexCacheString(present, "present"));
+        EXPECT_FALSE(ov::npuw::util::matchQSAIndexCacheString(present));
+        EXPECT_TRUE(ov::npuw::util::starts_with_past_lincache(past));
+        EXPECT_EQ(ov::npuw::util::isQSABlockIndexCache(past), std::string(kind) == "block_index_key");
+    }
+    EXPECT_FALSE(ov::npuw::util::matchQSAIndexCacheString("cache_params.past.block_index_key"));
+    EXPECT_FALSE(ov::npuw::util::matchQSAIndexCacheString("cache_params.past.block_index_key.2.extra"));
+    EXPECT_FALSE(ov::npuw::util::matchQSAIndexCacheString("cache_params.past.key.2"));
+}
+
 // ===================== starts_with_past_lincache tests =====================
 
 TEST(StartsWithPastLincacheTest, DetectsConvCacheNames) {

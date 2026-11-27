@@ -40,6 +40,8 @@
 #include "pyramid_attention.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "v1/elements/accuracy_checked.hpp"
+#include "v1/elements/failsafe.hpp"
 
 namespace {
 
@@ -484,6 +486,46 @@ protected:
         return core;
     }
 };
+
+TEST_F(SubgraphBehaviorInferTest, KeepsModelForAccuracyCheckedRuntimeFallback) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+    ON_CALL(*core,
+            compile_model(testing::Matcher<const std::shared_ptr<const ov::Model>&>(testing::_),
+                          testing::Matcher<const std::string&>(testing::StrEq("GPU")),
+                          testing::Matcher<const ov::AnyMap&>(testing::_)))
+        .WillByDefault(
+            [plugin](const std::shared_ptr<const ov::Model>& submodel, const std::string&, const ov::AnyMap&) {
+                return ov::SoPtr<ov::ICompiledModel>{
+                    std::make_shared<FakeSubCompiledModel>(std::const_pointer_cast<ov::Model>(submodel), plugin)};
+            });
+    auto model = build_static_llm_model();
+    ov::AnyMap props{{"NPU_USE_NPUW", "YES"},
+                     {"NPUW_DEVICES", "CPU,GPU"},
+                     {"NPUW_ONLINE_PIPELINE", "NONE"},
+                     {"NPUW_FOLD", "NO"},
+                     {"NPUW_FUNCALL_FOR_ALL", "NO"},
+                     {"NPUW_FALLBACK_EXEC", "YES"},
+                     {"NPUW_ACC_CHECK", "YES"},
+                     {"NPUW_ACC_DEVICE", "GPU"}};
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+    size_t checked_count = 0;
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        const auto checked =
+            std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(desc.compiled_model._ptr);
+        if (!checked) {
+            continue;
+        }
+        const auto failsafe =
+            std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(checked->main_compiled_model()._ptr);
+        ASSERT_NE(failsafe, nullptr);
+        ASSERT_FALSE(failsafe->is_at_last_device());
+        EXPECT_NE(desc.model, nullptr);
+        ++checked_count;
+    }
+    EXPECT_GT(checked_count, 0u);
+}
 
 std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens, bool weight_offsets = false) {
     size_t experts = 4;  // non-const: the weight lambda below must actually capture it

@@ -147,6 +147,10 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_cache_compressed.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lower_qsa_indexing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lower_qsa_indexing.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lower_sparse_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lower_sparse_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.cpp
@@ -157,6 +161,10 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp    
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/prepare_qsa_index_cache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/prepare_qsa_index_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/qwen_sparse_attention_fusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/qwen_sparse_attention_fusion.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.cpp

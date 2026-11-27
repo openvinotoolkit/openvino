@@ -411,6 +411,101 @@ TEST(PartitioningOptionsTest, FuncallForAllPromotesUnaryGroupsToFunctions) {
         }));
 }
 
+TEST(PartitioningOptionsTest, ModelOutputAlsoUsedByAnotherSubgraphKeepsMatchingInterconnectPrecision) {
+    for (const bool f16ic : {false, true}) {
+        SCOPED_TRACE(f16ic);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+        auto shared = std::make_shared<ov::op::v0::Sin>(input);
+        shared->set_friendly_name("shared");
+        auto consumer = std::make_shared<ov::op::v0::Cos>(shared);
+        auto state_result = std::make_shared<ov::op::v0::Result>(shared);
+        auto model =
+            std::make_shared<ov::Model>(ov::ResultVector{state_result, std::make_shared<ov::op::v0::Result>(consumer)},
+                                        ov::ParameterVector{input});
+        auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                             {"NPUW_ONLINE_ISOLATE", "Op:Sin/compute"},
+                             {"NPUW_ONLINE_NO_FOLD", "compute"},
+                             {"NPUW_FOLD", "NO"},
+                             {"NPUW_FUNCALL_FOR_ALL", "NO"},
+                             {"NPUW_F16IC", f16ic ? "YES" : "NO"}});
+        const auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+        bool found_link = false;
+        bool found_original_output = false;
+        for (const auto& sg : partitioning.subgraphs) {
+            for (const auto& result : sg._results) {
+                if (result == state_result) {
+                    found_original_output = true;
+                    EXPECT_EQ(result->get_output_element_type(0), ov::element::f32);
+                }
+            }
+        }
+        for (const auto& link : partitioning.input_to_prev_output) {
+            const auto& input_param = partitioning.subgraphs.at(link.first.first)._parameters.at(link.first.second);
+            const auto& output_result = partitioning.subgraphs.at(link.second.first)._results.at(link.second.second);
+            auto source = output_result->input_value(0).get_node_shared_ptr();
+            if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source)) {
+                source = convert->input_value(0).get_node_shared_ptr();
+            }
+            if (source != shared) {
+                continue;
+            }
+            found_link = true;
+            const auto expected = f16ic ? ov::element::f16 : ov::element::f32;
+            EXPECT_EQ(input_param->get_output_element_type(0), expected);
+            EXPECT_EQ(output_result->get_output_element_type(0), expected);
+        }
+        EXPECT_TRUE(found_original_output);
+        EXPECT_TRUE(found_link);
+    }
+}
+
+TEST(PartitioningOptionsTest, BooleanInterconnectUsesU8WhilePreservingModelOutput) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.f});
+    auto condition = std::make_shared<ov::op::v1::Less>(input, zero);
+    condition->set_friendly_name("condition");
+    auto consumer = std::make_shared<ov::op::v1::Select>(condition, input, zero);
+    auto condition_result = std::make_shared<ov::op::v0::Result>(condition);
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{condition_result, std::make_shared<ov::op::v0::Result>(consumer)},
+                                    ov::ParameterVector{input});
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "Op:Less/compute"},
+                         {"NPUW_ONLINE_NO_FOLD", "compute"},
+                         {"NPUW_FOLD", "NO"},
+                         {"NPUW_FUNCALL_FOR_ALL", "NO"}});
+    const auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+    bool found_original_output = false;
+    bool found_link = false;
+    for (const auto& sg : partitioning.subgraphs) {
+        for (const auto& result : sg._results) {
+            if (result == condition_result) {
+                found_original_output = true;
+                EXPECT_EQ(result->get_output_element_type(0), ov::element::boolean);
+            }
+        }
+    }
+    for (const auto& link : partitioning.input_to_prev_output) {
+        const auto& param = partitioning.subgraphs.at(link.first.first)._parameters.at(link.first.second);
+        const auto& result = partitioning.subgraphs.at(link.second.first)._results.at(link.second.second);
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(result->input_value(0).get_node_shared_ptr());
+        if (!convert || convert->input_value(0).get_node_shared_ptr() != condition) {
+            continue;
+        }
+        found_link = true;
+        EXPECT_EQ(result->get_output_element_type(0), ov::element::u8);
+        EXPECT_EQ(param->get_output_element_type(0), ov::element::u8);
+        const auto restored = ov::as_type_ptr<ov::op::v0::Convert>(consumer->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(restored, nullptr);
+        EXPECT_EQ(restored->get_output_element_type(0), ov::element::boolean);
+        EXPECT_EQ(restored->input_value(0).get_node_shared_ptr(), param);
+    }
+    EXPECT_TRUE(found_original_output);
+    EXPECT_TRUE(found_link);
+}
+
 TEST(PartitioningOptionsTest, OptimizedOutForcedFunctionsAreNotMaterialized) {
     auto model = build_unary_chain_model();
     // The isolated Sin group feeds the Concat through a statically bound tensor,

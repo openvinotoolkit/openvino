@@ -6,12 +6,10 @@
 
 #include <functional>
 #include <limits>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -86,24 +84,8 @@ public:
 private:
     friend class CompiledModel;
 
-    // The wrapper exposes stable public tensors even if the inner infer request
-    // gets recreated on failover. Keying by (node, port index, input/output
-    // side) keeps wrapper-owned tensors distinct from the inner request's
-    // transient tensor handles and also avoids collisions in trivial graphs
-    // where input/output descriptors may alias.
-    struct PortKey {
-        const ov::Node* node = nullptr;
-        std::size_t index = 0;
-        bool is_output = false;
-
-        bool operator<(const PortKey& other) const {
-            return std::tie(node, index, is_output) < std::tie(other.node, other.index, other.is_output);
-        }
-    };
-
     void ensure_inner_request_locked() const;
-    PortKey port_key_locked(const ov::Output<const ov::Node>& port) const;
-    bool is_output_port_locked(const ov::Output<const ov::Node>& port) const;
+    ov::Output<const ov::Node> inner_port_locked(const ov::Output<const ov::Node>& port) const;
 
     std::shared_ptr<const CompiledModel> m_failsafe_compiled_model;
     mutable std::mutex m_mutex;

@@ -301,6 +301,30 @@ TEST(FailsafeCompiledModelTest, InferenceFailureFallsBackAndRebindsTensors) {
                                         "infer:CPU"}));
 }
 
+TEST(FailsafeCompiledModelTest, RebindsPortsFromClonedDeviceModels) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+    auto first = std::make_shared<CandidateState>(CandidateState{"NPU", nullptr, 0, 1, 10.f});
+    auto second = std::make_shared<CandidateState>(CandidateState{"CPU", nullptr, 0, 0, 20.f});
+    auto factory = [model, plugin, first, second](const std::string& device) -> ov::SoPtr<ov::ICompiledModel> {
+        const auto& state = device == "NPU" ? first : second;
+        return {std::make_shared<TestCompiledModel>(model->clone(), plugin, state), {}};
+    };
+    auto so = ov::npuw::failsafe::CompiledModel::create(model, plugin, {"NPU", "CPU"}, factory);
+    auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
+    ASSERT_NE(compiled, nullptr);
+    auto request = compiled->create_sync_infer_request();
+    auto input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    auto output = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    input->data<float>()[0] = 3.f;
+    request->set_tensor(model->inputs().front(), input);
+    request->set_tensor(model->outputs().front(), output);
+    ASSERT_NO_THROW(request->infer());
+    EXPECT_EQ(compiled->active_device_name(), "CPU");
+    EXPECT_FLOAT_EQ(output->data<const float>()[0], 23.f);
+    EXPECT_EQ(request->get_tensor(model->outputs().front())._ptr, output._ptr);
+}
+
 TEST(FailsafeCompiledModelTest, UserProvidedOutputBufferReceivesFailoverResult) {
     auto model = make_test_model();
     auto plugin = std::make_shared<NullPlugin>();
