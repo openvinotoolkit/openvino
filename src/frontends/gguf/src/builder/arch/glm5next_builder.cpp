@@ -171,6 +171,7 @@ public:
         m_emit.add_input("hidden_states", f32, ps({1, 1, D, m_cfg.n_embd}));
         m_emit.add_weight("token_embd.weight");
         auto embd = m_emit.add_op("GGML_OP_GET_ROWS", "embd", {"token_embd.weight", "inp_tokens"});
+        m_emit.value(embd).get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
         auto e = blocks::rms_norm(m_emit, embd, p + "nextn.enorm.weight", p + "mtp_enorm", m_cfg.rms_eps);
         auto hn = blocks::rms_norm(m_emit, "hidden_states", p + "nextn.hnorm.weight", p + "mtp_hnorm", m_cfg.rms_eps);
         auto cat = reg(p + "mtp_cat", std::make_shared<ov::op::v0::Concat>(ov::OutputVector{val(e), val(hn)}, -1));
