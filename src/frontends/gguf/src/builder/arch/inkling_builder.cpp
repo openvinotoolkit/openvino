@@ -266,10 +266,12 @@ private:
     Value clip(Value value, const Value& scale, float threshold) {
         if (scale.get_node())
             value = mul(value, scale);
-        // No epsilon: it only matters below the threshold, where the factor clamps to 1, and an epsilon
-        // denominator or a sum of squares would pin this chain to f32 on GPU.
-        auto factor =
-            std::make_shared<op::Divide>(scalar(threshold), std::make_shared<op::ReduceL2>(value, ints({3}), true));
+        // llama.cpp divides by L2 + 1e-6. The epsilon changes the factor by at most 1e-6 / threshold but pins
+        // the chain to f32 on GPU, so it is kept only for thresholds below 1.
+        Value l2 = std::make_shared<op::ReduceL2>(value, ints({3}), true);
+        if (threshold < 1.f)
+            l2 = add(l2, scalar(1e-6f));
+        auto factor = std::make_shared<op::Divide>(scalar(threshold), l2);
         return mul(value, std::make_shared<op::Clamp>(factor, 0., 1.));
     }
 

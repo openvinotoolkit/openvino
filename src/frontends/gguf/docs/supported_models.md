@@ -117,8 +117,10 @@ Design decisions:
   positions are kept in an extra i32 state, so cached decode and reset need no extra inputs.
 - Sliding-window masks are halved before the bias is added, so masked logits stay finite in
   F16.
-- Q/K/relative clipping uses `ReduceL2` without an epsilon; the epsilon has no effect there
-  and would force the chain to F32 on GPU.
+- Q/K/relative clipping uses `ReduceL2` and keeps llama.cpp's `1e-6` denominator epsilon only
+  for thresholds below 1. For larger thresholds, including the released models' 8 and 22.6,
+  it changes the clip factor by at most `1e-6 / threshold`, and dropping it keeps the chain
+  out of F32 on GPU.
 - Input-dependent convolution taps are extra one-hot channels of the same `SSM_CONV`, reusing
   the regular convolution state.
 - Experts are emitted as a direct expert-major `GatherMatmul`.
