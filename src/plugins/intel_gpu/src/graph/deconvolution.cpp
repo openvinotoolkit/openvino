@@ -22,8 +22,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     auto desc = impl_param.typed_desc<deconvolution>();
 
     auto input_layout = impl_param.get_input_layout();
-    auto weights_layout = *impl_param.weights_layout;
-    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
+    auto weights_layout = get_deconvolution_weights_layout(*impl_param.weights_layout, desc->grouped_weights_shape);
 
     auto data_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) && !impl_param.has_fused_primitives()) {
@@ -189,7 +188,8 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         }
     };
 
-    if (desc->groups > 1) {
+    // A GroupConvolutionBackpropData with one group still has grouped weights
+    if (desc->groups > 1 || desc->grouped_weights_shape) {
         ov::op::v1::GroupConvolutionBackpropData op;
         op.set_strides(strides);
         op.set_dilations(dilations);
@@ -319,7 +319,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                             "");
     }
 
-    auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
+    auto filter_inst = get_deconvolution_weights_layout(node.weights().get_output_layout(), argument->grouped_weights_shape);
 
     if (argument->bias.is_valid()) {
         auto bias_inst = node.bias().get_output_layout();

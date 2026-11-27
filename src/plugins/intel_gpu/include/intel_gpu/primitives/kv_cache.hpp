@@ -49,6 +49,10 @@ struct kv_cache : public primitive_base<kv_cache> {
     bool trim = false;
     bool update_kv = false;
     bool compressed = false;
+    /// Input order: [kv_state, kv_new_token, [beam_idx, bt_past], ...]; beam_idx is present when indirect.
+    static constexpr size_t beam_idx_input = 2;
+    /// The consumers of this indirect cache ignore its beam table, so beam_idx must be the identity.
+    bool requires_identity_beam_idx = false;
     QuantizationAttributes quantization_attributes;
 
     size_t hash() const override {
@@ -59,6 +63,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         seed = hash_combine(seed, trim);
         seed = hash_combine(seed, update_kv);
         seed = hash_combine(seed, compressed);
+        seed = hash_combine(seed, requires_identity_beam_idx);
         seed = hash_range(seed, quantization_attributes.scales_zp_output_order.begin(), quantization_attributes.scales_zp_output_order.end());
         seed = hash_range(seed, quantization_attributes.group_sizes.begin(), quantization_attributes.group_sizes.end());
         seed = hash_combine(seed, quantization_attributes.quantization_type);
@@ -77,13 +82,9 @@ struct kv_cache : public primitive_base<kv_cache> {
 
         auto rhs_casted = downcast<const kv_cache>(rhs);
 
-        return variable_info == rhs_casted.variable_info &&
-               concat_axis == rhs_casted.concat_axis &&
-               gather_axis == rhs_casted.gather_axis &&
-               indirect == rhs_casted.indirect &&
-               trim == rhs_casted.trim &&
-               update_kv == rhs_casted.update_kv &&
-               compressed == rhs_casted.compressed &&
+        return variable_info == rhs_casted.variable_info && concat_axis == rhs_casted.concat_axis && gather_axis == rhs_casted.gather_axis &&
+               indirect == rhs_casted.indirect && trim == rhs_casted.trim && update_kv == rhs_casted.update_kv && compressed == rhs_casted.compressed &&
+               requires_identity_beam_idx == rhs_casted.requires_identity_beam_idx &&
                quantization_attributes.scales_zp_output_order == rhs_casted.quantization_attributes.scales_zp_output_order &&
                quantization_attributes.output_storage_type == rhs_casted.quantization_attributes.output_storage_type &&
                quantization_attributes.group_sizes == rhs_casted.quantization_attributes.group_sizes &&
@@ -105,6 +106,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ob << trim;
         ob << update_kv;
         ob << compressed;
+        ob << requires_identity_beam_idx;
         ob << make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
         ob << make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
         ob << make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));
@@ -129,6 +131,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ib >> trim;
         ib >> update_kv;
         ib >> compressed;
+        ib >> requires_identity_beam_idx;
         ib >> make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
         ib >> make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
         ib >> make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));

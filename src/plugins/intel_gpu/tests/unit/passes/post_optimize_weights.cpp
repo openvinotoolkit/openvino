@@ -291,3 +291,159 @@ TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
     ASSERT_TRUE(onednn_weights_params->_out_desc->get_size() == prog->get_node("weights_weights_reorder_0").get_output_layout().bytes_count());
 #endif
 }
+
+template <typename T>
+static void check_folded_fc_weights(program_node& node, const std::vector<T>& src, int32_t ofm, int32_t ifm) {
+    const auto& out_layout = node.get_output_layout();
+    ASSERT_EQ(out_layout.data_type, data_types::f16);
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> mem(node.as<data>().get_attached_memory_ptr(), get_test_stream());
+    for (int32_t o = 0; o < ofm; ++o) {
+        for (int32_t i = 0; i < ifm; ++i) {
+            const auto offset = out_layout.get_linear_offset(tensor(batch(o), feature(i), spatial(0, 0, 0, 0)));
+            ASSERT_EQ(static_cast<float>(mem[offset]), static_cast<float>(ov::float16(src[static_cast<size_t>(o * ifm + i)])))
+                << "o=" << o << " i=" << i << " format=" << out_layout.format.to_string();
+        }
+    }
+}
+
+TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfzyx};
+    ov::Shape weight_shape = {1, 1, 1, 32, 16};
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::f16, format::bfzyx});
+
+    std::vector<ov::float16> weights_data(ov::shape_size(weight_shape));
+    std::iota(weights_data.begin(), weights_data.end(), 0.f);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        fully_connected("fc", input_info("input"), {"weights"}, "", data_types::f16, 5, 5)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfzyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+    ASSERT_NO_THROW(program_wrapper::apply_opt_pass<propagate_constants>(*prog));
+
+    ASSERT_TRUE(has_node(*prog, "weights_weights_reorder_0"));
+    auto& weights_node = prog->get_node("weights_weights_reorder_0");
+    ASSERT_TRUE(weights_node.is_type<data>());
+    EXPECT_TRUE(format::is_weights_format(weights_node.get_output_layout().format));
+    EXPECT_EQ(weights_node.get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
+    EXPECT_GT(weights_node.get_output_layout().bytes_count(), 0u);
+    check_folded_fc_weights(weights_node, weights_data, 32, 16);
+}
+
+TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfzyx};
+    ov::Shape weight_shape = {1, 1, 1, 32, 16};
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::f32, format::bfzyx});
+
+    std::vector<float> weights_data(ov::shape_size(weight_shape));
+    std::iota(weights_data.begin(), weights_data.end(), 0.f);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        reorder("reorder_dt", input_info("weights"), format::any, data_types::f16),
+        fully_connected("fc", input_info("input"), {"reorder_dt"}, "", data_types::f16, 5, 5)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfzyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    ASSERT_TRUE(has_node(*prog, "reorder_dt"));
+    auto& reorder_before_prop = prog->get_node("reorder_dt");
+    ASSERT_TRUE(reorder_before_prop.is_type<reorder>());
+    auto weights_reorder_params = reorder_before_prop.as<reorder>().get_primitive()->weights_reorder_params;
+    ASSERT_NE(weights_reorder_params, nullptr);
+    EXPECT_EQ(weights_reorder_params->get_input_layout().format, format::oiyx);
+    EXPECT_EQ(weights_reorder_params->get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
+
+    ASSERT_NO_THROW(program_wrapper::apply_opt_pass<propagate_constants>(*prog));
+
+    ASSERT_TRUE(has_node(*prog, "reorder_dt"));
+    auto& folded_node = prog->get_node("reorder_dt");
+    ASSERT_TRUE(folded_node.is_type<data>());
+    EXPECT_TRUE(format::is_weights_format(folded_node.get_output_layout().format));
+    EXPECT_EQ(folded_node.get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
+    EXPECT_GT(folded_node.get_output_layout().bytes_count(), 0u);
+    check_folded_fc_weights(folded_node, weights_data, 32, 16);
+}
+
+TEST(post_optimize_weights, ocl_group_conv_fuse_reorder_preserves_grouped_format_test) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({{1, 64, 11, 11}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{64, 1, 9, 9}, data_types::f32, format::bfyx});
+
+    std::vector<ov::float16> input_data(input->count(), ov::float16(1.0F));
+    set_values(input, input_data);
+
+    std::vector<float> weights_data(weights->count(), 0.0F);
+    for (size_t g = 0; g < 64; ++g) {
+        weights_data[g * 81 + g] = static_cast<float>(g + 1);
+    }
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("input_weights", weights->get_layout()),
+        reorder("reorder_weights", input_info("input_weights"), format::bfzyx, data_types::f16),
+        convolution("conv", input_info("input"), "reorder_weights", "", 64, {1, 1}, {1, 1}, {0, 0}, {0, 0}, true)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::any, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    ASSERT_TRUE(has_node(*prog, "reorder_weights"));
+    auto& reorder_node = prog->get_node("reorder_weights");
+    ASSERT_TRUE(reorder_node.is_type<reorder>());
+    auto weights_reorder_params = reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    ASSERT_NE(weights_reorder_params, nullptr);
+    EXPECT_EQ(weights_reorder_params->get_input_layout().format, format::goiyx);
+
+    network net(engine, topology, config);
+    net.set_input_data("input", input);
+    net.set_input_data("input_weights", weights);
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("conv").get_memory();
+    const auto out_layout = out_mem->get_layout();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+
+    for (int32_t f = 0; f < 64; ++f) {
+        const auto offset = out_layout.get_linear_offset(tensor(batch(0), feature(f), spatial(0, 0, 0, 0)));
+        ASSERT_FLOAT_EQ(static_cast<float>(out_ptr[offset]), static_cast<float>(f + 1)) << "f=" << f;
+    }
+}

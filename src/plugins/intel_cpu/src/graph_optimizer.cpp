@@ -50,7 +50,9 @@
 #include "nodes/reshape.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
-#include "nodes/sparse_sdpa.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/sparse_sdpa.h"
+#endif
 #include "nodes/transpose.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -234,9 +236,11 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
+#if defined(OPENVINO_ARCH_X86_64)
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MatchSparseSdpaKvCache");
     MatchSparseSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
+#endif
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "DropRedundantMemoryOutput");
     DropRedundantMemoryOutput(graph);
@@ -283,6 +287,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
 #endif
         if (!scaleNode->isConstant()) {
+            return false;
+        }
+        // DQ scales apply to every consumer of the parent's output, so the Multiply must be the only one
+        if (parentNode->getChildEdges().size() != 1) {
             return false;
         }
         // Only Fusing scales for INT8 precision.
@@ -3163,261 +3171,149 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
     }
 }
 
+namespace {
+
+// The attention node (NodeT, of the type nodeType) that owns the KV cache state of the MemoryInput `node`, if `node` is
+// a plain one of such a state: its only consumers are one attention node and ShapeOf nodes, and the attention node
+// feeds the MemoryOutput of the state. nullptr for any other node, and for a MemoryInput already replaced by a
+// MemInputT.
+template <typename NodeT, typename MemInputT>
+std::shared_ptr<NodeT> findKVCacheConsumer(const NodePtr& node, Type nodeType) {
+    if (Type::MemoryInput != node->getType()) {
+        return nullptr;
+    }
+    NodePtr childAttn = nullptr;
+    for (auto&& item : node->getChildEdgesAtPort(0)) {
+        auto childNode = item->getChild();
+        if (none_of(childNode->getType(), nodeType, Type::ShapeOf)) {
+            return nullptr;
+        }
+        if (nodeType == childNode->getType()) {
+            if (childAttn && childAttn != childNode) {
+                // only one child attention node supported
+                return nullptr;
+            }
+            childAttn = childNode;
+        }
+    }
+    if (!childAttn) {
+        return nullptr;
+    }
+    auto attn = std::dynamic_pointer_cast<NodeT>(childAttn);
+    OPENVINO_ASSERT(attn, "Couldn't cast node ", childAttn->getName(), " to the attention node type");
+
+    auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
+    OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+    auto& memOutputNode = memInputNode->getOutputNode();
+    if (memOutputNode.getParentEdgeAt(0)->getParent() != childAttn) {
+        return nullptr;
+    }
+    // Node is already modified
+    if (std::dynamic_pointer_cast<MemInputT>(node)) {
+        return nullptr;
+    }
+    return attn;
+}
+
+// Replaces the MemoryInput / MemoryOutput pair of a KV cache state of the attention node `attn` (the MemoryInput is
+// `node`) with a MemInputT / MemoryOutputStub pair, so the attention node owns the KV cache.
+template <typename MemInputT, typename NodeT>
+void replaceKVCacheMemInput(Graph& graph, const NodePtr& node, const std::shared_ptr<NodeT>& attn) {
+    auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
+    OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+
+    std::optional<std::vector<Shape>> inputShapes;
+    std::optional<std::vector<ov::element::Type>> inputPrcs;
+    if (!node->getParentEdges().empty()) {
+        inputShapes = std::optional<std::vector<Shape>>(std::vector<Shape>{});
+        inputPrcs = std::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+
+        auto& input_shape_vec = *inputShapes;
+        auto& input_prc_vec = *inputPrcs;
+
+        for (size_t j = 0; j < node->getParentEdges().size(); j++) {
+            input_shape_vec.push_back(node->getInputShapeAtPort(j));
+            input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(j));
+        }
+    }
+
+    // capture reference to the original mem output before graph transformations
+    auto& memOutput = memInputNode->getOutputNode();
+
+    auto memInputAttn = std::make_shared<MemInputT>(memInputNode->getId(),
+                                                    memInputNode->getName(),
+                                                    memInputNode->getTypeStr(),
+                                                    memInputNode->getOutputShapeAtPort(0),
+                                                    memInputNode->getOriginalOutputPrecisionAtPort(0),
+                                                    graph.getGraphContext(),
+                                                    inputShapes,
+                                                    inputPrcs,
+                                                    attn);
+
+    if (!memInputNode->getParentEdges().empty()) {
+        auto parentEdge = memInputNode->getParentEdgeAt(0);
+        auto parent = parentEdge->getParent();
+        const auto inputNum = parentEdge->getInputNum();
+        graph.RemoveEdge(parentEdge);
+        graph.CreateEdge(parent, memInputAttn, inputNum, 0);
+    }
+
+    for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {
+        auto child = edge->getChild();
+        const auto outputNum = edge->getOutputNum();
+        graph.RemoveEdge(edge);
+        graph.CreateEdge(memInputAttn, child, 0, outputNum);
+    }
+
+    // create a stub memory output
+    auto memOutputStub = std::make_shared<MemoryOutputStub>(memOutput.getId(),
+                                                            memOutput.getName(),
+                                                            memOutput.getTypeStr(),
+                                                            memOutput.getInputShapeAtPort(0),
+                                                            memOutput.getOriginalInputPrecisionAtPort(0),
+                                                            graph.getGraphContext());
+
+    auto memOutputEdge = memOutput.getParentEdgeAt(0);
+    const auto inputNum = memOutputEdge->getInputNum();
+    graph.RemoveEdge(memOutputEdge);
+    graph.CreateEdge(attn, memOutputStub, inputNum, 0);
+
+    graph.AddNode(memInputAttn);
+    graph.AddNode(memOutputStub);
+}
+
+}  // namespace
+
+// The scope of each wrapper below is its own (not in the shared templates above): the scopes are told apart by name.
 void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
-    const auto& graphNodes = graph.GetNodes();
-
-    auto isSuitableMemInput = [](const NodePtr& node) -> bool {
-        if (Type::MemoryInput != node->getType()) {
-            return false;
-        }
-        NodePtr childSdpa = nullptr;
-        auto&& childEdges = node->getChildEdgesAtPort(0);
-        for (auto&& item : childEdges) {
-            auto childNode = item->getChild();
-            if (none_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf)) {
-                return false;
-            }
-
-            if (Type::ScaledDotProductAttention == childNode->getType()) {
-                if (childSdpa && childSdpa != childNode) {
-                    // only one child SDPA supported
-                    return false;
-                }
-                childSdpa = childNode;
-            }
-        }
-
-        CPU_GRAPH_OPTIMIZER_SCOPE(MatchSdpaKvCache_isSuitableMemInput);
-
-        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
-        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
-        auto& memOutputNode = memInputNode->getOutputNode();
-        auto memOutputParent = memOutputNode.getParentEdgeAt(0)->getParent();
-        return memOutputParent == childSdpa;
-    };
-
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        auto node = graphNodes[i];
-        if (!isSuitableMemInput(node)) {
+    const auto& nodes = graph.GetNodes();
+    for (size_t i = 0; i < nodes.size(); i++) {  // AddNode appends: an index loop and a copy of the node
+        const auto node = nodes[i];
+        const auto sdpa =
+            findKVCacheConsumer<ScaledDotProductAttention, MemoryInputSDPA>(node, Type::ScaledDotProductAttention);
+        if (!sdpa) {
             continue;
         }
-
         CPU_GRAPH_OPTIMIZER_SCOPE(MatchSdpaKvCache_Node);
-
-        // Node is already modified
-        if (auto sdpaMemInput = std::dynamic_pointer_cast<node::MemoryInputSDPA>(node)) {
-            continue;
-        }
-
-        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
-        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
-
-        std::optional<std::vector<Shape>> inputShapes;
-        std::optional<std::vector<ov::element::Type>> inputPrcs;
-        if (!node->getParentEdges().empty()) {
-            inputShapes = std::optional<std::vector<Shape>>(std::vector<Shape>{});
-            inputPrcs = std::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
-
-            auto& input_shape_vec = *inputShapes;
-            auto& input_prc_vec = *inputPrcs;
-
-            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-                input_shape_vec.push_back(node->getInputShapeAtPort(i));
-                input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(i));
-            }
-        }
-
-        // search for SDPA
-        std::shared_ptr<ScaledDotProductAttention> sdpa;
-        for (auto&& edge : node->getChildEdgesAtPort(0)) {
-            auto child = edge->getChild();
-            if (Type::ScaledDotProductAttention == child->getType()) {
-                sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child);
-                if (sdpa) {
-                    break;
-                }
-                OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
-            }
-        }
-
-        // capture reference to the original mem output before graph transformations
-        auto& memOutput = memInputNode->getOutputNode();
-
-        auto memInputSdpa = std::make_shared<MemoryInputSDPA>(memInputNode->getId(),
-                                                              memInputNode->getName(),
-                                                              memInputNode->getTypeStr(),
-                                                              memInputNode->getOutputShapeAtPort(0),
-                                                              memInputNode->getOriginalOutputPrecisionAtPort(0),
-                                                              graph.getGraphContext(),
-                                                              inputShapes,
-                                                              inputPrcs,
-                                                              sdpa);
-
-        if (!memInputNode->getParentEdges().empty()) {
-            auto parentEdge = memInputNode->getParentEdgeAt(0);
-            auto parent = parentEdge->getParent();
-            const auto inputNum = parentEdge->getInputNum();
-            graph.RemoveEdge(parentEdge);
-            graph.CreateEdge(parent, memInputSdpa, inputNum, 0);
-        }
-
-        for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {
-            auto child = edge->getChild();
-            const auto outputNum = edge->getOutputNum();
-            graph.RemoveEdge(edge);
-            graph.CreateEdge(memInputSdpa, child, 0, outputNum);
-        }
-
-        // create a stub memory output
-        auto memOutputStub = std::make_shared<MemoryOutputStub>(memOutput.getId(),
-                                                                memOutput.getName(),
-                                                                memOutput.getTypeStr(),
-                                                                memOutput.getInputShapeAtPort(0),
-                                                                memOutput.getOriginalInputPrecisionAtPort(0),
-                                                                graph.getGraphContext());
-
-        auto memOutputEdge = memOutput.getParentEdgeAt(0);
-        const auto inputNum = memOutputEdge->getInputNum();
-        graph.RemoveEdge(memOutputEdge);
-        graph.CreateEdge(sdpa, memOutputStub, inputNum, 0);
-
-        graph.AddNode(memInputSdpa);
-        graph.AddNode(memOutputStub);
+        replaceKVCacheMemInput<MemoryInputSDPA>(graph, node, sdpa);
     }
 }
 
-// The counterpart of MatchSdpaKvCache for SparseSDPA (SparseAttentionWithKVCache): replaces the MemoryInput /
-// MemoryOutput pairs of its key/value states with MemoryInputSparseSDPA / MemoryOutputStub, so the node owns the
-// KV cache. It is a separate function on purpose: it never touches the ScaledDotProductAttention flow.
+#if defined(OPENVINO_ARCH_X86_64)
 void GraphOptimizer::MatchSparseSdpaKvCache(Graph& graph) {
-    const auto& graphNodes = graph.GetNodes();
-
-    auto isSuitableMemInput = [](const NodePtr& node) -> bool {
-        if (Type::MemoryInput != node->getType()) {
-            return false;
-        }
-        NodePtr childSparse = nullptr;
-        auto&& childEdges = node->getChildEdgesAtPort(0);
-        for (auto&& item : childEdges) {
-            auto childNode = item->getChild();
-            if (none_of(childNode->getType(), Type::SparseSDPA, Type::ShapeOf)) {
-                return false;
-            }
-
-            if (Type::SparseSDPA == childNode->getType()) {
-                auto sparse = std::dynamic_pointer_cast<node::SparseSDPA>(childNode);
-                if (!sparse || !sparse->isStateful()) {
-                    return false;
-                }
-                if (childSparse && childSparse != childNode) {
-                    // only one child SparseSDPA supported
-                    return false;
-                }
-                childSparse = childNode;
-            }
-        }
-        if (!childSparse) {
-            return false;
-        }
-
-        CPU_GRAPH_OPTIMIZER_SCOPE(MatchSparseSdpaKvCache_isSuitableMemInput);
-
-        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
-        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
-        auto& memOutputNode = memInputNode->getOutputNode();
-        auto memOutputParent = memOutputNode.getParentEdgeAt(0)->getParent();
-        return memOutputParent == childSparse;
-    };
-
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        auto node = graphNodes[i];
-        if (!isSuitableMemInput(node)) {
+    const auto& nodes = graph.GetNodes();
+    for (size_t i = 0; i < nodes.size(); i++) {  // AddNode appends: an index loop and a copy of the node
+        const auto node = nodes[i];
+        const auto sparse = findKVCacheConsumer<node::SparseSDPA, MemoryInputSparseSDPA>(node, Type::SparseSDPA);
+        // only the SparseAttentionWithKVCache form owns KV cache states
+        if (!sparse || !sparse->isStateful()) {
             continue;
         }
-
         CPU_GRAPH_OPTIMIZER_SCOPE(MatchSparseSdpaKvCache_Node);
-
-        // Node is already modified
-        if (std::dynamic_pointer_cast<node::MemoryInputSparseSDPA>(node)) {
-            continue;
-        }
-
-        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
-        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
-
-        std::optional<std::vector<Shape>> inputShapes;
-        std::optional<std::vector<ov::element::Type>> inputPrcs;
-        if (!node->getParentEdges().empty()) {
-            inputShapes = std::optional<std::vector<Shape>>(std::vector<Shape>{});
-            inputPrcs = std::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
-
-            auto& input_shape_vec = *inputShapes;
-            auto& input_prc_vec = *inputPrcs;
-
-            for (size_t j = 0; j < node->getParentEdges().size(); j++) {
-                input_shape_vec.push_back(node->getInputShapeAtPort(j));
-                input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(j));
-            }
-        }
-
-        // search for SparseSDPA
-        std::shared_ptr<node::SparseSDPA> sparse;
-        for (auto&& edge : node->getChildEdgesAtPort(0)) {
-            auto child = edge->getChild();
-            if (Type::SparseSDPA == child->getType()) {
-                sparse = std::dynamic_pointer_cast<node::SparseSDPA>(child);
-                if (sparse) {
-                    break;
-                }
-                OPENVINO_THROW("Couldn't cast node", child->getName(), " to SparseSDPA type");
-            }
-        }
-
-        // capture reference to the original mem output before graph transformations
-        auto& memOutput = memInputNode->getOutputNode();
-
-        auto memInputSparse = std::make_shared<MemoryInputSparseSDPA>(memInputNode->getId(),
-                                                                      memInputNode->getName(),
-                                                                      memInputNode->getTypeStr(),
-                                                                      memInputNode->getOutputShapeAtPort(0),
-                                                                      memInputNode->getOriginalOutputPrecisionAtPort(0),
-                                                                      graph.getGraphContext(),
-                                                                      inputShapes,
-                                                                      inputPrcs,
-                                                                      sparse);
-
-        if (!memInputNode->getParentEdges().empty()) {
-            auto parentEdge = memInputNode->getParentEdgeAt(0);
-            auto parent = parentEdge->getParent();
-            const auto inputNum = parentEdge->getInputNum();
-            graph.RemoveEdge(parentEdge);
-            graph.CreateEdge(parent, memInputSparse, inputNum, 0);
-        }
-
-        for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {
-            auto child = edge->getChild();
-            const auto outputNum = edge->getOutputNum();
-            graph.RemoveEdge(edge);
-            graph.CreateEdge(memInputSparse, child, 0, outputNum);
-        }
-
-        // create a stub memory output
-        auto memOutputStub = std::make_shared<MemoryOutputStub>(memOutput.getId(),
-                                                                memOutput.getName(),
-                                                                memOutput.getTypeStr(),
-                                                                memOutput.getInputShapeAtPort(0),
-                                                                memOutput.getOriginalInputPrecisionAtPort(0),
-                                                                graph.getGraphContext());
-
-        auto memOutputEdge = memOutput.getParentEdgeAt(0);
-        const auto inputNum = memOutputEdge->getInputNum();
-        graph.RemoveEdge(memOutputEdge);
-        graph.CreateEdge(sparse, memOutputStub, inputNum, 0);
-
-        graph.AddNode(memInputSparse);
-        graph.AddNode(memOutputStub);
+        replaceKVCacheMemInput<MemoryInputSparseSDPA>(graph, node, sparse);
     }
 }
+#endif
 
 void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
     // When we have a MemoryInput->MemoryOutput pair, that means that the state is immediately populated with the init
