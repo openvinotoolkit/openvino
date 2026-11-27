@@ -28,6 +28,8 @@ using ov::intel_gpu::ocl::moe::RoutedWeightViews;
 #    include <algorithm>
 #    include <array>
 #    include <chrono>
+#    include <cstdio>
+#    include <cstdlib>
 #    include <cstdint>
 #    include <cstdio>
 #    include <cstdlib>
@@ -1949,7 +1951,16 @@ public:
         if (!split_les) {
             if (demand_les) {
                 _lookahead->demand_partitioned(instance.id());
-                _lookahead->prefetcher().drain();
+                static const bool time_drain = std::getenv("MOE_LES_TIME_VERIFIER_DRAIN") != nullptr;
+                if (time_drain && token_num > 1) {
+                    const auto start = std::chrono::steady_clock::now();
+                    _lookahead->prefetcher().drain();
+                    const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start);
+                    std::fprintf(stderr, "LES_VERIFIER_DRAIN layer=%s rows=%zu ns=%lld\n", instance.id().c_str(),
+                                 static_cast<size_t>(token_num), static_cast<long long>(elapsed.count()));
+                } else {
+                    _lookahead->prefetcher().drain();
+                }
             }
             batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
             if (predict) {
