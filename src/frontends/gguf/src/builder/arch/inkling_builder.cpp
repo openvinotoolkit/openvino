@@ -52,12 +52,6 @@ Value softcap(const Value& value, float cap) {
     return mul(std::make_shared<op::Tanh>(mul(value, scalar(1.f / cap))), scalar(cap));
 }
 
-bool representable_float(double value) {
-    const auto magnitude = std::abs(value);
-    return std::isfinite(value) && magnitude <= std::numeric_limits<float>::max() &&
-           (magnitude == 0 || magnitude >= std::numeric_limits<float>::denorm_min());
-}
-
 class InklingBuilder : public ModelBuilder {
 public:
     explicit InklingBuilder(const BuildContext& context)
@@ -81,25 +75,26 @@ public:
         rel_clip = positive_float("attention.relative_clip");
         gate_cap = positive_float("activation.situ_beta");
         up_cap = positive_float("activation.situ_linear_beta");
-        route_scale = meta.get_float(arch + ".expert_weights_scale").value_or(1.f);
-        if (route_scale == 0)
-            route_scale = 1;
+        const auto scale = meta.get_float(arch + ".expert_weights_scale").value_or(1.);
         const auto floor = positive("attention.log_scale_floor");
         const auto alpha = meta.get_float(arch + ".attention.log_scale_alpha");
-        const auto final_cap = meta.get_float(arch + ".final_logit_softcapping").value_or(0.f);
-        OPENVINO_ASSERT(layers <= 1024 && kernel >= 2 && kernel <= 64 && unpadded <= vocab &&
-                            representable_float(route_scale) && alpha && representable_float(*alpha) && *alpha >= 0 &&
-                            representable_float(final_cap) && final_cap >= 0 && std::isfinite(1.f / gate_cap) &&
+        const auto final_cap = meta.get_float(arch + ".final_logit_softcapping").value_or(0.);
+        OPENVINO_ASSERT(layers <= 1024 && kernel >= 2 && kernel <= 64 && unpadded <= vocab,
+                        "[GGUF] invalid Inkling dimensions");
+        OPENVINO_ASSERT(representable_float(scale) && alpha && representable_float(*alpha) && *alpha >= 0,
+                        "[GGUF] invalid Inkling scaling parameters");
+        OPENVINO_ASSERT(representable_float(final_cap) && final_cap >= 0 && std::isfinite(1.f / gate_cap) &&
                             std::isfinite(1.f / up_cap) &&
                             (final_cap == 0 || std::isfinite(1.f / static_cast<float>(final_cap))),
-                        "[GGUF] invalid Inkling dimensions, scaling or clipping parameters");
+                        "[GGUF] invalid Inkling clipping parameters");
+        route_scale = scale == 0 ? 1.f : static_cast<float>(scale);
         sliding = meta.get_int_array(arch + ".attention.sliding_window_pattern");
-        OPENVINO_ASSERT(sliding.size() == static_cast<size_t>(layers) && std::all_of(sliding.begin(),
-                                                                                     sliding.end(),
-                                                                                     [](int64_t flag) {
-                                                                                         return flag == 0 || flag == 1;
-                                                                                     }),
-                        "[GGUF] Inkling requires a sliding-window flag for every physical layer");
+        const auto is_flag = [](int64_t flag) {
+            return flag == 0 || flag == 1;
+        };
+        OPENVINO_ASSERT(
+            sliding.size() == static_cast<size_t>(layers) && std::all_of(sliding.begin(), sliding.end(), is_flag),
+            "[GGUF] Inkling requires a sliding-window flag for every physical layer");
         int64_t start = 0, end = layers, passes = 1;
         if (arch == "inkling2_loop") {
             start = positive("loop.start");
@@ -142,6 +137,21 @@ public:
         tau = reshape(add(mul(std::make_shared<op::Log>(ratio), scalar(static_cast<float>(*alpha))), scalar(1.f)),
                       {0, -1, 1, 1},
                       true);
+        auto keys = std::make_shared<op::Convert>(e.value("cache_positions"), ov::element::i64);
+        auto distance = std::make_shared<op::Subtract>(
+            reshape(std::make_shared<op::Convert>(positions, ov::element::i64), {0, 1, -1, 1}, true),
+            reshape(keys, {0, 1, 1, -1}, true));
+        auto distance_shape = std::make_shared<op::ShapeOf>(distance);
+        distance_batch = std::make_shared<op::Gather>(distance_shape, ints({0}), ints({0}));
+        distance_rows_cols = std::make_shared<op::Gather>(distance_shape, ints({2, 3}), ints({0}));
+        for (const bool swa : {false, true}) {
+            const auto span = ints({swa ? window : extent});
+            auto valid = std::make_shared<op::LogicalAnd>(std::make_shared<op::GreaterEqual>(distance, ints({0})),
+                                                          std::make_shared<op::Less>(distance, span));
+            relative_indices[swa] = std::make_shared<op::Select>(valid, distance, span);
+            // Halving keeps masked logits finite in f16 after the bias, sink and score additions.
+            half_masks[swa] = mul(e.value(swa ? "self_kq_mask_swa" : "self_kq_mask"), scalar(0.5f));
+        }
         auto cur = operation("GGML_OP_GET_ROWS", {weight("token_embd.weight", {vocab, width}), e.value("inp_tokens")});
         cur = norm(cur, weight("token_embd_norm.weight", {width}), eps);
         // Encoded image embeddings already live at this normalized token boundary.
@@ -170,7 +180,7 @@ public:
         }
         for (auto layer = end; layer < layers; ++layer)
             cur = build_layer(layer, layer, cur, blocks);
-        cur = reshape(mix(blocks, cur, weight("output_res_query.weight", {width})), {0, 1, -1, width}, true);
+        cur = token_rows(mix(blocks, cur, weight("output_res_query.weight", {width})));
         cur = norm(cur, weight("output_norm.weight", {width}), eps);
         cur = operation("GGML_OP_GET_ROWS", {cur, e.value("inp_out_ids")});
         cur = mm(weight("output.weight", {vocab, width}), cur);
@@ -202,8 +212,12 @@ private:
         return array[layer];
     }
 
+    std::string next_name() {
+        return "inkling." + std::to_string(serial++);
+    }
+
     std::string save(const Value& value) {
-        auto name = "inkling." + std::to_string(serial++);
+        auto name = next_name();
         (*e.graph()->values)[name] = value;
         return name;
     }
@@ -215,26 +229,26 @@ private:
         std::vector<std::string> names;
         for (const auto& input : inputs)
             names.push_back(save(input));
-        const auto name = "inkling." + std::to_string(serial++);
+        const auto name = next_name();
         e.add_op(type, name, names, op_case, attrs);
         return e.value(name);
     }
 
     Value weight(const std::string& name, const std::vector<int64_t>& shape = {}) {
         if (!shape.empty()) {
-            auto actual = e.weight_shape(name);
-            ov::Shape expected(shape.begin(), shape.end());
-            while (actual.size() > 1 && actual.front() == 1)
-                actual.erase(actual.begin());
-            while (expected.size() > 1 && expected.front() == 1)
-                expected.erase(expected.begin());
-            OPENVINO_ASSERT(actual == expected,
+            const auto squeeze_front = [](ov::Shape s) {
+                while (s.size() > 1 && s.front() == 1)
+                    s.erase(s.begin());
+                return s;
+            };
+            const auto actual = e.weight_shape(name);
+            OPENVINO_ASSERT(squeeze_front(actual) == squeeze_front(ov::Shape(shape.begin(), shape.end())),
                             "[GGUF] invalid Inkling tensor shape: ",
                             name,
                             "; expected ",
                             ov::PartialShape(shape),
                             ", got ",
-                            ov::PartialShape(e.weight_shape(name)));
+                            ov::PartialShape(actual));
         }
         e.add_weight(name);
         return e.value(name);
@@ -259,12 +273,19 @@ private:
         return mul(value, std::make_shared<op::Clamp>(factor, 0., 1.));
     }
 
+    Value token_rows(const Value& value, int64_t row = -1) {
+        return reshape(row < 0 ? value : slice(value, 2, row, 1), {0, 1, -1, width}, true);
+    }
+
+    // Blocks are stored as normalized [B, T, 1, width] rows so each one is normalized only once.
+    Value stack_row(const Value& value) {
+        return norm(reshape(value, {0, -1, 1, width}, true), {}, 1e-6f);
+    }
+
     Value mix(const std::vector<Value>& blocks, const Value& cur, const Value& query) {
-        ov::OutputVector states;
-        for (auto block = blocks.rbegin(); block != blocks.rend(); ++block)
-            states.push_back(reshape(*block, {0, -1, 1, width}, true));
-        states.push_back(reshape(cur, {0, -1, 1, width}, true));
-        const auto values = norm(std::make_shared<op::Concat>(states, 2), {}, 1e-6f);
+        ov::OutputVector states(blocks.rbegin(), blocks.rend());
+        states.push_back(stack_row(cur));
+        const auto values = std::make_shared<op::Concat>(states, 2);
         const auto queries = reshape(query, {1, 1, -1, width});
         auto scores = std::make_shared<op::MatMul>(queries, values, false, true);
         auto probabilities = std::make_shared<op::Softmax>(mul(scores, scalar(1.f / std::sqrt(width))), 3);
@@ -314,7 +335,7 @@ private:
                 out = add(out, reshape(mul(rows, slice(taps, 3, lag, 1)), {0, 1, -1, channels}, true));
             }
         }
-        return mul(add(cur, out), scalar(1.f / std::sqrt((dynamic.get_node() ? 2 : 1) * kernel + 1.f)));
+        return mul(add(cur, out), scalar(1.f / std::sqrt((copies > 1 ? 2 : 1) * kernel + 1.f)));
     }
 
     Value cache(const Value& value, const std::string& name, int64_t heads, int64_t head) {
@@ -338,17 +359,16 @@ private:
                         "[GGUF] Inkling requires divisible query/KV head counts and equal key/value head widths");
         const auto kv_width = head * kv_heads;
         const auto state = "conv_state_l" + std::to_string(slot);
+        const auto conv_kv = [&](const std::string& n, const Value& in) {
+            const auto prefix = p + "attn_" + n;
+            return convolve(mm(weight(prefix + ".weight", {kv_width, width}), in),
+                            weight(prefix + "_conv.weight", {kv_width, kernel}),
+                            state + "_" + n,
+                            swa ? Value{} : mm(weight(prefix + "_conv_proj.weight", {kernel * kv_heads, width}), in));
+        };
         auto q = mm(weight(p + "attn_q.weight", {head * heads, width}), inputs[0]);
-        auto k =
-            convolve(mm(weight(p + "attn_k.weight", {kv_width, width}), inputs[1]),
-                     weight(p + "attn_k_conv.weight", {kv_width, kernel}),
-                     state + "_k",
-                     swa ? Value{} : mm(weight(p + "attn_k_conv_proj.weight", {kernel * kv_heads, width}), inputs[1]));
-        auto v =
-            convolve(mm(weight(p + "attn_v.weight", {kv_width, width}), inputs[2]),
-                     weight(p + "attn_v_conv.weight", {kv_width, kernel}),
-                     state + "_v",
-                     swa ? Value{} : mm(weight(p + "attn_v_conv_proj.weight", {kernel * kv_heads, width}), inputs[2]));
+        auto k = conv_kv("k", inputs[1]);
+        auto v = conv_kv("v", inputs[2]);
         q = clip(reshape(q, {0, -1, heads, head}, true), weight(p + "attn_q_clip.weight", {heads, head}), qk_clip);
         k = clip(reshape(k, {0, -1, kv_heads, head}, true), {}, qk_clip);
         v = norm(reshape(v, {0, -1, kv_heads, head}, true), {}, eps);
@@ -363,35 +383,22 @@ private:
         }
         k = cache(k, "cache_k_l" + std::to_string(slot), kv_heads, head);
         v = cache(v, "cache_v_l" + std::to_string(slot), kv_heads, head);
-        auto keys = std::make_shared<op::Convert>(e.value("cache_positions"), ov::element::i64);
-        auto positions = std::make_shared<op::Convert>(e.value("inp_pos"), ov::element::i64);
-        auto distance =
-            std::make_shared<op::Subtract>(reshape(positions, {0, 1, -1, 1}, true), reshape(keys, {0, 1, 1, -1}, true));
-        const auto span = ints({swa ? window : extent});
-        auto valid_distance = std::make_shared<op::LogicalAnd>(std::make_shared<op::GreaterEqual>(distance, ints({0})),
-                                                               std::make_shared<op::Less>(distance, span));
-        auto indices = std::make_shared<op::Select>(valid_distance, distance, span);
-        const auto table_weight = weight(p + "attn_rel_bias.weight", {swa ? window : extent, relative});
-        auto padded = std::make_shared<op::Pad>(reshape(table_weight, {swa ? window : extent, relative}),
-                                                ints({0, 0}),
-                                                ints({1, 0}),
-                                                ov::op::PadMode::CONSTANT);
+        const auto span = swa ? window : extent;
+        auto padded =
+            std::make_shared<op::Pad>(reshape(weight(p + "attn_rel_bias.weight", {span, relative}), {span, relative}),
+                                      ints({0, 0}),
+                                      ints({1, 0}),
+                                      ov::op::PadMode::CONSTANT);
         auto table = std::make_shared<op::MatMul>(transpose(r, {0, 2, 1, 3}), padded, false, true);
-        auto distance_shape = std::make_shared<op::ShapeOf>(distance);
-        Value bias = std::make_shared<op::GatherElements>(
-            table,
-            std::make_shared<op::Broadcast>(
-                indices,
-                std::make_shared<op::Concat>(
-                    ov::OutputVector{std::make_shared<op::Gather>(distance_shape, ints({0}), ints({0})),
-                                     ints({heads}),
-                                     std::make_shared<op::Gather>(distance_shape, ints({2, 3}), ints({0}))},
-                    0)),
-            3);
+        auto bias_shape =
+            std::make_shared<op::Concat>(ov::OutputVector{distance_batch, ints({heads}), distance_rows_cols}, 0);
+        Value bias =
+            std::make_shared<op::GatherElements>(table,
+                                                 std::make_shared<op::Broadcast>(relative_indices[swa], bias_shape),
+                                                 3);
         auto sinks = mm(weight(p + "attn_sink_proj.weight", {heads, width}), inputs[0]);
         bias = std::make_shared<op::Subtract>(bias, transpose(sinks, {0, 3, 2, 1}));
-        // Halving keeps masked logits finite in f16 after the bias, sink and score additions.
-        bias = add(bias, mul(e.value(swa ? "self_kq_mask_swa" : "self_kq_mask"), scalar(0.5f)));
+        bias = add(bias, half_masks[swa]);
         // The zero sink represents the removed query-dependent sink logit.
         auto sinks_zero = op::Constant::create(ov::element::f32, {1, 1, 1, static_cast<size_t>(heads)}, {0.f});
         auto out =
@@ -420,7 +427,7 @@ private:
         auto sum = std::make_shared<op::Clamp>(std::make_shared<op::ReduceSum>(weights, ints({2}), true),
                                                6.103515625e-5,
                                                std::numeric_limits<double>::infinity());
-        weights = mul(weights, std::make_shared<op::Divide>(scalar(static_cast<float>(route_scale)), sum));
+        weights = mul(weights, std::make_shared<op::Divide>(scalar(route_scale), sum));
         // Expert-major [K, T, *] throughout: the activation is elementwise, so neither GatherMatmul
         // output needs a transpose back to token-major.
         auto ids = std::make_shared<op::Convert>(reshape(selected, {-1, used}), ov::element::i32);
@@ -460,35 +467,37 @@ private:
                       std::vector<Value>& blocks,
                       const Value& messages = {}) {
         const auto p = "blk." + std::to_string(layer) + ".";
-        std::vector<Value> inputs(3, cur);
-        if (layer > 0) {
-            auto mixed = mix(blocks, cur, weight(p + "attn_res_query.weight", {sliding[layer] ? 1 : 3, width}));
-            for (int j = 0; j < 3; ++j)
-                inputs[j] = reshape(slice(mixed, 2, sliding[layer] ? 0 : j, 1), {0, 1, -1, width}, true);
-        }
-        const char* controls[] = {"q", "k", "v", "ffn"};
-        const char* norms[] = {"q", "k", "v"};
+        const bool swa = sliding[layer] != 0;
+        const bool loop = messages.get_node() != nullptr;
+        Value mixed;
+        if (layer > 0)
+            mixed = mix(blocks, cur, weight(p + "attn_res_query.weight", {swa ? 1 : 3, width}));
+        const std::string controls[] = {"q", "k", "v"};
+        std::vector<Value> inputs(3);
         for (int j = 0; j < 3; ++j) {
-            if (messages.get_node())
-                inputs[j] = control(inputs[j],
-                                    reshape(slice(messages, 2, j, 1), {0, 1, -1, width}, true),
-                                    p + "loop_" + controls[j]);
-            inputs[j] = norm(
-                inputs[j],
-                weight(p + (sliding[layer] ? "attn_norm.weight" : "attn_" + std::string(norms[j]) + "_inp_norm.weight"),
-                       {width}),
-                eps);
+            // Without loop controls, SWA layers feed one shared normalized input to Q, K and V.
+            if (swa && !loop && j > 0) {
+                inputs[j] = inputs[0];
+                continue;
+            }
+            auto x = mixed.get_node() ? token_rows(mixed, swa ? 0 : j) : cur;
+            if (loop)
+                x = control(x, token_rows(messages, j), p + "loop_" + controls[j]);
+            inputs[j] =
+                norm(x,
+                     weight(p + (swa ? "attn_norm.weight" : "attn_" + controls[j] + "_inp_norm.weight"), {width}),
+                     eps);
         }
         auto out = attention(inputs, p, layer, slot);
         // Blocks are indexed by physical layer, not by the unrolled cache slot.
         if (layer % block_size == 0)
-            blocks.push_back(cur);
+            blocks.push_back(stack_row(cur));
         else
             out = add(cur, out);
         auto residual = out;
-        out = reshape(mix(blocks, out, weight(p + "ffn_res_query.weight", {width})), {0, 1, -1, width}, true);
-        if (messages.get_node())
-            out = control(out, reshape(slice(messages, 2, 3, 1), {0, 1, -1, width}, true), p + "loop_ffn");
+        out = token_rows(mix(blocks, out, weight(p + "ffn_res_query.weight", {width})));
+        if (loop)
+            out = control(out, token_rows(messages, 3), p + "loop_ffn");
         out = ffn(norm(out, weight(p + "ffn_norm.weight", {width}), eps), p, layer);
         out = convolve(out,
                        weight(p + "ffn_post_conv.weight", {width, kernel}),
@@ -502,9 +511,10 @@ private:
     int64_t layers = 0, width = 0, kernel = 0, block_size = 0, relative = 0, extent = 0, window = 0;
     int64_t experts = 0, serial = 0;
     float eps = 0, qk_clip = 0, rel_clip = 0, gate_cap = 0, up_cap = 0;
-    double route_scale = 1;
+    float route_scale = 1;
     std::vector<int64_t> sliding;
-    Value tau;
+    Value tau, distance_batch, distance_rows_cols;
+    Value relative_indices[2], half_masks[2];
 };
 }  // namespace
 

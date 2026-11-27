@@ -77,6 +77,10 @@ def save_npz(path, arrays):
             archive.writestr(info, payload.getvalue())
 
 
+def index_row(values):
+    return np.asarray(values, np.int32).reshape(1, 1, 1, -1)
+
+
 def muse_glimmer_indices(height, width, window, merge=2):
     """Encoder inputs matching clip.cpp's Muse Glimmer window and shuffle ordering. Every window is
     padded to window^2 slots that repeat its first patch and are masked out as keys."""
@@ -92,21 +96,20 @@ def muse_glimmer_indices(height, width, window, merge=2):
     inverse = np.empty(height * width, np.int32)
     inverse[order[valid]] = np.flatnonzero(valid)
     rows, cols = np.divmod(order, width)
-    def indices(values):
-        return np.asarray(values, np.int32).reshape(1, 1, 1, -1)
-    return {"patch_indices": indices(order), "output_indices": indices(inverse),
-            "position_x": indices(cols + 1), "position_y": indices(rows + 1),
-            "merge_indices": indices(merge_window_order(height, width, merge)),
+    return {"patch_indices": index_row(order), "output_indices": index_row(inverse),
+            "position_x": index_row(cols + 1), "position_y": index_row(rows + 1),
+            "merge_indices": index_row(merge_window_order(height, width, merge)),
             "window_mask": np.where(valid, 0, -np.inf).astype(np.float32).reshape(len(groups), 1, 1, slots)}
 
 
-WHISPER_AUDIO = {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
 def inkling_vision_indices(rows, cols, merge):
     y, x = np.indices((rows, cols))
-    index = lambda values: np.asarray(values, np.int32).reshape(1, 1, 1, -1)
-    return {"position_x": index(np.concatenate(([0], x.ravel() + 1))),
-            "position_y": index(np.concatenate(([0], y.ravel() + 1))),
-            "merge_indices": index(merge_window_order(rows, cols, merge))}
+    return {"position_x": index_row(np.concatenate(([0], x.ravel() + 1))),
+            "position_y": index_row(np.concatenate(([0], y.ravel() + 1))),
+            "merge_indices": index_row(merge_window_order(rows, cols, merge))}
+
+
+WHISPER_AUDIO = {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
 
 
 FIXED_VISION = {"gemma3", "idefics3", "internvl", "janus_pro", "mlp"}
@@ -173,15 +176,14 @@ def checkpoint_inputs(metadata, modality, width, height=None, seed=42):
         return feeds, raw, width, height
     patch = vision_patch(metadata)
     gh, gw = height // patch, width // patch
-    index = lambda values: np.asarray(values, np.int32).reshape(1, 1, 1, -1)
     if projector == "lfm2":
-        feeds["vision.merge_indices"] = index(merge_window_order(gh, gw, int(metadata["vision.merge"])))
+        feeds["vision.merge_indices"] = index_row(merge_window_order(gh, gw, int(metadata["vision.merge"])))
     elif projector == "inkling2v":
         feeds.update({"vision." + name: value for name, value in inkling_vision_indices(
             gh, gw, int(metadata["vision.merge"])).items()})
     elif projector in {"gemma4v", "gemma4uv", "pixtral"}:
         rows, cols = np.indices((gh, gw))
-        feeds.update({"vision.position_x": index(cols), "vision.position_y": index(rows)})
+        feeds.update({"vision.position_x": index_row(cols), "vision.position_y": index_row(rows)})
     elif projector == "muse-glimmer":
         feeds.update({"vision." + name: value for name, value in muse_glimmer_indices(
             gh, gw, int(metadata["vision.window_size"]), int(metadata["vision.merge"])).items()})
@@ -205,9 +207,9 @@ def checkpoint_inputs(metadata, modality, width, height=None, seed=42):
                 mask[start:start + size, start:start + size] = 0
                 start += size
             feeds["vision.attention_mask"] = mask[None, None]
-            feeds["vision.output_indices"] = index(np.argsort(groups))
+            feeds["vision.output_indices"] = index_row(np.argsort(groups))
         rows, cols = np.divmod(order, gw)
         feeds["vision.pixel_values"] = np.repeat(pixels, 2, axis=0)
-        feeds["vision.patch_indices"] = index(order)
-        feeds["vision.position_ids"] = index(np.concatenate([rows, cols, rows, cols]))
+        feeds["vision.patch_indices"] = index_row(order)
+        feeds["vision.position_ids"] = index_row(np.concatenate([rows, cols, rows, cols]))
     return feeds, raw, width, height
