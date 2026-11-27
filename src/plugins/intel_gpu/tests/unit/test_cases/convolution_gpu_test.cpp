@@ -14078,7 +14078,7 @@ TEST_F(convolution_onednn_nvidia_validation, rejects_quantize) {
 
 TEST_F(convolution_onednn_nvidia_validation, rejects_prelu) {
     ASSERT_TRUE(is_supported());
-    fuse(std::make_shared<activation>("prelu", input_info("conv"), "slope", activation_func::relu));
+    fuse(std::make_shared<activation>("prelu", input_info("conv"), "slope", activation_func::relu_negative_slope));
     EXPECT_FALSE(is_supported());
 }
 
