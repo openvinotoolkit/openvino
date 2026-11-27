@@ -156,6 +156,9 @@ public:
     std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
         return m_weight_sharing_source_buffers;
     }
+
+    // usm_host buffer of at least the given size that constants pass through on their way to usm_device memory
+    cldnn::memory::ptr get_constant_staging_buffer(size_t bytes);
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -175,6 +178,7 @@ private:
     bool m_is_inner_program = false;
     ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
+    cldnn::memory::ptr m_constant_staging;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }
