@@ -90,6 +90,12 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
         auto rank = input.get_partial_shape().rank();
         if (!rank.is_static())
             return false;
+        const auto concat_rank = rank.get_length() - 1;
+        if (concat_axis < 0) {
+            concat_axis += concat_rank;
+        }
+        if (concat_axis < 0 || concat_axis >= concat_rank)
+            return false;
         std::vector<int64_t> order(rank.get_length());
         std::iota(order.begin(), order.end(), 0);
         order.erase(order.begin() + split_axis);
