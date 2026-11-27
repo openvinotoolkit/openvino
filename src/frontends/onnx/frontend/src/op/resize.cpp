@@ -5,6 +5,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -13,8 +14,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
-#include "openvino/op/round.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils/common.hpp"
 using namespace ov::op;
 
@@ -124,22 +125,24 @@ ov::Output<ov::Node> apply_keep_aspect_ratio_policy(const ov::Output<ov::Node>& 
         const auto gather_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
         input_sizes = std::make_shared<v8::Gather>(input_sizes, axes_const, gather_axis);
     }
-    const auto input_sizes_f = std::make_shared<v0::Convert>(input_sizes, ov::element::f32);
-    const auto sizes_f = std::make_shared<v0::Convert>(sizes, ov::element::f32);
-    const auto ratios = std::make_shared<v1::Divide>(sizes_f, input_sizes_f);
+    const auto target_sizes = std::make_shared<v0::Convert>(sizes, ov::element::i64);
 
-    const auto reduction_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    ov::Output<ov::Node> scale;
+    // The spec computes new_size[j] = round_half_up(in[j] * scale), where scale = min/max over i of size[i] / in[i].
+    // Rounding is monotonic, so this equals min/max over i of round_half_up(in[j] * size[i] / in[i]), which is
+    // computed exactly in integers as (2 * in[j] * size[i] + in[i]) / (2 * in[i]) to avoid floating-point errors.
+    const auto two = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    const auto input_sizes_column = std::make_shared<v0::Unsqueeze>(input_sizes, one);
+    const auto doubled_products =
+        std::make_shared<v1::Multiply>(std::make_shared<v1::Multiply>(input_sizes_column, two), target_sizes);
+    const auto numerators = std::make_shared<v1::Add>(doubled_products, input_sizes);
+    const auto denominators = std::make_shared<v1::Multiply>(input_sizes, two);
+    const auto candidates = std::make_shared<v1::Divide>(numerators, denominators);
+
     if (policy == "not_larger") {
-        scale = std::make_shared<v1::ReduceMin>(ratios, reduction_axis, true);
-    } else {
-        scale = std::make_shared<v1::ReduceMax>(ratios, reduction_axis, true);
+        return std::make_shared<v1::ReduceMin>(candidates, one, false);
     }
-
-    const auto scaled_sizes = std::make_shared<v1::Multiply>(scale, input_sizes_f);
-    // Output sizes are positive, so rounding half away from zero equals the spec's "round half up".
-    const auto rounded_sizes = std::make_shared<v5::Round>(scaled_sizes, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-    return std::make_shared<v0::Convert>(rounded_sizes, ov::element::i64);
+    return std::make_shared<v1::ReduceMax>(candidates, one, false);
 }
 }  // namespace
 
