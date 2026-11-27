@@ -10,6 +10,8 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "model_builder.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "orc.hpp"
@@ -266,6 +268,46 @@ TEST_P(ImportNonLLMNonWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtrEnsureComp
 }
 
 using ImportNonLLMWAIBlobTestNPUW = ImportNonLLMBlobTestNPUW;
+TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeWithModelPtrOriginalSizeZero) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SIZE";
+
+    std::size_t annotated_constants = 0;
+    for (const auto& node : m_ov_model->get_ordered_ops()) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (!constant) {
+            continue;
+        }
+
+        auto& rt_info = constant->get_rt_info();
+        const auto& attr =
+            rt_info.at(ov::WeightlessCacheAttribute::get_type_info_static()).as<ov::WeightlessCacheAttribute>();
+        const auto bin_offset = attr.bin_offset;
+        const auto original_dtype = attr.original_dtype;
+        rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(0, bin_offset, original_dtype);
+        ++annotated_constants;
+    }
+    ASSERT_GT(annotated_constants, 0u);
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+    auto compiled_outputs = infer_outputs(compiled);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    auto import_props = m_props;
+    import_props[ov::hint::model.name()] = std::static_pointer_cast<const ov::Model>(m_ov_model);
+    EXPECT_EQ(import_props.count(ov::weights_path.name()), 0u);
+    EXPECT_NO_THROW({
+        auto imported = m_core.import_model(blob, "NPU", import_props);
+        auto imported_outputs = infer_outputs(imported);
+        expect_outputs_equal(compiled_outputs, imported_outputs);
+    });
+}
+
 TEST_P(ImportNonLLMWAIBlobTestNPUW, CacheModeOptimizeSizeNoModelPtr) {
     ov::AnyMap wai_props = GetParam();
     m_props.insert(wai_props.begin(), wai_props.end());
