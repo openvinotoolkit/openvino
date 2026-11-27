@@ -46,8 +46,7 @@ namespace ov::intel_gpu {
 KVCacheFusionMatcher::KVCacheFusionMatcher() {
     using namespace ov::pass::pattern;
 
-    // kv_cache primitive supports only floating-point states (and internally compressed i8 ones); integer states
-    // such as cache positions stay unfused.
+    // kv_cache has no i32 implementation, so integer states such as cache positions stay unfused.
     auto past = wrap_type<ov::op::v6::ReadValue>([](const ov::Output<ov::Node>& output) {
         return output.get_element_type().is_real();
     });
