@@ -90,6 +90,7 @@
 #include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/convert_power_half_to_sqrt.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
