@@ -195,9 +195,6 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
     }
 
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_token_type_ids) {
-        return false;
-    }
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
     if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0) {
         return false;
@@ -1777,13 +1774,16 @@ public:
 
         auto effective_context_len = rt_params->max_context_len;
         // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset
-        if (desc->sliding_window > 0 && rt_params->stage == PagedAttentionStage::GENERATE && !desc->has_scores_output()) {
+        const bool swa_partitions = rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED;
+        if (desc->sliding_window > 0 && swa_partitions && !desc->has_scores_output()) {
             // The window straddles one extra block when the length is not block-aligned:
             //     aligned      |####|####|####|      3 blocks
             //     unaligned      |##|####|####|##|   4 blocks
-            // num_of_partitions is shared by the batch, so size it for the unaligned case.
+            // num_of_partitions is shared by the batch, so size it for the unaligned case. In MIXED every token of a
+            // subsequence starts at the window of its first token, which adds up to the subsequence length.
+            const size_t extra_tokens = rt_params->stage == PagedAttentionStage::MIXED ? get_max_subsequence_len(params) : 0;
             const auto total_blocks = ceil_div(rt_params->max_context_len, paged_attention_block_size);
-            const auto max_window_blocks = ceil_div(desc->sliding_window, paged_attention_block_size) + 1;
+            const auto max_window_blocks = ceil_div(desc->sliding_window + extra_tokens, paged_attention_block_size) + 1;
             effective_context_len = std::min(total_blocks, max_window_blocks) * paged_attention_block_size;
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);

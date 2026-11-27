@@ -1075,8 +1075,11 @@ struct PagedAttentionReference {
         std::vector<ov::float16> ref_scores_output;
         std::vector<ov::float16> ref_diversity_output;
         size_t qq_bias_offset = 0;
+        size_t token_offset = 0;
         for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
             const auto& subsequence_desc = pam.subsequence_descs[i];
+            const int* token_type_ids = pam.token_type_ids.size() >= token_offset + subsequence_desc.num_tokens ? pam.token_type_ids.data() + token_offset : nullptr;
+            token_offset += subsequence_desc.num_tokens;
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
             auto key_data = pam.key_data[i];
@@ -1141,7 +1144,8 @@ struct PagedAttentionReference {
                                                          pam.get_default_scale(),
                                                          xattn_threshold,
                                                          xattn_block_size,
-                                                         qq_bias_ptr);
+                                                         qq_bias_ptr,
+                                                         token_type_ids);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(), subsequence_ref_results.first.begin(), subsequence_ref_results.first.end());
@@ -1172,6 +1176,7 @@ private:
                                                                                 double xattention_threshold,
                                                                                 size_t block_size,
                                                                                 const std::vector<uint8_t>* qq_bias = nullptr,
+                                                                                const int* token_type_ids = nullptr,
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1295,7 +1300,8 @@ private:
                                                          sliding_window_size,
                                                          retained_blocks,
                                                          static_cast<int>(block_size),
-                                                         qq_bias);
+                                                         qq_bias,
+                                                         token_type_ids);
         cldnn::topology topology;
         if (num_heads == num_kv_heads) {
             topology.add(
@@ -1389,7 +1395,8 @@ private:
                                                         int sliding_window_size,
                                                         const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
                                                         int block_size,
-                                                        const std::vector<uint8_t>* qq_bias) {
+                                                        const std::vector<uint8_t>* qq_bias,
+                                                        const int* token_type_ids = nullptr) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1431,6 +1438,22 @@ private:
 
                         mem_ptr[i * num_keys + j] = is_min ? std::numeric_limits<ov::float16>::lowest() : ov::float16(0.f);
                     }
+                }
+            }
+            // A type-1 query also sees its whole run of type-1 tokens, inside a sliding window as well
+            if (token_type_ids) {
+                const int past = num_keys - num_queries;
+                for (int i = 0; i < num_queries; i++) {
+                    if (token_type_ids[i] != 1)
+                        continue;
+                    int begin = i;
+                    while (begin > 0 && token_type_ids[begin - 1] == 1)
+                        begin--;
+                    int end = i + 1;
+                    while (end < num_queries && token_type_ids[end] == 1)
+                        end++;
+                    for (int j = past + begin; j < past + end; j++)
+                        mem_ptr[i * num_keys + j] = ov::float16(0.f);
                 }
             }
         } else {
@@ -2207,6 +2230,9 @@ public:
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
+        }
+        if (p.disable_sdpa_micro) {
+            config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
         }
         cldnn::network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
@@ -3027,6 +3053,8 @@ struct paged_attention_test_params {
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
     // When true, forces could_use_flashattn_v2(true) to guarantee the FA_V2 kernel path.
     bool force_flashattn_v2 = false;
+    // When true, disables micro SDPA (GPU_ENABLE_SDPA_MICRO=false) so the OCL kernels run.
+    bool disable_sdpa_micro = false;
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;

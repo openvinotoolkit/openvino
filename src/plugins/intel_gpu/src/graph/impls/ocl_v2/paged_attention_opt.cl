@@ -66,6 +66,13 @@ inline uint FUNC(pa_bidir_group_begin)(const __global int* token_type_ids, const
 }
 #endif
 
+#if SWA_BLOCK_SKIP_ENABLED
+// Partitions start at the first KV block of the sliding window of the first query token of a subsequence (query_len
+// keys up to and including that token). Later tokens' windows, and a type-1 token's group (it starts at or after
+// past_len), never start earlier, so one start serves the whole subsequence. pa_small_q_opt.cl uses the same start.
+#define SWA_START_BLOCK(query_len) ((query_len) > SLIDING_WINDOW_SIZE ? ((query_len) - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE : 0)
+#endif
+
 #ifdef SDPA_STAGE_0
 
 #if SEQ_LEN_PARTITION_SIZE % PAGED_ATTENTION_BLOCK_SIZE != 0
@@ -239,8 +246,12 @@ KERNEL(pa_sdpa_opt)(
 
     const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
-#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
-    const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
+#if SWA_BLOCK_SKIP_ENABLED
+#if MULTI_TOKENS_PROCESSING
+    const uint swa_start_block = SWA_START_BLOCK(past_len + 1);
+#else
+    const uint swa_start_block = SWA_START_BLOCK(seq_len);
+#endif
     const uint swa_start_token = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
     const uint effective_blocks_num = total_blocks_num - swa_start_block;
 #else
@@ -732,7 +743,7 @@ KERNEL(pa_sdpa_opt)(
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) acc = OUTPUT_VAL_ZERO;
 #endif
 
-#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+#if SWA_BLOCK_SKIP_ENABLED
         const uint effective_seq_len = seq_len - swa_start_token;
 #else
         const uint effective_seq_len = seq_len;
@@ -1118,8 +1129,12 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
-#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
-    const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
+#if SWA_BLOCK_SKIP_ENABLED
+#if MULTI_TOKENS_PROCESSING
+    const uint swa_start_block = SWA_START_BLOCK(past_lens[subsequence_idx] + 1);
+#else
+    const uint swa_start_block = SWA_START_BLOCK(seq_len);
+#endif
     const uint effective_seq_len = seq_len - swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
 #else
     const uint effective_seq_len = seq_len;
