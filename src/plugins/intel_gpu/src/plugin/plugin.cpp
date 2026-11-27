@@ -603,7 +603,7 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
     }
     if (hsm_reader) {
         loaded_cache_mode = hsm_reader->cache_mode();
-        if (!config.is_set_by_user(ov::cache_mode)) {
+        if (config.get_user_properties().count(ov::cache_mode.name()) == 0) {
             config.set_user_property({ov::cache_mode(loaded_cache_mode)}, OptionVisibility::RELEASE);
         }
     } else {
