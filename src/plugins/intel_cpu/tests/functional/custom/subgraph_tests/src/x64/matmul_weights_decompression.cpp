@@ -671,6 +671,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_Weights,
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_post_mul_bias,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn({MatMulDecompressionShapeParams({{}, {{1, 1500, 512}}}, {512, 512}, {1, 1, 1}),
+                                                                 MatMulDecompressionShapeParams({{-1, 1500, 512}, {{1, 1500, 512}}}, {512, 512}, {1, 1, 1})}),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(false),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(get_additional_config_fp8_wd()),
+                                            ::testing::Values(fusingBias),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov

@@ -5,12 +5,16 @@
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/core/symbol.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
 #include "condition_inst.h"
+#include "program_helpers.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/condition.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
@@ -18,6 +22,8 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 
 using namespace cldnn;
@@ -50,6 +56,23 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& id,
             pooling(id + "_when_false", input_id, cldnn::pooling_mode::average, { 1, 2 }, { 1, 2 })
         );
     }
+    return branch;
+}
+
+// Body returning its parameter, which is bound to outer_input_id: the program skips it, and the condition passes the
+// buffer of that input through as its output.
+condition::branch make_identity_branch(engine& engine,
+                                       const ExecutionConfig& config,
+                                       const layout& data_layout,
+                                       const primitive_id& outer_input_id,
+                                       const std::string& suffix) {
+    condition::branch branch;
+    topology body;
+    body.add(input_layout("body_input" + suffix, data_layout),
+             reorder("body_result" + suffix, input_info("body_input" + suffix), data_layout));
+    branch.inner_program = program::build_program(engine, body, config, false, false, true);
+    branch.input_map.insert({outer_input_id, "body_input" + suffix});
+    branch.output_map.insert({0, "body_result" + suffix});
     return branch;
 }
 }  // namespace
@@ -830,6 +853,262 @@ public:
         ASSERT_TRUE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
         ASSERT_FALSE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
     }
+
+    // A skipped (identity) body passes the condition input buffer through as the condition output. "scale" runs while
+    // the output of "cond" is still to be read by "sum", so the memory pool must not give it the buffer of "abs".
+    // With nested, the bodies of "cond" run and return a nested condition with identity bodies, which passes the body
+    // parameter, i.e. the buffer of "abs", through in the same way.
+    void test_skipped_body_keeps_input_buffer(bool is_caching_test, bool nested = false) {
+        auto& engine = get_test_engine();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        const layout data_layout = { data_types::f32, format::bfyx, { 1, 1, 4, 4 } };
+        const layout pred_layout = { data_types::u8, format::bfyx, { 1, 1, 1, 1 } };
+        auto input_mem = engine.allocate_memory(data_layout);
+        auto predicate_mem = engine.allocate_memory(pred_layout);
+
+        auto identity_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            return make_identity_branch(engine, config, data_layout, outer_input_id, suffix);
+        };
+        auto nested_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            condition::branch branch;
+            topology body;
+            body.add(input_layout("body_input" + suffix, data_layout),
+                     input_layout("body_predicate" + suffix, pred_layout),
+                     condition("body_cond" + suffix,
+                               {input_info("body_predicate" + suffix), input_info("body_input" + suffix)},
+                               identity_branch("body_input" + suffix, suffix + "_t"),
+                               identity_branch("body_input" + suffix, suffix + "_f")));
+            branch.inner_program = program::build_program(engine, body, config, false, false, true);
+            branch.input_map.insert({outer_input_id, "body_input" + suffix});
+            branch.input_map.insert({"predicate", "body_predicate" + suffix});
+            branch.output_map.insert({0, "body_cond" + suffix});
+            return branch;
+        };
+        auto cond_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            return nested ? nested_branch(outer_input_id, suffix) : identity_branch(outer_input_id, suffix);
+        };
+
+        topology topology;
+        topology.add(input_layout("input", data_layout));
+        topology.add(input_layout("predicate", pred_layout));
+        topology.add(activation("abs", input_info("input"), activation_func::abs));
+        topology.add(condition("cond", {input_info("predicate"), input_info("abs")}, cond_branch("abs", "_t0"), cond_branch("abs", "_f0")));
+        topology.add(activation("scale", input_info("cond"), activation_func::linear, {2.f, 0.f}));
+        topology.add(condition("cond2", {input_info("predicate"), input_info("scale")}, identity_branch("scale", "_t1"), identity_branch("scale", "_f1")));
+        topology.add(eltwise("sum", {input_info("cond"), input_info("cond2")}, eltwise_mode::sum));
+
+        network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        ASSERT_EQ(net->get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized(), !nested);
+        ASSERT_FALSE(engine.is_the_same_buffer(*net->get_primitive("scale")->output_memory_ptr(), *net->get_primitive("abs")->output_memory_ptr()));
+
+        std::vector<float> input_data(data_layout.count());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data[i] = static_cast<float>(i) - 8.f;
+        }
+        set_values(input_mem, input_data);
+        set_values<uint8_t>(predicate_mem, {0});
+        net->set_input_data("input", input_mem);
+        net->set_input_data("predicate", predicate_mem);
+
+        auto outputs = net->execute();
+        auto output = outputs.at("sum").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], 3.f * std::fabs(input_data[i])) << "i=" << i;
+        }
+    }
+
+    // "cond" is a network output, and its skipped (identity) body makes that output the buffer of "abs". "late" runs
+    // after "cond" and after "sum3", the last user of "abs", and every user of "abs" reaches it, so the graph puts it on
+    // no restriction list of "abs". Like "abs" it feeds a condition, so both get the same allocation type. The memory
+    // pool must still not give "late" the buffer of "abs", which holds the output of "cond" until the network has
+    // finished. Without cond_has_users, "abs_x2" reads "abs" instead of "cond", so "cond" is a user of "abs" that
+    // "late" does not reach, and oooq_memory_dependencies separates them as well.
+    void test_skipped_body_output_keeps_input_buffer(bool is_caching_test, bool cond_has_users) {
+        auto& engine = get_test_engine();
+        ExecutionConfig body_config = get_test_default_config(engine);
+        body_config.set_property(ov::intel_gpu::optimize_data(true));
+        ExecutionConfig config = body_config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"cond", "cond3"}));
+        const layout data_layout = { data_types::f32, format::bfyx, { 1, 1, 4, 4 } };
+        const layout pred_layout = { data_types::u8, format::bfyx, { 1, 1, 1, 1 } };
+        auto input_mem = engine.allocate_memory(data_layout);
+        auto predicate_mem = engine.allocate_memory(pred_layout);
+        auto identity_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            return make_identity_branch(engine, body_config, data_layout, outer_input_id, suffix);
+        };
+
+        // Users are connected in id order: "abs_x2" before "cond", which places "cond" right after "abs"
+        const primitive_id x2_input = cond_has_users ? "cond" : "abs";
+        topology topology;
+        topology.add(input_layout("input", data_layout));
+        topology.add(input_layout("predicate", pred_layout));
+        topology.add(activation("abs", input_info("input"), activation_func::abs));
+        topology.add(condition("cond", {input_info("predicate"), input_info("abs")}, identity_branch("abs", "_t0"), identity_branch("abs", "_f0")));
+        topology.add(activation("abs_x2", input_info(x2_input), activation_func::linear, {2.f, 0.f}));
+        topology.add(condition("cond2", {input_info("predicate"), input_info("abs_x2")}, identity_branch("abs_x2", "_t1"), identity_branch("abs_x2", "_f1")));
+        topology.add(eltwise("sum3", {input_info("abs"), input_info("cond2")}, eltwise_mode::sum));
+        // Not an activation, which would be fused into "sum3"; the softmax over the single feature gives ones
+        topology.add(softmax("late", input_info("sum3"), 1));
+        topology.add(condition("cond3", {input_info("predicate"), input_info("late")}, identity_branch("late", "_t2"), identity_branch("late", "_f2")));
+
+        network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        ASSERT_TRUE(net->get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+        ASSERT_EQ(net->get_primitive("cond")->get_node().get_users().size(), cond_has_users ? 1u : 0u);
+        auto& prog = *net->get_program();
+        auto processing_number = [&](const primitive_id& id) {
+            return prog.get_processing_order().get_processing_number(&prog.get_node(id));
+        };
+        ASSERT_LT(processing_number("cond"), processing_number("late"));
+        EXPECT_FALSE(engine.is_the_same_buffer(*net->get_primitive("late")->output_memory_ptr(), *net->get_primitive("abs")->output_memory_ptr()));
+
+        std::vector<float> input_data(data_layout.count());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data[i] = static_cast<float>(i) - 8.f;
+        }
+        set_values(input_mem, input_data);
+        set_values<uint8_t>(predicate_mem, {0});
+        net->set_input_data("input", input_mem);
+        net->set_input_data("predicate", predicate_mem);
+
+        auto outputs = net->execute();
+        ASSERT_TRUE(engine.is_the_same_buffer(*outputs.at("cond").get_memory(), *net->get_primitive("abs")->output_memory_ptr()));
+        cldnn::mem_lock<float> cond_ptr(outputs.at("cond").get_memory(), get_test_stream());
+        cldnn::mem_lock<float> cond3_ptr(outputs.at("cond3").get_memory(), get_test_stream());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            ASSERT_FLOAT_EQ(cond_ptr[i], std::fabs(input_data[i])) << "i=" << i;
+            ASSERT_FLOAT_EQ(cond3_ptr[i], 1.f) << "i=" << i;
+        }
+    }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // The bodies of "cond" run. In them, "fc" is a oneDNN fully connected whose fused multiply runs in place
+    // (binary_mul_inplace) on the output of a nested identity condition, which passes the body parameter, i.e. the
+    // buffer of "abs", through. With dynamic shapes "fc" writes into the current buffer of that multiply input, and the
+    // body output reorder is optimized out, so "cond" outputs the buffer of "abs". "scale" runs while "sum" has still to
+    // read the output of "cond", so the memory pool must not give it the buffer of "abs".
+    void test_onednn_inplace_body_keeps_input_buffer(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        const int64_t ifm = 32;
+        const int64_t ofm = 16;
+        // can_use_mul_inplace() matches dynamic dims by symbol, as SymbolicPropagation sets them in the plugin
+        auto batch = ov::Dimension::dynamic();
+        batch.set_symbol(std::make_shared<ov::Symbol>());
+        const layout x_layout{ov::PartialShape{batch, ifm}, data_types::f16, format::bfyx};
+        const layout m_layout{ov::PartialShape{batch, ofm}, data_types::f16, format::bfyx};
+        const layout pred_layout{ov::PartialShape{1}, data_types::u8, format::bfyx};
+
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+        set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_mem->count(), -1, 1));
+
+        auto make_config = [&](bool enable_memory_pool) {
+            ExecutionConfig config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::enable_memory_pool(enable_memory_pool));
+            return config;
+        };
+        // Each network needs its own topology, see basic_memory_dependencies_mul_inplace
+        auto make_topology = [&](const ExecutionConfig& config, program::ptr& body_program) {
+            ExecutionConfig body_config = config;
+            body_config.set_property(ov::intel_gpu::force_implementations(
+                ov::intel_gpu::ImplForcingMap{{"fc", ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn}}}));
+            auto fc_branch = [&](const std::string& suffix) {
+                topology body(input_layout("body_x", x_layout),
+                              input_layout("body_m", m_layout),
+                              input_layout("body_predicate", pred_layout),
+                              data("weights", weights_mem),
+                              condition("body_cond",
+                                        {input_info("body_predicate"), input_info("body_m")},
+                                        make_identity_branch(engine, config, m_layout, "body_m", suffix + "_t"),
+                                        make_identity_branch(engine, config, m_layout, "body_m", suffix + "_f")),
+                              fully_connected("fc", input_info("body_x"), "weights", "", 2),
+                              eltwise("mul", {input_info("fc"), input_info("body_cond")}, eltwise_mode::prod),
+                              reorder("body_result", input_info("mul"), m_layout));
+                condition::branch branch;
+                branch.inner_program = program::build_program(engine, body, body_config, false, false, true);
+                branch.input_map.insert({"input", "body_x"});
+                branch.input_map.insert({"abs", "body_m"});
+                branch.input_map.insert({"predicate", "body_predicate"});
+                branch.output_map.insert({0, "body_result"});
+                return branch;
+            };
+            auto branch_true = fc_branch("_t");
+            body_program = branch_true.inner_program;
+            return topology(input_layout("input", x_layout),
+                            input_layout("mul_in", m_layout),
+                            input_layout("predicate", pred_layout),
+                            activation("abs", input_info("mul_in"), activation_func::abs),
+                            condition("cond", {input_info("predicate"), input_info("input"), input_info("abs")}, branch_true, fc_branch("_f")),
+                            activation("scale", input_info("cond"), activation_func::linear, {2.f, 0.f}),
+                            condition("cond2",
+                                      {input_info("predicate"), input_info("scale")},
+                                      make_identity_branch(engine, config, m_layout, "scale", "_t1"),
+                                      make_identity_branch(engine, config, m_layout, "scale", "_f1")),
+                            eltwise("sum", {input_info("cond"), input_info("cond2")}, eltwise_mode::sum));
+        };
+
+        const auto config_ref = make_config(false);
+        const auto config = make_config(true);
+        program::ptr body_ref;
+        program::ptr body;
+        network net_ref(engine, make_topology(config_ref, body_ref), config_ref);
+        auto topology = make_topology(config, body);
+        network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto& fc_node = body->get_node("fc");
+        ASSERT_EQ(fc_node.get_preferred_impl_type(), impl_types::onednn);
+        const auto reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node);
+        ASSERT_NE(reused_idx, -1) << "the multiply is expected to be fused into the oneDNN FC as binary_mul_inplace";
+        ASSERT_EQ(fc_node.get_dependency(reused_idx).id(), "body_cond");
+        ASSERT_FALSE(body->can_be_optimized());
+
+        const auto& abs_node = net->get_primitive("abs")->get_node();
+        const auto& scale_node = net->get_primitive("scale")->get_node();
+        if (!is_caching_test) {
+            const auto forwarded = net->get_primitive("cond")->get_node().as<condition>().get_inputs_forwarded_to_outputs();
+            EXPECT_NE(std::find(forwarded.begin(), forwarded.end(), &abs_node), forwarded.end());
+        }
+        EXPECT_TRUE(scale_node.has_memory_dependency(static_cast<uint32_t>(abs_node.get_unique_id())));
+        EXPECT_TRUE(abs_node.has_memory_dependency(static_cast<uint32_t>(scale_node.get_unique_id())));
+
+        auto predicate_mem = engine.allocate_memory({ov::PartialShape{1}, data_types::u8, format::bfyx});
+        const std::vector<int64_t> batches = {4, 8, 2};
+        for (size_t iter = 0; iter < batches.size(); ++iter) {
+            const auto b = batches[iter];
+            auto input_mem = engine.allocate_memory({ov::PartialShape{b, ifm}, data_types::f16, format::bfyx});
+            auto mul_mem = engine.allocate_memory({ov::PartialShape{b, ofm}, data_types::f16, format::bfyx});
+            set_values(input_mem, rg.generate_random_1d<ov::float16>(input_mem->count(), -1, 1));
+            set_values(mul_mem, rg.generate_random_1d<ov::float16>(mul_mem->count(), -1, 1));
+            set_values<uint8_t>(predicate_mem, {static_cast<uint8_t>(iter % 2)});
+            for (auto* n : {&net_ref, net.get()}) {
+                n->set_input_data("input", input_mem);
+                n->set_input_data("mul_in", mul_mem);
+                n->set_input_data("predicate", predicate_mem);
+            }
+            auto out_ref = net_ref.execute().at("sum").get_memory();
+            auto out = net->execute().at("sum").get_memory();
+
+            const auto& abs_mem = *net->get_primitive("abs")->output_memory_ptr();
+            // A loaded program does not keep the ov::Symbols, so binary_mul_inplace only runs without caching
+            if (!is_caching_test) {
+                ASSERT_TRUE(engine.is_the_same_buffer(*net->get_primitive("cond")->output_memory_ptr(), abs_mem)) << "batch=" << b;
+            }
+            EXPECT_FALSE(engine.is_the_same_buffer(*net->get_primitive("scale")->output_memory_ptr(), abs_mem)) << "batch=" << b;
+            ASSERT_EQ(out_ref->count(), out->count());
+            cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+            cldnn::mem_lock<ov::float16> out_ptr(out, get_test_stream());
+            for (size_t i = 0; i < out_ref->count(); ++i) {
+                ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 1e-2f) << "batch=" << b << ", i=" << i;
+            }
+        }
+    }
+#endif  // ENABLE_ONEDNN_FOR_GPU
 };
 
 TEST_F(condition_gpu_tests, basic_range_equal_comp) {
@@ -899,6 +1178,48 @@ TEST_F(condition_gpu_tests, empty_body) {
 TEST_F(condition_gpu_tests, empty_body_cached) {
     this->test_empty_body(true);
 }
+
+TEST_F(condition_gpu_tests, skipped_body_keeps_input_buffer) {
+    this->test_skipped_body_keeps_input_buffer(false);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_keeps_input_buffer_cached) {
+    this->test_skipped_body_keeps_input_buffer(true);
+}
+
+TEST_F(condition_gpu_tests, nested_skipped_body_keeps_input_buffer) {
+    this->test_skipped_body_keeps_input_buffer(false, true);
+}
+
+TEST_F(condition_gpu_tests, nested_skipped_body_keeps_input_buffer_cached) {
+    this->test_skipped_body_keeps_input_buffer(true, true);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_output_keeps_input_buffer) {
+    this->test_skipped_body_output_keeps_input_buffer(false, true);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_output_keeps_input_buffer_cached) {
+    this->test_skipped_body_output_keeps_input_buffer(true, true);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_output_without_users_keeps_input_buffer) {
+    this->test_skipped_body_output_keeps_input_buffer(false, false);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_output_without_users_keeps_input_buffer_cached) {
+    this->test_skipped_body_output_keeps_input_buffer(true, false);
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST_F(condition_gpu_tests, onednn_inplace_body_keeps_input_buffer) {
+    this->test_onednn_inplace_body_keeps_input_buffer(false);
+}
+
+TEST_F(condition_gpu_tests, onednn_inplace_body_keeps_input_buffer_cached) {
+    this->test_onednn_inplace_body_keeps_input_buffer(true);
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 TEST(condition_gpu, empty_body_with_different_shapes) {
     ov::PartialShape oned_pshape = ov::PartialShape{ 1 };

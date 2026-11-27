@@ -5,6 +5,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/normalize.hpp>
+#include <cmath>
 #include <iostream>
 #include <vector>
 
@@ -195,6 +196,90 @@ TYPED_TEST_SUITE(normalize_basic, format_types);
 TYPED_TEST(normalize_basic, basic) {
     this->execute(false);
 }
+
+// Slices whose sum of squares is far below 1 (e.g. NetVLAD clusters that receive almost no soft-assignment) must still be
+// normalized to unit L2 norm instead of being flushed to zero. All-zero slices must stay zero: their scale
+// 1/sqrt(eps) = 1e6 exceeds the f16 range, and 0 * inf would be NaN.
+struct normalize_small_norm_params {
+    data_types data_type;
+    bool across_spatial;
+    bool zero_input = false;
+};
+
+class normalize_small_norm : public testing::TestWithParam<normalize_small_norm_params> {};
+
+TEST_P(normalize_small_norm, matches_reference) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    const float eps = 1e-12f;
+    const tensor shape{1, 4, 3, 2};  // b, f, x, y
+    const size_t b = 1, f = 4, y = 2, x = 3;
+    const size_t spatial = y * x;
+
+    // Sum of squares of every normalized slice is below 1e-4 (5.8e-6..4.9e-5); values are normal f16 numbers.
+    std::vector<float> input_vals(b * f * spatial);
+    for (size_t i = 0; i < input_vals.size(); ++i) {
+        const float v = p.zero_input ? 0.f : (i % 2 ? -1.f : 1.f) * static_cast<float>(i + 1) * 1e-4f;
+        input_vals[i] = p.data_type == data_types::f16 ? static_cast<float>(ov::float16(v)) : v;
+    }
+
+    std::vector<float> expected(input_vals.size());
+    if (p.across_spatial) {
+        double sum = 0.0;
+        for (auto v : input_vals)
+            sum += static_cast<double>(v) * v;
+        for (size_t i = 0; i < input_vals.size(); ++i)
+            expected[i] = static_cast<float>(input_vals[i] / std::sqrt(sum + eps));
+    } else {
+        for (size_t s = 0; s < spatial; ++s) {
+            double sum = 0.0;
+            for (size_t c = 0; c < f; ++c)
+                sum += static_cast<double>(input_vals[c * spatial + s]) * input_vals[c * spatial + s];
+            for (size_t c = 0; c < f; ++c)
+                expected[c * spatial + s] = static_cast<float>(input_vals[c * spatial + s] / std::sqrt(sum + eps));
+        }
+    }
+
+    auto input = engine.allocate_memory({p.data_type, format::bfyx, shape});
+    auto scale = engine.allocate_memory({p.data_type, format::bfyx, tensor{1}});
+    if (p.data_type == data_types::f16) {
+        std::vector<ov::float16> input_f16(input_vals.begin(), input_vals.end());
+        set_values(input, input_f16);
+        set_values(scale, {ov::float16(1.f)});
+    } else {
+        set_values(input, input_vals);
+        set_values(scale, {1.f});
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("scale", scale));
+    topology.add(normalize("normalize", input_info("input"), "scale", p.across_spatial, eps));
+    topology.add(reorder("output", input_info("normalize"), format::bfyx, data_types::f32));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    const float tolerance = p.data_type == data_types::f16 ? 2e-3f : 1e-5f;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_NEAR(expected[i], output_ptr[i], tolerance) << "at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_normalize_small_norm,
+                         normalize_small_norm,
+                         testing::Values(normalize_small_norm_params{data_types::f32, false},
+                                         normalize_small_norm_params{data_types::f32, true},
+                                         normalize_small_norm_params{data_types::f16, false},
+                                         normalize_small_norm_params{data_types::f16, true},
+                                         normalize_small_norm_params{data_types::f32, false, true},
+                                         normalize_small_norm_params{data_types::f32, true, true},
+                                         normalize_small_norm_params{data_types::f16, false, true},
+                                         normalize_small_norm_params{data_types::f16, true, true}));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(normalize_basic, basic_cached) {
