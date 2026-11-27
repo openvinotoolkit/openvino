@@ -7,8 +7,12 @@
 #include <algorithm>
 #include <limits>
 
+#include <cstdlib>
+#include <iostream>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
@@ -50,7 +54,7 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
     }
 }
 
-int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
+int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device, bool host_access) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::unique_lock guard(m_mutex);
@@ -62,9 +66,11 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
         NPUW_ASSERT(uid_count < std::numeric_limits<int64_t>::max() && "Weights bank uid space exhausted");
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
-        device_bank.storage[uid] = {tensor, ov::Tensor()};
+        device_bank.storage[uid] = {tensor, ov::Tensor(), host_access};
         return uid;
     } else {
+        // A tensor shared by several closures stays cacheable if any of them is read by the host
+        device_bank.storage.at(iter_registered->second).host_access |= host_access;
         // Already registered - can be safely detach the incoming tensor
         const_cast<LazyTensor&>(tensor).detach();
     }
@@ -107,7 +113,20 @@ struct TensorToAllocate {
     LazyTensor::Meta meta;
     ov::Tensor allocated_tensor;
     int64_t uid;
+    bool host_access = false;
 };
+
+// PoC gate (HSD 22023555429): NPUW_WC_WEIGHTS=1 allocates NPU-only weights write-combined, i.e. not snooped by the NPU.
+static bool wc_weights_requested() {
+    static const bool enabled = [] {
+        // TODO - for testing purposes it returns TRUE for now
+        return true;
+        /* const char* v = std::getenv("NPUW_WC_WEIGHTS");
+        return v != nullptr && std::string(v) == "1";
+        */
+    }();
+    return enabled;
+}
 
 void Bank::evaluate_and_allocate() {
     std::unique_lock guard(m_mutex);
@@ -170,7 +189,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
+        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid, device_bank.storage.at(uid).host_access});
     }
     // Sort by UIDs, lowest first
     std::sort(uids_to_allocated.begin(),
@@ -181,10 +200,25 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
 
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
+    // tensor_type INPUT makes the NPU plugin allocate with ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED
+    const bool use_wc = wc_weights_requested() && ov::npuw::util::starts_with(device, "NPU");
+    ov::SoPtr<ov::IRemoteContext> wc_ctx;
+    if (use_wc) {
+        wc_ctx = m_core->create_context(device, {ov::intel_npu::tensor_type(ov::intel_npu::TensorType::INPUT)});
+    }
+    std::size_t n_wc = 0, n_cached = 0, bytes_wc = 0, bytes_cached = 0;
     for (auto&& allocated : uids_to_allocated) {
-        ov::SoPtr<ov::ITensor> remote_tensor =
-            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-        allocated = {allocated.meta, ov::make_tensor(remote_tensor), allocated.uid};
+        const bool wc = use_wc && !allocated.host_access;
+        const auto& ctx = wc ? wc_ctx._ptr : remote_ctx;
+        ov::SoPtr<ov::ITensor> remote_tensor = ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+        allocated.allocated_tensor = ov::make_tensor(remote_tensor);
+        (wc ? n_wc : n_cached)++;
+        (wc ? bytes_wc : bytes_cached) += allocated.allocated_tensor.get_byte_size();
+    }
+    if (use_wc) {
+        std::cerr << "[NPUW_WC_WEIGHTS] bank '" << m_bank_name << "' on " << device << ": WC " << n_wc << " tensors "
+                  << (bytes_wc >> 20) << " MiB, cached (host-read) " << n_cached << " tensors " << (bytes_cached >> 20)
+                  << " MiB" << std::endl;
     }
 
     // Evaluate and copy into the device memory
