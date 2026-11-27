@@ -8,31 +8,25 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
-#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
 #include "nodes/kernels/sparse_attn/sparse_pa_kernel.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
-#include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
 
-/// @brief CPU implementation of ov::op::internal::PagedSparseAttention (paged-cache sparse-
-/// attention consumer for Qwen Sparse Attention).
+/// @brief CPU implementation of ov::op::internal::PagedSparseAttention (paged-cache sparse-attention consumer for Qwen
+/// Sparse Attention).
 ///
-/// Writes the current-step K/V into the caller-owned paged main KV cache addressed through
-/// the shared PagedAttention page table, then performs the same scalar online-softmax
-/// selected-block + causal-tail attention as the dense SparseSDPA node, with every K/V read
-/// resolved through that same page table instead of a flat dense `[B, Hkv, S, D]` cache.
-/// SCALE is a runtime input; sinks are not supported yet (SINKS must be an empty tensor). The op has one
-/// query per selection row, so the per-sequence selection row offsets are subsequence_begins.
-/// Selected-block QK^T has a bf16/f16 AMX fast path mirroring SparseSDPA's, adapted for the
-/// paged cache: merge runs are additionally capped at physical-page boundaries, since two
-/// logically-adjacent selected blocks are only guaranteed memory-contiguous within the same
-/// physical page.
+/// Writes the current-step K/V into the caller-owned paged KV caches, addressed through the shared PagedAttention page
+/// table (validated on every call), then runs the same online-softmax attention over the selected blocks and the causal
+/// tail as the dense SparseSDPA node, with every K/V read resolved through the page table. The attention is the
+/// SparsePAExecutor of the kernels (SIMD, or AMX brgemm for the bf16 / f16 prefill). SCALE is a
+/// runtime input; sinks are not supported (SINKS must be an empty tensor). The op has one query per selection row, so
+/// the per-sequence selection row offsets are subsequence_begins. Runs of adjacent selected blocks are capped at
+/// physical page boundaries, since only blocks of the same page are contiguous in memory.
 class SparsePA : public Node {
 public:
     /// @brief Input order of ov::op::internal::PagedSparseAttention.
@@ -61,8 +55,8 @@ public:
     [[nodiscard]] bool needPrepareParams() const override {
         return false;
     }
-    // Only the token-major inputs gate execution: SINKS (and the optional SELECTED_BLOCK_MASK) is an
-    // empty tensor when unused, which must not make the node skip.
+    // Only the token-major inputs gate execution: SINKS is an empty tensor when
+    // unused, which must not make the node skip.
     [[nodiscard]] bool neverExecute() const override {
         const auto* pd = getSelectedPrimitiveDescriptor();
         return pd->hasZeroInputDimsAtPort(InputIdx::QUERY) || pd->hasZeroInputDimsAtPort(InputIdx::KEY) ||
@@ -81,41 +75,22 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    /// @brief Kernel parameters derived from the static input shapes. The key/value widths are used for the head
-    /// sizes rather than the cache shapes, whose last two dims are padded when the caches are quantized.
-    struct Config {
-        size_t num_heads = 0;
-        size_t num_kv_heads = 0;
-        size_t num_selection_heads = 1;  ///< 1, num_kv_heads, or num_heads
-        size_t k_head_size = 0;
-        size_t v_head_size = 0;
-        size_t key_block_size = 0;
-        bool causal = true;
-    };
+    /// @brief Kernel parameters: the head counts and sizes come from the runtime info of the op (the cache shapes
+    /// are padded when the caches are quantized), the widths and the selection heads from the static input shapes.
+    using Config = ov::Extensions::Cpu::SparsePAConfig;
     static bool deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason);
-    /// @brief Validates the cache layout against the plugin's KV-cache quantization settings and fills m_quant. The
-    /// quantized cache shapes (padded head size or page size) follow PagedAttention, see SparsePAQuant.
+    /// @brief Validates the cache layout against the plugin's KV-cache quantization settings and fills the cache specs
+    /// and the page size of m_config. The quantized cache shapes (padded head size or page size) follow PagedAttention,
+    /// see CacheSpec.
     bool deriveQuant(std::string& reason);
-    /// @brief Writes the current-step K/V into the paged caches (parallel over token x kv head), quantizing them for
-    /// u8/u4 caches. The attention kernel only reads the caches, so this is its barrier-separated first phase.
-    /// @param scratch at least writeKVScratchBytes() bytes, 64-byte aligned: the slot mapping and the by-channel
-    /// requantization buffer live there, not in the node
-    void writeKV(uint8_t* scratch);
-    /// @brief Bytes of the slot mapping of `tokens` tokens in the scratch of writeKV(), aligned to keep what follows it
-    /// aligned.
-    [[nodiscard]] static size_t writeKVSlotMappingBytes(size_t tokens);
-    /// @brief Bytes of scratch writeKV() needs for `tokens` tokens and caches of `block_size` rows per page.
-    [[nodiscard]] size_t writeKVScratchBytes(size_t tokens, size_t block_size) const;
-    /// @brief Per-thread scratch layout of the kernel for a selected_block_indices width.
-    [[nodiscard]] ov::Extensions::Cpu::SparsePAScratchLayout scratchLayout() const;
+    [[nodiscard]] bool isQuantized() const {
+        return ov::intel_cpu::is_quantized_cache(m_config.key_spec);
+    }
 
     Config m_config{};
-    ov::Extensions::Cpu::SparsePAQuant m_quant{};
-#ifdef OPENVINO_ARCH_X86_64
-    // AMX matrix products of the prefill path (empty when the node is not eligible), see SparseBrgemm.
-    ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
-#endif
-    size_t m_max_run_rows = 0;  // most key rows of one run, see SparsePAScratchLayout
+    // Shared by the nodes of the same configuration (params cache of the graph context); it owns the AMX kernels of the
+    // prefill path and the buffers of the K/V cache write.
+    std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> m_executor;
 };
 
 }  // namespace ov::intel_cpu::node

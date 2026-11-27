@@ -193,7 +193,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xattention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/eltwise_node_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/graph/x64/enforce_inference_precision_sparse_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/x64/paged_page_table_check_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/brgemm_supported_precisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fake_quantize_tokenization_test.cpp
@@ -205,6 +205,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_to_interaction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/mlp_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/qkv_proj_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/sparse_attention_kv_cache_fusion_test.cpp
 )
 
 set(CPU_UNIT_TESTS_ARM_SRCS
