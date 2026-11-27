@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <tuple>
 #include <unordered_map>
 
@@ -35,8 +36,8 @@ public:
 
     Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
-    // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
-    int64_t registerLT(const LazyTensor& tensor, const std::string& device);
+    // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id.
+    int64_t registerLT(const LazyTensor& tensor, const std::string& device, ov::AnyMap params = {});
 
     // Get registered, allocated and evaluated tensor on a specified device
     ov::Tensor get(int64_t uid, const std::string& device);
@@ -48,6 +49,11 @@ public:
 
     std::string get_name() const;
 
+    struct Statistics {
+        std::string to_string() const;
+        std::unordered_map<std::string, std::size_t> values;
+    };
+
 private:
     friend class ov::npuw::LLMCompiledModel;
     friend class ov::npuw::CompiledModel;
@@ -56,6 +62,7 @@ private:
     struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
+        std::optional<ov::AnyMap> params;
     };
     // Bank for specified device and their allocated memory
     struct DeviceBank {
@@ -77,6 +84,7 @@ private:
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
+    std::unordered_map<std::string, Statistics> m_statistics;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

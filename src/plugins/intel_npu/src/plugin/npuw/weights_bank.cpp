@@ -7,8 +7,12 @@
 #include <algorithm>
 #include <limits>
 
+#include <cstdlib>
+#include <iostream>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
@@ -50,7 +54,39 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
     }
 }
 
-int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
+static void merge_tensor_params(std::optional<ov::AnyMap>& stored_params,
+                                ov::AnyMap new_params,
+                                const std::string& alloc_device) {
+    // TODO properties are NPU specific at the moment, consider generalizing if needed
+    if (!ov::npuw::util::starts_with(alloc_device, "NPU")) {
+        return;
+    }
+
+    if (!stored_params) {
+        // if stored_params doesn't exist yet, we simply store the incoming params
+        stored_params = std::move(new_params);
+        return;
+    }
+
+    // If the stored_params has already the property "ov::intel_npu::tensor_type" and 
+    // next params does not have it, we remove it from the stored_params to indicate it's must be cacheable
+    // and we must not optimize it, as a tensor shared by several closures stays cacheable if any of them is read by the host.
+    const auto tensor_type = ov::intel_npu::tensor_type.name();
+    if (new_params.count(tensor_type) == 0) {
+        stored_params->erase(tensor_type);
+    } else {
+        // If the stored_params hasn't had the parameter from the very beginning,
+        // we must not set the tensor type in stored_params from new_params,
+        // as absence of the param means that some consumers expect the tensor to be cacheable.
+        new_params.erase(tensor_type);
+    }
+
+    for (const auto& param : new_params) {
+        stored_params->insert_or_assign(param.first, std::move(param.second));
+    }
+}
+
+int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device, ov::AnyMap params) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::unique_lock guard(m_mutex);
@@ -62,9 +98,15 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
         NPUW_ASSERT(uid_count < std::numeric_limits<int64_t>::max() && "Weights bank uid space exhausted");
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
-        device_bank.storage[uid] = {tensor, ov::Tensor()};
+        auto& stored_tensor = device_bank.storage[uid];
+        stored_tensor.lt = tensor;
+
+        merge_tensor_params(stored_tensor.params, std::move(params), device_for_alloc);
         return uid;
     } else {
+        merge_tensor_params(device_bank.storage.at(iter_registered->second).params,
+                            std::move(params),
+                            device_for_alloc);
         // Already registered - can be safely detach the incoming tensor
         const_cast<LazyTensor&>(tensor).detach();
     }
@@ -107,7 +149,26 @@ struct TensorToAllocate {
     LazyTensor::Meta meta;
     ov::Tensor allocated_tensor;
     int64_t uid;
+    ov::AnyMap params;
 };
+
+void appendStat(Bank::Statistics &stat, const TensorToAllocate &st) {
+    if (st.params.count(ov::intel_npu::tensor_type.name())) {
+        stat.values["non_coherent_mem_weights"]++;
+        stat.values["non_coherent_mem_bytes"]+= st.allocated_tensor.get_byte_size();
+    }
+    stat.values["total_weights"]++;
+    stat.values["total_bytes"] += st.allocated_tensor.get_byte_size();
+}
+
+// PoC gate (HSD 22023555429): NPUW_WC_WEIGHTS=1 allocates NPU-only weights write-combined, i.e. not snooped by the NPU.
+static bool wc_weights_requested() {
+    static const bool enabled = [] {
+        const char* v = std::getenv("NPUW_WC_WEIGHTS");
+        return v != nullptr && std::string(v) == "1";
+    }();
+    return enabled;
+}
 
 void Bank::evaluate_and_allocate() {
     std::unique_lock guard(m_mutex);
@@ -170,7 +231,8 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
+        uids_to_allocated.push_back(
+            {lt.eval_meta(), ov::Tensor(), uid, device_bank.storage.at(uid).params.value_or(ov::AnyMap{})});
     }
     // Sort by UIDs, lowest first
     std::sort(uids_to_allocated.begin(),
@@ -180,12 +242,20 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
               });
 
     // Allocate memory sequentially - in order of UID
-    auto remote_ctx = m_core->get_default_context(device)._ptr;
+    const bool use_wc = wc_weights_requested();
     for (auto&& allocated : uids_to_allocated) {
-        ov::SoPtr<ov::ITensor> remote_tensor =
-            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-        allocated = {allocated.meta, ov::make_tensor(remote_tensor), allocated.uid};
+        if (!use_wc) {
+            allocated.params.erase(ov::intel_npu::tensor_type.name());
+        }
+        auto ctx = allocated.params.empty() ? m_core->get_default_context(device)
+                                            : m_core->create_context(device, allocated.params);
+        ov::SoPtr<ov::ITensor> remote_tensor = ctx._ptr->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+        allocated.allocated_tensor = ov::make_tensor(remote_tensor);
+        appendStat(m_statistics[device], allocated);
     }
+    LOG_INFO("[NPUW_WC_WEIGHTS] bank '" << m_bank_name << "' on " << device << 
+             ": WC weights requested: " << (use_wc ? "yes" : "no") << 
+              m_statistics[device].to_string());
 
     // Evaluate and copy into the device memory
     ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
@@ -281,6 +351,20 @@ void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const
 
 std::string Bank::get_name() const {
     return m_bank_name;
+}
+
+std::string Bank::Statistics::to_string() const {
+    std::ostringstream oss;
+    for (const auto& [key, value] : values) {
+        oss << key << ": ";
+
+        if (key.find("bytes") != std::string::npos) {
+            oss << (value >> 20) << " MiB" << "\n";
+        } else {
+            oss << value << "\n";
+        }
+    }
+    return oss.str();
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {

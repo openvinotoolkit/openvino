@@ -733,7 +733,7 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
 
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
         auto& closure = desc_closure[cidx];
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
+        const auto closure_param_id = comp_model_desc.get_closure_param_id(cidx);
 
         // Skip gather closures
         if (m_accessor.is_gather_closure(idx, cidx)) {
@@ -825,7 +825,7 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
         }
 
         // Calculate original parameter index in the model
-        const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
+        const size_t original_param_idx = comp_model_desc.get_closure_param_id(closure_idx);
 
         auto& batched_closure = desc_closure[closure_idx];
 

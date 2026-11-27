@@ -203,6 +203,7 @@ private:
 
     // API for easily create and manage NPUW infer-requests (promoted to ICompiledModel_v0)
 
+    bool is_read_by_host_closure(const std::size_t idx, const std::size_t cidx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
@@ -288,6 +289,21 @@ private:
 
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
+
+        bool need_to_share_on_host_with(int64_t closure_id) const {
+            if (host_gather.dst_idx != -1 && host_gather.src_idx == get_closure_param_id(closure_id)) {
+                return true;
+            }
+
+            if (quant_unpack_gather.dst_idx != -1 &&
+                (quant_unpack_gather.src_w_idx == get_closure_param_id(closure_id) ||
+                 quant_unpack_gather.src_z_idx == get_closure_param_id(closure_id) ||
+                 quant_unpack_gather.src_s_idx == get_closure_param_id(closure_id))) {
+                return true;
+            }
+            return false;
+        }
+
         std::optional<ov::npuw::compiled::Spatial> spatial;
         ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
@@ -298,6 +314,10 @@ private:
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
         std::size_t param_base = 0;
+
+        std::size_t get_closure_param_id(std::size_t closure_id) const {
+            return param_base + closure_id;
+        }
 
         struct Closure {
             std::vector<ov::Tensor> closure;
