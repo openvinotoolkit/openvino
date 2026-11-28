@@ -55,6 +55,7 @@
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
@@ -63,10 +64,345 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/common_util.hpp"
 #include "quant/gguf.hpp"
+#include "transformations/convert_precision.hpp"
 #include "utils.hpp"
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+// Runs the fixture's token steps through an adapted qwen4exp MTP draft (fed hidden_input_*) or
+// target and compares the last logits row and every last_hidden_state row with the oracle. The
+// graphs keep extension ops (GatherMatmul, GatedDeltaNet) that IR cannot deserialize.
+void expect_qwen4exp_mtp_steps(const cnpy::npz_t& arrays,
+                               std::shared_ptr<ov::Model> model,
+                               const std::shared_ptr<ov::Model>& lookup_model,
+                               bool draft,
+                               bool hidden) {
+    const std::string logits_key = draft ? "logits_" : "target_logits_";
+    const std::string hidden_key = draft ? "hidden_output_" : "target_hidden_";
+    ov::pass::ConvertPrecision(ov::element::Type_t::f16, ov::element::Type_t::f32).run_on_model(model);
+    for (const auto& operation : model->get_ops()) {
+        for (const auto& output : operation->outputs())
+            EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
+    }
+    const auto width = static_cast<int64_t>(ov_gguf_test::npz_array(arrays, hidden_key + "0").shape[2]);
+    const auto vocab = ov_gguf_test::npz_array(arrays, logits_key + "0").shape[2];
+    if (draft)
+        EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, width}));
+    else
+        EXPECT_THROW(model->input("hidden_states"), ov::Exception);
+    if (!hidden)
+        EXPECT_EQ(model->outputs().size(), 1);
+    else
+        EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, width}));
+    EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+    ov::Core core;
+    const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {
+        return core
+            .compile_model(graph,
+                           "CPU",
+                           ov::hint::inference_precision(ov::element::f32),
+                           ov::hint::dynamic_quantization_group_size(0),
+                           ov::hint::kv_cache_precision(ov::element::f32))
+            .create_infer_request();
+    };
+    auto request = compile(model);
+    for (const auto& state : request.query_state()) {
+        const auto type = state.get_state().get_element_type();
+        if (type.is_real())
+            EXPECT_EQ(type, ov::element::f32);
+    }
+    ov::InferRequest lookup;
+    if (lookup_model)
+        lookup = compile(lookup_model);
+    const auto inputs = model->inputs();
+    const bool has_ids = std::any_of(inputs.begin(), inputs.end(), [](const auto& input) {
+        return input.get_names().count("input_ids") > 0;
+    });
+    int64_t offset = 0;
+    for (size_t step = 0; step < 3; ++step) {
+        SCOPED_TRACE(step);
+        const auto length = ov_gguf_test::npz_array(arrays, hidden_key + std::to_string(step)).shape[1];
+        ov::Tensor ids(ov::element::i64, {1, length}), positions(ov::element::i64, {1, length});
+        ov::Tensor mask(ov::element::i64, {1, static_cast<size_t>(offset) + length});
+        ov::Tensor beam(ov::element::i32, {1});
+        beam.data<int32_t>()[0] = 0;
+        std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+        for (size_t i = 0; i < length; ++i) {
+            ids.data<int64_t>()[i] = offset + i + 1;
+            positions.data<int64_t>()[i] = offset + i;
+        }
+        if (lookup) {
+            lookup.set_tensor("input_ids", ids);
+            lookup.infer();
+            request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+        }
+        // qwen4exp keeps its n-gram lookup in the text-embedding model, so it still reads input_ids.
+        if (has_ids)
+            request.set_tensor("input_ids", ids);
+        if (draft) {
+            const auto& hidden = ov_gguf_test::npz_array(arrays, "hidden_input_" + std::to_string(step));
+            request.set_tensor("hidden_states", ov::Tensor(ov::element::f32, hidden.shape, hidden.data<float>()));
+        }
+        request.set_tensor("attention_mask", mask);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("beam_idx", beam);
+        request.infer();
+        std::vector<std::pair<std::string, std::string>> outputs{{"logits", logits_key}};
+        if (hidden)
+            outputs.emplace_back("last_hidden_state", hidden_key);
+        for (const auto& [output, key] : outputs) {
+            SCOPED_TRACE(output);
+            const auto& expected = ov_gguf_test::npz_array(arrays, key + std::to_string(step));
+            const auto actual = request.get_tensor(output);
+            const bool logits = output == "logits";
+            const ov::Shape shape = logits ? ov::Shape{1, 1, vocab} : expected.shape;
+            EXPECT_EQ(actual.get_shape(), shape);
+            const auto* reference = expected.data<float>() + (logits ? expected.num_vals - vocab : 0);
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(actual.data<const float>(), reference, actual.get_size()),
+                1e-5);
+        }
+        offset += length;
+    }
+}
+
+TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
+    using namespace ov::frontend::gguf;
+    using InputMode = pass::AdaptToGenAI::InputMode;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::Core core;
+    const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {
+        return core
+            .compile_model(graph,
+                           "CPU",
+                           ov::hint::inference_precision(ov::element::f32),
+                           ov::hint::dynamic_quantization_group_size(0),
+                           ov::hint::kv_cache_precision(ov::element::f32))
+            .create_infer_request();
+    };
+    const auto check = [&](std::shared_ptr<ov::Model> model,
+                           const std::shared_ptr<ov::Model>& lookup_model,
+                           bool mtp,
+                           bool hidden) {
+        SCOPED_TRACE(mtp ? "draft" : "target");
+        // GatedDeltaNet has no IR opset, so only the full-attention draft can round-trip.
+        if (mtp)
+            model = ov_gguf_test::reload_ir_model(model);
+        ov::pass::ConvertPrecision(ov::element::Type_t::f16, ov::element::Type_t::f32).run_on_model(model);
+        for (const auto& operation : model->get_ops()) {
+            for (const auto& output : operation->outputs())
+                EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
+        }
+        if (mtp) {
+            EXPECT_EQ(model->get_variables().size(), 2);
+            EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 32}));
+        } else {
+            EXPECT_THROW(model->input("hidden_states"), ov::Exception);
+        }
+        if (hidden)
+            EXPECT_NO_THROW(model->output("last_hidden_state"));
+        else
+            EXPECT_EQ(model->outputs().size(), 1);
+        EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+        auto request = compile(model);
+        for (const auto& state : request.query_state())
+            EXPECT_EQ(state.get_state().get_element_type(), ov::element::f32);
+        ov::InferRequest lookup;
+        if (lookup_model)
+            lookup = compile(lookup_model);
+        int64_t offset = 0;
+        for (size_t step = 0; step < 3; ++step) {
+            SCOPED_TRACE(step);
+            const auto& hidden_input = ov_gguf_test::npz_array(arrays, "hidden_input_" + std::to_string(step));
+            const auto length = hidden_input.shape[1];
+            ov::Tensor ids(ov::element::i64, {1, length}), positions(ov::element::i64, {1, length});
+            ov::Tensor mask(ov::element::i64, {1, static_cast<size_t>(offset) + length});
+            ov::Tensor beam(ov::element::i32, {1});
+            beam.data<int32_t>()[0] = 0;
+            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+            for (size_t i = 0; i < length; ++i) {
+                ids.data<int64_t>()[i] = offset + i + 1;
+                positions.data<int64_t>()[i] = offset + i;
+            }
+            if (lookup) {
+                lookup.set_tensor("input_ids", ids);
+                lookup.infer();
+                request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+            } else {
+                request.set_tensor("input_ids", ids);
+            }
+            if (mtp)
+                request.set_tensor("hidden_states",
+                                   ov::Tensor(ov::element::f32, hidden_input.shape, hidden_input.data<float>()));
+            request.set_tensor("attention_mask", mask);
+            request.set_tensor("position_ids", positions);
+            request.set_tensor("beam_idx", beam);
+            request.infer();
+            std::vector<std::pair<const char*, const char*>> outputs{{"logits", mtp ? "logits_" : "target_logits_"}};
+            if (hidden)
+                outputs.emplace_back("last_hidden_state", mtp ? "hidden_output_" : "target_hidden_");
+            for (const auto& [output, key] : outputs) {
+                SCOPED_TRACE(output);
+                const auto& expected = ov_gguf_test::npz_array(arrays, std::string(key) + std::to_string(step));
+                const auto actual = request.get_tensor(output);
+                const bool logits = std::string(output) == "logits";
+                const ov::Shape shape = logits ? ov::Shape{1, 1, 32} : expected.shape;
+                EXPECT_EQ(actual.get_shape(), shape);
+                const auto* reference = expected.data<float>() + (logits ? expected.num_vals - 32 : 0);
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(actual.data<const float>(), reference, actual.get_size()),
+                    1e-5);
+            }
+            offset += length;
+        }
+    };
+    const auto constant_data = [](const std::shared_ptr<ov::Model>& model) {
+        std::set<const void*> data;
+        for (const auto& operation : model->get_ordered_ops())
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(operation);
+                constant && constant->get_byte_size() >= 256)
+                data.insert(constant->get_data_ptr());
+        return data;
+    };
+    for (const auto& [mode, component, stateful_extension] :
+         {std::tuple{InputMode::IDS_TO_LOGITS, std::string{}, false},
+          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}, false},
+          {InputMode::IDS_TO_LOGITS, std::string{"mtp"}, false},
+          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}, false},
+          {InputMode::IDS_TO_LOGITS, std::string{"mtp"}, true},
+          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}, true}}) {
+        SCOPED_TRACE(static_cast<int>(mode));
+        SCOPED_TRACE(component);
+        SCOPED_TRACE(stateful_extension);
+        FrontEnd frontend;
+        if (stateful_extension)
+            frontend.add_extension(
+                std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+        auto models =
+            adapt_to_genai(frontend.convert(frontend.load(temporary.path, LoadOptions{!component.empty()})), {mode});
+        const auto model = models.at("language");
+        const auto draft_it = models.find("mtp_draft");
+        const auto draft = draft_it == models.end() ? nullptr : draft_it->second;
+        const auto lookup_it = models.find("text_embeddings");
+        const auto lookup = lookup_it == models.end() ? nullptr : lookup_it->second;
+        ASSERT_EQ(draft != nullptr, !component.empty());
+        if (draft && mode == InputMode::IDS_TO_LOGITS) {
+            // Both lookups read one token embedding buffer instead of unpacking it twice.
+            const auto target_data = constant_data(model);
+            const auto draft_data = constant_data(draft);
+            EXPECT_TRUE(std::any_of(draft_data.begin(), draft_data.end(), [&](const void* data) {
+                return target_data.count(data) != 0;
+            }));
+        }
+        check(model, lookup, false, draft != nullptr);
+        // In embeddings mode the draft consumes the target's lookup model.
+        if (draft)
+            check(draft, lookup, true, true);
+    }
+}
+
+TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedNextNKvProjection) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    auto& kv_heads = parameters.dimensions.kv_heads_per_layer;
+    if (kv_heads.empty())
+        kv_heads.assign(parameters.dimensions.layers, static_cast<uint32_t>(parameters.dimensions.kv_heads));
+    kv_heads.pop_back();
+    auto& weights = std::get<1>(loaded);
+    const auto key = "blk." + std::to_string(parameters.dimensions.layers - 1) + ".attn_k.weight";
+    weights.at(key).shape[0] = parameters.dimensions.head_size + 1;
+    detail::WeightStore tensors{weights};
+    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
+    OV_EXPECT_THROW(DecoderBuilder(context, parameters).build(),
+                    ov::Exception,
+                    testing::HasSubstr("invalid NextN KV head dimensions"));
+}
+
+TEST(GGUFQwenMtpAccuracy, TargetGraphsDoNotDependOnNextNMetadata) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    auto target_only = parameters;
+    target_only.dimensions.layers -= target_only.hybrid.nextn_layers;
+    target_only.hybrid.nextn_layers = 0;
+    detail::WeightStore tensors{std::get<1>(loaded)};
+    for (const auto& component : {std::string{}, std::string{"mtp"}}) {
+        SCOPED_TRACE(component);
+        const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, component};
+        const auto with_nextn = DecoderBuilder(context, parameters).build();
+        const auto without_nextn = DecoderBuilder(context, target_only).build();
+        EXPECT_EQ(with_nextn->mtp_draft != nullptr, !component.empty());
+        EXPECT_EQ(without_nextn->mtp_draft, nullptr);
+        EXPECT_EQ(with_nextn->model_output_names, without_nextn->model_output_names);
+        EXPECT_EQ(with_nextn->model_contract.sequence_outputs,
+                  component.empty() ? std::vector<std::string>{} : std::vector<std::string>{"last_hidden_state"});
+        EXPECT_EQ(with_nextn->model_contract.sequence_outputs, without_nextn->model_contract.sequence_outputs);
+        ASSERT_EQ(with_nextn->nodes.size(), without_nextn->nodes.size());
+        for (size_t i = 0; i < with_nextn->nodes.size(); ++i) {
+            const auto& actual = with_nextn->nodes[i];
+            const auto& reference = without_nextn->nodes[i];
+            EXPECT_EQ(actual.name, reference.name);
+            EXPECT_EQ(actual.op_type, reference.op_type);
+            EXPECT_EQ(actual.input_names, reference.input_names);
+            EXPECT_EQ(actual.op_case, reference.op_case);
+        }
+    }
+}
+
+TEST(GGUFQwen4ExpMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
+    using namespace ov::frontend::gguf;
+    using InputMode = pass::AdaptToGenAI::InputMode;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp-mtp.npz");
+    const ov_gguf_test::TemporaryGguf full(ov_gguf_test::npz_array(arrays, "model"));
+    const ov_gguf_test::TemporaryGguf head(ov_gguf_test::npz_array(arrays, "self_head_model"));
+    const auto find = [](const ModelMap& models, const std::string& name) {
+        const auto found = models.find(name);
+        return found == models.end() ? nullptr : found->second;
+    };
+    for (const auto mode : {InputMode::IDS_TO_LOGITS, InputMode::EMBEDS_TO_LOGITS_TEXT}) {
+        SCOPED_TRACE(static_cast<int>(mode));
+        std::shared_ptr<ov::Model> lookup;
+        for (const bool mtp : {false, true}) {
+            SCOPED_TRACE(mtp);
+            FrontEnd frontend;
+            const auto models = adapt_to_genai(frontend.convert(frontend.load(full.path, LoadOptions{mtp})), {mode});
+            lookup = find(models, "text_embeddings");
+            EXPECT_EQ(lookup != nullptr, mode != InputMode::IDS_TO_LOGITS);
+            ASSERT_EQ(models.count("mtp_draft"), mtp ? 1 : 0);
+            expect_qwen4exp_mtp_steps(arrays, models.at("language"), lookup, false, mtp);
+            if (mtp)
+                expect_qwen4exp_mtp_steps(arrays, models.at("mtp_draft"), lookup, true, true);
+        }
+        // An Unsloth-style head file with only the NextN block converts to the same draft alone.
+        FrontEnd frontend;
+        const auto models = adapt_to_genai(frontend.convert(frontend.load(head.path, LoadOptions{true})), {mode});
+        ASSERT_EQ(models.size(), 1);
+        expect_qwen4exp_mtp_steps(arrays, models.at("mtp_draft"), lookup, true, true);
+    }
+}
+
+TEST(GGUFQwen4ExpMtpAccuracy, RejectsHeadsBorrowingTargetTensorsOrLoadedWithoutMtp) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp-mtp.npz");
+    const ov_gguf_test::TemporaryGguf shared(ov_gguf_test::npz_array(arrays, "shared_head_model"));
+    const ov_gguf_test::TemporaryGguf head(ov_gguf_test::npz_array(arrays, "self_head_model"));
+    FrontEnd frontend;
+    OV_EXPECT_THROW(frontend.convert(frontend.load(shared.path, LoadOptions{true})),
+                    ov::Exception,
+                    testing::HasSubstr("borrows token_embd/output from its target"));
+    OV_EXPECT_THROW(frontend.convert(frontend.load(head.path)),
+                    ov::Exception,
+                    testing::HasSubstr("holds only an MTP head"));
+}
 
 void register_deferred_decoder(ov::frontend::gguf::FrontEnd& frontend, const std::string& family) {
     using namespace ov::frontend::gguf;
@@ -991,7 +1327,8 @@ TEST(GGUFDSparkAccuracy, NoncausalDraftBlocksMatchPrismCPU) {
 
 // Check batching and beam reordering against independent stateful requests. The
 // same synthetic checkpoints are qualified against llama.cpp below.
-void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
+void check_batched_decode(const std::shared_ptr<ov::Model>& model,
+                          const std::shared_ptr<ov::Model>& embedding_model = nullptr) {
     ov::Core core;
     auto compiled = core.compile_model(model,
                                        "CPU",
@@ -1003,13 +1340,22 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
     auto first = compiled.create_infer_request();
     auto second = compiled.create_infer_request();
     auto batch = compiled.create_infer_request();
-    const auto infer = [](ov::InferRequest& request,
-                          size_t batch_size,
-                          const std::vector<int64_t>& ids,
-                          const std::vector<int64_t>& mask,
-                          const std::vector<int64_t>& positions,
-                          const std::vector<int32_t>& beams) {
+    ov::InferRequest lookup;
+    if (embedding_model)
+        lookup = core.compile_model(embedding_model, "CPU", ov::hint::inference_precision(ov::element::f32))
+                     .create_infer_request();
+    const auto infer = [&lookup](ov::InferRequest& request,
+                                 size_t batch_size,
+                                 const std::vector<int64_t>& ids,
+                                 const std::vector<int64_t>& mask,
+                                 const std::vector<int64_t>& positions,
+                                 const std::vector<int32_t>& beams) {
         set_tensor(request, "input_ids", ov::element::i64, {batch_size, ids.size() / batch_size}, ids);
+        if (lookup) {
+            lookup.set_tensor("input_ids", request.get_tensor("input_ids"));
+            lookup.infer();
+            request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+        }
         set_tensor(request, "attention_mask", ov::element::i64, {batch_size, mask.size() / batch_size}, mask);
         set_tensor(request, "position_ids", ov::element::i64, {batch_size, positions.size() / batch_size}, positions);
         set_tensor(request, "beam_idx", ov::element::i32, {batch_size}, beams);
@@ -1062,6 +1408,114 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm2SupportsBatchesAndBeamReordering) {
         EXPECT_EQ(convolution, 2);
         EXPECT_TRUE(model->get_sinks().empty());
     }
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Qwen4ExpSupportsLeftPaddingAndBeamReordering) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+    EXPECT_EQ(model->input("beam_idx").get_partial_shape(), (ov::PartialShape{-1}));
+    const auto supported = ov::Core().query_model(model, "CPU");
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<ov::op::v17::SparseAttention>(node) && !supported.count(node->get_friendly_name()))
+            GTEST_SKIP() << "The CPU plugin does not support SparseAttention";
+    }
+    // Pad id 0 differs from the n-gram EOS (31), so the padded row must not hash the padding.
+    check_batched_decode(model);
+
+    using Mode = ov::frontend::gguf::GenAIExtension::InputMode;
+    ov::frontend::gguf::FrontEnd text_frontend;
+    auto extension = std::make_shared<ov::frontend::gguf::GenAIExtension>(Mode::EMBEDS_TO_LOGITS_TEXT);
+    text_frontend.add_extension(extension);
+    auto text_model = text_frontend.convert(text_frontend.load(temporary.path));
+    ASSERT_NO_THROW(text_model->input("input_ids"));
+    check_batched_decode(text_model, extension->get_embedding_model());
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Qwen4ExpNgramLookupModelMatchesTokenInputs) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    using Mode = ov::frontend::gguf::GenAIExtension::InputMode;
+    const auto convert = [&](Mode mode) {
+        ov::frontend::gguf::FrontEnd frontend;
+        auto extension = std::make_shared<ov::frontend::gguf::GenAIExtension>(mode);
+        frontend.add_extension(extension);
+        auto model = frontend.convert(frontend.load(temporary.path));
+        return std::make_pair(model, extension);
+    };
+    auto [ids_model, unused] = convert(Mode::IDS_TO_LOGITS);
+    auto [embeds_model, extension] = convert(Mode::EMBEDS_TO_LOGITS);
+    const auto ngram = extension->get_ngram_embedding_model();
+    ASSERT_TRUE(ngram);
+    EXPECT_EQ(ngram->input("ngram_history").get_partial_shape(), (ov::PartialShape{-1, 2}));
+    EXPECT_EQ(ngram->output("ngram_embeddings").get_partial_shape(), (ov::PartialShape{-1, -1, 1, 16}));
+    EXPECT_EQ(embeds_model->input("ngram_embeddings").get_partial_shape(), (ov::PartialShape{-1, -1, 1, 16}));
+    for (const auto& variable : embeds_model->get_variables())
+        EXPECT_NE(variable->get_info().variable_id, "ngram_history");
+    ov::Core core;
+    const auto supported = core.query_model(ids_model, "CPU");
+    for (const auto& node : ids_model->get_ops()) {
+        if (ov::is_type<ov::op::v17::SparseAttention>(node) && !supported.count(node->get_friendly_name()))
+            GTEST_SKIP() << "The CPU plugin does not support SparseAttention";
+    }
+    const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+        return core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    };
+    auto ids_request = compile(ids_model), embeds_request = compile(embeds_model);
+    auto lookup = compile(extension->get_embedding_model()), ngram_lookup = compile(ngram);
+    const auto i64_tensor = [](const ov::Shape& shape, const std::vector<int64_t>& values) {
+        ov::Tensor tensor(ov::element::i64, shape);
+        std::copy(values.begin(), values.end(), tensor.data<int64_t>());
+        return tensor;
+    };
+    // EOS starts the history of a new sequence.
+    ov::Tensor history = i64_tensor({1, 2}, {31, 31});
+    size_t past = 0;
+    for (const std::vector<int64_t>& tokens : {std::vector<int64_t>{1, 2, 3}, {4}, {5, 6}}) {
+        const auto count = tokens.size();
+        std::vector<int64_t> positions(count);
+        std::iota(positions.begin(), positions.end(), static_cast<int64_t>(past));
+        const auto ids = i64_tensor({1, count}, tokens);
+        const auto mask = i64_tensor({1, past + count}, std::vector<int64_t>(past + count, 1));
+        ov::Tensor beam(ov::element::i32, {1});
+        beam.data<int32_t>()[0] = 0;
+        ids_request.set_tensor("input_ids", ids);
+        ids_request.set_tensor("attention_mask", mask);
+        ids_request.set_tensor("position_ids", i64_tensor({1, count}, positions));
+        ids_request.set_tensor("beam_idx", beam);
+        ids_request.infer();
+
+        lookup.set_tensor("input_ids", ids);
+        lookup.infer();
+        ngram_lookup.set_tensor("input_ids", ids);
+        ngram_lookup.set_tensor("ngram_history", history);
+        ngram_lookup.infer();
+        const auto next_history = ngram_lookup.get_tensor("new_ngram_history");
+        history = ov::Tensor(next_history.get_element_type(), next_history.get_shape());
+        next_history.copy_to(history);
+        std::vector<int64_t> sections;
+        for (size_t s = 0; s < 4; ++s)
+            sections.insert(sections.end(), positions.begin(), positions.end());
+        embeds_request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+        embeds_request.set_tensor("ngram_embeddings", ngram_lookup.get_tensor("ngram_embeddings"));
+        embeds_request.set_tensor("attention_mask", mask);
+        embeds_request.set_tensor("position_ids", i64_tensor({4, 1, count}, sections));
+        embeds_request.set_tensor("beam_idx", beam);
+        embeds_request.infer();
+
+        const auto expected = ids_request.get_tensor("logits"), actual = embeds_request.get_tensor("logits");
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<const float>(), actual.get_size()),
+            1e-6,
+            "past=" + std::to_string(past));
+        past += count;
+    }
+    EXPECT_EQ(history.data<int64_t>()[0], 5);
+    EXPECT_EQ(history.data<int64_t>()[1], 6);
 }
 
 static size_t count_rank3_gates(const std::shared_ptr<ov::Model>& model, const std::string& prefix) {
@@ -2308,6 +2762,13 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const std::string device = real_checkpoint && device_override ? device_override : "CPU";
     RecordProperty("device", device);
     ov::Core core;
+    // Block-sparse attention needs plugin kernels for QSAIndexer and SparseAttention.
+    const auto supported = core.query_model(model, device);
+    for (const auto& node : model->get_ops()) {
+        const std::string type = node->get_type_name();
+        if ((type == "QSAIndexer" || type == "SparseAttention") && !supported.count(node->get_friendly_name()))
+            GTEST_SKIP() << "The " << device << " plugin does not support " << type;
+    }
     ov::AnyMap config{ov::num_streams(1),
                       ov::hint::dynamic_quantization_group_size(0),
                       ov::hint::kv_cache_precision(ov::element::f16)};
@@ -2426,7 +2887,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         }
         past += tokens.size();
     }
-    if (mamba || std::string(GetParam()) == "afmoe") {
+    if (mamba || std::string(GetParam()) == "afmoe" || std::string(GetParam()).find("qwen4exp") == 0) {
         const auto states = request.query_state();
         ASSERT_FALSE(states.empty());
         for (auto state : states)
@@ -2453,6 +2914,8 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "inkling2-loop",
                                            "inkling2-loop-varying",
                                            "qwen35",
+                                           "qwen4exp",
+                                           "qwen4exp-tied",
                                            "qwen3next",
                                            "qwen3next-legacy",
                                            "qwen3next-legacy-hadamard",

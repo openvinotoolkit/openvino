@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "node_context.hpp"
@@ -38,6 +39,10 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeC
 /// Returns nullptr if the model has no such Parameter.
 std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
+void namespace_model_variables(const std::shared_ptr<ov::Model>& model, const std::string& prefix, bool restore);
+
+void namespace_model_boundaries(const std::shared_ptr<ov::Model>& model, const std::string& prefix, bool restore);
+
 /// \brief Read an integer string attribute from the model's `gguf_mmproj` rt_info; must be >= `minimum`.
 int64_t mmproj_int_metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum = 1);
 
@@ -65,6 +70,8 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 
 // x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
+// x / sqrt(sum(x^2) + eps) over the last axis.
+ov::Output<ov::Node> make_l2_norm_eps_under_sqrt(const ov::Output<ov::Node>& x, float eps);
 
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form = false);
 void decompose_hadamard(ov::Output<ov::Node> input);

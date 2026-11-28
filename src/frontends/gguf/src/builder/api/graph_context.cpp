@@ -177,6 +177,31 @@ GgufValue GgufGraphContext::node(const std::string& op_type,
     return GgufValue(name, m_impl->emitter.value(name));
 }
 
+std::vector<GgufValue> GgufGraphContext::node_outputs(const std::string& op_type,
+                                                      const std::vector<GgufValue>& inputs,
+                                                      size_t outputs,
+                                                      int op_case,
+                                                      const std::map<std::string, ov::Any>& attrs) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(outputs > 0, "[GGUF] node_outputs requires at least one output");
+    std::vector<std::string> names;
+    names.reserve(inputs.size());
+    for (const auto& input : inputs) {
+        names.push_back(m_impl->value_name(input));
+    }
+    const auto name = m_impl->fresh(op_type);
+    std::vector<std::string> extra;
+    for (size_t i = 1; i < outputs; ++i) {
+        extra.push_back(name + "." + std::to_string(i));
+    }
+    m_impl->emitter.add_op(op_type, name, names, op_case, attrs, extra);
+    std::vector<GgufValue> result{GgufValue(name, m_impl->emitter.value(name))};
+    for (const auto& output : extra) {
+        result.emplace_back(output, m_impl->emitter.value(output));
+    }
+    return result;
+}
+
 void GgufGraphContext::configure_rope(const RopeConfig& config) {
     m_impl->check_open();
     auto& graph = *m_impl->emitter.graph();
@@ -226,6 +251,32 @@ void GgufGraphContext::set_output(const GgufValue& value, const std::string& nam
     emitter.graph()->model_output_names.push_back(name);
 }
 
+void GgufGraphContext::acknowledge_component() {
+    m_impl->check_open();
+    m_impl->emitter.graph()->component = m_impl->build_ctx.component;
+}
+
+void GgufGraphContext::share_weights_from(const GgufGraphContext& target) {
+    m_impl->check_open();
+    target.m_impl->check_open();
+    OPENVINO_ASSERT(m_impl->emitter.graph()->nodes.empty(), "[GGUF] share weights before emitting nodes");
+    m_impl->emitter.share_weights_from(target.m_impl->emitter);
+}
+
+void GgufGraphContext::set_mtp_draft(const std::shared_ptr<GgufGraph>& draft) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(draft && draft != m_impl->emitter.graph(), "[GGUF] invalid MTP draft graph");
+    OPENVINO_ASSERT(!m_impl->emitter.graph()->model_rt_info.count("gguf_mtp_draft_only"),
+                    "[GGUF] a draft-only graph cannot carry another draft");
+    m_impl->emitter.graph()->mtp_draft = draft;
+}
+
+void GgufGraphContext::mark_mtp_draft_only() {
+    m_impl->check_open();
+    OPENVINO_ASSERT(!m_impl->emitter.graph()->mtp_draft, "[GGUF] a draft-only graph cannot carry another draft");
+    m_impl->emitter.graph()->model_rt_info["gguf_mtp_draft_only"] = true;
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
@@ -264,7 +315,13 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
         available.insert(entry.first);
     for (const auto& node : graph->nodes) {
         for (const auto& input : node.input_names) {
-            OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
+            // Weights shared from an MTP target have no leaf node in this graph.
+            OPENVINO_ASSERT(available.count(input) || m_impl->emitter.weight_emitted(input),
+                            "[GGUF] node '",
+                            node.name,
+                            "' uses unknown value '",
+                            input,
+                            "'");
         }
         available.insert(node.output_name);
         available.insert(node.extra_output_names.begin(), node.extra_output_names.end());

@@ -143,12 +143,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // ggml normalizes with x / max(||x||, eps); the op computes x / sqrt(||x||^2 + op_eps). With
     // op_eps = eps^2 both agree except near ||x|| == eps (at most sqrt(2) apart there). Fusing keeps
     // plugins from running the explicit normalization and its surrounding layout ops in f32. Fall
-    // back to the explicit form when eps^2 is not a normal float.
+    // back to the explicit form when eps^2 is not a normal float. Builders that already normalize
+    // with eps under the square root (qwen4exp) match the op exactly with op_eps = eps.
     const bool qk_l2norm = context.get_attribute<bool>("fuse_qk_l2norm", false);
     const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
-    const bool fuse_qk_l2norm = qk_l2norm && std::isnormal(eps * eps);
+    const bool under_sqrt = context.get_attribute<bool>("qk_l2_norm_eps_under_sqrt", false);
+    const float fused_eps = under_sqrt ? eps : eps * eps;
+    const bool fuse_qk_l2norm = qk_l2norm && std::isnormal(fused_eps);
     // Paged conversion requires positive eps attributes even when the op does not normalize.
-    const float op_l2_norm_eps = fuse_qk_l2norm ? eps * eps : 1e-6f;
+    const float op_l2_norm_eps = fuse_qk_l2norm ? fused_eps : 1e-6f;
     if (qk_l2norm && !fuse_qk_l2norm) {
         if (const auto joined = join_adjacent_qk(q, k); joined.get_node()) {
             const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
@@ -256,11 +259,12 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     const float scale = 1.0f / std::sqrt((float)S_v);
     const bool gqa_grouped = context.get_attribute<bool>("gqa_grouped", false);
 
-    // ggml's l2_norm (x / max(||x||, eps)) when the builder asked the fused op to normalize q/k.
+    // The q/k L2 normalization when the builder asked the fused op to normalize them.
     if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
         const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
-        q = make_l2_norm(q, eps);
-        k = make_l2_norm(k, eps);
+        const bool under_sqrt = context.get_attribute<bool>("qk_l2_norm_eps_under_sqrt", false);
+        q = under_sqrt ? make_l2_norm_eps_under_sqrt(q, eps) : make_l2_norm(q, eps);
+        k = under_sqrt ? make_l2_norm_eps_under_sqrt(k, eps) : make_l2_norm(k, eps);
     }
 
     if (context.has_input("chunk_valid_len")) {

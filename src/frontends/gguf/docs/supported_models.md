@@ -61,11 +61,12 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `qwen2` | Qwen2.5-0.5B-Instruct Q4_0 | qwen2 / qwen2.5 |
 | `qwen3` | Qwen3-0.6B Q4_0 | QK-norm before RoPE |
 | `qwen3tts` | Qwen3TTS represented F32 | Speech decoder; projector and codec are separate components |
-| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA |
+| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0; Ternary-Bonsai-2-4B/9B PQ2_0-MTP-Q8_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights, embedded NextN MTP draft; batching and beam search with SDPA and PA |
 | `qwen35moe` | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert |
 | `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | NEOX RoPE, per-head QK-norm, normalized experts |
 | `qwen3vl` | Qwen3-VL-2B Q4_0 | Interleaved multimodal RoPE and DeepStack inputs |
 | `qwen3vlmoe` | Qwen3-Omni-30B-A3B Q4_K_M | Multimodal RoPE and routed experts |
+| `qwen4exp` | HF tiny-random Qwen3.8-Flash-Next (F32); no real checkpoint replayed (smallest GGUF is 83 GB plus a 51B-parameter n-gram table) | Qwen3.8-Flash-Next text model: GatedDeltaNet + block-sparse attention (QSA), hyper-connection streams, hashed n-gram embeddings, shared-expert MoE; see [coverage](#qwen38-flash-next-coverage) |
 | `smollm3` | SmolLM3-3B Q4_K_M | NORMAL RoPE, skipped on every fourth layer |
 
 ### Runtime limitations
@@ -97,11 +98,90 @@ Manually validated with the backend's stateful execution:
 | `gemma4` | gemma-4-E4B-it Q4_K_M | Per-op RoPE, F16 KV cache |
 | `qwen35` | Qwen3.5-4B Q4_K_M | GatedDeltaNet, partial-rotary IMROPE, interleaved Q/gate; F16 KV cache |
 
+The cgraph converters for `LIGHTNING_INDEXER`, `TOP_K_MASK`, `DSV4_HC_PRE` (plain and gated) and
+`DSV4_HC_POST`, used by `qwen4exp`, are tested against ggml CPU only.
+
 These runs record no llama.cpp revision. [llama.cpp compatibility CI](../../../../.github/workflows/job_gguf_llamacpp_validation.yml)
 pins the backend revision and runs its operator tests plus state scenarios on generated
 `llama`, `qwen2` and `qwen3` models only.
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
+
+## Qwen3.8-Flash-Next coverage
+
+`qwen4exp` is the llama.cpp architecture of Qwen3.8-Flash-Next (`qwen4_exp` in Transformers), the
+preview of the Qwen4 architecture. The builder converts the text model:
+
+- Gated DeltaNet layers with a sigmoid output gate and q/k normalization `x / sqrt(sum(x^2) + eps)`;
+  packed (`attn_qkv_gate`, `ssm_beta_alpha`) and separate projections.
+- Qwen Sparse Attention layers as the internal `QSAIndexer` followed by opset17 `SparseAttention`:
+  blocks of `attention.compress_ratios` tokens, a budget of `attention.indexer.top_k` tokens and the
+  query's incomplete block, with a partially rotated RMS-normalized index query. The frontend
+  emits `QSAIndexer` directly, with the query norm and RoPE inside it, so no plugin fusion is
+  needed.
+- Four hyper-connection residual streams (fused or separate `down`/`inject` projections) in place
+  of every norm, including the output mixer. The streams are kept as one `[B,T,hc*n]` tensor, in
+  the form that the CPU `GatedResidualFusion` matches.
+- Hashed n-gram embeddings (PLE) before one layer, with a gated, dilated causal convolution. The
+  hash is the internal `NGramHashFunction`, which keeps the 64-bit multiply, XOR and modulo inside
+  one operation instead of thousands of exact i32 operations that plugins without 64-bit integer
+  arithmetic would need. Its signed modulo equals llama.cpp's unsigned one because conversion
+  checks that every token product stays below 2^63.
+- Shared-expert MoE.
+- NextN (MTP) blocks. Unsloth publishes them as separate `mtp-*.gguf` heads; see
+  [Qwen3.8-Flash-Next MTP](runtime.md#qwen38-flash-next-mtp).
+
+Unsloth's release uses i-quants in every file below `UD-Q4_K_XL`, and the frontend does not convert
+i-quants. `UD-Q5_K_XL`, `UD-Q6_K_XL`, `Q8_0` and `BF16` convert. `UD-Q4_K_XL` stores its n-gram
+table as `IQ4_NL`; pair it with the `Q8_0` or `Q5_1` n-gram file.
+
+The frontend emits `QSAIndexer` rather than the public `QSAPrepare` and `SparseAttentionIndexer`
+because the plugins only run the fused form: emitting it directly keeps the converted model
+independent of fusion patterns, which break when other passes reshape the query or change its
+precision. `QSAIndexer` follows the CPU cache contract: it takes the block-key cache as is and
+returns it grown to `max(key_length) / block` blocks, so the graph needs no zero-block padding
+around it. A plugin that keeps the cache at its input size instead never stores block keys and
+selects decode blocks from an empty cache while still reporting the operation as supported.
+Without plugin support for `QSAIndexer`, `SparseAttention` and `NGramHashFunction` the qwen4exp tests skip. Validation on CPU (f32 inference):
+
+- The F32 `qwen4exp` fixture matches llama.cpp `0ec4027a2` logits exactly through prefill and
+  cached decode, with two-token QSA blocks that make block selection active, plus state reset; a
+  variant without `output.weight` covers the tied output head.
+- [`optimum-intel-internal-testing/tiny-random-qwen38-flash-next`](https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen38-flash-next)
+  converted to F32 GGUF: 13/13 greedy choices with NMSE at most `2e-6` for a 27-token prompt
+  (six complete blocks against a two-block budget), and identical 12-token greedy output through
+  GenAI `LLMPipeline` (`GGUF_READER="FRONTEND"`). Its layer types read `qwen_sparse_attention`,
+  which the pinned llama.cpp converter maps to dense layers; it was converted as `full_attention`,
+  the label of the real checkpoint.
+- Left-padded batches with any pad id equal single-sequence runs; beam search runs.
+- `EMBEDS_TO_LOGITS` moves the n-gram lookup into a separate model with the optimum-intel IO
+  (`input_ids`, `ngram_history` -> `ngram_embeddings`, `new_ngram_history`) and matches token input.
+- MTP: the `qwen4exp-mtp` fixture matches llama.cpp `0ec4027a2` for the draft and for the target's
+  `last_hidden_state` through prefill and cached decode (NMSE below `1e-5`), with the draft loaded
+  from the same file and from a separate head. The real Unsloth `mtp-Qwen3.8-Flash-Next-Q8_0.gguf`
+  header, filled with zero weights, converts, compiles and runs.
+
+Validation on an Intel Arc B580 (Xe2) GPU whose plugin follows the cache contract, with the default
+f16 inference, both in `IDS_TO_LOGITS` and `EMBEDS_TO_LOGITS_TEXT` modes, against llama.cpp and the
+CPU:
+
+- `QSAIndexer` alone, 64-wide index head with partial RoPE (32 of 64), a 23-token prefill and 12
+  chained decode calls: the same selected blocks as the CPU in every call and a block-key cache
+  within NMSE `2e-7`. A plugin that keeps the input cache size leaves the cache empty and the
+  selections differ.
+- A synthetic F32 model with the same index geometry and a NextN block: 3/3 greedy choices, NMSE
+  `1.1e-5`; draft 2/2 against CPU, NMSE `4e-7`.
+- The tiny-random checkpoint: 13/13 for a 4-token prompt and 12 generated tokens (NMSE `1.3e-3`);
+  11/13 for a 20-token prompt (NMSE `1.5e-2`, f16 inference). Draft 12/12 against CPU. Its
+  logits barely depend on the selected blocks, so it does not test block selection.
+- The fixtures do not run on GPU: the GPU indexer kernel has no layout for their 12-wide index
+  head.
+
+Limitations: PagedAttention conversion is not supported yet; no real checkpoint has been run
+(memory); the vision projector is not covered; the GPU plugin has no `NGramHashFunction` kernel
+yet, so the model does not compile on GPU (the GPU results above used an exact i32 decomposition
+of the same hash); the GPU does not fuse the hyper-connection mixer;
+the llama.cpp cgraph path has converters for the new operations but no end-to-end backend run.
 
 ## Inkling 2
 

@@ -5,6 +5,8 @@
 #include "openvino/op/result.hpp"
 
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov {
@@ -169,6 +171,37 @@ TEST_F(TypePropResultV0Test, take_input_node_names) {
     EXPECT_THAT(c->get_output_tensor(0).get_names(), testing::IsEmpty());
     EXPECT_THAT(result->get_input_tensor(0).get_names(), UnorderedElementsAre("constant data"));
     EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("constant data"));
+}
+
+TEST(type_prop, result_model_clone_preserves_input_and_output_names) {
+    for (const bool direct : {true, false}) {
+        SCOPED_TRACE(direct);
+        auto input = make_shared<Parameter>(element::f32, Shape{1});
+        input->output(0).set_names({"input"});
+        Output<Node> value = input;
+        if (!direct) {
+            value = make_shared<ov::op::v1::Add>(input, Constant::create(element::f32, {1}, {1.f}));
+            value.set_names({"source"});
+        }
+        auto first = make_shared<ov::op::v0::Result>(value);
+        first->output(0).set_names({"first"});
+        auto second = make_shared<ov::op::v0::Result>(value);
+        second->output(0).set_names({"second"});
+        auto model = make_shared<Model>(ResultVector{first, second}, ParameterVector{input});
+        auto cloned = model->clone();
+
+        EXPECT_NO_THROW(cloned->input("input"));
+        EXPECT_NO_THROW(cloned->output("first"));
+        EXPECT_NO_THROW(cloned->output("second"));
+        EXPECT_THAT(cloned->output(0).get_names(), UnorderedElementsAre("first"));
+        EXPECT_THAT(cloned->output(1).get_names(), UnorderedElementsAre("second"));
+        if (direct) {
+            EXPECT_THAT(cloned->input(0).get_names(), UnorderedElementsAre("input", "first", "second"));
+        } else {
+            EXPECT_THAT(cloned->get_results()[0]->input_value(0).get_names(),
+                        UnorderedElementsAre("source", "first", "second"));
+        }
+    }
 }
 }  // namespace test
 }  // namespace ov

@@ -92,12 +92,13 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
                                              "qwen3next",
                                              "qwen3vlmoe",
                                              "qwen35moe",
+                                             "qwen4exp",
                                              "ernie4_5-moe",
                                              "mellum",
                                              "gemma4"});
     if (is_one_of(arch, {"afmoe", "glm4moe"}))
         p.experts.routing = ExpertRouting::Sigmoid;
-    if (is_one_of(arch, {"qwen35", "qwen35moe", "qwen3next"})) {
+    if (is_one_of(arch, {"qwen35", "qwen35moe", "qwen3next", "qwen4exp"})) {
         p.hybrid.kind = RecurrentKind::GatedDeltaNet;
         p.attention.rope_mode = arch == "qwen3next" ? RopeMode::Neox : RopeMode::Interleaved;
         p.attention.interleaved_q_gate = true;
@@ -106,6 +107,8 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         p.normalization.qk_norm = true;
         p.normalization.qk_full_width = false;
         p.model_contract.batchable_recurrent = true;
+        p.hybrid.sigmoid_output_gate = arch == "qwen4exp";
+        p.hybrid.l2_norm_eps_under_sqrt = arch == "qwen4exp";
     }
     if (is_one_of(arch, {"lfm2", "lfm2moe"})) {
         p.attention.sliding_on_attention_layers = true;

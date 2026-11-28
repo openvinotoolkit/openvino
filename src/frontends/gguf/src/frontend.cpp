@@ -79,7 +79,11 @@ bool has_gguf_magic(const std::filesystem::path& path) {
 }
 
 std::optional<std::vector<std::filesystem::path>> model_paths(const std::vector<ov::Any>& variants) {
-    const auto size = variants.size() - (variants.back().is<bool>() ? 1 : 0);
+    auto size = variants.size() - (variants.back().is<bool>() ? 1 : 0);
+    if (size && variants[size - 1].is<LoadOptions>())
+        --size;
+    if (!size)
+        return std::nullopt;
     if (size == 1) {
         if (auto paths = ov::frontend::get_path_vec_from_any(variants.front())) {
             return paths;
@@ -104,12 +108,14 @@ FrontEnd::~FrontEnd() = default;
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto gguf_model = std::dynamic_pointer_cast<gguf::InputModel>(model);
     FRONT_END_GENERAL_CHECK(gguf_model, "Invalid input model");
+    FRONT_END_GENERAL_CHECK(gguf_model->m_component.empty() || !m_impl->genai_extension,
+                            "MTP conversion requires adapt_to_genai, not GenAIExtension");
     std::shared_ptr<Model> converted_model;
     {
         auto ops = merged_ops(m_impl->op_extension_translators);
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
-            auto graph = gguf_model->m_builder(ops);
+            auto graph = gguf_model->m_builder(ops, gguf_model->m_component);
             for (const auto& [output, adapter] : graph->model_adapters) {
                 if (adapter)
                     adapter->lifetime.insert(adapter->lifetime.end(),
@@ -133,6 +139,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         converted_model = model("language");
         genai->m_embedding_model = model("text_embeddings");
         genai->m_per_layer_embedding_model = model("text_embeddings_per_layer");
+        genai->m_ngram_embedding_model = model("text_embeddings_ngram");
     }
     return converted_model;
 }
@@ -191,8 +198,14 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     FRONT_END_GENERAL_CHECK(!variants.empty(),
                             "GGUF Frontend requires at least one parameter in model representation.");
 
+    auto options_index = variants.size() - (variants.back().is<bool>() ? 1 : 0);
+    LoadOptions options;
+    if (options_index && variants[options_index - 1].is<LoadOptions>())
+        options = variants[options_index - 1].as<LoadOptions>();
+
     // Path 1: a GgufDecoder passed in directly (e.g. llama.cpp cgraph decoder).
     if (variants[0].is<std::shared_ptr<GgufDecoder>>()) {
+        FRONT_END_GENERAL_CHECK(!options.include_mtp_draft, "MTP load option requires a native GGUF file");
         auto decoder = variants[0].as<std::shared_ptr<GgufDecoder>>();
         FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<GgufDecoder>");
         return std::make_shared<InputModel>(decoder);
@@ -209,7 +222,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
         const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry)
                                       : load_gguf_builder(*paths, m_impl->arch_registry);
-        return std::make_shared<InputModel>(builder, m_extensions);
+        return std::make_shared<InputModel>(builder, m_extensions, options.include_mtp_draft ? "mtp" : "");
     }
 
     FRONT_END_GENERAL_CHECK(false,

@@ -16,11 +16,13 @@ namespace ov::frontend::gguf::op {
 OutputVector translate_sum_rows(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
+    // ggml sums the rows (last axis) and keeps it; builders may select another axis or drop it.
     auto input = context.get_input(0);
+    const auto axis = context.get_attribute<int64_t>("axis", -1);
     auto res =
         std::make_shared<ov::op::v1::ReduceSum>(input,
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
-                                                true);
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis}),
+                                                context.get_attribute<bool>("keep_dims", true));
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
