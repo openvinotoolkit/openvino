@@ -24,7 +24,7 @@ from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
 from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
-    torch_tensor_to_ov_const)
+    to_ov_float_type, torch_tensor_to_ov_const)
 from openvino.frontend.pytorch.vmap_lowering import lower_vmap_regions
 
 logger = logging.getLogger(__name__)
@@ -222,8 +222,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None, output_names=None):
+                 op_type_mapping=None, output_names=None, default_float_type=None):
         super().__init__(mark_node_callback)
+        self._set_default_float_type(to_ov_float_type(default_float_type))
         if isinstance(pt_module, torch.fx.GraphModule):
             lowered = lower_vmap_regions(pt_module)
             fx_gm = lowered if fx_gm is pt_module else fx_gm
@@ -644,6 +645,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
+        if name == "__openvino_legacy_op_type":
+            return OVAny(self.get_legacy_op_type())
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
@@ -729,10 +732,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
-                name = self.pt_module.target.__name__
+            target = self.pt_module.target
+            if type(target).__name__ == "EdgeOpOverload":
+                name = target.__name__
+            elif inspect.isfunction(target):
+                name = f"{target.__module__}.{target.__qualname__}"
             else:
-                name = str(self._functional_out_target(self.pt_module.target))
+                name = str(self._functional_out_target(target))
             if self._module_extension_target_ops:
                 if name in self._module_extension_target_ops:
                     return self._module_extension_target_ops[name]
@@ -741,6 +747,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
             return "UNKNOWN_TYPE_" + str(self.pt_module.op)
+
+    def get_legacy_op_type(self):
+        if (isinstance(self.pt_module, torch.fx.Node) and self.pt_module.op == "call_function"
+                and inspect.isfunction(self.pt_module.target)):
+            return str(self.pt_module.target)
+        return ""
 
     def get_schema(self):
         schema = getattr(getattr(self.pt_module, "target", None), "_schema", None)

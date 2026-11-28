@@ -120,14 +120,18 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/fake_quantize.h"
+#    include "nodes/gated_residual.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/paged_attn.h"
-#    include "nodes/paged_qsa_indexer.h"
 #    include "nodes/qkv_proj.h"
-#    include "nodes/qsa_indexer.h"
 #    include "nodes/rms_norm.h"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/paged_qsa_indexer.h"
+#    include "nodes/qsa_indexer.h"
 #    include "nodes/sparse_pa.h"
 #    include "nodes/sparse_sdpa.h"
 #endif
@@ -271,6 +275,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
+    INTEL_CPU_NODE(GatedResidual, Type::GatedResidual);
     INTEL_CPU_NODE(QSAIndexer, Type::QSAIndexer);
     INTEL_CPU_NODE(SparseSDPA, Type::SparseSDPA);
     INTEL_CPU_NODE(PagedQSAIndexer, Type::PagedQSAIndexer);

@@ -4,6 +4,8 @@
 
 #include "utils.hpp"
 
+#include <numeric>
+
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -20,7 +22,9 @@
 #include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -28,6 +32,8 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -347,6 +353,75 @@ PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
+
+Output<Node> flatten_list_element_for_concat(const Output<Node>& elem) {
+    // Shape-list elements mix ranks 0 and 1; reshape to 1-D, since Unsqueeze would make Concat reject them.
+    const auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
+    return std::make_shared<v1::Reshape>(elem, minus_one, false);
+}
+
+ConvPadConfig convert_conv_pad(const std::string& pt_pad,
+                               const Output<Node>& weight,
+                               const Strides& strides,
+                               const Strides& dilations) {
+    const auto pad_type = convert_pad(pt_pad);
+    const auto num_spatial = strides.size();
+    CoordinateDiff pads_begin(num_spatial, 0), pads_end(num_spatial, 0);
+    if (pad_type != PadType::SAME_UPPER) {
+        return {pad_type, pads_begin, pads_end};
+    }
+    const auto& kernel = weight.get_partial_shape();
+    if (kernel.rank().is_dynamic() || kernel.size() != num_spatial + 2 || dilations.size() != num_spatial ||
+        std::any_of(strides.begin(), strides.end(), [](size_t s) {
+            return s != 1;
+        })) {
+        return {pad_type, pads_begin, pads_end};
+    }
+    for (size_t i = 0; i < num_spatial; ++i) {
+        const auto& dim = kernel[i + 2];
+        if (dim.is_dynamic()) {
+            return {PadType::VALID, pads_begin, pads_end, true};
+        }
+        // Torch places the extra padding at the end, same as SAME_UPPER.
+        const auto total = static_cast<std::ptrdiff_t>(dilations[i] * (dim.get_length() - 1));
+        pads_begin[i] = total / 2;
+        pads_end[i] = total - pads_begin[i];
+    }
+    return {PadType::EXPLICIT, pads_begin, pads_end};
+}
+
+Output<Node> apply_dynamic_same_padding(const NodeContext& context,
+                                        const Output<Node>& input,
+                                        const Output<Node>& weight,
+                                        const Strides& dilations) {
+    const auto spatial_dims = dilations.size();
+    const auto weight_shape = context.mark_node(std::make_shared<v3::ShapeOf>(weight, element::i64));
+    const auto starts = v0::Constant::create(element::i64, Shape{1}, {2});
+    const auto stops = v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(2 + spatial_dims)});
+    const auto steps = v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto kernel = context.mark_node(std::make_shared<v8::Slice>(weight_shape, starts, stops, steps));
+
+    std::vector<int64_t> ones(spatial_dims, 1);
+    std::vector<int64_t> divisors(spatial_dims, 2);
+    std::vector<int64_t> dilation_values(dilations.begin(), dilations.end());
+    const auto one = context.mark_node(v0::Constant::create(element::i64, Shape{spatial_dims}, ones));
+    const auto dilation = context.mark_node(v0::Constant::create(element::i64, Shape{spatial_dims}, dilation_values));
+    const auto kernel_minus_one = context.mark_node(std::make_shared<v1::Subtract>(kernel, one));
+    const auto effective_padding = context.mark_node(std::make_shared<v1::Multiply>(kernel_minus_one, dilation));
+    const auto divisor = context.mark_node(v0::Constant::create(element::i64, Shape{spatial_dims}, divisors));
+    const auto pads_begin_spatial = context.mark_node(std::make_shared<v1::Divide>(effective_padding, divisor, false));
+    const auto pads_end_spatial =
+        context.mark_node(std::make_shared<v1::Subtract>(effective_padding, pads_begin_spatial));
+
+    const auto no_padding = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {0, 0}));
+    const auto pads_begin =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{no_padding, pads_begin_spatial}, 0));
+    const auto pads_end =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{no_padding, pads_end_spatial}, 0));
+    const auto pad_value =
+        context.mark_node(std::make_shared<v1::ConvertLike>(v0::Constant::create(element::f32, Shape{}, {0}), input));
+    return context.mark_node(std::make_shared<v12::Pad>(input, pads_begin, pads_end, pad_value, PadMode::CONSTANT));
+}
 
 Output<Node> concat_list_construct(const Output<Node>& input) {
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
@@ -770,7 +845,6 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat) {
     std::deque<Output<Node>> res;
     auto current_output = start;
-    const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
 
     FRONT_END_OP_CONVERSION_CHECK(
         !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
@@ -780,7 +854,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
         for (auto& elem : seq_mark->get_sequence()) {
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_back(elem);
         }
@@ -799,7 +873,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         if (op_type == "aten::append") {
             auto elem = fw_node->get_input_source_output(1);
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_front(elem);
         } else if (op_type == "aten::add") {
@@ -819,7 +893,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
             auto elem = it->get_source_output();
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_front(elem);
         }
@@ -1212,6 +1286,47 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     auto input_shape = rg.make<v3::ShapeOf>(data, element::i32);
     auto zero = rg.make<v0::Constant>(element::i32, Shape{}, 0);
     auto input_dims = rg.make<v1::Split>(input_shape, zero, rank.get_length());
+    const auto first_advanced_axis = advanced_ids.front();
+    const bool trailing_integer_indices = advanced_ids.back() == static_cast<size_t>(rank.get_length() - 1) &&
+                                          advanced_ids.size() == rank.get_length() - first_advanced_axis &&
+                                          std::none_of(is_masked_bool.begin(), is_masked_bool.end(), [](bool masked) {
+                                              return masked;
+                                          });
+    if (trailing_integer_indices) {
+        // Gather selected spatial positions before materializing a dense transpose.
+        Output<Node> linear_index = zero;
+        Output<Node> valid_indices = rg.make<v0::Constant>(element::boolean, Shape{}, true);
+        for (auto axis : advanced_ids) {
+            auto index = rg.make<v0::Convert>(masked_indices[axis], element::i32);
+            const auto dimension = rg.make<v0::Squeeze>(input_dims->output(axis), zero);
+            const auto negative = rg.make<v1::Less>(index, zero);
+            const auto normalized = rg.make<v1::Select>(negative, rg.make<v1::Add>(index, dimension), index);
+            const auto valid_axis = rg.make<v1::LogicalAnd>(rg.make<v1::GreaterEqual>(normalized, zero),
+                                                            rg.make<v1::Less>(normalized, dimension));
+            valid_indices = rg.make<v1::LogicalAnd>(valid_indices, valid_axis);
+            linear_index = rg.make<v1::Add>(rg.make<v1::Multiply>(linear_index, dimension), normalized);
+        }
+        linear_index = rg.make<v1::Select>(valid_indices, linear_index, zero);
+        auto first_axis = rg.make<v0::Constant>(element::i32, Shape{1}, first_advanced_axis);
+        auto start = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
+        auto step = rg.make<v0::Constant>(element::i32, Shape{1}, 1);
+        auto prefix_shape = rg.make<v8::Slice>(input_shape, start, first_axis, step);
+        auto minus_one = rg.make<v0::Constant>(element::i32, Shape{1}, -1);
+        auto flat_shape = rg.make<v0::Concat>(OutputVector{prefix_shape, minus_one}, 0);
+        auto flattened = rg.make<v1::Reshape>(data, flat_shape, false);
+        auto gather_axis = rg.make<v0::Constant>(element::i32, Shape{}, first_advanced_axis);
+        const auto gathered = rg.make<v8::Gather>(flattened, linear_index, gather_axis);
+        if (first_advanced_axis > 0) {
+            std::vector<int32_t> axes(first_advanced_axis);
+            std::iota(axes.begin(), axes.end(), 0);
+            const auto prefix_axes = rg.make<v0::Constant>(element::i32, Shape{axes.size()}, axes);
+            valid_indices = rg.make<v0::Unsqueeze>(valid_indices, prefix_axes);
+        }
+        const auto output_zero = rg.make<v1::ConvertLike>(zero, data);
+        new_output = rg.make<v1::Select>(valid_indices, gathered, output_zero);
+        use_input_as_output = false;
+        return true;
+    }
     std::vector<size_t> non_used_dims;
     for (auto i = 0; i < rank.get_length(); i++) {
         if (std::find(advanced_ids.begin(), advanced_ids.end(), i) == advanced_ids.end()) {
@@ -1333,6 +1448,37 @@ OutputVector wrap_complex(const NodeContext& context,
         return wrapped;
     }
     return results;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& context,
+                                                             const std::string& tag,
+                                                             const element::Type& et,
+                                                             const PartialShape& ps) {
+    auto param = std::make_shared<v0::Parameter>(et, ps);
+    param->set_friendly_name(tag);
+    param->output(0).set_names({tag});
+    // Register so the final Model::check_all_parameters_registered passes.
+    context.add_external_parameter(param);
+    return param;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                                   const std::string& tag,
+                                                                   const element::Type& et,
+                                                                   const PartialShape& ps) {
+    auto* session = context.get_session();
+    if (session) {
+        const auto& shared_params = session->get_vllm_paged_attention_state().shared_params;
+        auto it = shared_params.find(tag);
+        if (it != shared_params.end()) {
+            return it->second;
+        }
+    }
+    auto param = make_tagged_parameter(context, tag, et, ps);
+    if (session) {
+        session->get_vllm_paged_attention_state().shared_params[tag] = param;
+    }
+    return param;
 }
 
 }  // namespace ov::frontend::pytorch

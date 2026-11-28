@@ -321,7 +321,7 @@ public:
         }
 
         auto dependencies_map = get_dependencies_map();
-        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+        OPENVINO_ASSERT(dependencies_map.contains(idx),
                         "[GPU] Requested index ",
                         std::to_string(idx),
                         " exceeds total dependencies count (",
@@ -344,7 +344,7 @@ public:
         }
 
         auto dependencies_map = get_dependencies_map();
-        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+        OPENVINO_ASSERT(dependencies_map.contains(idx),
                         "[GPU] Requested index ",
                         std::to_string(idx),
                         " exceeds total dependencies count (",

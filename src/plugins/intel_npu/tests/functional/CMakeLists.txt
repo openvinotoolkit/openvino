@@ -70,7 +70,15 @@ if(WIN32)
 endif()
 
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES CXX_STANDARD ${CMAKE_CXX_STANDARD})
+
+if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+  # GCC 15 can emit false-positive string operation warnings in std::unordered_map::emplace during LTO.
+  # Keep these diagnostics visible without failing the Release link of this test executable.
+  target_link_options(${TARGET_NAME} PRIVATE
+    $<$<CONFIG:Release>:-Wno-error=stringop-overflow>
+    $<$<CONFIG:Release>:-Wno-error=stringop-overread>)
+endif()
 
 if(MSVC)
   # Enforce standards conformance on MSVC

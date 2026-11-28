@@ -49,7 +49,7 @@ function(ov_generate_dev_package_config)
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-                   "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                   "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake"
                    @ONLY)
 
     #
@@ -68,7 +68,7 @@ function(ov_generate_dev_package_config)
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake" 
+                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake"
                    @ONLY)
 
     install(FILES "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
@@ -130,7 +130,7 @@ endif()\n")
         endforeach()
 
         configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake"
                        @ONLY)
     endfunction()
 
@@ -142,8 +142,11 @@ endif()\n")
         get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")
+            list(APPEND user_extra_modules "${module_path}")
         elseif(module_path)
-            file(GLOB extra_modules ${extra_modules} "${module_path}/*")
+            file(GLOB module_subdirs "${module_path}/*")
+            list(APPEND extra_modules ${module_subdirs})
+            list(APPEND user_extra_modules ${module_subdirs})
         endif()
     endforeach()
 
@@ -192,6 +195,5 @@ ov_generate_dev_package_config()
 _ov_register_extra_modules()
 
 # we need to generate final ov_plugins.hpp with all the information about plugins
-ov_generate_plugins_hpp()
-# we need to generate final ov_frontends.hpp with all the information about frontends
+ov_generate_plugins_hpp()# we need to generate final ov_frontends.hpp with all the information about frontends
 ov_generate_frontends_hpp()

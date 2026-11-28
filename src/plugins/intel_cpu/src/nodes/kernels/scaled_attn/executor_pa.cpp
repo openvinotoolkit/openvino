@@ -23,6 +23,7 @@
 #endif
 
 #include "attn_memcpy.hpp"
+#include "attn_pack_kernels.hpp"
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
 #include "cache_rotation.hpp"
@@ -100,36 +101,16 @@ void dequant(TDST* dst,
     // The layout for per token per head:
     // i8: |scale(f32)|quantized feature(i8,idx_1)|...|quantized feature(i8,idx_S)|
     // u8/u4: |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|...|quantized feature(u8,idx_S)|
-    auto* s = reinterpret_cast<uint8_t*>(src);
-    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
-    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
-    constexpr size_t params_offset = sizeof(float) * param_count;
     if (quant_bychannel) {
         if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
-            auto* p_scales = reinterpret_cast<float*>(s);
-            auto* p_zps = p_scales + K;
-            s = s + sizeof(float) * 2 * K;
-            attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
+            attn_dequant_page_rows_by_channel<TDST, SRC_PREC>(src, dst, 0, N, K, K);
         } else {
             OPENVINO_THROW("dequant: i8 doesn't support by-channel quantization.");
         }
     } else {
-        for (size_t n = 0; n < N; n++) {
-            size_t src_offset = 0;
-            size_t dst_offset = 0;
-            while (dst_offset < K) {
-                auto* params = reinterpret_cast<float*>(s + src_offset);
-                attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
-                                                    dst + dst_offset,
-                                                    group_size,
-                                                    params);
-                src_offset += group_size / sub_byte_multiplier + params_offset;
-                dst_offset += group_size;
-            }
-            s += src_offset;
-            dst += K;
-        }
+        attn_dequant_rows_by_token<TDST, SRC_PREC>(src, dst, N, K, group_size, K);
     }
+    dst += N * K;
     for (size_t n = N; n < block_size; n++) {
         memset(dst, 0, sizeof(TDST) * K);
         dst += K;
@@ -137,110 +118,6 @@ void dequant(TDST* dst,
 }
 
 #    if defined(HAVE_AVX512F)
-template <
-    typename T,
-    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    auto midx = _mm512_loadu_si512(idx);
-    for (size_t i = 0; i < 16; i++) {
-        auto a = _mm512_loadu_si512(src);  // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
-        auto b = _mm512_loadu_si512(src + src_stride);  // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
-        a = _mm512_permutexvar_epi64(midx, a);          // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
-        b = _mm512_permutexvar_epi64(midx, b);          // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
-        auto B0 = _mm512_unpacklo_epi16(
-            a,
-            b);  // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
-        auto B1 = _mm512_unpackhi_epi16(
-            a,
-            b);  // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
-        _mm512_storeu_si512(dst, B0);
-        _mm512_storeu_si512(dst + 32, B1);
-        src += 2 * src_stride;
-        dst += 2 * dst_stride;
-    }
-}
-
-template <
-    typename T,
-    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    auto midx = _mm512_loadu_si512(idx);
-    for (size_t i = 0; i < 16; i++) {
-        auto x =
-            _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));  // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + src_stride));  // [b1  b2  b3 b4]   total 256-bits
-        auto a = _mm512_castsi256_si512(x);
-        auto b = _mm512_castsi256_si512(y);
-        a = _mm512_permutexvar_epi64(midx, a);  // [a1 x | a2 x | a3 x | a4 x]
-        b = _mm512_permutexvar_epi64(midx, b);  // [b1 x | b2 x | b3 x | b4 x]
-        auto B0 = _mm512_unpacklo_epi16(a, b);
-        _mm512_storeu_si512(dst, B0);
-        src += 2 * src_stride;
-        dst += 2 * dst_stride;
-    }
-}
-
-template <
-    typename T,
-    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    auto midx = _mm512_loadu_si512(idx);
-    __mmask16 mask = (1 << K) - 1;
-    for (size_t i = 0; i < 16; i++) {
-        auto x = _mm256_maskz_loadu_epi16(mask, src);               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);  // [b1  b2  b3 b4]   total 256-bits
-        auto a = _mm512_castsi256_si512(x);
-        auto b = _mm512_castsi256_si512(y);
-        a = _mm512_permutexvar_epi64(midx, a);  // [a1 x | a2 x | a3 x | a4 x]
-        b = _mm512_permutexvar_epi64(midx, b);  // [b1 x | b2 x | b3 x | b4 x]
-        auto B0 = _mm512_unpacklo_epi16(a, b);
-        _mm512_mask_storeu_epi32(dst, mask, B0);
-        src += 2 * src_stride;
-        dst += 2 * dst_stride;
-    }
-}
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if_t<precision_of<TDST>::value != ov::element::f32 &&
-                                        any_of(SRC_PREC, ov::element::bf16, ov::element::f16),
-                                    bool> = true>
-static void pack_32NxK(TDST* dst,
-                       void* src,
-                       TDST* tmp,
-                       const size_t N,
-                       const size_t K,
-                       const size_t block_size,
-                       const size_t dst_stride,
-                       const size_t src_stride,
-                       const size_t group_size,
-                       const bool quant_bychannel) {
-    auto src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
-    // zero padding unsued blocks before packing
-    for (size_t n = N; n < block_size; n++) {
-        memset(src_ptr + n * src_stride, 0, sizeof(TDST) * (K));
-    }
-    for (size_t n = 0; n < N; n += 32) {
-        size_t k = 0;
-        for (; k + 32 <= K; k += 32) {
-            pack_32x32_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride);
-        }
-        if (k + 16 <= K) {
-            pack_32x16_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride);
-            k += 16;
-        }
-        if (k < K) {
-            pack_32xK_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride, K - k);
-        }
-
-        dst += 32 * dst_stride;
-        src_ptr += 32 * src_stride;
-    }
-}
-
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
@@ -259,34 +136,11 @@ static void pack_32NxK(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
-    auto t = tmp;
     // if group_size not set, the whole row is used as a group
-    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
-        s = s + sizeof(float) * 2 * K;
-        if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
-            attn_dequant_by_channel_kernel<TDST,
-                                           SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
-        }
+        attn_dequant_page_rows_by_channel<TDST, SRC_PREC>(src, tmp, 0, N, K, src_stride);
     } else {
-        for (size_t n = 0; n < N; n++) {
-            size_t src_offset = 0;
-            size_t dst_offset = 0;
-            while (dst_offset < K) {
-                auto params = reinterpret_cast<float*>(s + src_offset);
-                attn_dequant_kernel<TDST, SRC_PREC>(s + (src_offset + sizeof(float) * 2),
-                                                    t + dst_offset,
-                                                    group_size,
-                                                    params);
-                src_offset += group_size / sub_byte_multiplier + sizeof(float) * 2;
-                dst_offset += group_size;
-            }
-            s += src_offset;
-            t += src_stride;
-        }
+        attn_dequant_rows_by_token<TDST, SRC_PREC>(src, tmp, N, K, group_size, src_stride);
     }
     for (size_t n = N; n < block_size; n++) {
         memset(tmp + n * src_stride, 0, sizeof(TDST) * (K));

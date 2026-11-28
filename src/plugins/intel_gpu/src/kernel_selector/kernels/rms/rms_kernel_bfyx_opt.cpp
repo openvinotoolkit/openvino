@@ -57,8 +57,15 @@ ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
+    // The feature-axis path addresses input and output through get_input_index()/get_output_index(), which
+    // are layout-aware, so blocked tensors are served by the same code. The other path reads a normalized
+    // row as contiguous memory and is therefore restricted to the plain layouts in Validate().
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -271,12 +278,18 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
     }
 
     const rms_params& params = static_cast<const rms_params&>(p);
+    const bool feature_axis = is_feature_axis_normalization(params);
+    const auto in_layout = params.inputs[0].GetLayout();
+    if (in_layout != DataLayout::bfyx && in_layout != DataLayout::bfzyx && !feature_axis) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
     if (params.elementwise_affine) {
         const auto& gamma = params.inputs[1];
 
         if (!gamma.is_dynamic()) {
             size_t data_size = gamma.LogicalSize();
-            if (data_size != 1 && data_size < subgroup_size) {
+            // The feature axis reads gamma scalar per lane; only the row-major path block-reads it.
+            if (!feature_axis && data_size != 1 && data_size < subgroup_size) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }

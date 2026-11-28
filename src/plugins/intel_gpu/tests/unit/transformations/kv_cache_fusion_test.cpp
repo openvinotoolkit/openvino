@@ -145,3 +145,15 @@ TEST_F(TransformationTestsF, KVCacheFusionTest4) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter, past_seq_len});
     }
 }
+
+TEST_F(TransformationTestsF, KVCacheFusionKeepsIntegerStateUnfused) {
+    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, -1, 1, 1}, ov::element::i32, "pos"});
+    auto past = std::make_shared<ov::op::v6::ReadValue>(variable);
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, -1, 1, 1});
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, parameter}, 1);
+    auto present = std::make_shared<ov::op::v6::Assign>(concat, variable);
+    auto result = std::make_shared<ov::op::v0::Result>(concat);
+
+    model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{present}, ov::ParameterVector{parameter});
+    manager.register_pass<KVCacheFusion>();
+}

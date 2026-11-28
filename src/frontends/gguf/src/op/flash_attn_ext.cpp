@@ -134,7 +134,9 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     // Encoders keep f32 attention; decoders use f16 SDPA.
     const auto sdpa_type = context.get_attribute<bool>("f32_attention", false) ? ov::element::f32 : ov::element::f16;
-    auto q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
+    ov::Output<ov::Node> q = q_f32;
+    if (q_f32.get_element_type() != sdpa_type)
+        q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
     auto scale_node = std::make_shared<ov::op::v0::Constant>(sdpa_type, ov::Shape{}, std::vector<float>{scale});
 
     ov::Output<ov::Node> mask_sliced, res;
@@ -145,7 +147,9 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         const bool is_swa = context.get_attribute<bool>("is_swa", false) ||
                             context.get_input_names()[3].find("swa") != std::string::npos;
         const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
-        if (context.has_input(mask_name)) {
+        if (context.get_attribute<bool>("explicit_mask", false)) {
+            mask_sliced = mask;
+        } else if (context.has_input(mask_name)) {
             mask_sliced = context.get_input(mask_name);
         } else {
             auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});

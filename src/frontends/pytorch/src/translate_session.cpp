@@ -30,6 +30,11 @@ namespace ov::frontend::pytorch {
 using namespace ov::op;
 
 namespace {
+std::string get_legacy_op_type(const TorchDecoder& decoder) {
+    const auto value = decoder.get_attribute("__openvino_legacy_op_type");
+    return value.is<std::string>() ? value.as<std::string>() : std::string{};
+}
+
 // Alias views and their base values belong to the graph where they were converted.
 class AliasScope {
 public:
@@ -139,9 +144,15 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     }
 
     // process model rt_info
-    auto rt_info = pytorch_model->get_decoder()->get_rt_info();
+    const auto& decoder = pytorch_model->get_decoder();
+    auto rt_info = decoder->get_rt_info();
     for (const auto& item : rt_info) {
         model->set_rt_info(item.second, item.first);
+    }
+    // Read back by normalize(), which converts a model whose default float type isn't f32.
+    const auto default_float_type = decoder->get_default_float_type();
+    if (default_float_type != element::f32) {
+        model->set_rt_info(default_float_type.get_type_name(), "default_float_type");
     }
     model->set_rt_info(ov::Any(pytorch_model->decoder_type_name()), "decoder_type_name");
 
@@ -459,6 +470,18 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
         for (const auto& param : *parameters) {
+            // Skip external parameters with no numeric tensor id ("__pa__" side-channel inputs).
+            const auto& names = param->output(0).get_names();
+            bool has_numeric = false;
+            for (const auto& n : names) {
+                if (!n.empty() && std::isdigit(static_cast<unsigned char>(n[0]))) {
+                    has_numeric = true;
+                    break;
+                }
+            }
+            if (!has_numeric) {
+                continue;
+            }
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
         }
@@ -527,6 +550,12 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         if (it == m_translator_map.end()) {
             canonical_op_type = normalize_op_type(raw_op_type);
             it = m_translator_map.find(canonical_op_type);
+        }
+        if (it == m_translator_map.end()) {
+            const auto legacy_op_type = get_legacy_op_type(*context.get_decoder());
+            if (!legacy_op_type.empty()) {
+                it = m_translator_map.find(legacy_op_type);
+            }
         }
         const std::string& op_type = canonical_op_type.empty() ? raw_op_type : canonical_op_type;
         if (it != m_translator_map.end()) {

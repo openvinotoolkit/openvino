@@ -336,6 +336,21 @@ TEST(type_prop, rdft_invalid_axes) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
                     ov::Exception,
                     HasSubstr("Axes input must be 1D tensor."));
+
+    axes = op::v0::Constant::create(element::i64, Shape{0}, {});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axes input must not be empty."));
+
+    auto signal_size = op::v0::Constant::create(element::i64, Shape{0}, {});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes, signal_size),
+                    ov::Exception,
+                    HasSubstr("Axes input must not be empty."));
+
+    auto axes_param = std::make_shared<op::v0::Parameter>(element::i64, Shape{0});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes_param),
+                    ov::Exception,
+                    HasSubstr("Axes input must not be empty."));
 }
 
 TEST(type_prop, rdft_invalid_signal_size) {
