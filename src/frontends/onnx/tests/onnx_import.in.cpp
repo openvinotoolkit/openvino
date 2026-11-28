@@ -32,11 +32,14 @@
 #include "conversion_extension.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/pass/constant_folding.hpp"
 
 using namespace ov;
@@ -9743,4 +9746,136 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24_beta_input) {
     test_case.add_expected_output<float>(Shape{3}, {-0.2036667f, 0.0f, 0.2963333f});
 
     test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+namespace {
+const std::vector<float> swiglu_a{1.0f, -2.0f, 3.0f, 4.0f, -1.0f, 2.0f, -3.0f, 0.5f};
+const std::vector<float> swiglu_b{0.5f, 1.0f, -1.0f, 2.0f, 2.0f, -1.0f, 0.5f, 1.0f};
+// Y = A * Sigmoid(alpha * A) * B for alpha = 1.0 and alpha = 0.5
+const std::vector<float> swiglu_y_default_alpha{0.3655293f,
+                                                -0.2384058f,
+                                                -2.8577224f,
+                                                7.8561103f,
+                                                -0.5378828f,
+                                                -1.7615942f,
+                                                -0.0711388f,
+                                                0.3112297f};
+const std::vector<float> swiglu_y_alpha_0_5{0.3112297f,
+                                            -0.5378828f,
+                                            -2.4527234f,
+                                            7.0463766f,
+                                            -0.7550813f,
+                                            -1.4621172f,
+                                            -0.2736383f,
+                                            0.2810883f};
+
+// SwiGLU must be lowered to Multiply(Swish(A, alpha), B): the default alpha yields Swish without beta (SiLU),
+// any other alpha is a beta Constant typed as the inputs.
+void expect_swiglu_lowering(const std::shared_ptr<ov::Model>& model, const element::Type& type, float alpha) {
+    const auto ops = model->get_ordered_ops();
+    const auto swish_it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<Node>& op) {
+        return ov::is_type<ov::op::v4::Swish>(op);
+    });
+    ASSERT_NE(swish_it, ops.end());
+    const auto& swish = *swish_it;
+    EXPECT_EQ(swish->get_output_element_type(0), type);
+    EXPECT_EQ(swish->get_input_node_shared_ptr(0), model->get_parameters().at(0));
+
+    if (alpha == 1.0f) {
+        EXPECT_EQ(swish->get_input_size(), 1);
+    } else {
+        ASSERT_EQ(swish->get_input_size(), 2);
+        const auto alpha_const = ov::as_type_ptr<ov::op::v0::Constant>(swish->get_input_node_shared_ptr(1));
+        ASSERT_NE(alpha_const, nullptr);
+        EXPECT_EQ(alpha_const->get_element_type(), type);
+        EXPECT_EQ(alpha_const->cast_vector<float>(), std::vector<float>{alpha});
+    }
+
+    const auto consumers = swish->get_output_target_inputs(0);
+    ASSERT_EQ(consumers.size(), 1);
+    const auto multiply = consumers.begin()->get_node();
+    EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(multiply));
+    EXPECT_EQ(multiply->get_input_node_shared_ptr(1), model->get_parameters().at(1));
+    EXPECT_EQ(model->get_results().at(0)->get_element_type(), type);
+}
+
+template <typename T>
+void expect_swiglu_inference(const std::shared_ptr<ov::Model>& model,
+                             const std::vector<float>& expected,
+                             float tolerance) {
+    // run_with_tolerance_as_fp() compares f32/f16 outputs only, so read the result back as f32.
+    ov::preprocess::PrePostProcessor ppp(model->clone());
+    ppp.output(0).tensor().set_element_type(element::f32);
+
+    auto test_case = ov::test::TestCase(ppp.build(), s_device);
+    test_case.add_input<T>(Shape{2, 4}, std::vector<T>(swiglu_a.begin(), swiglu_a.end()));
+    test_case.add_input<T>(Shape{2, 4}, std::vector<T>(swiglu_b.begin(), swiglu_b.end()));
+    test_case.add_expected_output<float>(Shape{2, 4}, expected);
+    test_case.run_with_tolerance_as_fp(tolerance);
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu) {
+    const auto model = convert_model("swiglu.onnx");
+
+    expect_swiglu_lowering(model, element::f32, 1.0f);
+    expect_swiglu_inference<float>(model, swiglu_y_default_alpha, 2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_alpha) {
+    const auto model = convert_model("swiglu_alpha.onnx");
+
+    expect_swiglu_lowering(model, element::f32, 0.5f);
+    expect_swiglu_inference<float>(model, swiglu_y_alpha_0_5, 2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_f16) {
+    const auto model = convert_model("swiglu_f16.onnx");
+
+    expect_swiglu_lowering(model, element::f16, 1.0f);
+    expect_swiglu_inference<ov::float16>(model, swiglu_y_default_alpha, 1.0e-2f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_bf16_alpha) {
+    const auto model = convert_model("swiglu_bf16_alpha.onnx");
+
+    expect_swiglu_lowering(model, element::bf16, 0.5f);
+    expect_swiglu_inference<ov::bfloat16>(model, swiglu_y_alpha_0_5, 6.25e-2f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_f64_alpha) {
+    const auto model = convert_model("swiglu_f64_alpha.onnx");
+
+    expect_swiglu_lowering(model, element::f64, 0.5f);
+    expect_swiglu_inference<double>(model, swiglu_y_alpha_0_5, 2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_dynamic) {
+    const auto model = convert_model("swiglu_dynamic.onnx");
+    EXPECT_EQ(model->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 4}));
+
+    expect_swiglu_lowering(model, element::f32, 1.0f);
+    expect_swiglu_inference<float>(model, swiglu_y_default_alpha, 2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_alpha_dynamic_type) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("swiglu_alpha.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::dynamic);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("B"), element::dynamic);
+    const auto model = front_end->convert(input_model);
+    ASSERT_EQ(model->get_output_element_type(0), element::dynamic);
+
+    for (const auto& parameter : model->get_parameters()) {
+        parameter->set_element_type(element::f32);
+    }
+    model->validate_nodes_and_infer_types();
+    expect_swiglu_inference<float>(model, swiglu_y_alpha_0_5, 2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_broadcast_shapes) {
+    // ONNX SwiGLU requires A and B to have identical shapes, broadcasting is not allowed.
+    OV_EXPECT_THROW_HAS_SUBSTRING(convert_model("swiglu_broadcast_shapes.onnx"),
+                                  ov::Exception,
+                                  "SwiGLU expects inputs A and B to have identical shapes");
 }

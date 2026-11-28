@@ -25,6 +25,9 @@ INTERPRETER.onnx_sal_sequence_length_runtime_gate
 onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
 
+# Swish reference evaluate is not implemented for f64
+INTERPRETER.onnx_model_swiglu_f64_alpha
+
 # Issue 37473. Fails on ia32 platforms only
 onnx_model_softmax_axis_0
 onnx_model_reshape_negative_dim
