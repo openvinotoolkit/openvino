@@ -3,12 +3,15 @@
 #
 
 set(OV_AUTO_UNIT_TESTS_SRC
+    ${CMAKE_CURRENT_LIST_DIR}/adaptive_policy_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/adaptive_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/auto_unit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cache_compile_for_all_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_metric_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_property_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ctput_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/default_perf_hint_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/device_execution_context_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/device_telemetry_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_device_selection_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_output_test.cpp
@@ -26,28 +29,51 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/perf_curve_table_validator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/release_helper_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime_fallback_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/schedule_policies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/select_device_failed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/select_device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/set_log_level_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/startup_fallback_property_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stateful_model_test.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/decision_log.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/decision_log.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/goal.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/instance_stats.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/instance_stats.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/headroom.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/ipf_signal_source.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/observation.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/period_estimator.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/period_estimator.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/refresh_policy.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/refresh_policy.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/signal_hub.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/signal_hub.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/switch_policy.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/switch_policy.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.hpp
-    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_warmup.cpp
-    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_warmup.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_manager.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_manager.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/common.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compile_service.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compile_service.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_compiled_model.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/device_execution_context.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/device_execution_context.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/instance_registry.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/instance_registry.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/itt.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.hpp
@@ -55,6 +81,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin_config.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule_policies.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule_policies.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log.cpp

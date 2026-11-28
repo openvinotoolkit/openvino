@@ -7,10 +7,16 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 
-#include "schedule.hpp"
+#include "adaptive/decision_log.hpp"
+#include "adaptive/headroom.hpp"
+#include "adaptive/signal_hub.hpp"
+#include "adaptive/switch_policy.hpp"
 #include "async_infer_request.hpp"
-#include "cache_warmup.hpp"
+#include "cache_manager.hpp"
+#include "schedule.hpp"
+#include "schedule_policies.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -19,12 +25,7 @@ class AutoSchedule : public Schedule {
 public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
-    AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
-    // device the latest dynamic inference was dispatched to, empty until one has been dispatched
-    DeviceName get_dynamic_active_device() const;
-    // dynamic selection only: the device and compiled model answering the model level queries;
-    // the initial device until it is released, then a device that is still loaded
-    std::pair<DeviceName, SoCompiledModel> get_dynamic_query_model() const;
+    RoleSlot                                                               m_compile_context[CONTEXTNUM];
 
 private:
     void init() override;
@@ -38,10 +39,8 @@ private:
      * @note An exception will be thrown if all loading of model to hw device fails.
      */
     SoCompiledModel wait_first_compiled_model_ready() override;
-    void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
-    bool select_other_device(const std::string& cur_dev_name) override;
-    // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
-    std::shared_ptr<CacheWarmup>                                         m_cache_warmup;
+    CompileResult try_to_compile_model(CompileRequest& request, const std::shared_ptr<ov::Model>& model) override;
+    bool select_other_device(const ModelInstanceKey& failed_instance) override;
     void release_execution_slot() override;
     /**
      * @brief Serialize the incoming request behind the execution gate when per inference device selection is on.
@@ -56,20 +55,31 @@ private:
                                  const DeviceName& preferred_device);
     void end_dynamic_dispatch();
     DeviceInformation select_dynamic_device();
+    // keeps the current device when the policy sees no reason to leave it for the proposed one
+    DeviceInformation apply_switch_policy(DeviceInformation proposed);
     /**
      * @brief Compile the model on the given device unless it is already cached, and create its workers.
      * @note device is updated in place when the compilation falls back to another candidate device.
      */
     bool ensure_device_ready(DeviceInformation& device);
     /**
-     * @brief Drop the compiled model and workers of a device that is no longer the active one.
-     * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
-     * to reload from. The model level queries are moved to active_device when the released device answered them.
+     * @brief Drop the compiled model and workers of every device that is no longer the active one.
+     * @note Only done with compile_for_all. The active device is already dispatched when this runs, so devices are only
+     * released while the active one is loaded. A device that could not be released is tried again at the next dispatch.
      */
-    void release_inactive_device(const DeviceName& device_name, const DeviceName& active_device);
+    void release_inactive_devices(const DeviceName& active_device);
+    // whether the device has a cache blob to be recompiled from; only used on the dynamic dispatch thread
+    bool is_reloadable(const DeviceName& device_name);
+    // the candidates the failure policy lets the dynamic selection try now; the caller holds m_fallback_mutex
+    std::vector<DeviceInformation> available_candidates() const;
+    // backs the devices off, and excludes the ones that failed too often for good
+    void handle_compile_failures(const std::vector<DeviceName>& devices);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
+    // publishes the instance that serves the requests in the static mode: a fallback device replaces the actual
+    // device it was selected for, and the actual device replaces the startup helper
+    void publish_active_instance();
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
@@ -79,6 +89,10 @@ private:
     bool                                                                 m_exitflag = {false};
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_dynamic_executor;
     std::shared_ptr<ov::Model>                                           m_dynamic_model;
+    // the members below belong to the dynamic dispatch thread
+    // null keeps every compiled model
+    std::optional<ReloadablePolicy>                                      m_eviction_policy;
+    FailurePolicy                                                        m_failure_policy;
     mutable std::mutex                                                   m_gate_mutex;
     bool                                                                 m_gate_busy = false;
     // guarded by m_gate_mutex; set once in ~AutoSchedule() so in-flight dynamic tasks stop touching
@@ -89,15 +103,12 @@ private:
     std::condition_variable                                              m_dispatch_done;
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
-    DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
-    // guarded by m_context->m_mutex together with m_context->m_hw_compiled_model, which is its compiled model
-    DeviceName                                                           m_dynamic_query_device;
-    // whether Core writes a cache blob for the device, queried once per device
-    DeviceMap<bool>                                                      m_device_supports_caching;
-    // Cache keys are immutable for this compiled model/device configuration; file existence is still probed per release.
-    DeviceMap<std::string>                                               m_dynamic_cache_blob_ids;
-    std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
-    std::atomic<size_t>                                                  m_dynamic_switch_count = {0};
+    DecisionLog                                                          m_decision_log;
+    SwitchPolicy m_switch_policy;
+    // guarded by m_gate_mutex: since when the current device serves
+    Time m_current_since{};
+    // keeps the utilization of the devices fresh in the background, only with the adaptive level set
+    std::shared_ptr<SignalHub::Subscription> m_telemetry_subscription;
 };
 } // namespace auto_plugin
 } // namespace ov

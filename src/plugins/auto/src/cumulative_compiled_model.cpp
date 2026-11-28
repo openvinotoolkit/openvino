@@ -29,9 +29,9 @@ void AutoCumuCompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 std::shared_ptr<const ov::Model> AutoCumuCompiledModel::get_runtime_model() const {
-    if (m_context->m_hw_compiled_model) {
-        auto model = m_context->m_hw_compiled_model->get_runtime_model();
-        set_model_shared_object(const_cast<ov::Model&>(*model), m_context->m_hw_compiled_model._so);
+    if (const auto active = m_scheduler->get_active_device(); active.compiled_model) {
+        auto model = active.compiled_model->get_runtime_model();
+        set_model_shared_object(const_cast<ov::Model&>(*model), active.compiled_model._so);
         return model;
     }
     OPENVINO_NOT_IMPLEMENTED;
@@ -76,7 +76,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::device::properties) {
         ov::AnyMap all_devices = {};
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                 auto temp = get_device_supported_properties(m_scheduler->m_p_ctput_loadcontext[i]);
                 all_devices.insert(temp.begin(), temp.end());
             }
@@ -90,9 +90,9 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         unsigned int res = 0u;
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             try {
-                if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+                if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                     res += (m_scheduler->m_p_ctput_loadcontext[i])
-                                .m_compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
+                                .compiled_model()->get_property(ov::optimal_number_of_infer_requests.name())
                                 .as<unsigned int>();
                 }
             } catch (const ov::Exception& err) {
@@ -111,8 +111,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-                return m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name);
+            if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
+                return m_scheduler->m_p_ctput_loadcontext[i].compiled_model()->get_property(name);
             }
         }
         OPENVINO_THROW("No valid compiled model found to get", name);
@@ -120,13 +120,13 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         bool loaded_from_cache = true;
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                 try {
                     loaded_from_cache &=
-                        (m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name).as<bool>());
+                        (m_scheduler->m_p_ctput_loadcontext[i].compiled_model()->get_property(name).as<bool>());
                 } catch (const ov::Exception&) {
                     LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed",
-                                  m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
+                                  m_scheduler->m_p_ctput_loadcontext[i].request.m_device_info.device_name.c_str());
                     return false;
                 }
             }

@@ -24,22 +24,18 @@ ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& 
     : ov::ICompiledModel(model, plugin, remote_context),
       m_context(schedule_context),
       m_scheduler(scheduler) {
-    m_inputs_outputs_from_hardware = (model == nullptr) && m_context->m_hw_compiled_model;
-    if (m_inputs_outputs_from_hardware) {
-        m_hw_inputs = m_context->m_hw_compiled_model->inputs();
-        m_hw_outputs = m_context->m_hw_compiled_model->outputs();
-    }
+    m_inputs_outputs_from_hardware = (model == nullptr);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::outputs() const {
-    if (m_inputs_outputs_from_hardware)
-        return m_hw_outputs;
+    if (m_inputs_outputs_from_hardware && m_context->m_hw_metadata)
+        return m_context->m_hw_metadata->outputs;
     return ov::ICompiledModel::outputs();
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::inputs() const {
-    if (m_inputs_outputs_from_hardware)
-        return m_hw_inputs;
+    if (m_inputs_outputs_from_hardware && m_context->m_hw_metadata)
+        return m_context->m_hw_metadata->inputs;
     return ov::ICompiledModel::inputs();
 }
 
@@ -61,8 +57,8 @@ std::string ov::auto_plugin::CompiledModel::get_log_tag() const noexcept {
     return m_context->m_log_tag;
 }
 
-ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoCompileContext& context) {
-    return get_device_supported_properties(context.m_device_info.device_name, context.m_compiled_model);
+ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(RoleSlot& role) {
+    return get_device_supported_properties(role.request.m_device_info.device_name, role.compiled_model());
 }
 
 ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(const std::string& device_name,

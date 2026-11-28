@@ -36,6 +36,12 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
         std::make_tuple(ov::supported_properties));
+    register_private_property(adaptive_level(std::string("OFF")), std::make_shared<AdaptiveLevelValidator>());
+}
+
+void PluginConfig::register_private_property(const ov::AnyMap::value_type& property, BaseValidator::Ptr validator) {
+    property_validators[property.first] = std::move(validator);
+    internal_properties[property.first] = property.second;
 }
 void PluginConfig::register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;

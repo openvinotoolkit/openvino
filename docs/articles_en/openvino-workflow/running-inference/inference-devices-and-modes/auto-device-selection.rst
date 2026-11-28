@@ -212,9 +212,8 @@ the following setup options:
 |                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |
 |                                              |                                                                    |
 |                                              | In dynamic device selection, a device that is no longer selected   |
-|                                              | releases its compiled model, which is loaded from the cache when   |
-|                                              | it is selected again. Devices without a cache location or a cache  |
-|                                              | blob are never released.                                           |
+|                                              | releases its compiled model, which is compiled again, or loaded    |
+|                                              | from the cache, when it is selected again.                         |
 |                                              |                                                                    |
 |                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
 |                                              | compiling the model throws on every host.                          |
@@ -222,6 +221,9 @@ the following setup options:
 |                                              | Ignored in cumulative throughput mode, when there is no            |
 |                                              | other candidate device to compile, and when ``ov::cache_blob_id``  |
 |                                              | is set for AUTO or for any candidate device.                       |
+|                                              |                                                                    |
+|                                              | At most two compiled models are alive at the same time. The memory |
+|                                              | needed by the background compilation itself is not included.       |
 |                                              |                                                                    |
 |                                              | A device whose cache path is a single-file cache (``*.bin``) is    |
 |                                              | skipped with a warning.                                            |
@@ -232,8 +234,7 @@ the following setup options:
 |                                              | actual device, NPU is compiled in the background (and vice versa). |
 |                                              |                                                                    |
 |                                              | Warm-up compiles one device at a time and releases each compiled   |
-|                                              | model right away. The memory needed by the background compilation  |
-|                                              | itself is not included.                                            |
+|                                              | model right away.                                                  |
 |                                              |                                                                    |
 |                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+

@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <list>
 #include <map>
@@ -14,7 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cache_warmup.hpp"
+#include "adaptive/signal_hub.hpp"
+#include "cache_manager.hpp"
 #include "common.hpp"
 #include "compiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -90,6 +92,18 @@ public:
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
 
+    /**
+     * @brief Keep the utilization of the devices up to date in the background, so that selecting a device does not
+     * query the telemetry backend.
+     * @return the subscription, which ends with its last reference
+     */
+    // how the utilization was obtained so far, for the log
+    std::string telemetry_summary();
+
+    std::shared_ptr<SignalHub::Subscription> subscribe_telemetry(const std::vector<DeviceInformation>& devices,
+                                                                 SignalHub::StatsFn stats,
+                                                                 SignalHub::HeadroomFn headroom);
+
     // Whether the telemetry backend (IPF) is operational; without it the resource aware selection cannot work.
     MOCKTESTMACRO bool is_telemetry_available() const;
 
@@ -100,12 +114,12 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
-    CacheWarmupManager& get_cache_warmup_manager() {
-        return *m_cache_warmup_manager;
+    CacheManager& get_cache_manager() {
+        return *m_cache_manager;
     }
 
-    const CacheWarmupManager& get_cache_warmup_manager() const {
-        return *m_cache_warmup_manager;
+    const CacheManager& get_cache_manager() const {
+        return *m_cache_manager;
     }
 
 private:
@@ -113,6 +127,8 @@ private:
                                                            const std::shared_ptr<const ov::Model>& model,
                                                            const ov::AnyMap& properties,
                                                            const std::string& model_precision = "FP32") const;
+    // the config a device is compiled with: the supported user properties plus the default hints AUTO adds
+    ov::AnyMap get_device_config(const DeviceName& device_with_id, const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,
                                                  const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
@@ -135,7 +151,14 @@ private:
     PluginConfig m_plugin_config;
     mutable std::once_flag m_telemetry_client_init_once;
     mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
-    std::unique_ptr<CacheWarmupManager> m_cache_warmup_manager = std::make_unique<CacheWarmupManager>();
+    // the telemetry client takes one query at a time
+    mutable std::mutex m_telemetry_mutex;
+    std::atomic<size_t> m_sync_queries{0};
+    std::atomic<size_t> m_hub_reads{0};
+    // declared after the client: its thread stops first
+    mutable std::mutex m_signal_hub_mutex;
+    std::shared_ptr<SignalHub> m_signal_hub;
+    std::unique_ptr<CacheManager> m_cache_manager = std::make_unique<CacheManager>();
 };
 
 }  // namespace auto_plugin

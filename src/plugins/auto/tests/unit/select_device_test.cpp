@@ -707,6 +707,19 @@ TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, priorityOrderBreaksTieWhen
     plugin->unregister_priority(0, result.unique_name);
 }
 
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, gpuThenNpuThenCpuPriorityWhenAllExceedWithEqualUtilization) {
+    std::string netPrecision = "FP32";
+    std::vector<DeviceInformation> devices = {{"GPU", {}, -1, "01", "GPU_01", 1},
+                                              {"NPU", {}, -1, "01", "NPU_01", 2},
+                                              {"CPU", {}, -1, "01", "CPU_01", 3}};
+    std::unordered_map<std::string, unsigned> thresholds = {{"GPU", 20}, {"NPU", 20}, {"CPU", 20}};
+    deviceUtilization = {{"GPU", 50.f}, {"NPU", 50.f}, {"CPU", 50.f}};
+
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {});
+    EXPECT_EQ(result.unique_name, "GPU_01");
+    plugin->unregister_priority(0, result.unique_name);
+}
+
 // ------------------------------------------------------------------------------------------
 // sort_device_by_perf_curve() unit tests: verify score computation (exact match, interpolation),
 // stable ordering (scored-ascending first, unscored trailing in original relative order), and
