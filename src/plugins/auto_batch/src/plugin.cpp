@@ -6,8 +6,16 @@
 
 #include "plugin.hpp"
 
+#include <charconv>
+#include <cstdlib>
+#include <sstream>
+#include <string_view>
+#include <system_error>
+
 #include "compiled_model.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/log.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -15,6 +23,27 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+
+namespace {
+void log_info(std::string_view message) {
+    const auto* env_log_level = std::getenv("OPENVINO_LOG_LEVEL");
+    if (!env_log_level)
+        return;
+
+    const std::string_view log_level_string(env_log_level);
+    int log_level = -1;
+    const auto [end, error] =
+        std::from_chars(log_level_string.data(), log_level_string.data() + log_level_string.size(), log_level);
+    if (error != std::errc{} || end != log_level_string.data() + log_level_string.size() ||
+        log_level < static_cast<int>(ov::log::Level::INFO)) {
+        return;
+    }
+
+    std::ostringstream stream;
+    stream << "[I][BATCH] " << message;
+    ov::util::log_message(stream.str());
+}
+}  // namespace
 
 namespace ov {
 namespace autobatch_plugin {
@@ -147,6 +176,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     const auto& device_name = meta_device.device_name;
     const auto& device_config = meta_device.device_config;
+    log_info("Compiling model for device " + device_name);
     auto device_config_no_auto_batch = device_config;
     // avoid recursive auto-batching
     device_config_no_auto_batch[ov::hint::allow_auto_batching.name()] = false;
@@ -264,6 +294,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             meta_device.device_batch_size = std::min(static_cast<int>(meta_device.device_batch_size), closest);
         }
     }
+
+    log_info("Using batch size " + std::to_string(meta_device.device_batch_size));
 
     // auto-batch settings
     ov::AnyMap compiled_model_config;
