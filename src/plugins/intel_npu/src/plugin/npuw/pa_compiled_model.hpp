@@ -17,18 +17,40 @@
 
 namespace ov::npuw {
 
-// Front-end for the dynamic PagedAttention model the GenAI CB pipeline
-// deploys. The model is compiled 1:1 on the PA device (CPU) next to its
-// semi-static variants. The ports are the inner model's, so the pipeline reads
-// the device-resolved KV cache geometry off them.
+namespace pa {
+
+// Throws with the reason when the model is outside the flat-token contract the
+// static variants implement: the known control inputs, 1-D token streams, the
+// shared block table, the sampled-token gather and one logits output.
+void check_static_contract(const std::shared_ptr<ov::Model>& model);
+
+// The variant of the PA model for chunk_size tokens and sampled_dim logits
+// rows. Everything but the PA ops is static. Each PA op sits in a dynamic
+// island that sees only the rows subsequence_begins accounts for:
+//
+//   rows = Range(0, subsequence_begins[-1])
+//   attn = PagedAttention(Gather(q, rows), Gather(k, rows), Gather(v, rows), ...)
+//   out  = ScatterUpdate(zeros[chunk_size, H*S], rows, attn)
+//
+// so the padding rows never reach the attention or the KV cache.
+std::shared_ptr<ov::Model> derive_static_variant(const std::shared_ptr<ov::Model>& model,
+                                                 std::size_t chunk_size,
+                                                 std::size_t sampled_dim);
+
+}  // namespace pa
+
+// Front-end for the dynamic PA model the GenAI CB pipeline deploys. Only the
+// static variants are compiled, on the PA device (CPU). The ports are the
+// model's own, with the KV cache geometry the device resolved, which the
+// pipeline allocates the cache from.
 class PACompiledModel final : public ov::npuw::ICompiledModel {
 public:
+    // Keyed by chunk size, largest first.
+    using Variants = std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>, std::greater<std::size_t>>;
+
     PACompiledModel(const std::shared_ptr<ov::Model>& model,
                     const std::shared_ptr<const ov::IPlugin>& plugin,
                     const ov::AnyMap& properties);
-
-    const std::vector<ov::Output<const ov::Node>>& inputs() const override;
-    const std::vector<ov::Output<const ov::Node>>& outputs() const override;
 
     void export_model(std::ostream& stream) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -37,59 +59,46 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
 private:
+    PACompiledModel(Variants&& variants,
+                    const std::shared_ptr<ov::Model>& model,
+                    const std::shared_ptr<const ov::IPlugin>& plugin);
+
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
-    ov::SoPtr<ov::ICompiledModel> m_compiled_model;
-
-    // Keyed by chunk size.
-    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> m_semi_static_models;
+    Variants m_variants;
 };
 
-// Validates each dispatch, then runs it 1:1 or splits every subsequence into
-// chunks over the variants, largest first, with a dynamic tail. Chunks fix only
-// the token count: the cache is addressed through the caller's block tables,
-// so nothing is padded.
+// Validates each dispatch and runs it as chunks over the flat token axis, one
+// static variant infer per chunk. The caller's tensors live in this request.
 class PAInferRequest final : public ov::ISyncInferRequest {
 public:
     PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
-                   ov::SoPtr<ov::IAsyncInferRequest> inner_request,
-                   const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants);
+                   const PACompiledModel::Variants& variants);
 
     void infer() override;
-
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    void check_tensors() const override;
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
+    // The token streams and the sampled-token gather have fixed sizes, so
+    // their tensors are bound once and rewritten per chunk.
     struct ChunkRequest {
         ov::SoPtr<ov::IAsyncInferRequest> request;
         std::unordered_map<std::string, ov::Output<const ov::Node>> inputs;
         ov::Output<const ov::Node> logits;
+        ov::SoPtr<ov::ITensor> input_ids, position_ids, sampled_tokens_indices;
     };
 
     pa::Dispatch parse_dispatch() const;
     void log_dispatch_io(bool outputs) const;
 
-    void infer_chunked(const pa::Dispatch& d);
-    void run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, int64_t seq, int64_t seq_offset, int64_t n_chunk_tokens);
-
-    ov::SoPtr<ov::IAsyncInferRequest> m_inner_request;
+    void run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, const pa::Chunk& c);
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_inputs_by_name;
 
-    // Largest first. The caller's tensors stay in m_inner_request.
-    std::map<std::size_t, ChunkRequest, std::greater<std::size_t>> m_chunk_requests;
+    std::map<std::size_t, ChunkRequest> m_chunk_requests;
     std::vector<std::size_t> m_chunk_sizes;
-    ChunkRequest m_tail_request;
-
-    // The chunked path's result, served by get_tensor().
-    ov::SoPtr<ov::ITensor> m_chunked_logits;
-    bool m_serve_chunked_logits = false;
-    const ov::Node* m_logits_node = nullptr;
 
     // No lock: one request, one user.
     std::size_t m_dispatch_idx = 0u;
