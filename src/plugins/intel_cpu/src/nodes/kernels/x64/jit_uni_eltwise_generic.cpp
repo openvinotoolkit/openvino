@@ -15,6 +15,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
@@ -39,11 +40,11 @@ using namespace dnnl::impl::cpu::x64;
 #define GET_OFF(field) offsetof(jit_eltwise_call_args_ptrs, field)
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(const jit_eltwise_params& jep,
+jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep,
                                                       const std::vector<EltwiseData>& eltwise_data,
                                                       const std::vector<ov::intel_cpu::Type>& ops_list,
                                                       const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep),
+    : jit_uni_eltwise_kernel(std::move(jep)),
       jit_generator_t(jit_name()),
       eltwise_data_(eltwise_data),
       ops_list_(ops_list),

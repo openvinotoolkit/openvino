@@ -28,7 +28,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    jit_uni_eltwise_generic(const jit_eltwise_params& jep,
+    jit_uni_eltwise_generic(jit_eltwise_params jep,
                             const std::vector<EltwiseData>& eltwise_data,
                             const std::vector<ov::intel_cpu::Type>& ops_list,
                             const dnnl::post_ops& post_ops);

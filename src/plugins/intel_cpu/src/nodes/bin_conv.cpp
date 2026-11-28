@@ -77,8 +77,8 @@ template <cpu_isa_t isa>
 struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
-    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp,
-                                         jit_dw_conv_params jcp_dw_conv,
+    explicit jit_uni_bin_conv_kernel_f32(const jit_bin_conv_params& jcp,
+                                         const jit_dw_conv_params& jcp_dw_conv,
                                          const dnnl_primitive_attr& attr)
         : jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr),
           jit_generator_t(jit_name()) {}

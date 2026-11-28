@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "cache/multi_cache.h"
@@ -49,7 +50,7 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator_t* h,
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     tpp::BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc);
     m_kernel_executor =
-        kernel_table->register_kernel<tpp::BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        kernel_table->register_kernel<tpp::BrgemmKernelExecutor>(expr, compiled_kernel_cache, std::move(kernel_config));
 }
 
 std::set<std::vector<element::Type>> BrgemmTppEmitter::get_supported_precisions(

@@ -148,8 +148,8 @@ class KernelExecutorTable {
 public:
     /*** Register KernelExecutor in the KernelExecutorTable so it can be later updated in runtime. */
     template <typename T, class... C, std::enable_if_t<std::is_base_of_v<KernelExecutorBase, T>, bool> = true>
-    std::shared_ptr<T> register_kernel(const lowered::ExpressionPtr& expr, C... args) {
-        const auto& instance = std::make_shared<T>(args...);
+    std::shared_ptr<T> register_kernel(const lowered::ExpressionPtr& expr, C&&... args) {
+        const auto& instance = std::make_shared<T>(std::forward<C>(args)...);
         OPENVINO_ASSERT(m_table.insert({expr->get_exec_num(), instance}).second,
                         "This expression execution number already has an alterable kernel");
         return instance;

@@ -13,6 +13,7 @@
 #include <memory>
 #include <set>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "cache/multi_cache.h"
@@ -58,10 +59,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
 
     if (brgemm_config.is_amx()) {
         BrgemmAMXKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
-        m_kernel_executor = kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, config);
+        m_kernel_executor =
+            kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, std::move(config));
     } else {
         BrgemmKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
-        m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, config);
+        m_kernel_executor =
+            kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, std::move(config));
     }
     // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
     // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
