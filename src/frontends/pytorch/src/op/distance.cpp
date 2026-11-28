@@ -4,10 +4,15 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -83,6 +88,37 @@ OutputVector translate_pairwise_distance(const NodeContext& context) {
         keepdims = context.const_input<bool>(4);
     }
     return {pairwise_distance(context, x, y, p, eps, keepdims)};
+}
+
+OutputVector translate_cosine_similarity(const NodeContext& context) {
+    // aten::cosine_similarity(Tensor x1, Tensor x2, int dim=1, float eps=1e-08) -> Tensor
+    num_inputs_check(context, 2, 4);
+    auto x1 = context.get_input(0);
+    auto x2 = context.get_input(1);
+    align_eltwise_input_types(context, x1, x2, is_python_scalar_input(context, 0), is_python_scalar_input(context, 1));
+    Output<Node> dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    if (!context.input_is_none(2)) {
+        dim = get_input_as_i32(context, 2);
+    }
+    Output<Node> eps = context.mark_node(v0::Constant::create(element::f64, Shape{}, {1e-08}));
+    if (!context.input_is_none(3)) {
+        eps = context.get_input(3);
+    }
+    eps = context.mark_node(std::make_shared<v1::ConvertLike>(eps, x1));
+    // PyTorch broadcasts the inputs before taking the norms, so a size-1 input along dim is
+    // repeated first. Each norm is then clamped to eps separately, not their product.
+    auto x1_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x1, element::i32));
+    auto x2_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x2, element::i32));
+    x1 = context.mark_node(std::make_shared<v3::Broadcast>(x1, x2_shape, BroadcastType::BIDIRECTIONAL));
+    x2 = context.mark_node(std::make_shared<v3::Broadcast>(x2, x1_shape, BroadcastType::BIDIRECTIONAL));
+    auto x1_norm = context.mark_node(std::make_shared<v4::ReduceL2>(x1, dim, true));
+    auto x2_norm = context.mark_node(std::make_shared<v4::ReduceL2>(x2, dim, true));
+    x1_norm = context.mark_node(std::make_shared<v1::Maximum>(x1_norm, eps));
+    x2_norm = context.mark_node(std::make_shared<v1::Maximum>(x2_norm, eps));
+    auto x1_normalized = context.mark_node(std::make_shared<v1::Divide>(x1, x1_norm));
+    auto x2_normalized = context.mark_node(std::make_shared<v1::Divide>(x2, x2_norm));
+    auto product = context.mark_node(std::make_shared<v1::Multiply>(x1_normalized, x2_normalized));
+    return {context.mark_node(std::make_shared<v1::ReduceSum>(product, dim, false))};
 }
 
 }  // namespace ov::frontend::pytorch::op
