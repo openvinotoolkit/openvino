@@ -395,9 +395,17 @@ struct split_reference {
     std::vector<float> attention(const std::vector<std::vector<size_t>>& selections) const {
         std::vector<float> out(q_len * d.Hq * d.Dv, 0.0f);
         const size_t group = d.Hq / d.Hkv;
+        const size_t k_stride = d.Hkv * d.Dh;
+        const size_t v_stride = d.Hkv * d.Dv;
+        const size_t q_stride = d.Hq * d.Dh;
+        const float inv_norm = std::sqrt(static_cast<float>(d.Dh));
+        std::vector<size_t> tokens;
+        std::vector<float> logits;
+        std::vector<double> acc(d.Dv);
         for (size_t t = 0; t < q_len; t++) {
             const size_t abs_pos = past_len + t;
-            std::vector<size_t> tokens;
+            const size_t q_row = t * q_stride;
+            tokens.clear();
             for (size_t b : selections[t]) {
                 for (size_t s = 0; s < d.r; s++) {
                     tokens.push_back(b * d.r + s);
@@ -406,19 +414,25 @@ struct split_reference {
             for (size_t p = ((abs_pos + 1) / d.r) * d.r; p <= abs_pos; p++) {
                 tokens.push_back(p);
             }
+            const size_t n = tokens.size();
+            if (n == 0) {
+                continue;  // nothing to attend to: output stays zero
+            }
+            logits.resize(n);
 
             for (size_t h = 0; h < d.Hq; h++) {
                 const size_t kv_head = h / group;
-                const size_t q_base = t * d.Hq * d.Dh + h * d.Dh;
+                const float* q = &query_cur[q_row + h * d.Dh];
+                const size_t k_off = kv_head * d.Dh;
+                const size_t v_off = kv_head * d.Dv;
 
-                std::vector<float> logits;
-                logits.reserve(tokens.size());
-                for (size_t p : tokens) {
+                for (size_t i = 0; i < n; i++) {
+                    const auto* k = &key_all[tokens[i] * k_stride + k_off];
                     double dot = 0.0;
                     for (size_t j = 0; j < d.Dh; j++) {
-                        dot += static_cast<double>(query_cur[q_base + j]) * key_all[p * d.Hkv * d.Dh + kv_head * d.Dh + j];
+                        dot += static_cast<double>(q[j]) * k[j];
                     }
-                    logits.push_back(static_cast<float>(dot) / std::sqrt(static_cast<float>(d.Dh)));
+                    logits[i] = static_cast<float>(dot) / inv_norm;
                 }
                 const float m = *std::max_element(logits.begin(), logits.end());
                 double sum = 0.0;
@@ -426,12 +440,17 @@ struct split_reference {
                     x = std::exp(x - m);
                     sum += x;
                 }
-                for (size_t j = 0; j < d.Dv; j++) {
-                    double acc = 0.0;
-                    for (size_t i = 0; i < tokens.size(); i++) {
-                        acc += static_cast<double>(logits[i]) * value_all[tokens[i] * d.Hkv * d.Dv + kv_head * d.Dv + j];
+                std::fill(acc.begin(), acc.end(), 0.0);
+                for (size_t i = 0; i < n; i++) {
+                    const auto* v = &value_all[tokens[i] * v_stride + v_off];
+                    const double w = logits[i];
+                    for (size_t j = 0; j < d.Dv; j++) {
+                        acc[j] += w * v[j];
                     }
-                    out[(t * d.Hq + h) * d.Dv + j] = static_cast<float>(acc / sum);
+                }
+                float* o = &out[(t * d.Hq + h) * d.Dv];
+                for (size_t j = 0; j < d.Dv; j++) {
+                    o[j] = static_cast<float>(acc[j] / sum);
                 }
             }
         }

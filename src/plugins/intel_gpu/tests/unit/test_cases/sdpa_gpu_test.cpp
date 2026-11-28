@@ -598,8 +598,9 @@ TEST_P(sdpa_gpu_sink_test, matches_independent_reference) {
             auto* out = &expected[(h * seq_q + i) * head_size];
             for (int j = 0; j < seq_kv; ++j) {
                 const auto* v = &v_data[(h * seq_kv + j) * head_size];
+                const float w = logits[j] / denom;
                 for (int d = 0; d < head_size; ++d) {
-                    out[d] += logits[j] / denom * static_cast<float>(v[d]);
+                    out[d] += w * static_cast<float>(v[d]);
                 }
             }
         }
@@ -829,8 +830,9 @@ public:
                     }
                     for (int j = 0; j < seq_kv; ++j) {
                         const auto* v = &v_data[((static_cast<size_t>(kv_b) * num_heads + h) * seq_kv + j) * p.v_head_size];
+                        const float w = logits[j] / denom;
                         for (int d = 0; d < p.v_head_size; ++d) {
-                            out[d] += logits[j] / denom * v[d];
+                            out[d] += w * v[d];
                         }
                     }
                 }
@@ -1228,14 +1230,18 @@ protected:
         const double tol = p.dt == data_types::bf16 ? 2e-2 : 4e-3;
         // Double reference on the rounded inputs: softmax(q.k * scale + mask) . V over the keys [0, keys_end),
         // or the plain mean of those V rows if uniform is set.
+        std::vector<double> s;
+        std::vector<double> ref_acc(head_size);
         auto check_row = [&](size_t h, size_t i, const float* o, size_t keys_end, bool uniform) {
-            std::vector<double> s(keys_end, 0.0);
+            s.assign(keys_end, 0.0);
             if (!uniform) {
                 double s_max = -std::numeric_limits<double>::infinity();
+                const auto* q_row = &q[(h * seq_q + i) * head_size];
                 for (size_t j = 0; j < keys_end; ++j) {
                     double acc = 0.0;
+                    const auto* k_row = &k[(h * seq_kv + j) * head_size];
                     for (size_t d = 0; d < head_size; ++d)
-                        acc += static_cast<double>(q[(h * seq_q + i) * head_size + d]) * static_cast<double>(k[(h * seq_kv + j) * head_size + d]);
+                        acc += static_cast<double>(q_row[d]) * static_cast<double>(k_row[d]);
                     const double m = p.scalar_mask ? static_cast<double>(p.fill) : static_cast<double>(static_cast<float>(mask[i * seq_kv + j]));
                     s[j] = acc * scale + m;
                     s_max = std::max(s_max, s[j]);
@@ -1248,10 +1254,15 @@ protected:
                 x = std::exp(x);
                 sum += x;
             }
+            std::fill(ref_acc.begin(), ref_acc.end(), 0.0);
+            for (size_t j = 0; j < keys_end; ++j) {
+                const double w = s[j] / sum;
+                const auto* v_row = &v[(h * seq_kv + j) * head_size];
+                for (size_t d = 0; d < head_size; ++d)
+                    ref_acc[d] += w * static_cast<double>(v_row[d]);
+            }
             for (size_t d = 0; d < head_size; ++d) {
-                double ref = 0.0;
-                for (size_t j = 0; j < keys_end; ++j)
-                    ref += s[j] / sum * static_cast<double>(v[(h * seq_kv + j) * head_size + d]);
+                const double ref = ref_acc[d];
                 ASSERT_TRUE(std::isfinite(o[d])) << "non-finite output in row h=" << h << " q=" << i << " d=" << d;
                 ASSERT_NEAR(o[d], ref, tol) << "h=" << h << " q=" << i << " d=" << d;
             }
@@ -4510,10 +4521,12 @@ protected:
             for (size_t i = 0; i < seq_q; ++i) {
                 const size_t visible = i + seq_kv - seq_q + 1;
                 float max_logit = -std::numeric_limits<float>::infinity();
+                const size_t q_base = index(seq_q, h, i, 0);
                 for (size_t j = 0; j < visible; ++j) {
                     float dot = 0.0f;
+                    const size_t k_base = index(seq_kv, h, j, 0);
                     for (size_t e = 0; e < head_size; ++e) {
-                        dot += static_cast<float>(q_data[index(seq_q, h, i, e)]) * static_cast<float>(k_data[index(seq_kv, h, j, e)]);
+                        dot += static_cast<float>(q_data[q_base + e]) * static_cast<float>(k_data[k_base + e]);
                     }
                     weights[j] = dot * scale;
                     max_logit = std::max(max_logit, weights[j]);
@@ -4525,8 +4538,10 @@ protected:
                 }
                 auto* out = &expected[(h * seq_q + i) * head_size];
                 for (size_t j = 0; j < visible; ++j) {
+                    const float w = weights[j] / sum;
+                    const size_t v_base = index(seq_kv, h, j, 0);
                     for (size_t e = 0; e < head_size; ++e) {
-                        out[e] += weights[j] / sum * static_cast<float>(v_data[index(seq_kv, h, j, e)]);
+                        out[e] += w * static_cast<float>(v_data[v_base + e]);
                     }
                 }
             }

@@ -580,11 +580,14 @@ std::vector<float> reference_attention(const case_data& c, KRow&& k_row, VRow&& 
     std::vector<float> out(c.tokens * d.Hq * d.Dv, 0.0f);
     const size_t group = d.Hq / d.Hkv;
     const double scale = 1.0 / std::sqrt(static_cast<double>(d.Dh));
+    std::vector<size_t> tokens;
+    std::vector<double> logits;
+    std::vector<double> acc(d.Dv);
     size_t t = 0;
     for (size_t s = 0; s < c.seqs.size(); s++) {
         for (size_t i = 0; i < c.seqs[s].q_len; i++, t++) {
             const size_t abs_pos = c.seqs[s].past + i;
-            std::vector<size_t> tokens;
+            tokens.clear();
             for (int32_t j = 0; j < c.count[t]; j++) {
                 const size_t b = static_cast<size_t>(c.sel[t * d.topk + j]);
                 for (size_t k = 0; k < d.r; k++) {
@@ -594,14 +597,19 @@ std::vector<float> reference_attention(const case_data& c, KRow&& k_row, VRow&& 
             for (size_t p = ((abs_pos + 1) / d.r) * d.r; p <= abs_pos; p++) {
                 tokens.push_back(p);
             }
+            const size_t n_tokens = tokens.size();
+            if (n_tokens == 0) {
+                continue;  // nothing to attend to: output stays zero
+            }
+            logits.resize(n_tokens);
             for (size_t h = 0; h < d.Hq; h++) {
                 const size_t kv = h / group;
-                std::vector<double> logits(tokens.size());
-                for (size_t n = 0; n < tokens.size(); n++) {
+                const float* q = &c.query[(t * d.Hq + h) * d.Dh];
+                for (size_t n = 0; n < n_tokens; n++) {
                     const auto krow = k_row(s, tokens[n], kv);
                     double dot = 0.0;
                     for (size_t j = 0; j < d.Dh; j++) {
-                        dot += static_cast<double>(c.query[(t * d.Hq + h) * d.Dh + j]) * krow[j];
+                        dot += static_cast<double>(q[j]) * krow[j];
                     }
                     logits[n] = dot * scale;
                 }
@@ -611,15 +619,17 @@ std::vector<float> reference_attention(const case_data& c, KRow&& k_row, VRow&& 
                     x = std::exp(x - m);
                     sum += x;
                 }
-                std::vector<double> acc(d.Dv, 0.0);
-                for (size_t n = 0; n < tokens.size(); n++) {
+                std::fill(acc.begin(), acc.end(), 0.0);
+                for (size_t n = 0; n < n_tokens; n++) {
                     const auto vrow = v_row(s, tokens[n], kv);
+                    const double w = logits[n];
                     for (size_t j = 0; j < d.Dv; j++) {
-                        acc[j] += logits[n] * vrow[j];
+                        acc[j] += w * vrow[j];
                     }
                 }
+                float* o = &out[(t * d.Hq + h) * d.Dv];
                 for (size_t j = 0; j < d.Dv; j++) {
-                    out[(t * d.Hq + h) * d.Dv + j] = static_cast<float>(acc[j] / sum);
+                    o[j] = static_cast<float>(acc[j] / sum);
                 }
             }
         }
@@ -1053,6 +1063,9 @@ void run_dense_case(const dense_case& tc, const char* name) {
     // Reference over the dequantized (and, for the accuracy line, the original) K/V.
     const size_t group = d.Hq / d.Hkv;
     std::vector<float> ref(B * d.Hq * L * d.Dv), ref_f16(B * d.Hq * L * d.Dv);
+    std::vector<size_t> tokens;
+    std::vector<double> logits;
+    std::vector<double> acc(d.Dv);
     for (int which = 0; which < 2; which++) {
         auto& dst = which == 0 ? ref : ref_f16;
         const auto& K = which == 0 ? kq.deq : key;
@@ -1060,7 +1073,7 @@ void run_dense_case(const dense_case& tc, const char* name) {
         for (size_t b = 0; b < B; b++) {
             for (size_t l = 0; l < L; l++) {
                 const size_t abs_pos = tc.key_len[b] - L + l;
-                std::vector<size_t> tokens;
+                tokens.clear();
                 for (int32_t j = 0; j < count[b * L + l]; j++) {
                     for (size_t k = 0; k < d.r; k++) {
                         tokens.push_back(static_cast<size_t>(sel[(b * L + l) * d.topk + j]) * d.r + k);
@@ -1069,14 +1082,21 @@ void run_dense_case(const dense_case& tc, const char* name) {
                 for (size_t p = ((abs_pos + 1) / d.r) * d.r; p <= abs_pos; p++) {
                     tokens.push_back(p);
                 }
+                const size_t n_tokens = tokens.size();
+                if (n_tokens == 0) {
+                    continue;  // nothing to attend to: output stays zero
+                }
+                logits.resize(n_tokens);
                 for (size_t h = 0; h < d.Hq; h++) {
                     const size_t kv = h / group;
-                    std::vector<double> logits(tokens.size());
-                    for (size_t n = 0; n < tokens.size(); n++) {
-                        const size_t row = (b * d.Hkv + kv) * S + (S - tc.key_len[b]) + tokens[n];
+                    const size_t base_row = (b * d.Hkv + kv) * S + (S - tc.key_len[b]);
+                    const size_t o_idx = ((b * d.Hq + h) * L + l) * d.Dv;
+                    const auto* q = &query[((b * d.Hq + h) * L + l) * d.Dh];
+                    for (size_t n = 0; n < n_tokens; n++) {
+                        const auto* k = &K[(base_row + tokens[n]) * d.Dh];
                         double dot = 0.0;
                         for (size_t j = 0; j < d.Dh; j++) {
-                            dot += static_cast<double>(query[((b * d.Hq + h) * L + l) * d.Dh + j]) * K[row * d.Dh + j];
+                            dot += static_cast<double>(q[j]) * k[j];
                         }
                         logits[n] = dot * scale;
                     }
@@ -1086,13 +1106,16 @@ void run_dense_case(const dense_case& tc, const char* name) {
                         x = std::exp(x - m);
                         sum += x;
                     }
-                    for (size_t j = 0; j < d.Dv; j++) {
-                        double acc = 0.0;
-                        for (size_t n = 0; n < tokens.size(); n++) {
-                            const size_t row = (b * d.Hkv + kv) * S + (S - tc.key_len[b]) + tokens[n];
-                            acc += logits[n] * V[row * d.Dv + j];
+                    std::fill(acc.begin(), acc.end(), 0.0);
+                    for (size_t n = 0; n < n_tokens; n++) {
+                        const auto* v = &V[(base_row + tokens[n]) * d.Dv];
+                        const double w = logits[n];
+                        for (size_t j = 0; j < d.Dv; j++) {
+                            acc[j] += w * v[j];
                         }
-                        dst[((b * d.Hq + h) * L + l) * d.Dv + j] = static_cast<float>(acc / sum);
+                    }
+                    for (size_t j = 0; j < d.Dv; j++) {
+                        dst[o_idx + j] = static_cast<float>(acc[j] / sum);
                     }
                 }
             }

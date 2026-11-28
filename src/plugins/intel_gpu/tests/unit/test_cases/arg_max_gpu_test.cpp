@@ -1760,15 +1760,25 @@ std::vector<int32_t> topk_radix_reference_indices(const std::vector<float>& valu
     std::vector<uint32_t> keys(row_size);
     std::vector<int32_t> order(row_size);
     for (size_t row = 0; row < rows; ++row) {
+        const float* row_values = values.data() + row * row_size;
         for (size_t i = 0; i < row_size; ++i) {
-            keys[i] = topk_radix_order_key(values[row * row_size + i]);
+            // keys[i] = topk_radix_order_key(values[row * row_size + i]);
+            keys[i] = topk_radix_order_key(row_values[i]);
         }
         std::iota(order.begin(), order.end(), 0);
-        std::stable_sort(order.begin(), order.end(), [&](int32_t a, int32_t b) {
-            return mode == ov::op::TopKMode::MAX ? keys[a] > keys[b] : keys[a] < keys[b];
-        });
+        // Total order (key, then smallest index) gives the same result as a stable sort, but only
+        // the top_k prefix has to be selected and ordered.
+        const bool is_max = mode == ov::op::TopKMode::MAX;
+        auto before = [&](int32_t a, int32_t b) {
+            return keys[a] != keys[b] ? (is_max ? keys[a] > keys[b] : keys[a] < keys[b]) : a < b;
+        };
+        if (top_k < row_size) {
+            std::nth_element(order.begin(), order.begin() + top_k, order.end(), before);
+        }
         if (sort != ov::op::TopKSortType::SORT_VALUES) {
             std::sort(order.begin(), order.begin() + top_k);
+        } else {
+            std::sort(order.begin(), order.begin() + top_k, before);
         }
         result.insert(result.end(), order.begin(), order.begin() + top_k);
     }
