@@ -262,6 +262,7 @@ OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_shape_as_tensor);
 OP_CONVERTER(translate_sign);
+OP_CONVERTER(translate_sinc);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
@@ -763,6 +764,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::sin", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sin>, 1>},
         {"aten::sin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sin>>},
+        {"aten::sinc", op::translate_sinc},
+        {"aten::sinc_", op::inplace_op<op::translate_sinc>},
         {"aten::sinh", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sinh>, 1>},
         {"aten::sinh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sinh>>},
         {"aten::size", op::translate_size},
