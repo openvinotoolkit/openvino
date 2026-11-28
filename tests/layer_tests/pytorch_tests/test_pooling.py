@@ -161,6 +161,91 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
+    # EfficientNet-b0 uses nn.AvgPool2d(1280, ceil_mode=True) over a 7x7 feature map.
+    @pytest.mark.parametrize("op_type,input_shape,kernel_size,stride,padding", [
+        ("avg_pool1d", [1, 8, 7], 1280, None, 0),
+        ("avg_pool2d", [1, 8, 7, 7], [1280, 1280], None, 0),
+        ("avg_pool2d", [8, 7, 7], [9, 2], None, 0),
+        ("avg_pool2d", [1, 8, 7, 7], [9, 3], None, [0, 1]),
+        # PyTorch drops the last width window, which starts in the right padding.
+        ("avg_pool2d", [1, 8, 7, 5], [9, 2], None, [0, 1]),
+        ("avg_pool1d", [1, 8, 7], 8, 2, 0),
+        # The last width window PyTorch uses already reaches the input end.
+        ("avg_pool2d", [1, 8, 7, 10], [8, 8], [2, 2], 0),
+        ("avg_pool2d", [1, 8, 7, 5], [8, 2], [3, 2], [0, 1]),
+        ("avg_pool1d", [1, 8, 3], 9, None, 1),
+        ("avg_pool2d", [1, 8, 3, 7], [8, 3], [2, 3], [2, 1]),
+    ])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_avg_pool_oversized_kernel(self, op_type, input_shape, kernel_size, stride, padding, count_include_pad,
+                                       is_dynamic_shapes, ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape)
+        self._test(*self.create_model(op_type, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      ceil_mode=True, count_include_pad=count_include_pad),
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False,
+                   dynamic_shapes=is_dynamic_shapes)
+
+    @pytest.mark.parametrize("kernel_size,stride,padding", [([32, 32], None, 0), ([8, 8], [2, 3], 0),
+                                                            ([8, 8], [2, 3], [2, 1])])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_kernel_dynamic_reuse(self, kernel_size, stride, padding, count_include_pad,
+                                                     ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel_size, stride=stride, padding=padding,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.randn(1, 2, 7, 7)
+        traced = torch.jit.trace(model, example)
+        ov_model = ov.convert_model(traced, example_input=(example,), input=[ov.PartialShape([-1] * 4)])
+        compiled = ov.Core().compile_model(ov_model, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
+        for shape in [(1, 2, 7, 7), (1, 2, 15, 15), (1, 2, 40, 64), (1, 2, 64, 7)]:
+            data = torch.randn(*shape)
+            actual = compiled((data.numpy(),))[0]
+            np.testing.assert_allclose(actual, traced(data).numpy(), rtol=1e-4, atol=1e-4)
+
+    @pytest.mark.parametrize("kernel_size,expected_op", [([1280, 1280], "ReduceMean"), ([9, 7], "ReduceMean"),
+                                                         ([9, 2], "AvgPool"), ([7, 7], "AvgPool")])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_kernel_static_single_window(self, kernel_size, expected_op, count_include_pad,
+                                                            ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel_size, stride=None, padding=0,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.randn(1, 2, 7, 7)
+        ov_model = ov.convert_model(model, example_input=example, input=[ov.PartialShape(list(example.shape))])
+        op_types = [node.get_type_name() for node in ov_model.get_ordered_ops()]
+        other_op = "AvgPool" if expected_op == "ReduceMean" else "ReduceMean"
+        assert expected_op in op_types and other_op not in op_types, op_types
+        compiled = ov.Core().compile_model(ov_model, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
+        with torch.no_grad():
+            expected = model(example).numpy()
+        np.testing.assert_allclose(compiled((example.numpy(),))[0], expected, rtol=1e-4, atol=1e-4)
+
+    @pytest.mark.parametrize("kernel_size,stride,padding,count_include_pad", [
+        (2, 2, 0, False),
+        (3, 2, 1, True),
+        (3, 3, 1, True),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_ceil_mode_keeps_single_pool(self, kernel_size, stride, padding, count_include_pad,
+                                                  ie_device, precision, ir_version):
+        # Common ceil-mode pools must stay a single AvgPool even when the input shape is dynamic.
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel_size, stride=stride, padding=padding,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.randn(1, 2, 8, 8)
+        ov_model = ov.convert_model(torch.jit.trace(model, example), example_input=(example,),
+                                    input=[ov.PartialShape([-1] * 4)])
+        op_types = [node.get_type_name() for node in ov_model.get_ordered_ops()]
+        assert op_types.count("AvgPool") == 1 and "Slice" not in op_types and "Pad" not in op_types, op_types
+
     @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
