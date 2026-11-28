@@ -134,6 +134,7 @@ OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
+OP_CONVERTER(translate_heaviside);
 OP_CONVERTER(translate_histc);
 OP_CONVERTER(translate_hstack);
 OP_CONVERTER(translate_hypot);
@@ -588,6 +589,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
+        {"aten::heaviside", op::translate_heaviside},
+        {"aten::heaviside_", op::inplace_op<op::translate_heaviside>},
         {"aten::histc", op::translate_histc},
         {"aten::hstack", op::translate_hstack},
         {"aten::hypot", op::translate_hypot},
@@ -945,6 +948,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.full_like.default", op::translate_full_like_fx},
         {"aten.gelu.default", op::translate_gelu_fx},
         {"aten.grid_sampler_2d.default", op::translate_grid_sampler},
+        {"aten.heaviside.default", op::translate_heaviside},
+        {"aten.heaviside.out", op::translate_heaviside},
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_fill.int_Scalar", op::translate_index_fill_},
