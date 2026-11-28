@@ -234,6 +234,21 @@ public:
         return section_by_id(any_device_id, static_cast<uint32_t>(tag));
     }
 
+    /// Enabled only for callables that can be invoked as bool(const ManifestEntry&).
+    template <typename Pred>
+    using EntryPredicate = std::enable_if_t<std::is_invocable_r_v<bool, Pred&, const ManifestEntry&>, int>;
+
+    /**
+     * @brief Returns a #Section handle for the first manifest entry, in manifest order, for which @p pred returns true.
+     * @param pred Predicate used to find the manifest entry.
+     * @return `std::nullopt` if no entry matches.
+     */
+    template <typename Pred, EntryPredicate<Pred> = 0>
+    std::optional<Section> section_if(Pred&& pred) const {
+        const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), std::ref(pred));
+        return found != m_manifest.end() ? std::optional<Section>(make_section(*found)) : std::nullopt;
+    }
+
     /**
      * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
      * manifest order.
@@ -254,6 +269,24 @@ public:
     template <typename Tag>
     std::vector<Section> sections(Tag tag) const {
         return sections_by_id(any_device_id, static_cast<uint32_t>(tag));
+    }
+
+    /**
+     * @brief Finds all manifest entries for which @p pred is true and returns a #Section handle for each, in
+     * manifest order.
+     *
+     * @param pred Predicate used to find manifest entries.
+     * @return std::vector<Section> A vector of handles to the matching sections, in manifest order.
+     */
+    template <typename Pred, EntryPredicate<Pred> = 0>
+    std::vector<Section> sections_if(Pred&& pred) const {
+        std::vector<Section> result;
+        for (const auto& entry : m_manifest) {
+            if (pred(entry)) {
+                result.push_back(make_section(entry));
+            }
+        }
+        return result;
     }
 
     /**
@@ -279,6 +312,19 @@ public:
     }
 
     /**
+     * @brief Runs @p decoder over the first manifest entry for which @p pred returns true.
+     * @note Returns std::nullopt if no matching entry is found, or if @p decoder itself returns std::nullopt.
+     * @param pred Predicate used to find the manifest entry.
+     * @param decoder The decoder to run over the matching section.
+     * @return A decoded value if the section is found and the decoder succeeds; otherwise, `std::nullopt`.
+     */
+    template <typename Pred, EntryPredicate<Pred> = 0, typename T>
+    std::optional<T> decode_if(Pred&& pred, const SectionDecoder<T>& decoder) const {
+        const auto found = section_if(pred);
+        return found ? decoder(*found) : std::nullopt;
+    }
+
+    /**
      * @brief Runs @p decoder over every manifest entry matching (@p device, @p tag) - entries @p decoder
      * itself rejects (returns std::nullopt for) are omitted, not treated as an error.
      * @note If no matching entries are found, an empty vector is returned.
@@ -292,6 +338,26 @@ public:
     std::vector<T> decode_all(DeviceId device, Tag tag, const SectionDecoder<T>& decoder) const {
         std::vector<T> result;
         for (const auto& found : sections(device, tag)) {
+            if (auto value = decoder(found)) {
+                result.push_back(std::move(*value));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @brief Runs @p decoder over every manifest entry for which @p pred returns true - entries @p decoder
+     * itself rejects (returns std::nullopt for) are omitted, not treated as an error.
+     * @note If no matching entries are found, an empty vector is returned.
+     *
+     * @param pred Predicate used to find manifest entries.
+     * @param decoder The decoder to run over the matching sections.
+     * @return A vector of decoded values for the matching sections that the decoder accepts.
+     */
+    template <typename Pred, EntryPredicate<Pred> = 0, typename T>
+    std::vector<T> decode_all_if(Pred&& pred, const SectionDecoder<T>& decoder) const {
+        std::vector<T> result;
+        for (const auto& found : sections_if(pred)) {
             if (auto value = decoder(found)) {
                 result.push_back(std::move(*value));
             }
