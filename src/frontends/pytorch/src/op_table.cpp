@@ -75,6 +75,7 @@ OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_constant_pad_nd);
 OP_CONVERTER(translate_copy_);
+OP_CONVERTER(translate_copysign);
 OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_diff);
@@ -511,6 +512,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::constant_pad_nd", op::translate_constant_pad_nd},
         {"aten::copy", op::skip_node},
         {"aten::copy_", op::translate_copy_},
+        {"aten::copysign", op::translate_copysign},
+        {"aten::copysign_", op::inplace_op<op::translate_copysign>},
         {"aten::cos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cos>, 1>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>, 1>},
