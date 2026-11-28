@@ -334,6 +334,8 @@ public:
         // input_1 / Sqrt(Add(input_2, eps))
         // input_1 * Pow(Maximum(input_2, eps), -z)
         // input_1 * Pow(Add(input_2, eps), -z)
+        // input_1 * Pow(Sqrt(Add(input_2, eps)), -z)
+        // input_1 * Pow(Sqrt(Maximum(input_2, eps)), -z)
 
         auto input_1 = pattern::any_input();
         auto input_2 = pattern::any_input();
@@ -350,7 +352,7 @@ public:
         auto pow_exp = pattern::wrap_type<v0::Constant>();
         auto optional_pow_convert = pattern::optional<v0::Convert>(pow_exp);
 
-        auto pow_pattern = std::make_shared<v1::Power>(max_or_add, optional_pow_convert);
+        auto pow_pattern = std::make_shared<v1::Power>(optional_sqrt, optional_pow_convert);
         auto mul_pattern = std::make_shared<v1::Multiply>(input_1, pow_pattern);
         auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
