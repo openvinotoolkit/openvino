@@ -8,7 +8,7 @@
 #include <fstream>
 #include <numeric>
 #include <optional>
-
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -17,9 +17,10 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/op/result.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
+#include "test_utils.h"
 
 using namespace ov::intel_gpu;
 
@@ -125,6 +126,10 @@ struct MoETestGraph {
         g.moe_node = std::make_shared<ov::op::internal::MOECompressed>(inputs, config);
         return g;
     }
+
+    std::shared_ptr<ov::Model> to_model() const {
+        return std::make_shared<ov::Model>(ov::OutputVector{moe_node}, parameters);
+    }
 };
 
 TEST(moe_offload_constant, validates_resident_weight_budget) {
@@ -157,6 +162,16 @@ TEST(moe_offload_constant, non_moe_model_is_not_subject_to_resident_constant_che
 
     EXPECT_EQ(get_model_resident_constant_bytes(model, 0), 0U);
     EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 1));
+}
+
+// Test that routed expert constants (inputs 3-11) are classified as OffloadableRoutedExpert
+static uint64_t sum_constant_bytes(const MoETestGraph& g, MoEConstantRole role) {
+    uint64_t bytes = 0;
+    for (const auto& constant : g.constants) {
+        if (get_moe_constant_role(constant) == role)
+            bytes += constant->get_byte_size();
+    }
+    return bytes;
 }
 
 // Test that routed expert constants (inputs 3-11) are classified as OffloadableRoutedExpert
@@ -533,3 +548,172 @@ TEST(moe_offload_constant, layer_sharing_weights_with_a_resident_layer_stays_res
         EXPECT_FALSE(prepare_partial_upload(constant, 50).enabled);
     }
 }
+
+TEST(moe_offload_constant, auto_ratio_no_moe_model_resolves_zero) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{input}, ov::ParameterVector{input});
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, 1), 0U);
+}
+
+TEST(moe_offload_constant, auto_ratio_zero_budget_resolves_zero) {
+    auto g = MoETestGraph::build();
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), 0), 0U);
+}
+
+TEST(moe_offload_constant, auto_ratio_non_positive_budget_for_moe_resolves_zero) {
+    auto g = MoETestGraph::build();
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
+    // Set budget such that budget * 0.85 <= fixed_bytes (i.e. budget_for_moe <= 0)
+    const uint64_t budget = fixed_bytes;
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 0U);
+}
+
+TEST(moe_offload_constant, auto_ratio_all_moe_weights_fit_resolves_zero) {
+    auto g = MoETestGraph::build();
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), uint64_t{1} << 40), 0U);
+}
+
+TEST(moe_offload_constant, auto_ratio_uses_routed_expert_bytes_for_resident_fraction) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.5 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 50U);
+}
+
+TEST(moe_offload_constant, auto_ratio_calculates_boundary_ratio_75) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
+    // 25% resident -> 75% offload
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.25 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 75U);
+}
+
+TEST(moe_offload_constant, auto_ratio_calculates_quarter_offload_25) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
+    // 75% resident -> 25% offload
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.75 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 25U);
+}
+
+TEST(moe_offload_constant, auto_ratio_counts_shared_expert_bytes_as_fixed_weights) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t budget = static_cast<uint64_t>(static_cast<double>(routed_bytes) / 0.85);
+
+    EXPECT_GT(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 0U);
+}
+
+TEST(moe_offload_constant, resolve_auto_offload_ratio_with_engine_no_moe) {
+    auto& engine = tests::get_test_engine();
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{input}, ov::ParameterVector{input});
+
+    EXPECT_EQ(resolve_auto_offload_ratio(*model, engine), 0U);
+}
+
+TEST(moe_offload_constant, resolve_auto_offload_ratio_with_engine_small_model_fits) {
+    auto& engine = tests::get_test_engine();
+    auto g = MoETestGraph::build();
+
+    // The small test graph is << device memory, so all weights fit -> resolves to 0
+    EXPECT_EQ(resolve_auto_offload_ratio(*g.to_model(), engine), 0U);
+}
+
+TEST(moe_offload_constant, mixed_consumer_routed_and_shared_is_not_routed_eligible) {
+    // When a constant is connected to both routed expert and shared expert inputs,
+    // it must not be classified as OffloadableRoutedExpert (must not be cropped by partial upload),
+    // and must be classified as AlwaysResidentSharedExpert.
+    auto g = MoETestGraph::build();
+    // g.constants[0] is w0_weight (connected to MOECompressed input 3)
+    // Also connect g.constants[0] to input 12 (shared) by creating an additional consumer input
+    auto c = g.constants[0];
+
+    // Build another MOECompressed node using c at a shared input index (12)
+    ov::OutputVector inputs;
+    for (const auto& p : g.parameters) {
+        inputs.push_back(p->output(0));
+    }
+    // inputs 3..11: other constants
+    for (size_t i = 0; i < 9; ++i) {
+        inputs.push_back(g.constants[i]->output(0));
+    }
+    // input 12: use c (which was already input 3 in g.moe_node)
+    inputs.push_back(c->output(0));
+    for (size_t i = 10; i < g.constants.size(); ++i) {
+        inputs.push_back(g.constants[i]->output(0));
+    }
+    auto extra_moe = std::make_shared<ov::op::internal::MOECompressed>(inputs, g.moe_node->get_config());
+
+    EXPECT_NE(get_moe_constant_role(c), MoEConstantRole::OffloadableRoutedExpert);
+    EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::AlwaysResidentSharedExpert);
+}
+
+TEST(moe_offload_constant, mixed_consumer_routed_and_non_moe_is_not_routed_eligible) {
+    // When a constant is connected to a routed expert input and also to a non-MoE op (Result),
+    // it requires the full tensor and must not be classified as RoutedExpert.
+    auto g = MoETestGraph::build();
+    auto c = g.constants[0];  // g.constants[0] is w0_weight (connected to MOECompressed input 3)
+
+    auto non_moe_consumer = std::make_shared<ov::op::v0::Result>(c);
+
+    EXPECT_NE(get_moe_constant_role(c), MoEConstantRole::OffloadableRoutedExpert);
+    EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::NotOffloadableRoutedExpert);
+}
+
+TEST(moe_offload_constant, auto_ratio_mixed_consumer_constant_counted_as_fixed_weight) {
+    auto g = MoETestGraph::build();
+    auto mixed_c = g.constants[0];  // g.constants[0] is w0_weight (connected to MOECompressed input 3)
+
+    // Connect mixed_c to a non-MoE consumer so it becomes ineligible for routed offload.
+    auto extra_res = std::make_shared<ov::op::v0::Result>(mixed_c);
+    auto moe_res = std::make_shared<ov::op::v0::Result>(g.moe_node);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{moe_res, extra_res}, g.parameters);
+
+    EXPECT_EQ(get_moe_constant_role(mixed_c), MoEConstantRole::NotOffloadableRoutedExpert);
+
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t shared_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
+    const uint64_t mixed_c_bytes = mixed_c->get_byte_size();
+    // mixed_c is now non-routed (NotMoE), so it is counted as fixed weight along with shared experts:
+    const uint64_t w_fixed = shared_bytes + mixed_c_bytes;
+
+    // Set budget such that w_fixed is covered and 50% of remaining routed_bytes fits
+    const uint64_t budget = static_cast<uint64_t>(
+        (static_cast<double>(w_fixed) + 0.5 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, budget), 50U);
+}
+
+TEST(moe_offload_constant, estimate_available_tracked_device_memory_calculates_difference) {
+    auto& engine = tests::get_test_engine();
+    uint64_t used_bytes = 0;
+    for (const auto& stat : engine.get_memory_statistics()) {
+        used_bytes += stat.second;
+    }
+
+    // When upper_bound exceeds used_bytes, difference is returned
+    const uint64_t headroom = 1024 * 1024;
+    EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes + headroom), headroom);
+
+    // When upper_bound equals or is less than used_bytes, 0 is returned
+    EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes), 0U);
+    if (used_bytes > 0) {
+        EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes - 1), 0U);
+    }
+}
+
+#if defined(__linux__)
+TEST(moe_offload_constant, query_available_ram_bytes_returns_positive) {
+    EXPECT_GT(query_available_ram_bytes(), 0U);
+}
+#endif
