@@ -964,6 +964,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         OPENVINO_THROW_NOT_IMPLEMENTED("QSA models do not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
     }
 
+    if (m_enable_prefix_caching) {
+        for (const auto& input : kvcache_model->inputs()) {
+            for (const auto& name : input.get_names()) {
+                if (ov::npuw::util::starts_with_past_lincache(name)) {
+                    OPENVINO_THROW_NOT_IMPLEMENTED(
+                        "NPUW_LLM_ENABLE_PREFIX_CACHING does not support models with recurrent (conv/ssm) state "
+                        "yet: a restored prefix would leave that state zeroed.");
+                }
+            }
+        }
+    }
+
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1497,10 +1509,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support "
                                            "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE yet.");
         }
-        OPENVINO_ASSERT(!m_enable_prefix_caching,
-                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
-                        "cannot be enabled simultaneously — this combination is not yet supported. "
-                        "Please disable one of the two options.");
         if (m_use_chunk_prefill && !m_is_embedding && (prefill_attn_hfa || prefill_attn_pyramid)) {
             const uint32_t block_size = static_cast<uint32_t>(m_prefill_chunk_size);
 
@@ -1534,6 +1542,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                "Ensure the model uses HFA or Pyramid attention pattern.");
             }
             m_is_block_kv_cache = true;
+            if (m_enable_prefix_caching && m_prefix_caching_block_size != m_prefill_chunk_size) {
+                // One cached block must map to exactly one KV pool block.
+                LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size
+                                                                     << " to match the KV cache block size");
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
         } else {
             LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "
                      "Block-based KV cache requires: chunk prefill enabled, "

@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <stack>
 #include <string>
 #include <vector>
 
@@ -16,7 +15,17 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
+namespace test {
 namespace npuw {
+struct KVCacheBlockManagerTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
+namespace npuw {
+
+class LLMBlockKVCacheStrategy;
 
 /**
  * @brief Block-based KV Cache Manager
@@ -97,7 +106,10 @@ public:
     uint32_t get_block_tokens(uint32_t block_id) const;
 
     /**
-     * @brief Get list of all currently allocated block IDs
+     * @brief Get all currently allocated block IDs in ascending order
+     *
+     * Blocks are always handed out smallest ID first, so index i is the block holding tokens
+     * [i * block_size, (i + 1) * block_size).
      *
      * @return Vector of block IDs
      */
@@ -158,11 +170,42 @@ public:
     /**
      * @brief Get number of currently free (unallocated) blocks
      */
-    uint32_t num_free_blocks() const {
-        return static_cast<uint32_t>(free_block_ids_.size());
-    }
+    uint32_t num_free_blocks() const;
 
 private:
+    friend class LLMBlockKVCacheStrategy;
+    friend struct ov::test::npuw::KVCacheBlockManagerTestAccess;
+
+    /**
+     * @brief Make a free block active by injecting an existing tensor, without allocating memory.
+     *
+     * Used to restore a prefix-cached block. The tensor is marked shared, so release() and
+     * truncate_allocated() drop it instead of keeping it warm for reuse.
+     * Must be called in ascending token order: blocks are handed out smallest ID first, which is
+     * what keeps block ID order equal to token order.
+     *
+     * @return ID of the block that now holds the tensor
+     */
+    uint32_t allocate_block_with_tensor(ov::SoPtr<ov::ITensor> tensor, uint32_t num_tokens);
+
+    /**
+     * @brief Mark an allocated block as also referenced by the prefix cache.
+     *
+     * A shared block must never be rewritten by a later conversation, so its tensor is dropped
+     * from the pool (not kept warm) when the block is released.
+     */
+    void mark_block_shared(uint32_t block_id);
+
+    /**
+     * @brief Give an allocated shared block a private copy of its tensor.
+     *
+     * Needed before rewriting a block in place, so the prefix cache keeps the original data.
+     * The block ID and token count are unchanged. A no-op for a block that is not shared.
+     *
+     * @return true if the tensor was replaced, so any binding to the old tensor is stale
+     */
+    bool make_block_private(uint32_t block_id);
+
     /**
      * @brief Represents a single block of KV cache memory
      */
@@ -170,12 +213,12 @@ private:
         ov::SoPtr<ov::ITensor> tensor;  ///< Block memory tensor (allocated on-demand)
         uint32_t num_tokens = 0;        ///< Number of tokens stored in this block
         bool is_allocated = false;      ///< True when block is in use; false = free
+        bool is_shared = false;         ///< True when the tensor is also referenced by the prefix cache
     };
 
-    uint32_t block_size_;                  ///< Number of tokens per block
-    uint32_t max_blocks_;                  ///< Maximum blocks in pool
-    std::vector<Block> blocks_;            ///< All blocks (free + allocated)
-    std::stack<uint32_t> free_block_ids_;  ///< Stack of free block IDs (LIFO for better reuse)
+    uint32_t block_size_;        ///< Number of tokens per block
+    uint32_t max_blocks_;        ///< Maximum blocks in pool
+    std::vector<Block> blocks_;  ///< All blocks (free + allocated)
 
     ov::element::Type element_type_;             ///< Element type for tensors
     ov::Shape block_shape_;                      ///< Shape for block tensors
@@ -183,14 +226,9 @@ private:
     std::shared_ptr<const ov::IPlugin> plugin_;  ///< Plugin for memory allocation
 
     /**
-     * @brief Rebuild the free block ID stack from the current allocation flags.
-     *
-     * Pushes in descending ID order so the smallest free ID is handed out first,
-     * keeping allocation order aligned with block ID order. Shared by every path
-     * that changes allocation state, since the ordering is what keeps a retained
-     * prefix contiguous once freed IDs are reacquired.
+     * @brief Smallest block ID that is not allocated, or std::nullopt if the pool is exhausted.
      */
-    void rebuild_free_block_ids();
+    std::optional<uint32_t> first_free_block_id() const;
 
     /**
      * @brief Validate block ID

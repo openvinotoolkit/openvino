@@ -558,4 +558,18 @@ TEST_F(MaskLinearAttentionPaddingTest, WholePrefillDoesNotApplyThePass) {
     EXPECT_EQ(count_masked_loop_inputs(prefill.model), 0u);
 }
 
+// A restored prefix would leave the conv/ssm history zeroed, so the combination is rejected.
+TEST_F(MaskLinearAttentionPaddingTest, PrefixCachingIsRejectedForRecurrentStateModels) {
+    const ov::AnyMap props{{"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}, {"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"}};
+    const std::vector<std::shared_ptr<ov::Model>> models{ov::test::npuw::build_hybrid_llm_test_model(),
+                                                         ov::test::npuw::build_lfm2_llm_test_model()};
+    for (const auto& model : models) {
+        RecordingFactory recorder;
+        EXPECT_THROW(create_compiled_model(model, props, recorder), ov::Exception);
+    }
+
+    RecordingFactory recorder;
+    EXPECT_NO_THROW(create_compiled_model(ov::test::npuw::build_llm_test_model(), props, recorder));
+}
+
 }  // namespace
