@@ -16,6 +16,11 @@ reporting:
       file: coverage.info
       flag_template: cpp-runtime-cpp-{lane}
 tests:
+  - name: ov_npu_unit_tests
+    binary: ov_npu_unit_tests
+    mode: gtest_single
+    profiles: [npu]
+
   - name: ov_api_conformance_tests
     binary: ov_api_conformance_tests
     mode: raw
