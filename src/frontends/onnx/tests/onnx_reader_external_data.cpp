@@ -6,8 +6,10 @@
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 #include <set>
+#include <sstream>
 #include <streambuf>
 #include <string>
 
@@ -470,3 +472,175 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_from_ORT_MEM_ADDR) {
 }
 
 INSTANTIATE_TEST_SUITE_P(OnnxFeMMapReadModel, OnnxFeMmapFixture, ::testing::Bool());
+
+TEST(OnnxFeOrtMemAddr, onnx_external_data_from_ORT_MEM_ADDR_stream) {
+    // ONNX Runtime passes in-memory initializers as FrontEnd::load({std::istream*, model_path})
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
+    std::ifstream ifs(path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(ifs.is_open()) << "Could not open model file: " << path;
+    ModelProto model_proto;
+    ASSERT_TRUE(model_proto.ParseFromIstream(&ifs)) << "Could not parse ModelProto";
+    ifs.close();
+
+    std::vector<float> test_data = {2.0f, 3.0f, 4.0f, 5.0f};
+    const auto data_addr = reinterpret_cast<uint64_t>(test_data.data());
+    const auto data_size = test_data.size() * sizeof(float);
+    bool replaced = false;
+    for (auto& initializer : *model_proto.mutable_graph()->mutable_initializer()) {
+        if (initializer.has_data_location() && initializer.data_location() == ::ONNX_NAMESPACE::TensorProto::EXTERNAL) {
+            initializer.clear_external_data();
+            auto* location_entry = initializer.add_external_data();
+            location_entry->set_key("location");
+            location_entry->set_value("*/_ORT_MEM_ADDR_/*");
+            auto* offset_entry = initializer.add_external_data();
+            offset_entry->set_key("offset");
+            offset_entry->set_value(std::to_string(data_addr));
+            auto* length_entry = initializer.add_external_data();
+            length_entry->set_key("length");
+            length_entry->set_value(std::to_string(data_size));
+            replaced = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(replaced);
+    std::istringstream model_stream(model_proto.SerializeAsString());
+    std::istream& stream = model_stream;
+    ov::AnyVector params{&stream, path};
+
+    auto fem = FrontEndManager();
+    auto frontend = fem.load_by_model(params);
+    ASSERT_NE(frontend, nullptr);
+    std::shared_ptr<ov::frontend::InputModel> input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(params)) << "Could not load model from stream with ORT_MEM_ADDR";
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model)) << "Could not convert model with ORT_MEM_ADDR";
+
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>({2, 2}, {4.f, 7.f, 10.f, 13.f});
+    test_case.run();
+}
+
+// With ORT_MEM_ADDR the "offset" field is a raw memory address, so a model read from a file must not use it
+// (zero-size data is still accepted, see onnx_external_data_0_size)
+class OnnxFeOrtMemAddrInFileFixture : public ::testing::TestWithParam<std::tuple<std::string, bool>> {};
+
+TEST_P(OnnxFeOrtMemAddrInFileFixture, onnx_external_data_ORT_MEM_ADDR_in_file_is_rejected) {
+    const auto& [model_name, use_mmap] = GetParam();
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/" + model_name);
+    Core core;
+    core.set_property(enable_mmap(use_mmap));
+    OV_EXPECT_THROW(
+        core.read_model(path),
+        Exception,
+        HasSubstr("has external data location */_ORT_MEM_ADDR_/* which is not allowed for a model read from a file"));
+}
+
+INSTANTIATE_TEST_SUITE_P(OnnxFeOrtMemAddrInFile,
+                         OnnxFeOrtMemAddrInFileFixture,
+                         ::testing::Combine(::testing::Values("ort_mem_addr_offset_1.onnx",
+                                                              "ort_mem_addr_offset_4096.onnx",
+                                                              "ort_mem_addr_offset_4096_length_65536.onnx",
+                                                              "ort_mem_addr_in_constant_node.onnx",
+                                                              "ort_mem_addr_in_subgraph.onnx",
+                                                              "ort_mem_addr_in_function.onnx"),
+                                            ::testing::Bool()));
+
+TEST(OnnxFeOrtMemAddr, onnx_external_data_ORT_MEM_ADDR_in_function_attribute_proto_and_malformed_length_is_rejected) {
+    const auto base_path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
+    std::ifstream ifs(base_path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(ifs.is_open());
+    ModelProto base_proto;
+    ASSERT_TRUE(base_proto.ParseFromIstream(&ifs));
+    ifs.close();
+
+    const auto tmp_path = base_path + ".tmp_ort_mem_addr_attr.onnx";
+    auto write_and_expect_reject = [&](const ModelProto& proto) {
+        {
+            std::ofstream ofs(tmp_path, std::ios::out | std::ios::binary | std::ios::trunc);
+            ASSERT_TRUE(ofs.is_open());
+            ASSERT_TRUE(proto.SerializeToOstream(&ofs));
+        }
+        Core core;
+        OV_EXPECT_THROW(
+            core.read_model(tmp_path),
+            Exception,
+            HasSubstr(
+                "has external data location */_ORT_MEM_ADDR_/* which is not allowed for a model read from a file"));
+        std::remove(tmp_path.c_str());
+    };
+
+    // 1. FunctionProto.attribute_proto default tensor carrying ORT_MEM_ADDR
+    {
+        ModelProto proto = base_proto;
+        for (auto& initializer : *proto.mutable_graph()->mutable_initializer()) {
+            initializer.clear_external_data();
+            initializer.set_data_location(::ONNX_NAMESPACE::TensorProto::DEFAULT);
+            initializer.set_raw_data(std::string(16, '\0'));
+        }
+        auto* fn = proto.add_functions();
+        fn->set_name("fn_with_default_tensor_attr");
+        fn->set_domain("custom");
+        auto* attr = fn->add_attribute_proto();
+        attr->set_name("default_w");
+        attr->set_type(::ONNX_NAMESPACE::AttributeProto::TENSOR);
+        auto* t = attr->mutable_t();
+        t->set_name("fn_attr_tensor");
+        t->set_data_type(::ONNX_NAMESPACE::TensorProto::FLOAT);
+        t->add_dims(4);
+        t->set_data_location(::ONNX_NAMESPACE::TensorProto::EXTERNAL);
+        auto* loc = t->add_external_data();
+        loc->set_key("location");
+        loc->set_value("*/_ORT_MEM_ADDR_/*");
+        auto* off = t->add_external_data();
+        off->set_key("offset");
+        off->set_value("4096");
+        auto* len = t->add_external_data();
+        len->set_key("length");
+        len->set_value("16");
+        write_and_expect_reject(proto);
+    }
+
+    // 2. Malformed length strings ("0abc", "invalid", "-0") on ORT_MEM_ADDR
+    for (const char* bad_length : {"0abc", "invalid", "-0"}) {
+        ModelProto proto = base_proto;
+        for (auto& initializer : *proto.mutable_graph()->mutable_initializer()) {
+            initializer.clear_external_data();
+            initializer.set_data_location(::ONNX_NAMESPACE::TensorProto::EXTERNAL);
+            auto* loc = initializer.add_external_data();
+            loc->set_key("location");
+            loc->set_value("*/_ORT_MEM_ADDR_/*");
+            auto* off = initializer.add_external_data();
+            off->set_key("offset");
+            off->set_value("4096");
+            auto* len = initializer.add_external_data();
+            len->set_key("length");
+            len->set_value(bad_length);
+        }
+        write_and_expect_reject(proto);
+    }
+}
+
+class OnnxFeOrtMemAddrControlFixture : public ::testing::TestWithParam<std::tuple<std::string, bool>> {};
+
+TEST_P(OnnxFeOrtMemAddrControlFixture, onnx_external_data_ORT_MEM_ADDR_controls_are_accepted) {
+    const auto& [model_name, use_mmap] = GetParam();
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/" + model_name);
+    Core core;
+    core.set_property(enable_mmap(use_mmap));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{4}, {2.f, 4.f, 6.f, 8.f});
+    test_case.run();
+}
+
+INSTANTIATE_TEST_SUITE_P(OnnxFeOrtMemAddrControl,
+                         OnnxFeOrtMemAddrControlFixture,
+                         ::testing::Combine(::testing::Values("ort_mem_addr_control_raw.onnx",
+                                                              "ort_mem_addr_control_file.onnx"),
+                                            ::testing::Bool()));
