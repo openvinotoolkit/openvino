@@ -331,6 +331,15 @@ void primitive_inst::update_shape() {
             input_shape_changed = true;
         }
     }
+    // Shape inference and impl selection of convolution / deconvolution use weights_layout. It is taken from the node,
+    // so for runtime weights with a dynamic shape it must follow the actual weights input
+    if (_impl_params->weights_layout.has_value() && (get_node().is_type<convolution>() || get_node().is_type<deconvolution>())) {
+        const auto weights_idx = get_node().get_primitive()->input.size();
+        const auto& weights_pshape = _impl_params->get_input_layout(weights_idx).get_partial_shape();
+        if (_impl_params->weights_layout->get_partial_shape() != weights_pshape) {
+            _impl_params->weights_layout = _impl_params->weights_layout->clone_with_other_shape(weights_pshape);
+        }
+    }
     if (get_node().is_type<read_value>()) {
         auto prim = get_node().as<read_value>().get_primitive();
         const auto& variable_id = prim->variable_id;

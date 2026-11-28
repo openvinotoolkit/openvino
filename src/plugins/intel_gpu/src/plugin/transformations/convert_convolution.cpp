@@ -21,6 +21,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
+using ov::pass::operator|;
 using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
@@ -189,9 +190,12 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
 
 ConvolutionMatcher::ConvolutionMatcher() {
     auto input_m = any_input();
-    auto weights_m = any_input(has_static_dim(0));
+    // Output channels of v1::Convolution may be dynamic, e.g. for runtime weights produced from a dynamic-shape input.
+    // Only the groups count of GroupConvolution (dim 0 of its weights) must be static.
+    auto conv_m = wrap_type<ov::op::v1::Convolution>({input_m, any_input(has_static_rank())});
+    auto group_conv_m = wrap_type<ov::op::v1::GroupConvolution>({input_m, any_input(has_static_dim(0))});
     auto bias_val_m = wrap_type<ov::op::v0::Constant>();
-    auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({input_m, weights_m});
+    auto convolution_m = conv_m | group_conv_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -199,19 +203,16 @@ ConvolutionMatcher::ConvolutionMatcher() {
             return false;
         }
 
-        auto conv_node = ov::as_type_ptr<ov::op::util::ConvolutionFwdPropBase>(pattern_map.at(convolution_m).get_node_shared_ptr());
+        auto conv_node = ov::as_type_ptr<ov::op::util::ConvolutionFwdPropBase>(m.get_match_root());
+        OPENVINO_ASSERT(conv_node, "[GPU] ConvolutionMatcher matched unexpected node ", m.get_match_root()->get_type_name());
 
         int64_t groups = -1;
-        if (auto grouped_conv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(conv_node)) {
-            auto weights_shape = grouped_conv->get_input_partial_shape(1);
-            if (weights_shape[0].is_dynamic()) {
-                return false;
-            }
-            groups = weights_shape[0].get_length();
+        if (ov::is_type<ov::op::v1::GroupConvolution>(conv_node)) {
+            groups = conv_node->get_input_partial_shape(1)[0].get_length();
         }
 
         auto new_conv = std::make_shared<op::Convolution>(pattern_map.at(input_m),
-                                                          pattern_map.at(weights_m),
+                                                          conv_node->input_value(1),
                                                           std::make_shared<op::Placeholder>(),
                                                           conv_node->get_strides(),
                                                           conv_node->get_pads_begin(),

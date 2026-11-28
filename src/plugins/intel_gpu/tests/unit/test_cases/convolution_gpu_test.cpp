@@ -1937,6 +1937,183 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_
     }
 }
 
+// Weights are a dynamic-shape network input, e.g. filters built from another input at runtime. Output channels and the
+// kernel size are known only at execution time, and the weights get new values with the same shape.
+// With computed_weights a GPU primitive produces the weights (2 * the weights input), so with an out-of-order queue the
+// weights reorder of the convolution has to wait for it. Profiling makes the out-of-order queue synchronize with events
+// instead of barriers.
+static void test_convolution_dynamic_runtime_weights(bool use_onednn, QueueTypes queue_type, bool computed_weights = false, bool enable_profiling = false) {
+    auto& engine = get_test_engine();
+    if (use_onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+#ifndef ENABLE_ONEDNN_FOR_GPU
+    if (use_onednn) {
+        GTEST_SKIP();
+    }
+#endif
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int64_t in_f = 3;
+    auto input_dyn_layout = layout{ov::PartialShape{1, in_f, -1, -1}, data_types::f32, format::bfyx};
+    auto weights_dyn_layout = layout{ov::PartialShape{-1, in_f, -1, -1}, data_types::f32, format::bfyx};
+    const primitive_id weights_input_id = computed_weights ? "weights_input" : "weights";
+    const float weights_factor = computed_weights ? 2.f : 1.f;
+
+    topology topology(input_layout("input", input_dyn_layout), input_layout(weights_input_id, weights_dyn_layout));
+    if (computed_weights) {
+        topology.add(eltwise("weights", {input_info(weights_input_id), input_info(weights_input_id)}, eltwise_mode::sum));
+    }
+    topology.add(convolution("conv", input_info("input"), "weights", no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::queue_type(queue_type));
+    config.set_property(ov::enable_profiling(enable_profiling));
+    if (use_onednn) {
+        ov::intel_gpu::ImplementationDesc conv_impl = {format::bfyx, "", impl_types::onednn};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    } else {
+        // Not forced, so that the impl validation (no shape agnostic kernel for dynamic weights) is applied
+        config.set_user_property(ov::intel_gpu::use_onednn(false));
+    }
+    network network(engine, topology, config);
+
+    struct run_shapes {
+        int64_t in_y, in_x, out_f, k_y, k_x;
+    };
+    // The second and third runs keep the shapes of the first one with new values, the last one changes all shapes
+    const std::vector<run_shapes> runs = {{6, 7, 4, 3, 3}, {6, 7, 4, 3, 3}, {6, 7, 4, 3, 3}, {5, 4, 2, 1, 2}};
+    for (size_t run = 0; run < runs.size(); ++run) {
+        const auto& s = runs[run];
+        auto input_data = rg.generate_random_4d<float>(1, in_f, s.in_y, s.in_x, -1, 1);
+        auto weights_data = rg.generate_random_4d<float>(s.out_f, in_f, s.k_y, s.k_x, -1, 1);
+        auto input_mem = engine.allocate_memory({ov::PartialShape{1, in_f, s.in_y, s.in_x}, data_types::f32, format::bfyx});
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{s.out_f, in_f, s.k_y, s.k_x}, data_types::f32, format::bfyx});
+        set_values(input_mem, flatten_4d(format::bfyx, input_data));
+        set_values(weights_mem, flatten_4d(format::bfyx, weights_data));
+
+        network.set_input_data("input", input_mem);
+        network.set_input_data(weights_input_id, weights_mem);
+        auto outputs = network.execute();
+
+        auto conv_impl = network.get_primitive("conv")->get_impl();
+        ASSERT_NE(conv_impl, nullptr);
+        ASSERT_EQ(conv_impl->is_onednn(), use_onednn) << "run " << run;
+
+        auto output_memory = outputs.at("conv").get_memory();
+        const auto out_y = s.in_y - s.k_y + 1;
+        const auto out_x = s.in_x - s.k_x + 1;
+        ASSERT_EQ(output_memory->get_layout().get_partial_shape(), ov::PartialShape({1, s.out_f, out_y, out_x})) << "run " << run;
+
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+        for (int64_t f = 0; f < s.out_f; ++f) {
+            for (int64_t y = 0; y < out_y; ++y) {
+                for (int64_t x = 0; x < out_x; ++x) {
+                    float expected = 0.f;
+                    for (int64_t i = 0; i < in_f; ++i) {
+                        for (int64_t ky = 0; ky < s.k_y; ++ky) {
+                            for (int64_t kx = 0; kx < s.k_x; ++kx) {
+                                expected += input_data[0][i][y + ky][x + kx] * weights_factor * weights_data[f][i][ky][kx];
+                            }
+                        }
+                    }
+                    ASSERT_NEAR(expected, output_ptr[(f * out_y + y) * out_x + x], 1e-4f)
+                        << "run " << run << " at f=" << f << " y=" << y << " x=" << x;
+                }
+            }
+        }
+    }
+}
+
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_ocl_in_order) {
+    test_convolution_dynamic_runtime_weights(false, QueueTypes::in_order);
+}
+
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_ocl_out_of_order) {
+    test_convolution_dynamic_runtime_weights(false, QueueTypes::out_of_order);
+}
+
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_onednn) {
+    test_convolution_dynamic_runtime_weights(true, QueueTypes::in_order);
+}
+
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_ocl_out_of_order_computed_weights) {
+    test_convolution_dynamic_runtime_weights(false, QueueTypes::out_of_order, true, false);
+}
+
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_ocl_out_of_order_computed_weights_profiling) {
+    test_convolution_dynamic_runtime_weights(false, QueueTypes::out_of_order, true, true);
+}
+
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_onednn_computed_weights) {
+    test_convolution_dynamic_runtime_weights(true, QueueTypes::in_order, true, false);
+}
+
+// 1D convolution (rank-3 data) with runtime weights of dynamic shape. The static OCL impl reorders the weights into the
+// layout of its kernel, so the weights reorder has to be built for the actual rank-3 weights shape.
+TEST(convolution_f32_fw_gpu, dynamic_runtime_weights_1d_ocl) {
+    auto& engine = get_test_engine();
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int64_t in_f = 3;
+    auto input_dyn_layout = layout{ov::PartialShape{1, in_f, -1}, data_types::f32, format::bfyx};
+    auto weights_dyn_layout = layout{ov::PartialShape{-1, in_f, -1}, data_types::f32, format::bfyx};
+
+    topology topology(input_layout("input", input_dyn_layout), input_layout("weights", weights_dyn_layout));
+    topology.add(convolution("conv", input_info("input"), "weights", no_bias, 1, {1}, {1}, {0}, {0}, false));
+    // The convolution output format depends on the device (e.g. b_fs_yx_fsv16), the check reads planar data
+    topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::intel_gpu::use_onednn(false));
+    network network(engine, topology, config);
+
+    struct run_shapes {
+        int64_t in_x, out_f, k_x;
+    };
+    // The second run keeps the shapes of the first one with new values, the last one changes all shapes
+    const std::vector<run_shapes> runs = {{8, 4, 3}, {8, 4, 3}, {5, 2, 2}};
+    for (size_t run = 0; run < runs.size(); ++run) {
+        const auto& s = runs[run];
+        auto input_data = rg.generate_random_1d<float>(in_f * s.in_x, -1, 1);
+        auto weights_data = rg.generate_random_1d<float>(s.out_f * in_f * s.k_x, -1, 1);
+        auto input_mem = engine.allocate_memory({ov::PartialShape{1, in_f, s.in_x}, data_types::f32, format::bfyx});
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{s.out_f, in_f, s.k_x}, data_types::f32, format::bfyx});
+        set_values(input_mem, input_data);
+        set_values(weights_mem, weights_data);
+
+        network.set_input_data("input", input_mem);
+        network.set_input_data("weights", weights_mem);
+        auto outputs = network.execute();
+
+        auto conv_impl = network.get_primitive("conv")->get_impl();
+        ASSERT_NE(conv_impl, nullptr);
+        // The weights reorder is the path under test
+        ASSERT_TRUE(conv_impl->need_weights_reorder()) << "run " << run << ", kernel " << conv_impl->get_kernel_name();
+
+        auto output_memory = outputs.at("output").get_memory();
+        const auto out_x = s.in_x - s.k_x + 1;
+        ASSERT_EQ(output_memory->get_layout().get_partial_shape(), ov::PartialShape({1, s.out_f, out_x})) << "run " << run;
+
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+        for (int64_t f = 0; f < s.out_f; ++f) {
+            for (int64_t x = 0; x < out_x; ++x) {
+                float expected = 0.f;
+                for (int64_t i = 0; i < in_f; ++i) {
+                    for (int64_t kx = 0; kx < s.k_x; ++kx) {
+                        expected += input_data[i * s.in_x + x + kx] * weights_data[(f * in_f + i) * s.k_x + kx];
+                    }
+                }
+                ASSERT_NEAR(expected, output_ptr[f * out_x + x], 1e-4f) << "run " << run << " at f=" << f << " x=" << x;
+            }
+        }
+    }
+}
+
 TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
     //  Filter : 2x2
     //  Stride : 1x1

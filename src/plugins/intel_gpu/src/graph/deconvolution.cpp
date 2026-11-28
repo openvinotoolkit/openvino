@@ -112,7 +112,9 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         output_type = impl_param.get_output_element_type();
     }
 
-    if (input_layout.is_dynamic()) {
+    // Runtime weights can have a dynamic shape as well (e.g. filters computed from a dynamic input), then the output
+    // shape is known at execution time only, like for dynamic data
+    if (input_layout.is_dynamic() || weights_layout.is_dynamic()) {
         return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), output_type, input_layout.format}};
     }
 
