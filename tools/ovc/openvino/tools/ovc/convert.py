@@ -112,6 +112,8 @@ def convert_model(
     params = locals()
     logger_state = get_logger_state()
     cli_parser = get_all_cli_parser()
-    ov_model, _ = _convert(cli_parser, params, True)
-    restore_logger_state(logger_state)
+    try:
+        ov_model, _ = _convert(cli_parser, params, True)
+    finally:
+        restore_logger_state(logger_state)
     return ov_model
