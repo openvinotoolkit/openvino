@@ -36,9 +36,37 @@ struct Dispatch {
 // 0 skips the block-table coverage check.
 void validate_dispatch(const Dispatch& dispatch, std::size_t block_size, std::size_t dispatch_idx);
 
-// True when the dispatch runs chunked over the variants: some subsequence fills
-// a multi-token variant, or it is a single-sequence decode. A decode batch or a
-// short prefill stays one 1:1 infer, which chunking would only serialize.
-bool variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes);
+// One model call: rows [begin, begin + tokens) of the flat token axis, run on
+// the chunk_size variant, or on the dynamic model when chunk_size is 0.
+struct Chunk {
+    int64_t begin = 0;
+    int64_t tokens = 0;
+    std::size_t chunk_size = 0;
+
+    bool dynamic() const {
+        return chunk_size == 0u;
+    }
+};
+
+// Cuts the flat token axis, ignoring subsequence boundaries: the largest size
+// that fits the rows left (size 1 only for a single row), else one dynamic
+// chunk for the rest.
+std::vector<Chunk> plan_chunks(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes);
+
+// The controls of one chunk: each subsequence it touches, from first_sequence
+// on, with past_lens grown by its rows sent before and its full block table.
+// sampled_tokens_indices are chunk-local; logits_rows maps each to the caller's
+// logits row. Needs the block table (has_block_table).
+struct ChunkControls {
+    std::vector<int32_t> past_lens;
+    std::vector<int32_t> subsequence_begins;
+    std::vector<int32_t> block_indices;
+    std::vector<int32_t> block_indices_begins;
+    std::vector<int64_t> sampled_tokens_indices;
+    std::vector<std::size_t> logits_rows;
+    int64_t first_sequence = 0;
+};
+
+ChunkControls chunk_controls(const Dispatch& dispatch, const Chunk& chunk);
 
 }  // namespace ov::npuw::pa

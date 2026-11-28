@@ -45,10 +45,10 @@ private:
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> m_semi_static_models;
 };
 
-// Validates each dispatch, then runs it 1:1 or splits every subsequence into
-// chunks over the variants, largest first, with a dynamic tail. Chunks fix only
-// the token count: the cache is addressed through the caller's block tables,
-// so nothing is padded.
+// Validates each dispatch, then cuts its flat token axis into chunks
+// (pa::plan_chunks); a chunk can hold rows of several subsequences. Variants fix
+// only the token count and address the cache through the block tables, so
+// nothing is padded. A plan of one dynamic chunk runs 1:1.
 class PAInferRequest final : public ov::ISyncInferRequest {
 public:
     PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
@@ -74,8 +74,8 @@ private:
     pa::Dispatch parse_dispatch() const;
     void log_dispatch_io(bool outputs) const;
 
-    void infer_chunked(const pa::Dispatch& d);
-    void run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, int64_t seq, int64_t seq_offset, int64_t n_chunk_tokens);
+    void infer_chunked(const pa::Dispatch& d, const std::vector<pa::Chunk>& chunks);
+    void run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, const pa::Chunk& c);
 
     ov::SoPtr<ov::IAsyncInferRequest> m_inner_request;
 
