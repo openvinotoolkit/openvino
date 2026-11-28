@@ -20,6 +20,7 @@
 #include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "just_sync_infer_request.hpp"
 #include "lazy_tensor.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
@@ -105,6 +106,72 @@ void expect_serialize_throws(const Gather& hg,
     std::stringstream ss;
     auto stream = Stream::writer(ss);
     writer.serialize(stream, {});
+}
+
+std::string build_blob_with_replaced_by(std::size_t replaced_by) {
+    using namespace ov::npuw::orc;
+    using ov::npuw::CompiledModel;
+    using ov::npuw::CompiledModelDescTestAccessor;
+
+    auto options_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*options_desc);
+    ::intel_npu::Config cfg(options_desc);
+    cfg.update(std::map<std::string, std::string>{{"NPUW_DEVICES", "CPU"}});
+
+    std::stringstream out(std::ios::in | std::ios::out | std::ios::binary);
+    write_file_header(out, schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
+    with_section(out, CompiledModel::kOrcType, CompiledModel::kOrcVersion, 0ull, [&] {
+        with_leaf_section(out, META_SECTION_TYPE, 0u, [&] {
+            auto meta = Stream::writer(out);
+            std::string model_name = "malformed_replaced_by";
+            ov::ParameterVector parameters;
+            ov::NodeVector results;
+            meta & model_name & parameters & results;
+
+            std::vector<std::pair<std::size_t, std::size_t>> empty_port_links;
+            std::map<std::size_t, std::vector<std::pair<std::size_t, std::size_t>>> empty_param_subscribers;
+            std::map<std::pair<std::size_t, std::size_t>, std::pair<std::size_t, std::size_t>> empty_prev_output;
+            meta & empty_port_links & empty_port_links & empty_param_subscribers & empty_prev_output;
+
+            std::vector<std::string> dev_list{"CPU"};
+            meta & dev_list;
+            meta & cfg;
+
+            ov::AnyMap non_npuw_props;
+            meta & non_npuw_props;
+
+            bool is_weightless = false;
+            meta & is_weightless;
+
+            ov::npuw::s11n::BF16Cache bf16_consts;
+            meta & bf16_consts;
+        });
+
+        ov::npuw::s11n::WeightsContext weights_ctx(/*is_weightless=*/false, {});
+        with_leaf_section(out,
+                          CompiledModelDescTestAccessor::SubmodelDesc::kOrcType,
+                          CompiledModelDescTestAccessor::SubmodelDesc::kOrcVersion,
+                          [&] {
+                              auto desc_stream = Stream::writer(out);
+                              auto desc = CompiledModelDescTestAccessor::make();
+                              desc.replaced_by = replaced_by;
+                              auto& closure = CompiledModelDescTestAccessor::closure(desc);
+                              closure.get().closure.resize(1);
+                              closure.get().closure_uid = {5};
+                              closure.get().is_remote = {false};
+                              desc.serialize(desc_stream, weights_ctx, std::size_t{0});
+                          });
+
+        with_leaf_section(out, ov::npuw::weights::Bank::kOrcType, ov::npuw::weights::Bank::kOrcVersion, [&] {
+            auto bank_stream = Stream::writer(out);
+            std::string bank_name;
+            bank_stream & bank_name;
+            std::size_t bank_size = 0u;
+            bank_stream & bank_size;
+        });
+    });
+
+    return out.str();
 }
 
 class MockRemoteContext : public ov::IRemoteContext {
@@ -2366,6 +2433,44 @@ TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
 
     ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx = 8;
     EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported), ov::Exception);
+}
+
+TEST(SerializationTest, ImportRejectsOutOfRangeReplacedByBeforeWeightsBankConsumption) {
+    auto plugin = std::make_shared<NullPlugin>();
+    const auto blob = build_blob_with_replaced_by(std::numeric_limits<std::size_t>::max());
+    std::stringstream input(blob, std::ios::in | std::ios::out | std::ios::binary);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModel::import_model(input, plugin, {}),
+                                  ov::Exception,
+                                  "replaced_by");
+}
+
+TEST(SerializationTest, ImportRejectsReplacementTargetWithoutCompiledModel) {
+    auto plugin = std::make_shared<NullPlugin>();
+    const auto blob = build_blob_with_replaced_by(0u);
+    std::stringstream input(blob, std::ios::in | std::ios::out | std::ios::binary);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModel::import_model(input, plugin, {}),
+                                  ov::Exception,
+                                  "has no compiled model");
+}
+
+TEST(SerializationTest, FuncMemMgrRejectsOutOfRangeReplacedByBeforeRequestCreation) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+    submodel.replaced_by = std::numeric_limits<std::size_t>::max();
+
+    ov::npuw::FuncMemMgr func_mem_mgr(compiled);
+    OV_EXPECT_THROW_HAS_SUBSTRING(func_mem_mgr.assign_memory(), ov::Exception, "out of range");
+}
+
+TEST(SerializationTest, FuncMemMgrRejectsReplacementTargetWithoutCompiledModel) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+    submodel.replaced_by = 0u;
+
+    ov::npuw::FuncMemMgr func_mem_mgr(compiled);
+    OV_EXPECT_THROW_HAS_SUBSTRING(func_mem_mgr.assign_memory(), ov::Exception, "without a compiled model");
 }
 
 // The checks below need no compiled model, so a funcall desc must be rejected by the codec itself.
