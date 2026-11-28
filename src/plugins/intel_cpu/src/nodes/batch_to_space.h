@@ -37,9 +37,7 @@ public:
     [[nodiscard]] bool needPrepareParams() const override {
         return false;
     };
-    [[nodiscard]] bool needShapeInfer() const override {
-        return true;
-    };
+    [[nodiscard]] bool needShapeInfer() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -48,6 +46,7 @@ private:
     template <typename T>
     void batchToSpaceKernel();
 
+    bool hasRuntimeAttrInputs = false;
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> cropsBeginIn;
 };

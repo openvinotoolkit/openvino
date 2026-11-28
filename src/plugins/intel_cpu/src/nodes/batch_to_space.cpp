@@ -26,6 +26,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/constant.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -58,6 +59,18 @@ BatchToSpace::BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
     const auto& outDims = getOutputShapeAtPort(0).getDims();
     CPU_NODE_ASSERT(inDims.size() >= 4 && inDims.size() <= 5, "has unsupported 'data' input rank: ", inDims.size());
     CPU_NODE_ASSERT(inDims.size() == outDims.size(), "has incorrect number of input/output dimensions");
+
+    hasRuntimeAttrInputs = false;
+    for (size_t i = 1; i < op->get_input_size(); i++) {
+        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i))) {
+            hasRuntimeAttrInputs = true;
+            break;
+        }
+    }
+}
+
+bool BatchToSpace::needShapeInfer() const {
+    return Node::needShapeInfer() || hasRuntimeAttrInputs;
 }
 
 void BatchToSpace::initSupportedPrimitiveDescriptors() {

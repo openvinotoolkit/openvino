@@ -27,14 +27,13 @@ public:
     bool needPrepareParams() const override {
         return false;
     };
-    bool needShapeInfer() const override {
-        return true;
-    };
+    bool needShapeInfer() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    bool hasRuntimeAttrInputs = false;
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> padsBeginIn;
 
