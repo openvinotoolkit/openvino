@@ -131,6 +131,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rms_norm_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rnn_cell_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rnn_seq_shape_inference_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/roi_align_rotated_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/roi_align_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/roi_pooling_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/roll_shape_inference_test.cpp
