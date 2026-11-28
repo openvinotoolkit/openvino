@@ -488,3 +488,50 @@ class TestScaledDotProductAttentionGQAKVCacheFusion:
         model = self._make_stateful_model(heads, head_size, prefix, scale, with_mask)
         compiled, _ = self._compile(model, ie_device)
         self._check_outputs(compiled, heads, head_size, prefix, scale, with_mask)
+
+
+class TestScaledDotProductAttentionFullyMaskedRow(PytorchLayerTest):
+    """Left padding in a batched decoder forward.
+
+    Under a causal mask, a padded query position is masked at every key. That row of
+    scores is all -inf, and softmax returns NaN. PyTorch SDPA returns zeros for it.
+    The NaN then poisons that batch entry. Boolean and additive masks are the two
+    forms SDPA accepts for this pattern.
+    """
+
+    def _prepare_input(self):
+        return (self.random.randn(1, 2, 4, 8, dtype=np.float32),
+                self.random.randn(1, 2, 4, 8, dtype=np.float32),
+                self.random.randn(1, 2, 4, 8, dtype=np.float32))
+
+    def create_model(self, mask_kind):
+        import torch.nn.functional as F
+
+        if mask_kind == "bool":
+            # True takes part in attention. Row 0 is the left-padded query: masked at every key.
+            # Row 1 keeps one masked key, so a partly masked row is not zeroed.
+            mask = torch.ones(1, 1, 4, 4, dtype=torch.bool)
+            mask[..., 0, :] = False
+            mask[..., 1, 0] = False
+        else:
+            # Row 0 is the left-padded query. The other rows are unmasked.
+            mask = torch.zeros(1, 1, 4, 4, dtype=torch.float32)
+            mask[..., 0, :] = float("-inf")
+
+        class aten_sdpa_fully_masked_row(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.mask = mask
+
+            def forward(self, query, key, value):
+                return F.scaled_dot_product_attention(query, key, value, attn_mask=self.mask)
+
+        return aten_sdpa_fully_masked_row(), "aten::scaled_dot_product_attention"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("mask_kind", ["bool", "additive"])
+    def test_fully_masked_query_row(self, ie_device, precision, ir_version, mask_kind):
+        self._test(*self.create_model(mask_kind),
+                   ie_device, precision, ir_version, dynamic_shapes=False)

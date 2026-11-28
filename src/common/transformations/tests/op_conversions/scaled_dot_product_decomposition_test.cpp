@@ -14,10 +14,12 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -39,6 +41,7 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
+namespace v10 = ov::op::v10;
 namespace v13 = ov::op::v13;
 const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::shared_ptr<ov::Node> query,
                                                                            std::shared_ptr<ov::Node> key,
@@ -328,6 +331,9 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     }
     scaled_atten = std::make_shared<v1::Add>(scaled_atten, atten_mask);
 
+    // Same nodes as ScaledDotProductAttentionDecomposition: IsInf reads the scores from before the sink concat, and
+    // Softmax reads the concatenated tensor.
+    Output<Node> softmax_input = scaled_atten;
     if (sinks) {
         auto minus_two = v0::Constant::create(element::i32, Shape{1}, {-2});
         auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
@@ -346,8 +352,14 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
         auto prev_seq_len = std::make_shared<v8::Gather>(k_shape, minus_two, zero_i);
         scaled_atten = std::make_shared<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
     } else {
-        scaled_atten = std::make_shared<v8::Softmax>(scaled_atten, -1);
+        scaled_atten = std::make_shared<v8::Softmax>(softmax_input, -1);
     }
+
+    auto neg_inf = std::make_shared<v10::IsInf>(softmax_input, v10::IsInf::Attributes{true, false});
+    auto last_axis = v0::Constant::create(element::i32, Shape{1}, {-1});
+    auto fully_masked_row = std::make_shared<v1::ReduceLogicalAnd>(neg_inf, last_axis, true);
+    auto zero = std::make_shared<v1::ConvertLike>(zero_i, scaled_atten);
+    scaled_atten = std::make_shared<v1::Select>(fully_masked_row, zero, scaled_atten);
 
     const std::shared_ptr<ov::Node> result = std::make_shared<v0::MatMul>(scaled_atten, value);
     return result;
