@@ -435,6 +435,7 @@ void program::prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes
             }
             if (node.first == src_node->get_primitive()->id) {
                 copy_node_dependencies(node_ptr.get(), src_node.get());
+                node_ptr->set_forced_impl_type(src_node->get_forced_impl_type());
                 found = true;
                 break;
             }
