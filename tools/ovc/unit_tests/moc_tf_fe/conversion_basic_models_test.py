@@ -8,6 +8,84 @@ from openvino import Core
 from openvino.tools.ovc.convert import convert_model
 
 
+class TestTFOutputShapeMetadata:
+    @pytest.mark.parametrize("add_shapes", [False, True])
+    @pytest.mark.parametrize("from_file", [False, True])
+    def test_relu(self, add_shapes, from_file, tmp_path):
+        import tensorflow as tf
+
+        with tf.Graph().as_default() as graph:
+            value = tf.compat.v1.placeholder(tf.float32, [2, 3], name="value")
+            tf.nn.relu(value, name="Relu")
+            graph_def = graph.as_graph_def(add_shapes=add_shapes)
+        relu_node = next(node for node in graph_def.node if node.name == "Relu")
+        assert ("_output_shapes" in relu_node.attr) == add_shapes
+        assert "shape" not in relu_node.attr
+        assert "dtype" not in relu_node.attr
+
+        input_model = graph_def
+        if from_file:
+            input_model = tf.io.write_graph(graph_def, str(tmp_path), "model.pb", as_text=False)
+        model = convert_model(input_model)
+        assert len(model.outputs) == 1
+        assert model.output(0).get_names() == {"Relu:0"}
+        assert list(model.output(0).get_shape()) == [2, 3]
+        assert model.get_results()[0].input_value(0).get_node().get_type_name() == "Relu"
+
+    @pytest.mark.parametrize("add_shapes", [False, True])
+    @pytest.mark.parametrize("from_file", [False, True])
+    @pytest.mark.parametrize("selected_output", [None, "Split:1"])
+    def test_split(self, add_shapes, from_file, selected_output, tmp_path):
+        import tensorflow as tf
+
+        with tf.Graph().as_default() as graph:
+            value = tf.compat.v1.placeholder(tf.float32, [8, 3], name="value")
+            tf.raw_ops.Split(axis=0, value=value, num_split=4, name="Split")
+            graph_def = graph.as_graph_def(add_shapes=add_shapes)
+        input_model = graph_def
+        if from_file:
+            input_model = tf.io.write_graph(graph_def, str(tmp_path), "model.pb", as_text=False)
+        model = convert_model(input_model, output=selected_output)
+        expected_indices = range(4) if selected_output is None else [1]
+        assert len(model.outputs) == len(expected_indices)
+        for output, index in zip(model.outputs, expected_indices):
+            assert output.get_names() == {f"Split:{index}"}
+            assert list(output.get_shape()) == [2, 3]
+
+    @pytest.mark.parametrize("add_shapes", [False, True])
+    @pytest.mark.parametrize("shape", [[2, 3], [None, 3], None])
+    @pytest.mark.parametrize("op_type", ["Relu", "Split"])
+    def test_decoder(self, add_shapes, shape, op_type):
+        import tensorflow as tf
+        from openvino import PartialShape
+        from openvino.frontend.tensorflow.node_decoder import TFGraphNodeDecoder
+
+        with tf.Graph().as_default() as graph:
+            value = tf.compat.v1.placeholder(tf.float32, shape, name="value")
+            if op_type == "Relu":
+                outputs = [tf.nn.relu(value, name="Relu")]
+            else:
+                outputs = tf.raw_ops.Split(axis=0, value=value, num_split=2, name="Split")
+            graph_def = graph.as_graph_def(add_shapes=add_shapes)
+        with tf.Graph().as_default() as imported_graph:
+            tf.import_graph_def(graph_def, name="")
+            decoder = TFGraphNodeDecoder(imported_graph.get_operation_by_name(op_type), True, False)
+        # TensorFlow strips _output_shapes during import; retain the serialized metadata.
+        decoder.m_node_def.CopyFrom(next(node for node in graph_def.node if node.name == op_type))
+        original_attributes = set(decoder.m_node_def.attr)
+        output_shapes = decoder.get_attribute("_output_shapes")
+        if add_shapes:
+            expected_shapes = [
+                PartialShape.dynamic() if output.shape.rank is None else
+                PartialShape([dim if dim is not None else -1 for dim in output.shape.as_list()])
+                for output in outputs
+            ]
+            assert output_shapes == expected_shapes
+        else:
+            assert output_shapes.value is None
+        assert set(decoder.m_node_def.attr) == original_attributes
+
+
 class TestMoFreezePlaceholderTFFE():
     def basic(self, input_model, argv_input, inputs, dtype, expected, only_conversion=False):
         path = os.path.dirname(__file__)
