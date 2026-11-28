@@ -577,39 +577,51 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::resize_kv_to_capacity(
     const ov::Output<ov::Node>& past_rows,
     const ov::Output<ov::Node>& buffer,
-    const ov::Output<ov::Node>& total_sequence_length) {
+    const ov::Output<ov::Node>& total_sequence_length,
+    int64_t axis) {
     // Skip building the Slice/Broadcast/Concat growth entirely when it would be a no-op: a statically-sized
     // buffer that's already EXACTLY capacity rows never needs trimming or filler, so the result is just the
     // buffer unchanged. A buffer bigger than capacity must still go through the Slice below to trim it down
     // (not just "already covers" -- that would wrongly return an oversized buffer as-is).
     const auto& buffer_ps = buffer.get_partial_shape();
-    if (buffer_ps.rank().is_static() && buffer_ps[2].is_static()) {
+    if (buffer_ps.rank().is_static() && buffer_ps[axis].is_static()) {
         const auto past_rows_const = ov::util::get_constant_from_source(past_rows);
         const auto total_const = ov::util::get_constant_from_source(total_sequence_length);
         if (past_rows_const && total_const) {
             const auto capacity =
                 std::max(past_rows_const->cast_vector<int64_t>().at(0), total_const->cast_vector<int64_t>().at(0));
-            if (capacity == buffer_ps[2].get_length()) {
+            if (capacity == buffer_ps[axis].get_length()) {
                 return buffer;
             }
         }
     }
+    // This resizes a rank-4 KV cache buffer (see the function's own doc comment); the rank is a fixed constant
+    // of the GQA op's KV contract, not derived from buffer_ps, which may not have a statically known rank.
+    constexpr int64_t rank = 4;
+    std::vector<int> dims_before(axis);
+    std::iota(dims_before.begin(), dims_before.end(), 0);
+    std::vector<int> dims_after(rank - axis - 1);
+    std::iota(dims_after.begin(), dims_after.end(), static_cast<int>(axis) + 1);
+
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
-    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis}));
     const auto buffer_shape = register_new_node<v3::ShapeOf>(buffer);
-    const auto buffer_rows = get_dimensions(buffer_shape, {2});
+    const auto buffer_rows = get_dimensions(buffer_shape, {static_cast<int>(axis)});
     const auto capacity = register_new_node<v1::Maximum>(past_rows, total_sequence_length);
-    const auto trimmed =
-        register_new_node<v8::Slice>(buffer, zero, register_new_node<v1::Minimum>(capacity, buffer_rows), one, two);
+    const auto trimmed = register_new_node<v8::Slice>(buffer,
+                                                      zero,
+                                                      register_new_node<v1::Minimum>(capacity, buffer_rows),
+                                                      one,
+                                                      axis_node);
     const auto extra = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(capacity, buffer_rows), zero);
     const auto filler_shape = register_new_node<v0::Concat>(
-        ov::OutputVector{get_dimensions(buffer_shape, {0, 1}), extra, get_dimensions(buffer_shape, {3})},
+        ov::OutputVector{get_dimensions(buffer_shape, dims_before), extra, get_dimensions(buffer_shape, dims_after)},
         0);
     const auto filler = register_new_node<v3::Broadcast>(
         register_new_node(v0::Constant::create(buffer.get_element_type(), ov::Shape{}, {0})),
         filler_shape);
-    return register_new_node<v0::Concat>(ov::OutputVector{trimmed, filler}, 2)->output(0);
+    return register_new_node<v0::Concat>(ov::OutputVector{trimmed, filler}, axis)->output(0);
 }
 
 ov::pass::GroupQueryAttentionDecomposition::KVCacheOutputs

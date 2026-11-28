@@ -2,22 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "group_query_attention_decomposition.hpp"
+
 #include <limits>
 #include <optional>
 #include <utility>
 
-#include "group_query_attention_decomposition.hpp"
-
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -58,6 +63,7 @@ namespace ov::intel_gpu {
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 
 
@@ -99,6 +105,13 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     metadata.past_key_shape = past_key.get_partial_shape();
 
     const bool query_seqlens = node->has_query_seqlens();
+    // A declared fixed capacity has to grow past its own row count whenever total_sequence_length asks for more
+    // headroom (ORT: max(past_rows, total_sequence_length)). Applied to whichever operand feeds StatelessKV,
+    // on whichever axis holds the sequence dimension there -- axis 2 normally, axis 3 once transpose_v fusion
+    // below is applied (its layout is [B,H,D,S]), since the plugin is production-dependent on both.
+    const auto total_seqlen_pos = static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH);
+    const bool needs_capacity_growth = query_seqlens && !node->get_sliding_window_cache() && node->has_fixed_kv_capacity() &&
+                                       total_seqlen_pos < node->get_input_size() && !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0F || need_qk_output;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
@@ -204,7 +217,25 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         return outputs;
     }
 
-    const auto key_cache = make_stateless_kv(past_key, key, 2);
+    // resize_kv_to_capacity is a no-op (in value, not necessarily in graph nodes -- see the function's own
+    // early-return comment) whenever capacity already covers the request, so StatelessKV stays zero-copy for
+    // every already-covered config regardless of transpose_v fusion. past_key and an untransposed past_value
+    // share the same sequence-dim value, so past_rows (axis 2) is computed once and reused for both; the
+    // transposed value layout needs its own axis-3 read since it's a different tensor on a different axis.
+    ov::Output<ov::Node> total_sequence_length;
+    ov::Output<ov::Node> past_rows;
+    if (needs_capacity_growth) {
+        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+        total_sequence_length =
+            register_new_node<v1::Reshape>(register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64), one, false);
+        past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2});
+    }
+    ov::Output<ov::Node> stateless_past_key = past_key;
+    if (needs_capacity_growth) {
+        stateless_past_key = resize_kv_to_capacity(past_rows, past_key, total_sequence_length);
+    }
+
+    const auto key_cache = make_stateless_kv(stateless_past_key, key, 2);
     key_cache->set_friendly_name(present_key->get_friendly_name() + "_stateless");
 
     std::shared_ptr<op::StatelessKV> value_cache;
@@ -215,19 +246,55 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
         // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
         //         current_value -> Transpose ----------^      (the output Transpose is bypassed)
+        ov::Output<ov::Node> stateless_past_value_transposed = past_value_transpose->input_value(0);
+        if (needs_capacity_growth) {
+            // The transposed buffer's sequence dimension is axis 3 ([B,H,D,S]), not axis 2.
+            const auto transposed_past_rows = get_dimensions(register_new_node<v3::ShapeOf>(stateless_past_value_transposed), {3});
+            stateless_past_value_transposed = resize_kv_to_capacity(transposed_past_rows, stateless_past_value_transposed, total_sequence_length, 3);
+        }
         const auto transposed_value = register_new_node<v1::Transpose>(value, value_transpose_order);
-        value_cache = make_stateless_kv(past_value_transpose->input_value(0), transposed_value, 3);
+        value_cache = make_stateless_kv(stateless_past_value_transposed, transposed_value, 3);
         present_value_transpose->output(0).replace(value_cache->output(0));
     } else {
-        value_cache = make_stateless_kv(past_value, value, 2);
+        ov::Output<ov::Node> stateless_past_value = past_value;
+        if (needs_capacity_growth) {
+            stateless_past_value = resize_kv_to_capacity(past_rows, past_value, total_sequence_length);
+        }
+        value_cache = make_stateless_kv(stateless_past_value, value, 2);
     }
     value_cache->set_friendly_name(present_value->get_friendly_name() + "_stateless");
 
     outputs.present_key = key_cache->output(0);
     outputs.present_value = value_cache->output(0);
     if (need_qk_output) {
-        outputs.sdpa_key = key_cache->output(0);
-        outputs.sdpa_value = value_cache->output(0);
+        // need_qk_output feeds the full (untrimmed) present buffer straight into explicit attention
+        // (see make_explicit_attention), unlike the output(1) SDPA view below, which StatelessKV itself
+        // already trims to the written length. Positions >= the valid total (seqlens_1d) may hold
+        // never-written filler there: zero from resize_kv_to_capacity's growth, or stale/uninitialized
+        // rows within the original declared capacity that StatelessKV never writes. An additive attention
+        // mask can't neutralize NaN in that filler (NaN + mask bias is still NaN), so zero it directly on
+        // this copy only -- present_key/value above must stay wired straight to StatelessKV's own output,
+        // required by the plugin's stateless_kv-to-output aliasing (primitive_inst::
+        // realloc_outputs_for_stateless_kv asserts on it). Mirrors the common decomposition's identical
+        // has_fixed_kv_capacity() + query_seqlens safeguard (construct_kvcache, is_static_input branch,
+        // this transformation's common/CPU base class).
+        const auto zero_out_unwritten_tail = [&](const ov::Output<ov::Node>& buffer, int64_t axis) {
+            const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(buffer), {static_cast<int>(axis)});
+            std::vector<int64_t> index_shape(4, 1);
+            index_shape[axis] = -1;
+            const auto index_shape_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, index_shape));
+            const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+            const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+            const auto rows = register_new_node<v1::Reshape>(
+                register_new_node<v4::Range>(zero_scalar, register_new_node<v0::Squeeze>(capacity), one_scalar, ov::element::i64),
+                index_shape_node,
+                false);
+            const auto valid_cols = register_new_node<v1::Less>(rows, seqlens_1d);
+            const auto zero_fill = register_new_node(v0::Constant::create(buffer.get_element_type(), ov::Shape{}, {0}));
+            return register_new_node<v1::Select>(valid_cols, buffer, zero_fill);
+        };
+        outputs.sdpa_key = needs_capacity_growth ? zero_out_unwritten_tail(outputs.present_key, 2) : outputs.present_key;
+        outputs.sdpa_value = needs_capacity_growth ? zero_out_unwritten_tail(outputs.present_value, transpose_value_cache ? 3 : 2) : outputs.present_value;
     } else {
         outputs.sdpa_key = key_cache->output(1);
         outputs.sdpa_value = value_cache->output(1);
