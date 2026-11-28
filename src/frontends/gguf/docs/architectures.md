@@ -126,6 +126,7 @@ helpers remain internal migration adapters under builder. The topology never rer
 | Soft-caps (gemma2/3) | `attn_logit_softcapping` / `final_logit_softcapping` |
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
+| Classifier head (qwen35, MiniCPM-OCR-Jev) | `cls.output.weight` with `pooling_type` 3 (LAST) and `classifier.output_labels` |
 
 Attention output gates may provide one sigmoid value per channel or per head.
 The shared attention block reshapes per-head gates to `[B,T,H,1]` and broadcasts
@@ -140,6 +141,14 @@ This deliberately corrects the inverted fallback in unpatched llama.cpp, which d
 divisor to `256 / embedding_length`. The llama.cpp branch used by frontend validation carries
 the same correction; `minicpm-default.npz` captures its CPU logits without the metadata key.
 Files with an explicit `logit_scale` retain its value.
+
+In `qwen35`, as in llama.cpp, a `cls.output.weight` (optional `cls.output.bias`) replaces the LM head
+with class scores for every token (the `classifier_head` family policy). The decoder stays causal and
+stateful, and the last layer keeps all rows, so a sequence-classification consumer can pool the last
+attended token. The file must use LAST pooling and name every head row in `classifier.output_labels`;
+`embedding_length_out`, when present, must match. Other `cls.output` uses, such as embedding
+projections, are rejected. The builder records `num_labels` and `id2label` in the model rt_info
+`gguf_classifier`, mirroring `config.json`. Other architectures keep their LM head.
 
 Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries in `build_layer()`:
 `layer_is_swa`, `layer_is_moe`, `layer_head_size`, `layer_n_head_kv`, `layer_kq_scale`,

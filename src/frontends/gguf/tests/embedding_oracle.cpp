@@ -10,7 +10,8 @@
 #include "llama.h"
 
 int main(int argc, char** argv) {
-    if (argc != 3 && argc != 4)
+    const bool counted = argc == 5 && std::string(argv[3]) == "--count";
+    if (argc != 3 && argc != 4 && !counted)
         return 2;
     llama_backend_init();
     ggml_backend_dev_t devices[] = {ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU), nullptr};
@@ -33,7 +34,11 @@ int main(int argc, char** argv) {
     if (!c)
         return 4;
     std::vector<llama_token> tokens{1, 2, 3};
-    if (argc == 4) {
+    if (counted) {
+        tokens.resize(std::stoi(argv[4]));
+        for (size_t i = 0; i < tokens.size(); ++i)
+            tokens[i] = static_cast<llama_token>(i + 1);
+    } else if (argc == 4) {
         std::string prompt = argv[3];
         tokens.resize(64);
         auto n = llama_tokenize(llama_model_get_vocab(m),

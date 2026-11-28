@@ -910,6 +910,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     name_output(logits, "logits");
     auto new_result = make_shared<v0::Result>(logits);
     new_result->set_friendly_name("logits");
+    // Result-owned name, so post-processing inserted before the Result keeps "logits".
+    new_result->output(0).set_names({"logits"});
 
     const auto auxiliary_results = model->get_results();
     if (genai.logits_first) {

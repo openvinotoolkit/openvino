@@ -15,3 +15,4 @@ qwen3vl_merger,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-mmproj-BF16.g
 qwen3vl_merger,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-mmproj-Q8_0.gguf
 qwen3vl_merger,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-mmproj-BF16.gguf
 qwen3vl_merger,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf
+qwen3vl_merger,openbmb/MiniCPM-OCR-Jev-gguf,mmproj-model-f16.gguf

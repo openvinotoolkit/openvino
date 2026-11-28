@@ -25,6 +25,7 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     p.architecture = arch;
     p.attention.rope_mode = arch_uses_neox_rope(arch) ? RopeMode::Neox : RopeMode::Normal;
     p.embedding_model = arch == "llama-embed";
+    p.classifier_head = arch == "qwen35";
     p.causal_attention = arch != "dflash";
     p.model_contract.genai.emplace();
     auto& genai = *p.model_contract.genai;

@@ -26,6 +26,7 @@ per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-
 | Decoder/embedding fixtures other than the cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
 | `lfm2-encoder`, `lfm2-embed-mean`, `lfm2-embed-cls`, `lfm2-embed-last`, `lfm2-colbert`, `lfm3-d1` | Upstream `604cc430239c76ff636c443e3400bf552b750421` |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
+| `qwen35-cls`, `qwen35-cls-bias` | Upstream `e087c6c4e7bf6b773a6d3cf6c5bdd41fa6d9e2c1` (2026-11-26; qwen35 `cls.output` since `a4cb4c61f`) |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 | `inkling2`, `inkling2-loop`, `inkling2-loop-varying` | Upstream `a6ac41c757c066941766164439f6876f2deaab04` |
 
@@ -108,6 +109,11 @@ PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_arch_accuracy.py \
     --oracle ./architecture_oracle_prism --architectures bonsai2-hadamard
 PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_dspark_accuracy.py --oracle ./dspark_oracle
 ```
+
+`qwen35-cls.npz` replaces the LM head with a two-row `cls.output.weight` and LAST pooling,
+as MiniCPM-OCR-Jev does. It stores `scores`, the per-token class scores that
+`embedding_oracle --count 6` reads with pooling disabled; the last row is the pooled result.
+`qwen35-cls-bias.npz` adds `cls.output.bias`.
 
 `bonsai2-hadamard.npz` uses the architecture oracle with explicit Hadamard signs and
 Gated-DeltaNet feature ordering. `dspark.npz` uses the DSpark API oracle for noncausal

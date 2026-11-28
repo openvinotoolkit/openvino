@@ -62,6 +62,9 @@ CASES = {
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
     # frontend's beta+alpha-only merge, and an F16 beta in layer 2 selects separate projections.
     "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
+    # MiniCPM-OCR-Jev: cls.output replaces the LM head, scores read at the last token (pooling LAST).
+    "qwen35-cls": {"architecture": "qwen35", "classifier": ("inconsistent", "consistent")},
+    "qwen35-cls-bias": {"architecture": "qwen35", "classifier": ("inconsistent", "consistent"), "classifier_bias": True},
     "bonsai2-hadamard": {"architecture": "qwen35", "hadamard": True},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
@@ -272,7 +275,8 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, legacy=False, zero_scales=False):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, legacy=False, zero_scales=False,
+                       classifier=(), classifier_bias=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -296,6 +300,10 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
                        "state_size": state, "conv_kernel": kernel}.items():
         w.add_uint32(arch + ".ssm." + key, value)
     w.add_uint32(arch + ".full_attention_interval", 4)
+    if classifier:
+        w.add_pooling_type(gguf.PoolingType.LAST)
+        w.add_embedding_length_out(len(classifier))
+        w.add_classifier_output_labels(list(classifier))
     if zero_scales:
         w.add_embedding_scale(0.0)
         w.add_residual_scale(0.0)
@@ -326,7 +334,12 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
-    tensor("output.weight", (vocab, d))
+    if classifier:
+        tensor("cls.output.weight", (len(classifier), d))
+        if classifier_bias:
+            tensor("cls.output.bias", (len(classifier),))
+    else:
+        tensor("output.weight", (vocab, d))
     for layer in range(4):
         p = f"blk.{layer}."
         tensor(p + "attn_norm.weight", (d,), True)
@@ -581,7 +594,8 @@ def write_model(path, arch, opts):
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe", "qwen3next"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), legacy=opts.get("legacy", False), zero_scales=opts.get("zero_scales", False))
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), legacy=opts.get("legacy", False), zero_scales=opts.get("zero_scales", False), classifier=opts.get("classifier", ()),
+                                   classifier_bias=opts.get("classifier_bias", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
@@ -761,7 +775,8 @@ def main():
     parser.add_argument("--architectures", nargs="+", default=list(CASES))
     parser.add_argument("--header-dir", type=Path, help="also write header-only conversion fixtures")
     args = parser.parse_args()
-    if not args.embedding_oracle and any(CASES[arch].get("embedding_output") for arch in args.architectures):
+    if not args.embedding_oracle and any(CASES[arch].get("embedding_output") or CASES[arch].get("classifier")
+                                         for arch in args.architectures):
         parser.error("--embedding-oracle is required to generate embedding fixtures")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
@@ -769,9 +784,12 @@ def main():
             model = Path(tmp) / f"{arch}.gguf"
             reference = model.with_suffix(".bin")
             write_model(model, arch, CASES[arch])
-            oracle = args.embedding_oracle if CASES[arch].get("embedding_output") else args.oracle
+            classifier = CASES[arch].get("classifier")
+            oracle = args.embedding_oracle if CASES[arch].get("embedding_output") or classifier else args.oracle
             extra = {}
             command = [oracle, str(model), str(reference)]
+            if classifier:
+                command += ["--count", "6"]
             if CASES[arch].get("architecture", arch) in ("eagle3", "dflash"):
                 feature_shape = (6, 96)
                 if CASES[arch].get("q8_hidden_exact"):
@@ -800,6 +818,13 @@ def main():
             result = subprocess.run(command, capture_output=True)
             if result.returncode:
                 raise RuntimeError(f"{arch}: oracle failed\n{result.stderr.decode()}")
+            if classifier:
+                dim, count = np.fromfile(reference, dtype="<i4", count=2)
+                assert dim == len(classifier)
+                scores = np.fromfile(reference, dtype="<f4", offset=8 + 4 * count).reshape(count, dim)
+                save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "scores": scores})
+                print(f"{arch}: per-token class scores {scores.shape}", flush=True)
+                continue
             if CASES[arch].get("embedding_output"):
                 dim, count = np.fromfile(reference, dtype="<i4", count=2)
                 values = np.fromfile(reference, dtype="<f4", offset=8 + 4 * count).reshape(count, dim)
