@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -17,19 +18,37 @@
 #include <vector>
 
 #include "intel_npu/config/npuw.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/opt.hpp"
 #include "util.hpp"
 
 namespace {
 
-// The block size the CPU PA executor and the CB pipeline both use. Not read
-// off the cache ports: a u8 key cache keeps its scales in the block (dim 40).
+// GPU, or one of several GPUs such as GPU.1.
+bool is_gpu(const std::string& device) {
+    return ov::npuw::util::starts_with(device, "GPU");
+}
+
+// The block size of the CPU cache, as the CB pipeline fixes it, for the
+// dispatch check. A GPU has its own (16, or 256 with XAttention), so its
+// dispatches skip the block table coverage check.
 constexpr std::size_t kBlockSize = 32u;
 
-constexpr std::array<std::size_t, 3> kChunkSizes = {1024u, 128u, 1u};
+constexpr std::array<std::size_t, 5> kChunkSizes = {1024u, 128u, 8u, 4u, 1u};
 
 // The PA op takes its controls as i32; the lm_head gather index is i64.
 template <typename T>
@@ -80,10 +99,17 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
             return false;
         }
     }
+    // A flat token stream, which SDPAToPagedAttention unsqueezes for the layers.
     for (const char* name : {"input_ids", "position_ids"}) {
-        const auto& rank = model->input(name).get_partial_shape().rank();
+        const auto input = model->input(name);
+        const auto& rank = input.get_partial_shape().rank();
         if (rank.is_dynamic() || rank.get_length() != 1) {
             return false;
+        }
+        for (const auto& reader : input.get_target_inputs()) {
+            if (!ov::is_type<ov::op::v0::Unsqueeze>(reader.get_node())) {
+                return false;
+            }
         }
     }
     const auto& outputs = model->outputs();
@@ -95,34 +121,45 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
            lshape[2].is_static();
 }
 
+// The target of a Reshape to `shape`, whose one dynamic dimension is the token count.
+std::shared_ptr<ov::Node> reshape_target(const ov::PartialShape& shape) {
+    std::vector<int64_t> target;
+    for (const auto& dim : shape) {
+        target.push_back(dim.is_static() ? dim.get_length() : -1);
+    }
+    OPENVINO_ASSERT(std::count(target.begin(), target.end(), -1) == 1, "PA: no single token dimension in ", shape);
+    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{target.size()}, target);
+}
+
 std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
                                                        std::size_t chunk_size) {
-    for (const char* name : {"input_ids", "position_ids"}) {
-        const auto& rank = base_model->input(name).get_partial_shape().rank();
-        OPENVINO_ASSERT(rank.is_static() && rank.get_length() == 1, "PA: '", name, "' is not a 1-D token stream");
-    }
     auto derived = base_model->clone();
-    derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}},
-                      {"position_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}}});
+    derived->reshape({{"input_ids", ov::PartialShape{1, static_cast<int64_t>(chunk_size)}},
+                      {"position_ids", ov::PartialShape{1, static_cast<int64_t>(chunk_size)}}});
+    for (const auto& node : derived->get_ops()) {
+        OPENVINO_ASSERT(
+            !ov::is_type<ov::op::PagedAttentionExtension>(node) || node->get_input_shape(0)[0] == chunk_size,
+            "PA: the layers before ",
+            node->get_friendly_name(),
+            " do not keep the token count");
+    }
     derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(chunk_size));
     return derived;
 }
 
+// The variants go through NPUW on this plugin's device, partitioned by
+// make_variant_config().
 std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_variants(
     const std::shared_ptr<ov::Model>& base_model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const std::string& device,
-    const ov::AnyMap& inner_config) {
+    const ov::AnyMap& variant_config) {
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
+    const auto prepared = ov::npuw::PACompiledModel::prepare_variant_model(base_model);
     for (const auto chunk_size : kChunkSizes) {
-        auto derived = derive_pa_semi_static_model(base_model, chunk_size);
-        auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
-        OPENVINO_ASSERT(compiled != nullptr,
-                        "PA semi-static derivation failed to compile chunk_size=",
-                        chunk_size,
-                        " on ",
-                        device);
-        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " on " << device);
+        auto derived = derive_pa_semi_static_model(prepared, chunk_size);
+        auto compiled = plugin->get_core()->compile_model(derived, plugin->get_device_name(), variant_config);
+        OPENVINO_ASSERT(compiled != nullptr, "PA semi-static derivation failed to compile chunk_size=", chunk_size);
+        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " through NPUW");
         variants.emplace(chunk_size, std::move(compiled));
     }
 
@@ -131,16 +168,145 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 
 }  // anonymous namespace
 
-ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
-                                           const std::shared_ptr<const ov::IPlugin>& plugin,
-                                           const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(nullptr, plugin) {  // ports are the inner model's, see inputs()
-    // An env var, not an option, so it stays out of user configs. GPU would also
-    // need the remote context forwarded for the pipeline's cache allocation.
+std::shared_ptr<ov::Model> ov::npuw::PACompiledModel::prepare_variant_model(
+    const std::shared_ptr<ov::Model>& base_model) {
+    for (const char* name : {"input_ids", "position_ids"}) {
+        const auto& rank = base_model->input(name).get_partial_shape().rank();
+        OPENVINO_ASSERT(rank.is_static() && rank.get_length() == 1, "PA: '", name, "' is not a 1-D token stream");
+    }
+    auto model = base_model->clone();
+
+    // The inputs that stay token-first, with the shapes they have for it.
+    std::vector<std::pair<ov::Input<ov::Node>, ov::PartialShape>> token_first;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            continue;
+        }
+        // Queries, keys and values: [tokens, heads * head_size].
+        for (std::size_t i = 0; i < 3; ++i) {
+            token_first.emplace_back(node->input(i), node->get_input_partial_shape(i));
+        }
+        // The settings a PA op computes from Constants become Constants. A
+        // model with sliding window attention has such a window in some layers
+        // and a Constant in the others, and the PA blocks must be alike to fold.
+        for (std::size_t i = 3; i < node->get_input_size(); ++i) {
+            if (const auto value = ov::util::get_constant_from_source(node->input_value(i))) {
+                node->input(i).replace_source_output(value);
+            }
+        }
+        // The result returns to the layers through a Reshape to
+        // [tokens, 1, heads, head_size], now to [1, tokens, heads, head_size].
+        for (const auto& reader : node->output(0).get_target_inputs()) {
+            auto shape = reader.get_node()->get_output_partial_shape(0);
+            OPENVINO_ASSERT(ov::is_type<ov::op::v1::Reshape>(reader.get_node()) && shape.size() == 4 && shape[1] == 1,
+                            "PA: unexpected reader of a PA op: ",
+                            reader.get_node()->get_friendly_name());
+            std::swap(shape[0], shape[1]);
+            reader.get_node()->input(1).replace_source_output(reshape_target(shape));
+            // The Transpose that follows shares its order with the ones before
+            // the PA op, which are in another block of a variant. It takes its own.
+            for (const auto& transpose : reader.get_node()->output(0).get_target_inputs()) {
+                if (ov::is_type<ov::op::v1::Transpose>(transpose.get_node())) {
+                    const auto order = transpose.get_node()->input_value(1).get_node_shared_ptr();
+                    transpose.get_node()->input(1).replace_source_output(
+                        order->clone_with_new_inputs(order->input_values()));
+                }
+            }
+        }
+    }
+    // The Gather of the sampled rows: [tokens, 1, hidden].
+    for (const auto& reader : model->input("sampled_tokens_indices").get_target_inputs()) {
+        OPENVINO_ASSERT(ov::is_type<ov::op::v8::Gather>(reader.get_node()), "PA: the sampled rows are not gathered");
+        token_first.emplace_back(reader.get_node()->input(0), reader.get_node()->get_input_partial_shape(0));
+    }
+
+    for (const char* name : {"input_ids", "position_ids"}) {
+        const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(model->input(name).get_node_shared_ptr());
+        param->set_partial_shape(ov::PartialShape{1, -1});
+        for (const auto& unsqueeze : param->output(0).get_target_inputs()) {
+            for (const auto& reader : unsqueeze.get_node()->output(0).get_target_inputs()) {
+                reader.replace_source_output(param->output(0));
+            }
+        }
+    }
+    for (const auto& [input, shape] : token_first) {
+        input.replace_source_output(
+            std::make_shared<ov::op::v1::Reshape>(input.get_source_output(), reshape_target(shape), false));
+    }
+    model->validate_nodes_and_infer_types();
+
+    // Tied embeddings decompress one table for the embedding Gather and the LM
+    // head, which would make the table a link between their subgraphs. The
+    // gather lift has the Gather read the weights itself, so the decompression
+    // is the LM head's alone. NPUW runs it on its own only when every subgraph
+    // is a function, which the variants cannot ask for.
+    ov::pass::Manager manager("PA variants");
+    const auto lift = manager.register_pass<ov::pass::GraphRewrite>();
+    lift->add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
+    lift->add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
+    lift->add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+    lift->add_matcher<ov::npuw::patterns::opt::DQLiftGatherCW>();
+    manager.run_passes(model);
+    return model;
+}
+
+ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
+                                                          const std::string& pa_device,
+                                                          const std::string& weights_bank,
+                                                          const std::optional<util::NPUDesc>& npudesc) {
+    // The variants start from the NPU defaults of the NPUW LLM path. On top of
+    // them every PA op is a block of its own, kept off NPU, and the static
+    // repeated blocks around them fold onto NPU and share one weights bank
+    // across the variants, which are clones of one model. The PA model picks
+    // its logits rows itself, so there is no last token to slice out, and the
+    // tail that does it has a dynamic row count, so it cannot be made a
+    // function like the static subgraphs. The caller's properties override
+    // these defaults, and extend the compilation mode parameters.
+    auto config = util::get_default_common_config(npudesc);
+    config.erase(std::string(::intel_npu::NPUW_SLICE_OUT::key()));
+    config.erase(std::string(::intel_npu::NPUW_FUNCALL_FOR_ALL::key()));
+    // The tail picks a dynamic number of logits rows, which the NPU compiler
+    // cannot take, so it goes to the PA device.
+    config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU," + pa_device;
+    if (is_gpu(pa_device)) {
+        // GPU workaround. At f16 the GPU drops the convert F16IC puts on an
+        // f16 input and adds the residual of the tail's first FC in place into
+        // the input buffer, which crashes. With f32 links there is no such input.
+        config[std::string(::intel_npu::NPUW_F16IC::key())] = std::string("NO");
+    }
+    config[std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key())] = std::string("REP");
+    config[std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key())] = std::string("Op:PagedAttentionExtension/pa");
+    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = std::string("Op:PagedAttentionExtension/NPU");
+    config[std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key())] = std::string("pa");
+    const auto compilation_mode_params = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
+    for (const auto& [key, value] : properties) {
+        if (key == compilation_mode_params) {
+            config[key] =
+                ov::npuw::util::merge_compilation_mode_params(config[key].as<std::string>(), value.as<std::string>());
+        } else {
+            config[key] = value;
+        }
+    }
+
+    // A variant is an ordinary NPUW model: it must not select the PA front-end
+    // again, and a partitioning chosen for the whole model does not apply to it.
+    config.erase(std::string(::intel_npu::NPUW_PA::key()));
+    config.erase(std::string(::intel_npu::NPUW_PLAN::key()));
+    config[std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key())] = "last:" + pa_device;
+    config[ov::intel_npu::use_npuw.name()] = std::string("YES");
+    config[std::string(::intel_npu::NPUW_WEIGHTS_BANK::key())] = weights_bank;
+    return config;
+}
+
+ov::npuw::PACompiledModel::DynamicModel ov::npuw::PACompiledModel::compile_dynamic(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    // An env var, not an option, so it stays out of user configs.
     const char* device_env = std::getenv("OPENVINO_NPUW_PA_DEVICE");
     const std::string device = (device_env != nullptr && device_env[0] != '\0') ? device_env : "CPU";
-    OPENVINO_ASSERT(device == "CPU",
-                    "The PagedAttention fallback device is CPU for now, got OPENVINO_NPUW_PA_DEVICE=",
+    OPENVINO_ASSERT(device == "CPU" || is_gpu(device),
+                    "The PagedAttention device is CPU or a GPU, got OPENVINO_NPUW_PA_DEVICE=",
                     device);
 
     bool has_past_lens = false, has_cache = false;
@@ -162,17 +328,64 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
         }
         inner_config.emplace(key, value);
     }
+    if (is_gpu(device)) {
+        // GPU workaround. With its compressed cache, the default for a model
+        // with 4-bit weights, a GPU gives NaN from a PA op of a fixed token
+        // count, as the variants have them. An f16 cache does not, so the GPU
+        // gets one unless the caller asks for a precision.
+        inner_config.emplace(ov::hint::kv_cache_precision.name(), ov::element::f16);
+    }
 
     LOG_INFO("PA: compiling the dynamic PA model 1:1 on " << device);
-    m_compiled_model = plugin->get_core()->compile_model(model, device, inner_config);
-    OPENVINO_ASSERT(m_compiled_model != nullptr, "PACompiledModel requires a valid inner compiled model");
+    auto compiled = plugin->get_core()->compile_model(model, device, inner_config);
+    OPENVINO_ASSERT(compiled != nullptr, "PACompiledModel requires a valid inner compiled model");
+    return {device, std::move(compiled)};
+}
 
+ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
+                                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                                           const ov::AnyMap& properties)
+    : PACompiledModel(model, plugin, properties, compile_dynamic(model, plugin, properties)) {}
+
+// The ports are the inner model's, see inputs(). The CB pipeline allocates the
+// cache pools from this model's context when the execution device is a GPU, so
+// with PA on GPU the context is the dynamic model's. The CPU has none.
+ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
+                                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                                           const ov::AnyMap& properties,
+                                           DynamicModel dynamic)
+    : ov::npuw::ICompiledModel(
+          nullptr,
+          plugin,
+          is_gpu(dynamic.device) ? dynamic.compiled->get_context() : ov::SoPtr<ov::IRemoteContext>{}),
+      m_compiled_model(std::move(dynamic.compiled)),
+      m_block_size(is_gpu(dynamic.device) ? 0u : kBlockSize) {
+    const auto& device = dynamic.device;
     if (is_chunkable_pa_model(model)) {
-        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+        // One bank for all the variants, unless the caller names one.
+        const auto bank_it = properties.find(std::string(::intel_npu::NPUW_WEIGHTS_BANK::key()));
+        const auto caller_bank = bank_it == properties.end() ? std::string{} : bank_it->second.as<std::string>();
+        const auto bank = caller_bank.empty() ? ov::npuw::util::generate_random_string() : caller_bank;
+        auto variant_config =
+            make_variant_config(properties, device, bank, util::extract_npu_descriptor(plugin, properties));
+        // NPUW builds the PA blocks of the variants as new models, without the
+        // rt_info runtime options the CPU may take its cache settings from and
+        // without the 4-bit weights the GPU picks a u4 cache for. Both read the
+        // same cache pools, so the variants take the dynamic model's effective
+        // settings.
+        const auto cache_keys = is_gpu(device) ? std::vector<std::string>{ov::hint::kv_cache_precision.name()}
+                                               : std::vector<std::string>{ov::key_cache_precision.name(),
+                                                                          ov::value_cache_precision.name(),
+                                                                          ov::key_cache_group_size.name(),
+                                                                          ov::value_cache_group_size.name()};
+        for (const auto& key : cache_keys) {
+            variant_config[key] = m_compiled_model->get_property(key);
+        }
+        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, variant_config);
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
     }
-    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s) on " << device);
+    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s), PA ops on " << device);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::npuw::PACompiledModel::inputs() const {
@@ -219,14 +432,16 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::PACompiledModel::create_sync_in
     auto self = std::static_pointer_cast<const ov::ICompiledModel>(shared_from_this());
     auto inner_request = m_compiled_model->create_infer_request();
     OPENVINO_ASSERT(inner_request != nullptr, "PACompiledModel requires a valid inner infer request");
-    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_semi_static_models);
+    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_semi_static_models, m_block_size);
 }
 
 ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
                                          ov::SoPtr<ov::IAsyncInferRequest> inner_request,
-                                         const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants)
+                                         const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants,
+                                         std::size_t block_size)
     : ov::ISyncInferRequest(compiled_model),
-      m_inner_request(std::move(inner_request)) {
+      m_inner_request(std::move(inner_request)),
+      m_block_size(block_size) {
     for (const auto& input : get_inputs()) {
         m_inputs_by_name.emplace(input.get_any_name(), input);
     }
@@ -290,10 +505,8 @@ ov::npuw::pa::Dispatch ov::npuw::PAInferRequest::parse_dispatch() const {
 
 void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
                                          const pa::Dispatch& d,
-                                         int64_t seq,
-                                         int64_t seq_offset,
+                                         int64_t global_start,
                                          int64_t n_chunk_tokens) {
-    const auto global_start = d.subsequence_begins[seq] + seq_offset;
     const auto set = [&](const char* name, const ov::SoPtr<ov::ITensor>& tensor) {
         auto it = chunk.inputs.find(name);
         OPENVINO_ASSERT(it != chunk.inputs.end(), "PA chunk model has no '", name, "' input");
@@ -308,18 +521,40 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
         return ov::npuw::util::view(inner(name), 0, static_cast<std::size_t>(start), static_cast<std::size_t>(n));
     };
 
-    set("input_ids", slice("input_ids", global_start, n_chunk_tokens));
-    set("position_ids", slice("position_ids", global_start, n_chunk_tokens));
+    // A variant takes its tokens as [1, tokens], the dynamic model as [tokens].
+    const auto tokens = [&](const char* name) {
+        const auto view = slice(name, global_start, n_chunk_tokens);
+        if (chunk.inputs.at(name).get_partial_shape().size() == 1) {
+            return view;
+        }
+        const ov::Shape shape = {1, static_cast<std::size_t>(n_chunk_tokens)};
+        return ov::get_tensor_impl(ov::Tensor(view->get_element_type(), shape, view->data()));
+    };
+    set("input_ids", tokens("input_ids"));
+    set("position_ids", tokens("position_ids"));
 
-    // One subsequence, past its first seq_offset tokens, with its full block table.
-    set("past_lens", make_vec_tensor<int32_t>({static_cast<int32_t>(d.past_lens[seq] + seq_offset)}));
-    set("subsequence_begins", make_vec_tensor<int32_t>({0, static_cast<int32_t>(n_chunk_tokens)}));
+    // The subsequences the chunk's tokens belong to, each past its tokens
+    // before the chunk, with its full block table.
+    const auto& sub = d.subsequence_begins;
+    const auto first = static_cast<int32_t>(global_start);
+    const auto last = static_cast<int32_t>(global_start + n_chunk_tokens);
+    const auto seq = std::upper_bound(sub.begin(), sub.end(), first) - sub.begin() - 1;
     const auto blocks_begin = d.block_indices_begins[seq];
-    const auto n_seq_blocks = d.block_indices_begins[seq + 1] - blocks_begin;
-    set("block_indices", slice("block_indices", blocks_begin, n_seq_blocks));
-    set("block_indices_begins", make_vec_tensor<int32_t>({0, n_seq_blocks}));
+    std::vector<int32_t> past_lens;
+    std::vector<int32_t> subsequence_begins = {0};
+    std::vector<int32_t> block_indices_begins = {0};
+    auto seq_end = seq;
+    for (; sub[seq_end] < last; ++seq_end) {
+        past_lens.push_back(d.past_lens[seq_end] + std::max(first - sub[seq_end], 0));
+        subsequence_begins.push_back(std::min(sub[seq_end + 1], last) - first);
+        block_indices_begins.push_back(d.block_indices_begins[seq_end + 1] - blocks_begin);
+    }
+    set("past_lens", make_vec_tensor(past_lens));
+    set("subsequence_begins", make_vec_tensor(subsequence_begins));
+    set("block_indices", slice("block_indices", blocks_begin, block_indices_begins.back()));
+    set("block_indices_begins", make_vec_tensor(block_indices_begins));
     if (m_inputs_by_name.count("score_aggregation_window") > 0) {
-        set("score_aggregation_window", slice("score_aggregation_window", seq, 1));
+        set("score_aggregation_window", slice("score_aggregation_window", seq, seq_end - seq));
     }
 
     set("max_context_len", inner("max_context_len"));
@@ -372,8 +607,17 @@ void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
     const bool verbose = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose;
     std::ostringstream plan;
 
-    for (int64_t s = 0; s < d.sequences(); ++s) {
-        const auto seq_len = d.subsequence_begins[s + 1] - d.subsequence_begins[s];
+    const auto& sub = d.subsequence_begins;
+    const auto is_decode = [&](int64_t seq) {
+        return sub[seq + 1] - sub[seq] == 1;
+    };
+    for (int64_t s = 0, end = 0; s < d.sequences(); s = end) {
+        // A sequence, or a decode batch: one-token sequences in a row.
+        end = s + 1;
+        while (is_decode(s) && end < d.sequences() && is_decode(end)) {
+            ++end;
+        }
+        const auto seq_len = sub[end] - sub[s];
         int64_t off = 0;
         if (verbose) {
             plan << (s ? "; " : "") << "seq" << s << "=";
@@ -394,7 +638,7 @@ void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
             if (verbose) {
                 plan << (off ? "+" : "") << (pick ? "" : "dyn:") << n;
             }
-            run_chunk(chunk, d, s, off, n);
+            run_chunk(chunk, d, sub[s] + off, n);
             off += n;
         }
     }
@@ -419,7 +663,7 @@ void ov::npuw::PAInferRequest::log_dispatch_io(bool outputs) const {
 void ov::npuw::PAInferRequest::infer() {
     log_dispatch_io(/*outputs=*/false);
     const auto dispatch = parse_dispatch();
-    pa::validate_dispatch(dispatch, kBlockSize, m_dispatch_idx);
+    pa::validate_dispatch(dispatch, m_block_size, m_dispatch_idx);
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");

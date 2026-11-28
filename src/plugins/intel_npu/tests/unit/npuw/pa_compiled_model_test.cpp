@@ -1,0 +1,387 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "pa_compiled_model.hpp"
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <optional>
+#include <set>
+#include <string>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "llm_test_helpers.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/runtime/core.hpp"
+#include "util.hpp"
+
+namespace {
+
+using ov::npuw::PACompiledModel;
+
+std::string str(const ov::AnyMap& config, const char* key) {
+    return config.at(key).as<std::string>();
+}
+
+ov::npuw::util::NPUDesc npu_with_compiler_dq() {
+    ov::npuw::util::NPUDesc desc;
+    desc.arch = "4000";
+    desc.max_tiles = 6;
+    desc.compiler_dq = true;
+    desc.compiler_matmul_gate = true;
+    return desc;
+}
+
+TEST(PAVariantConfig, PartitionsThePAOpsOffNPU) {
+    const auto config = PACompiledModel::make_variant_config({}, "CPU", "bank0", std::nullopt);
+
+    EXPECT_EQ(str(config, "NPU_USE_NPUW"), "YES");
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,CPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_PIPELINE"), "REP");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_ISOLATE"), "Op:PagedAttentionExtension/pa");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:PagedAttentionExtension/NPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_KEEP_BLOCKS_TAGGED"), "pa");
+    EXPECT_EQ(str(config, "NPUW_FOLD"), "YES");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:CPU");
+    EXPECT_EQ(str(config, "NPUW_WEIGHTS_BANK"), "bank0");
+    EXPECT_EQ(str(config, "NPU_COMPILATION_MODE_PARAMS"),
+              "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+}
+
+TEST(PAVariantConfig, SendsThePAOpsAndTheTailToTheGPUWithF32Links) {
+    const auto config = PACompiledModel::make_variant_config({}, "GPU", "bank0", std::nullopt);
+
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,GPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:PagedAttentionExtension/NPU");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:GPU");
+    EXPECT_EQ(str(config, "NPUW_F16IC"), "NO");
+}
+
+TEST(PAVariantConfig, TreatsAnIndexedGPUAsAGPU) {
+    const auto config = PACompiledModel::make_variant_config({}, "GPU.1", "bank0", std::nullopt);
+
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,GPU.1");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:GPU.1");
+    EXPECT_EQ(str(config, "NPUW_F16IC"), "NO");
+}
+
+TEST(PAVariantConfig, StartsFromTheLLMPathNPUDefaults) {
+    for (const auto& npudesc : {std::optional<ov::npuw::util::NPUDesc>{}, std::make_optional(npu_with_compiler_dq())}) {
+        const auto defaults = ov::npuw::util::get_default_common_config(npudesc);
+        const auto config = PACompiledModel::make_variant_config({}, "CPU", "bank0", npudesc);
+        for (const auto& [key, value] : defaults) {
+            if (key == "NPUW_DEVICES" || key == "NPUW_SLICE_OUT" || key == "NPUW_FUNCALL_FOR_ALL") {
+                continue;
+            }
+            ASSERT_EQ(config.count(key), 1u) << key;
+            EXPECT_EQ(config.at(key).as<std::string>(), value.as<std::string>()) << key;
+        }
+        // The PA model picks its logits rows itself, in a tail with a dynamic
+        // row count that cannot be a function.
+        EXPECT_EQ(config.count("NPUW_SLICE_OUT"), 0u);
+        EXPECT_EQ(config.count("NPUW_FUNCALL_FOR_ALL"), 0u);
+    }
+
+    const auto config = PACompiledModel::make_variant_config({}, "CPU", "bank0", npu_with_compiler_dq());
+    EXPECT_EQ(str(config, "NPUW_DQ"), "YES");
+    EXPECT_EQ(str(config, "NPU_COMPILER_DYNAMIC_QUANTIZATION"), "YES");
+    EXPECT_EQ(str(config, "NPUW_FUNCALL_ASYNC"), "YES");
+    EXPECT_EQ(str(config, "NPU_TILES"), "6");
+}
+
+TEST(PAVariantConfig, ForwardsTheCallerPropertiesButNotTheWholeModelChoices) {
+    const ov::AnyMap properties = {{"NPUW_PA", "YES"},
+                                   {"NPUW_PLAN", "plan.xml"},
+                                   {"NPUW_SUBMODEL_DEVICE", "0:CPU"},
+                                   {"NPUW_DUMP_SUBS", "YES"},
+                                   {"KV_CACHE_PRECISION", "f16"}};
+    const auto config = PACompiledModel::make_variant_config(properties, "CPU", "bank1", std::nullopt);
+
+    EXPECT_EQ(config.count("NPUW_PA"), 0u);
+    EXPECT_EQ(config.count("NPUW_PLAN"), 0u);
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:CPU");
+    EXPECT_EQ(str(config, "NPUW_DUMP_SUBS"), "YES");
+    EXPECT_EQ(str(config, "KV_CACHE_PRECISION"), "f16");
+}
+
+TEST(PAVariantConfig, CallerPropertiesOverrideTheDefaults) {
+    const ov::AnyMap properties = {{"NPUW_DEVICES", "CPU"},
+                                   {"NPUW_ONLINE_AVOID", "Op:Select/NPU"},
+                                   {"NPU_USE_NPUW", "NO"},
+                                   {"NPUW_WEIGHTS_BANK", "caller"}};
+    const auto config = PACompiledModel::make_variant_config(properties, "CPU", "bank2", std::nullopt);
+
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "CPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:Select/NPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_ISOLATE"), "Op:PagedAttentionExtension/pa");
+    // A variant is always an NPUW model with the bank the front-end chose.
+    EXPECT_EQ(str(config, "NPU_USE_NPUW"), "YES");
+    EXPECT_EQ(str(config, "NPUW_WEIGHTS_BANK"), "bank2");
+}
+
+TEST(PAVariantConfig, CallerCompilationModeParamsExtendTheDefaults) {
+    const ov::AnyMap properties = {
+        {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=MVN optimization-level=3"}};
+    const auto config = PACompiledModel::make_variant_config(properties, "CPU", "bank3", std::nullopt);
+
+    const auto params = str(config, "NPU_COMPILATION_MODE_PARAMS");
+    EXPECT_NE(params.find("Add_RMSNorm"), std::string::npos) << params;
+    EXPECT_NE(params.find("MVN"), std::string::npos) << params;
+    EXPECT_NE(params.find("optimization-level=3"), std::string::npos) << params;
+}
+
+// The synthetic LLM as the GenAI CB pipeline hands it to a device: PA ops on
+// the caches, and the LM head behind a Gather of the sampled token rows.
+std::shared_ptr<ov::Model> make_pipeline_pa_model() {
+    auto model = ov::test::npuw::build_llm_test_model();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::Node> lm_head = model->output("logits").get_node()->input_value(0).get_node_shared_ptr();
+    while (!ov::is_type<ov::op::v0::MatMul>(lm_head)) {
+        lm_head = lm_head->input_value(0).get_node_shared_ptr();
+    }
+    auto sampled = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    sampled->set_friendly_name("sampled_tokens_indices");
+    sampled->output(0).get_tensor().set_names({"sampled_tokens_indices"});
+    auto rows = std::make_shared<ov::op::v8::Gather>(lm_head->input_value(0),
+                                                     sampled,
+                                                     ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+    lm_head->input(0).replace_source_output(rows);
+    model->add_parameters({sampled});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// The layers of a variant take the tokens second, like the NPUW LLM models,
+// the PA ops still take them first, and the logits keep their shape.
+TEST(PAVariantModel, TakesTheTokensSecond) {
+    constexpr std::size_t tokens = 8;
+    const auto pa_model = make_pipeline_pa_model();
+    const auto model = PACompiledModel::prepare_variant_model(pa_model);
+    model->reshape({{"input_ids", ov::PartialShape{1, tokens}}, {"position_ids", ov::PartialShape{1, tokens}}});
+
+    EXPECT_EQ(model->output("logits").get_partial_shape(), pa_model->output("logits").get_partial_shape());
+    std::size_t pa_ops = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            ++pa_ops;
+            for (std::size_t i = 0; i < 3; ++i) {
+                ASSERT_EQ(node->get_input_shape(i).size(), 2u);
+                EXPECT_EQ(node->get_input_shape(i)[0], tokens);
+            }
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
+                   ov::is_type<ov::op::v1::Add>(node)) {
+            for (const auto& input : node->inputs()) {
+                const auto& shape = input.get_partial_shape();
+                EXPECT_FALSE(shape.is_static() && shape.size() >= 3 && shape[0] == tokens) << node << " " << shape;
+            }
+        }
+    }
+    EXPECT_GT(pa_ops, 0u);
+}
+
+// NPUW folds the PA blocks and the layers between them only when they are
+// alike: a setting some layers compute from Constants, such as a sliding
+// window, becomes a Constant, and the Transposes on the two sides of a PA op
+// do not share their order.
+TEST(PAVariantModel, MakesThePABlocksAlike) {
+    const auto pa_model = make_pipeline_pa_model();
+    constexpr std::size_t kSlidingWindow = 10;
+    for (const auto& node : pa_model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            auto window =
+                std::make_shared<ov::op::v1::Multiply>(ov::op::v0::Constant::create(ov::element::i32, {}, {4}),
+                                                       ov::op::v0::Constant::create(ov::element::i32, {}, {8}));
+            node->input(kSlidingWindow).replace_source_output(window);
+            break;
+        }
+    }
+    const auto model = PACompiledModel::prepare_variant_model(pa_model);
+
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            continue;
+        }
+        EXPECT_TRUE(ov::op::util::is_constant(node->get_input_node_ptr(kSlidingWindow)));
+        // The Transposes before the PA op and the one after its Reshape.
+        std::vector<ov::Node*> transposes = {node->get_input_node_ptr(0)->get_input_node_ptr(0)->get_input_node_ptr(0)};
+        for (const auto& reader : node->output(0).get_target_inputs()) {
+            transposes.push_back(reader.get_node()->output(0).get_target_inputs().begin()->get_node());
+        }
+        for (const auto* transpose : transposes) {
+            ASSERT_TRUE(ov::is_type<ov::op::v1::Transpose>(transpose)) << transpose->get_friendly_name();
+        }
+        EXPECT_NE(transposes.front()->get_input_node_ptr(1), transposes.back()->get_input_node_ptr(1));
+    }
+}
+
+// Runs a prefill of `prompt` tokens and one decode step for a batch of
+// `sequences`, and returns the logits of each, as the CB pipeline would drive
+// the model.
+std::vector<std::vector<float>> prefill_and_decode(ov::CompiledModel& compiled,
+                                                   std::size_t prompt,
+                                                   std::size_t sequences) {
+    constexpr std::size_t kBlockSize = 32;
+    constexpr std::size_t kBlocks = 8;
+    auto request = compiled.create_infer_request();
+    for (const auto& port : compiled.inputs()) {
+        const auto& name = port.get_any_name();
+        if (name.rfind("key_cache.", 0) == 0 || name.rfind("value_cache.", 0) == 0) {
+            auto shape = port.get_partial_shape();
+            shape[0] = static_cast<int64_t>(kBlocks * sequences);
+            ov::Tensor cache(port.get_element_type(), shape.to_shape());
+            std::fill_n(static_cast<uint8_t*>(cache.data()), cache.get_byte_size(), uint8_t{0});
+            request.set_tensor(name, cache);
+        }
+    }
+    const auto i32 = [](std::vector<int32_t> v) {
+        ov::Tensor t(ov::element::i32, {v.size()});
+        std::copy(v.begin(), v.end(), t.data<int32_t>());
+        return t;
+    };
+    const auto i64 = [](std::vector<int64_t> v) {
+        ov::Tensor t(ov::element::i64, {v.size()});
+        std::copy(v.begin(), v.end(), t.data<int64_t>());
+        return t;
+    };
+    std::vector<std::vector<float>> logits;
+    std::size_t past = 0;
+    for (const std::size_t tokens : {prompt, std::size_t{1}}) {
+        const auto blocks = static_cast<int32_t>((past + tokens + kBlockSize - 1) / kBlockSize);
+        std::vector<int64_t> ids, positions, sampled;
+        std::vector<int32_t> subsequence_begins = {0}, table, table_begins = {0};
+        for (std::size_t s = 0; s < sequences; ++s) {
+            for (std::size_t i = 0; i < tokens; ++i) {
+                ids.push_back(static_cast<int64_t>(1 + (past + i + s) * 7 % 250));
+                positions.push_back(static_cast<int64_t>(past + i));
+            }
+            for (int32_t b = 0; b < blocks; ++b) {
+                table.push_back(static_cast<int32_t>(s * kBlocks) + b);
+            }
+            sampled.push_back(static_cast<int64_t>(ids.size() - 1));
+            subsequence_begins.push_back(static_cast<int32_t>(ids.size()));
+            table_begins.push_back(static_cast<int32_t>(table.size()));
+        }
+        request.set_tensor("input_ids", i64(ids));
+        request.set_tensor("position_ids", i64(positions));
+        request.set_tensor("past_lens", i32(std::vector<int32_t>(sequences, static_cast<int32_t>(past))));
+        request.set_tensor("subsequence_begins", i32(subsequence_begins));
+        request.set_tensor("block_indices", i32(table));
+        request.set_tensor("block_indices_begins", i32(table_begins));
+        ov::Tensor max_context_len(ov::element::i32, {});
+        *max_context_len.data<int32_t>() = static_cast<int32_t>(past + tokens);
+        request.set_tensor("max_context_len", max_context_len);
+        request.set_tensor("sampled_tokens_indices", i64(sampled));
+        request.infer();
+        const auto out = request.get_tensor("logits");
+        logits.emplace_back(out.data<float>(), out.data<float>() + out.get_size());
+        past += tokens;
+    }
+    return logits;
+}
+
+// Each prefill runs as a 128-token chunk on its variant plus a dynamic tail,
+// the decode batch of 13 on the 8-, 4- and 1-token variants, all through NPUW
+// on CPU.
+TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
+    const auto model = make_pipeline_pa_model();
+    // The model meets the chunkable contract, so the variants serve it.
+    const std::set<std::string> controls = {"input_ids",
+                                            "position_ids",
+                                            "past_lens",
+                                            "subsequence_begins",
+                                            "block_indices",
+                                            "block_indices_begins",
+                                            "max_context_len",
+                                            "sampled_tokens_indices"};
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        const bool cache = name.rfind("key_cache.", 0) == 0 || name.rfind("value_cache.", 0) == 0;
+        ASSERT_TRUE(cache || controls.count(name) > 0) << "unexpected input " << name;
+    }
+    ASSERT_EQ(model->input("input_ids").get_partial_shape().rank().get_length(), 1);
+    ASSERT_EQ(model->input("position_ids").get_partial_shape().rank().get_length(), 1);
+
+    // The cache precision comes with the model, in its runtime options, so the
+    // PA blocks of the variants must take it from the dynamic model.
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    const ov::AnyMap common = {{ov::hint::inference_precision.name(), ov::element::f32}};
+    ov::AnyMap npuw = common;
+    npuw.insert({{"NPU_USE_NPUW", "YES"}, {"NPUW_PA", "YES"}, {"NPUW_DEVICES", "CPU"}, {"NPUW_F16IC", "NO"}});
+    // An explicit NPU device stays with the NPU submodels. The CPU running the
+    // PA blocks takes no device id.
+    npuw.insert({ov::device::id.name(), "0"});
+
+    ov::Core core;
+    auto reference = core.compile_model(model->clone(), "CPU", common);
+    ov::CompiledModel front_end;
+    ASSERT_NO_THROW(front_end = core.compile_model(model->clone(), "NPU", npuw));
+
+    const auto expected = prefill_and_decode(reference, 130, 13);
+    const auto actual = prefill_and_decode(front_end, 130, 13);
+    ASSERT_EQ(expected.size(), actual.size());
+    for (std::size_t step = 0; step < expected.size(); ++step) {
+        ASSERT_EQ(expected[step].size(), actual[step].size());
+        float scale = 1.f;
+        for (const auto v : expected[step]) {
+            scale = std::max(scale, std::fabs(v));
+        }
+        for (std::size_t i = 0; i < expected[step].size(); ++i) {
+            EXPECT_NEAR(expected[step][i], actual[step][i], 1e-3f * scale) << "step " << step << " at " << i;
+        }
+    }
+}
+
+// Sets an environment variable for one test and restores the previous value.
+class ScopedEnv final {
+public:
+    ScopedEnv(const char* name, const char* value) : m_name(name) {
+        if (const char* old = std::getenv(name)) {
+            m_old = old;
+        }
+        set(value);
+    }
+    ScopedEnv(const ScopedEnv&) = delete;
+    ScopedEnv& operator=(const ScopedEnv&) = delete;
+    ~ScopedEnv() {
+        set(m_old ? m_old->c_str() : nullptr);
+    }
+
+private:
+    void set(const char* value) {
+#ifdef _WIN32
+        _putenv_s(m_name.c_str(), value ? value : "");
+#else
+        value ? setenv(m_name.c_str(), value, 1) : unsetenv(m_name.c_str());
+#endif
+    }
+    std::string m_name;
+    std::optional<std::string> m_old;
+};
+
+TEST(PACompiledModelEndToEnd, RejectsAPADeviceOtherThanCPUOrGPU) {
+    const ScopedEnv env("OPENVINO_NPUW_PA_DEVICE", "NPU");
+    const ov::AnyMap npuw = {{"NPU_USE_NPUW", "YES"}, {"NPUW_PA", "YES"}, {"NPUW_DEVICES", "CPU"}};
+    ov::Core core;
+    OV_EXPECT_THROW(core.compile_model(make_pipeline_pa_model(), "NPU", npuw),
+                    ov::Exception,
+                    testing::HasSubstr("CPU or a GPU"));
+}
+
+}  // namespace

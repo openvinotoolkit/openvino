@@ -75,9 +75,11 @@ bool ov::npuw::pa::variants_serve(const Dispatch& dispatch, const std::vector<st
         return has_one_token_variant;
     }
 
+    int64_t decode_batch = 0;
     for (int64_t s = 0; min_multi_token > 0u && s < dispatch.sequences(); ++s) {
         const auto seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
-        if (seq_len >= static_cast<int64_t>(min_multi_token)) {
+        decode_batch = seq_len == 1 ? decode_batch + 1 : 0;
+        if (std::max<int64_t>(seq_len, decode_batch) >= static_cast<int64_t>(min_multi_token)) {
             return true;
         }
     }

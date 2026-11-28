@@ -18,6 +18,7 @@
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
+#include "npuw_transformations/dynamic_pa_tokens.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -258,6 +259,9 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
                         device_properties[device_name][opt.first] = opt.second;
                     }
                 }
+            } else {
+                // The DEVICE_ID this plugin was given names an NPU device.
+                device_properties[device_name].erase(ov::device::id.name());
             }  // if(NPU)
         }
     }
@@ -451,8 +455,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 }
 
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
-                                         const std::shared_ptr<const ov::IPlugin>& plugin)
-    : ov::ICompiledModel(model, plugin) {}
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const ov::SoPtr<ov::IRemoteContext>& context)
+    : ov::ICompiledModel(model, plugin, context) {}
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -825,7 +830,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::size_t last_pos = fsd_opt.find("last");
     if (last_pos != std::string::npos) {
         fsd_opt.erase(last_pos, 4);
-        fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
+        fsd_opt.insert(last_pos, std::to_string(end_sub_idx - 1));
     }
     forced_sub_devices = ::intel_npu::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
@@ -2492,6 +2497,14 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
+    if (ov::npuw::util::starts_with(device, "GPU")) {
+        // GPU workaround: the GPU cannot build a PA op with a static token
+        // count, see the pass. The submodel stays as it is for the other devices.
+        const auto relaxed = submodel->clone();
+        if (ov::npuw::DynamicPATokens().run_on_model(relaxed)) {
+            return core->compile_model(relaxed, device, device_config);
+        }
+    }
     return core->compile_model(submodel, device, device_config);
 }
 
