@@ -32,6 +32,7 @@ class TestPolar(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_polar(self, input_case, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_case, "dtype": dtype},
