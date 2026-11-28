@@ -8,9 +8,11 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace test {
@@ -22,6 +24,10 @@ struct QKVProjFusionParams {
     size_t k_proj_size;
     size_t v_proj_size;
     bool use_dynamic_quant;
+    // combined q/k/v weight followed by a VariadicSplit (QKVProjFusionPass2) instead of three MatMuls
+    bool weights_combined = false;
+    int64_t split_axis = -1;
+    ov::element::Type split_lengths_type = ov::element::i32;
 };
 
 class QKVProjFusionTest : public testing::WithParamInterface<QKVProjFusionParams>,
@@ -40,6 +46,9 @@ public:
         result << "k_proj_size=" << obj.param.k_proj_size << "_";
         result << "v_proj_size=" << obj.param.v_proj_size << "_";
         result << "use_dynamic_quant=" << obj.param.use_dynamic_quant << "_";
+        if (obj.param.weights_combined) {
+            result << "combined_axis=" << obj.param.split_axis << "_lengths=" << obj.param.split_lengths_type << "_";
+        }
         result << obj.index;
         return result.str();
     }
@@ -87,6 +96,19 @@ protected:
         if (param.use_dynamic_quant)
             configuration.insert({ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()});
 
+        if (param.weights_combined) {
+            auto qkv_proj_weight =
+                create_const(param.q_proj_size + param.k_proj_size + param.v_proj_size, param.hidden);
+            auto qkv_proj = std::make_shared<ov::op::v0::MatMul>(src, qkv_proj_weight, false, true);
+            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {param.split_axis});
+            auto lengths = ov::op::v0::Constant::create(param.split_lengths_type,
+                                                        ov::Shape{3},
+                                                        {param.q_proj_size, param.k_proj_size, param.v_proj_size});
+            auto qkv_split = std::make_shared<ov::op::v1::VariadicSplit>(qkv_proj, axis, lengths);
+            function = std::make_shared<ov::Model>(qkv_split->outputs(), ov::ParameterVector{src});
+            return;
+        }
+
         auto q_proj_weight = create_const(param.q_proj_size, param.hidden);
         auto k_proj_weight = create_const(param.k_proj_size, param.hidden);
         auto v_proj_weight = create_const(param.v_proj_size, param.hidden);
@@ -121,6 +143,11 @@ namespace {
 
 static ov::test::InputShape ishape_llama2_7b{ov::PartialShape{-1, -1, 4096}, {ov::Shape{1, 8, 4096}, ov::Shape{5, 7, 4096}}};
 static ov::test::InputShape ishape_qwen2_7b{ov::test::InputShape{ov::PartialShape{-1, -1, 3584}, {ov::Shape{1, 8, 3584}, ov::Shape{5, 7, 3584}}}};
+// flattened [tokens, hidden] activations; 300 tokens > CACHE_BLK_M_SIZE also covers the row-block loop
+static ov::test::InputShape ishape_llama2_7b_2d{ov::PartialShape{-1, 4096}, {ov::Shape{8, 4096}, ov::Shape{300, 4096}}};
+static ov::test::InputShape ishape_qwen2_7b_2d{ov::PartialShape{-1, 3584}, {ov::Shape{8, 3584}, ov::Shape{300, 3584}}};
+static ov::test::InputShape ishape_qwen2_7b_long{ov::PartialShape{-1, -1, 3584},
+                                                 {ov::Shape{1, 300, 3584}, ov::Shape{2, 7, 3584}}};
 
 const std::vector<QKVProjFusionParams> qkv_params = {
     // Llama-7B
@@ -129,6 +156,18 @@ const std::vector<QKVProjFusionParams> qkv_params = {
     // Qwen2-7B: hidden_size_per_head:128, num_attention_heads:28, num_key_value_heads:4
     {ishape_qwen2_7b, 3584, 128 * 28, 128 * 4, 128 * 4, false},
     {ishape_qwen2_7b, 3584, 128 * 28, 128 * 4, 128 * 4, true},
+    {ishape_qwen2_7b_long, 3584, 128 * 28, 128 * 4, 128 * 4, false},
+    // rank-2 inputs
+    {ishape_llama2_7b_2d, 4096, 4096, 4096, 4096, false},
+    {ishape_qwen2_7b_2d, 3584, 128 * 28, 128 * 4, 128 * 4, false},
+    {ishape_qwen2_7b_2d, 3584, 128 * 28, 128 * 4, 128 * 4, true},
+    // combined q/k/v weight + VariadicSplit, split axis given as -1 or as the positive last axis
+    {ishape_llama2_7b, 4096, 4096, 4096, 4096, false, true, -1, ov::element::i32},
+    {ishape_qwen2_7b, 3584, 128 * 28, 128 * 4, 128 * 4, false, true, 2, ov::element::i64},
+    {ishape_qwen2_7b, 3584, 128 * 28, 128 * 4, 128 * 4, true, true, -1, ov::element::i64},
+    {ishape_qwen2_7b_2d, 3584, 128 * 28, 128 * 4, 128 * 4, false, true, 1, ov::element::i64},
+    {ishape_qwen2_7b_2d, 3584, 128 * 28, 128 * 4, 128 * 4, false, true, -1, ov::element::i32},
+    {ishape_qwen2_7b_2d, 3584, 128 * 28, 128 * 4, 128 * 4, true, true, 1, ov::element::i64},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_QKVProjFusion,

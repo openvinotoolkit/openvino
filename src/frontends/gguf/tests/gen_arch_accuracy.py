@@ -571,9 +571,9 @@ def write_lfm_model(path, arch, opts):
 
 
 def write_model(path, arch, opts):
-    if arch.startswith("inkling2"):
-        return write_inkling_model(path, opts.get("architecture", arch), opts)
     arch = opts.get("architecture", arch)
+    if arch.startswith("inkling2"):
+        return write_inkling_model(path, arch, opts)
     if arch == "gemma3n":
         return write_gemma3n_model(path)
     if arch in ("lfm2", "lfm2moe", "lfm3"):

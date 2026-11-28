@@ -30,11 +30,15 @@ inline int64_t require_positive_int(const GgufMetadata& metadata, const std::str
     return *value;
 }
 
+inline bool representable_float(double value) {
+    const auto magnitude = std::abs(value);
+    return std::isfinite(value) && magnitude <= std::numeric_limits<float>::max() &&
+           (magnitude == 0 || magnitude >= std::numeric_limits<float>::denorm_min());
+}
+
 inline float require_positive_float(const GgufMetadata& metadata, const std::string& key, const std::string& what) {
     const auto value = metadata.get_float(key);
-    OPENVINO_ASSERT(value && std::isfinite(*value) && *value > 0 &&
-                        *value >= std::numeric_limits<float>::denorm_min() &&
-                        *value <= std::numeric_limits<float>::max(),
+    OPENVINO_ASSERT(value && *value > 0 && representable_float(*value),
                     "[GGUF] ",
                     what,
                     " requires a positive finite number representable as float '",

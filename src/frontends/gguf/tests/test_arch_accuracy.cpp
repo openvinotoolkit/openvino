@@ -203,6 +203,17 @@ TEST(GGUFInkling, RejectsInvalidMetadataAndTensorShapes) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     const auto original = get_gguf_data(temporary.path);
+    const auto expect_rejected = [&](const char* key, const auto& value) {
+        SCOPED_TRACE(key);
+        auto metadata = std::get<0>(original);
+        ov::Tensor invalid(ov::element::from<std::decay_t<decltype(value)>>(), {});
+        *invalid.data<std::decay_t<decltype(value)>>() = value;
+        metadata[std::string("inkling2_loop.") + key] = invalid;
+        detail::MetadataStore store{metadata};
+        detail::WeightStore tensors{std::get<1>(original)};
+        const BuildContext context{GgufMetadata(store), "inkling2_loop", &tensors};
+        OV_EXPECT_THROW(make_inkling_builder(context)->build(), ov::Exception, testing::HasSubstr("Inkling"));
+    };
     for (const auto& [key, value] : {std::pair{"loop.start", int64_t{0}},
                                      {"loop.start", 3},
                                      {"loop.end", 8},
@@ -211,34 +222,16 @@ TEST(GGUFInkling, RejectsInvalidMetadataAndTensorShapes) {
                                      {"loop.gate_rank", 0},
                                      {"shortconv.l_cache", 65},
                                      {"attention.value_length", 16},
-                                     {"expert_used_count", 5}}) {
-        SCOPED_TRACE(key);
-        auto metadata = std::get<0>(original);
-        ov::Tensor invalid(ov::element::i64, {});
-        *invalid.data<int64_t>() = value;
-        metadata[std::string("inkling2_loop.") + key] = invalid;
-        detail::MetadataStore store{metadata};
-        detail::WeightStore tensors{std::get<1>(original)};
-        const BuildContext context{GgufMetadata(store), "inkling2_loop", &tensors};
-        OV_EXPECT_THROW(make_inkling_builder(context)->build(), ov::Exception, testing::HasSubstr("Inkling"));
-    }
+                                     {"expert_used_count", 5}})
+        expect_rejected(key, value);
     for (const auto& [key, value] : {std::pair{"attention.layer_norm_rms_epsilon", 1e39},
                                      {"attention.qk_clip", std::numeric_limits<double>::denorm_min()},
                                      {"activation.situ_beta", 1e-39},
                                      {"attention.log_scale_alpha", 1e39},
                                      {"final_logit_softcapping", 1e39},
                                      {"final_logit_softcapping", 1e-39},
-                                     {"expert_weights_scale", -1e39}}) {
-        SCOPED_TRACE(key);
-        auto metadata = std::get<0>(original);
-        ov::Tensor invalid(ov::element::f64, {});
-        *invalid.data<double>() = value;
-        metadata[std::string("inkling2_loop.") + key] = invalid;
-        detail::MetadataStore store{metadata};
-        detail::WeightStore tensors{std::get<1>(original)};
-        const BuildContext context{GgufMetadata(store), "inkling2_loop", &tensors};
-        OV_EXPECT_THROW(make_inkling_builder(context)->build(), ov::Exception, testing::HasSubstr("Inkling"));
-    }
+                                     {"expert_weights_scale", -1e39}})
+        expect_rejected(key, value);
     auto metadata = std::get<0>(original);
     metadata.erase("inkling2_loop.attention.qk_clip");
     detail::MetadataStore store{metadata};
@@ -276,18 +269,10 @@ TEST(GGUFInkling, PaddedVocabularyAndIntegerPositionState) {
                                       ov::hint::dynamic_quantization_group_size(0),
                                       ov::inference_num_threads(4))
                        .create_infer_request();
-    ov::Tensor ids(ov::element::i64, {1, 3}), positions(ov::element::i64, {1, 3});
-    ov::Tensor mask(ov::element::i64, {1, 3}), beam(ov::element::i32, {1});
-    for (int i = 0; i < 3; ++i) {
-        ids.data<int64_t>()[i] = i + 1;
-        positions.data<int64_t>()[i] = i;
-        mask.data<int64_t>()[i] = 1;
-    }
-    beam.data<int32_t>()[0] = 0;
-    request.set_tensor("input_ids", ids);
-    request.set_tensor("position_ids", positions);
-    request.set_tensor("attention_mask", mask);
-    request.set_tensor("beam_idx", beam);
+    set_tensor(request, "input_ids", ov::element::i64, {1, 3}, std::vector<int64_t>{1, 2, 3});
+    set_tensor(request, "position_ids", ov::element::i64, {1, 3}, std::vector<int64_t>{0, 1, 2});
+    set_tensor(request, "attention_mask", ov::element::i64, {1, 3}, std::vector<int64_t>{1, 1, 1});
+    set_tensor(request, "beam_idx", ov::element::i32, {1}, std::vector<int32_t>{0});
     request.infer();
     const auto logits = request.get_tensor("logits");
     ASSERT_EQ(logits.get_shape(), (ov::Shape{1, 1, 29}));
@@ -296,7 +281,7 @@ TEST(GGUFInkling, PaddedVocabularyAndIntegerPositionState) {
     for (auto state : request.query_state())
         state.reset();
     const std::vector<int64_t> large_positions{257, 2049, 16777217};
-    std::copy(large_positions.begin(), large_positions.end(), positions.data<int64_t>());
+    set_tensor(request, "position_ids", ov::element::i64, {1, 3}, large_positions);
     request.infer();
     bool found_positions = false;
     for (const auto& state : request.query_state()) {
@@ -527,6 +512,9 @@ TEST(GGUFInkling, GpuPagedAttentionMatchesPackedStatefulDecode) {
 }
 
 TEST(GGUFPagedAttention, Qwen3MoeMatchesLlamaCpu) {
+#if defined(OPENVINO_ARCH_ARM64)
+    GTEST_SKIP() << "ARM64 PagedAttention does not support the FP16 KV caches required by this parity test";
+#endif
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen3moe.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     ov::frontend::gguf::FrontEnd frontend;
@@ -1381,16 +1369,10 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
                           const std::vector<int64_t>& mask,
                           const std::vector<int64_t>& positions,
                           const std::vector<int32_t>& beams) {
-        const auto set_tensor =
-            [&](const char* name, const ov::element::Type& type, const ov::Shape& shape, const auto& values) {
-                ov::Tensor tensor(type, shape);
-                std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
-                request.set_tensor(name, tensor);
-            };
-        set_tensor("input_ids", ov::element::i64, {batch_size, ids.size() / batch_size}, ids);
-        set_tensor("attention_mask", ov::element::i64, {batch_size, mask.size() / batch_size}, mask);
-        set_tensor("position_ids", ov::element::i64, {batch_size, positions.size() / batch_size}, positions);
-        set_tensor("beam_idx", ov::element::i32, {batch_size}, beams);
+        set_tensor(request, "input_ids", ov::element::i64, {batch_size, ids.size() / batch_size}, ids);
+        set_tensor(request, "attention_mask", ov::element::i64, {batch_size, mask.size() / batch_size}, mask);
+        set_tensor(request, "position_ids", ov::element::i64, {batch_size, positions.size() / batch_size}, positions);
+        set_tensor(request, "beam_idx", ov::element::i32, {batch_size}, beams);
         request.infer();
         auto output = request.get_tensor("logits");
         return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());

@@ -142,6 +142,38 @@ class TestUpsample2DAntialias(PytorchLayerTest):
                    precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})
 
 
+class TestUpsample2DConstInput(PytorchLayerTest):
+    # Interpolate on constant data is constant folded by the reference implementation
+    def _prepare_input(self):
+        return (self.random.randn(1, 3, 150, 150),)
+
+    def create_model(self, mode, antialias):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_upsample(torch.nn.Module):
+            def __init__(self, mode, antialias):
+                super().__init__()
+                self.mode = mode
+                self.antialias = antialias
+                self.register_buffer("const", torch.randn(1, 3, 100, 100))
+
+            def forward(self, x):
+                return x + F.interpolate(self.const, 150, mode=self.mode, antialias=self.antialias)
+
+        kind = f"aten::_upsample_{mode}2d_aa" if antialias else f"aten::upsample_{mode}2d"
+        return aten_upsample(mode, antialias), kind
+
+    @pytest.mark.parametrize("mode", ['bilinear', 'bicubic'])
+    @pytest.mark.parametrize("antialias", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_upsample2d_const_input(self, mode, antialias, ie_device, precision, ir_version):
+        self._test(*self.create_model(mode, antialias), ie_device,
+                   precision, ir_version, trace_model=True, freeze_model=False, **{"custom_eps": 1e-3})
+
+
 class TestUpsample3D(PytorchLayerTest):
     def _prepare_input(self):
         return (self.random.randn(1, 3, 100, 100, 100),)

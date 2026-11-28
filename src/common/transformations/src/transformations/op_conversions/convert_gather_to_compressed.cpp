@@ -4,6 +4,7 @@
 
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 
+#include <algorithm>
 #include <memory>
 
 #include "openvino/core/graph_util.hpp"
@@ -21,6 +22,7 @@
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
+using ov::pass::pattern::has_static_shape;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::type_matches;
 using ov::pass::pattern::wrap_type;
@@ -29,6 +31,24 @@ using ov::pass::pattern::op::Or;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
+
+namespace {
+// GatherCompressed computes the scale / zero point index of a weights element as
+// flat_idx / (weights_size / param_size), so each value has to cover a contiguous block of the flattened weights.
+// Multiply / Subtract broadcasting makes every scale / zero point dim 1, equal to the weights dim or (for a weights dim
+// of 1) greater than it, so the parameter shape has to be the leading weights dims followed by ones.
+bool is_blocked_decompression_param(const ov::Shape& weights_shape, ov::Shape param_shape) {
+    if (param_shape.size() > weights_shape.size()) {
+        return false;
+    }
+    param_shape.insert(param_shape.begin(), weights_shape.size() - param_shape.size(), 1);
+    const auto param_it = std::mismatch(param_shape.begin(), param_shape.end(), weights_shape.begin()).first;
+    return std::all_of(param_it, param_shape.end(), [](size_t dim) {
+        return dim == 1;
+    });
+}
+}  // namespace
+
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
     const std::vector<ov::element::Type>& supported_weights_types) {
     auto compressed_constant = ov::pass::pattern::type_matches_any(supported_weights_types) &&
@@ -43,10 +63,10 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
     auto dicts_m = wrap_type<v0::Constant>(compressed_constant);
     auto convert_m = wrap_type<v0::Convert>({dicts_m});
 
-    auto sub_const_m = any_input();  // const or const+convert
+    auto sub_const_m = any_input(has_static_shape());  // const or const+convert
     auto subtract_m = wrap_type<v1::Subtract>({convert_m, sub_const_m});
 
-    auto mul_const_m = any_input();  // const or const+convert
+    auto mul_const_m = any_input(has_static_shape());  // const or const+convert
     auto mul_with_sub_m = wrap_type<v1::Multiply>({subtract_m, mul_const_m});
     auto mul_no_sub_m = wrap_type<v1::Multiply>({convert_m, mul_const_m});
     auto mul_m = std::make_shared<Or>(ov::OutputVector{mul_with_sub_m, mul_no_sub_m});
@@ -69,6 +89,12 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
         ov::Shape dicts_shape = pattern_map.at(dicts_m).get_node_shared_ptr()->get_shape();
         auto gather_node = ov::as_type_ptr<v8::Gather>(pattern_map.at(gather_m).get_node_shared_ptr());
         if (!gather_node || transformation_callback(gather_node)) {
+            return false;
+        }
+
+        if (!is_blocked_decompression_param(dicts_shape, pattern_map.at(mul_const_m).get_shape()) ||
+            (pattern_map.count(subtract_m) &&
+             !is_blocked_decompression_param(dicts_shape, pattern_map.at(sub_const_m).get_shape()))) {
             return false;
         }
 

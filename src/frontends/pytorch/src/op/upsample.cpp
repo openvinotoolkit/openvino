@@ -73,6 +73,9 @@ OutputVector base_translate_upsample(const NodeContext& context,
         }
     }
     attrs.antialias = antialias;
+    if (interpolate_mode == v11::Interpolate::InterpolateMode::BICUBIC_PILLOW) {
+        attrs.cube_coeff = -0.5;
+    }
     return {context.mark_node(std::make_shared<v11::Interpolate>(data, scales_sizes, target_axes, attrs))};
 };
 }  // namespace
