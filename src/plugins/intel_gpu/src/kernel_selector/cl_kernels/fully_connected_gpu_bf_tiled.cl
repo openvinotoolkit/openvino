@@ -183,15 +183,6 @@ KERNEL(quantize_input)(
     #define MAIN_LOOP_ELEMENTS_COUNT  (IFM_SIZE - 1)
 #endif
 
-// Amortize half->float merge over 2 K-tiles (32 K-elements) on larger uncompressed FP16 workloads
-// while keeping small tiles / short reductions at 1 K-tile (16 elements) for maximum precision.
-#if FC_ACC_NEEDS_PROMOTION && !DECOMPRESSION_SCALE_POST_OP && !COMPRESSED_WEIGHTS && !USE_SLM && \
-    (TILE_B >= 8) && (MAIN_LOOP_ELEMENTS_COUNT >= 4 * TILE_IFM * SIMD)
-#define FC_ACC_MERGE_TILES 2
-#else
-#define FC_ACC_MERGE_TILES 1
-#endif
-
 #define INPUT_ELEMENTS_COUNT IFM_SIZE
 
 #if IS_DYNAMIC && COMPRESSED_WEIGHTS_INT4
@@ -438,17 +429,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if !IS_DYNAMIC && BATCH_LEFTOVER && !USE_PER_ROW_INPUT_OFFSET
     const bool is_full_batch_tile = (out_b + TILE_B <= BATCH_SIZE);
 #endif
-#if FC_ACC_MERGE_TILES > 1
-    __attribute__((opencl_unroll_hint(1)))
-    for (uint ni_outer = 0; ni_outer < iterations; ni_outer += FC_ACC_MERGE_TILES) {
-        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
-        const uint ni_end = min(ni_outer + (uint)FC_ACC_MERGE_TILES, iterations);
-        __attribute__((opencl_unroll_hint(1)))
-        for (uint ni = ni_outer; ni < ni_end; ++ni) {
-#else
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
-#endif
         // Load input.
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if USE_PER_ROW_INPUT_OFFSET
@@ -512,9 +494,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-#if FC_ACC_MERGE_TILES == 1
         ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
-#endif
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -780,12 +760,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             }
         }
 #endif
-#if FC_ACC_MERGE_TILES > 1
-        }
-        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-            acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
-        }
-#elif !DECOMPRESSION_SCALE_POST_OP
+#if !DECOMPRESSION_SCALE_POST_OP
         unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
 #if FC_ACC_NEEDS_PROMOTION
             acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
@@ -1885,7 +1860,6 @@ KERNEL(fc)(
 #undef TO_OUTPUT_VEC_TYPE
 #undef TO_ACTIVATION_VEC_TYPE
 #undef FC_ACC_NEEDS_PROMOTION
-#undef FC_ACC_MERGE_TILES
 #undef FC_ACC_TYPE
 #undef FC_ACC_VEC_TYPE
 #undef FC_ACC_VAL_ONE

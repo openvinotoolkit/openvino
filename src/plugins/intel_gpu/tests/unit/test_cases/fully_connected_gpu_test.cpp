@@ -1409,8 +1409,8 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
     // Reproduces FP16 large-K running-sum stagnation/drift in fully_connected_gpu_bf_tiled.
     // First 16 products sum to +/-64.0 (where FP16 1 ULP = 0.0625); each subsequent 16-element tile sums to
     // +/-0.030 (< 0.5 ULP in FP16), which stagnates completely if accumulated in half instead of float.
-    // Exercises batch=1 (TILE_B=1, FC_ACC_MERGE_TILES=1), prime multi-batch=17 (TILE_B=8, dispatch_bsv=3,
-    // BATCH_LEFTOVER, FC_ACC_MERGE_TILES=2), and K=3074 (FC_ACC_MERGE_TILES=2 with K-leftover).
+    // Exercises batch=1 (TILE_B=1), prime multi-batch=17 (TILE_B=8, dispatch_bsv=3, BATCH_LEFTOVER),
+    // and K=3074 (with K-leftover).
     const int feature_num = 1;
     const int input_x = 1;
     const int output_y = 64;
@@ -1479,6 +1479,39 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
                 ASSERT_NEAR(ref_f16, static_cast<float>(output_ptr[idx]), 0.0625f)
                     << "batch_num=" << batch_num << " K=" << input_y << " b=" << b << " ofm=" << ofm;
             }
+        }
+    }
+
+    // Verify each 16-element K-tile is promoted to float individually rather than summed across
+    // multiple K-tiles in half: with rows [-1024 x 32, +2048 x 32] and unit weights, each 16-element
+    // tile is finite (+/-16384 or +32768), whereas merging two tiles in half hits +65536 -> +Inf.
+    {
+        const int batch_num = 8;
+        const int input_y = 64;
+        auto weights_mem = engine.allocate_memory({{output_y, input_y}, data_types::f16, format::bfyx});
+        set_values(weights_mem, std::vector<ov::float16>(static_cast<size_t>(output_y) * input_y, ov::float16(1.0f)));
+
+        auto input_mem = engine.allocate_memory({{batch_num, feature_num, input_y, input_x}, data_types::f16, format::bfyx});
+        std::vector<ov::float16> input_data(static_cast<size_t>(batch_num) * input_y);
+        for (int b = 0; b < batch_num; ++b) {
+            for (int k = 0; k < input_y; ++k) {
+                input_data[static_cast<size_t>(b) * input_y + k] = (k < 32) ? ov::float16(-1024.0f) : ov::float16(2048.0f);
+            }
+        }
+        set_values(input_mem, input_data);
+
+        topology topo(input_layout("input", input_mem->get_layout()),
+                      data("weights", weights_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
+        network net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true));
+        net.set_input_data("input", input_mem);
+        auto out_mem = net.execute().at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+        ASSERT_EQ(out_mem->count(), static_cast<size_t>(batch_num) * output_y);
+        for (size_t i = 0; i < out_mem->count(); ++i) {
+            const float val = static_cast<float>(out_ptr[i]);
+            ASSERT_TRUE(std::isfinite(val)) << "Overflowed to non-finite value at index " << i;
+            ASSERT_NEAR(32768.0f, val, 1.0f) << "index=" << i;
         }
     }
 }

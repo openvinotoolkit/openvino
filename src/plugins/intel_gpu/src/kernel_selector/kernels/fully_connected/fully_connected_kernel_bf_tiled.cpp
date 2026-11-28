@@ -464,7 +464,23 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         }
 
         const auto required_slm_size = tparams.tile_ofm * simd * tparams.tile_ifm * simd * 2;  // 2 bytes per value (FP16 data type)
-        return params.engineInfo.maxLocalMemSize >= required_slm_size;
+        if (params.engineInfo.maxLocalMemSize < required_slm_size) {
+            return false;
+        }
+
+        // Enforce an SLM-aware 128-GRF register budget so promoted FP32 running accumulators
+        // (acc + acc_tmp + input tile + unpacked weights + SLM/decompression temporaries) do not spill.
+        const auto in_dt = params.inputs[0].GetDType();
+        const bool dyn_quantize = should_dynamic_quantize(params);
+        const unsigned in_elem_bytes = dyn_quantize ? BytesPerElement(Datatype::INT8) : BytesPerElement(in_dt);
+        const unsigned acc_tmp_elem_bytes = dyn_quantize ? BytesPerElement(Datatype::INT32) : BytesPerElement(in_dt);
+        const unsigned wei_elem_bytes = dyn_quantize ? BytesPerElement(Datatype::INT8) : BytesPerElement(in_dt);
+        const unsigned slm_register_bytes =
+            tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(Datatype::F32) + tparams.tile_b * tparams.tile_ofm * simd * acc_tmp_elem_bytes +
+            tparams.tile_b * tparams.tile_ifm * simd * in_elem_bytes + tparams.tile_ofm * tparams.tile_k * simd * wei_elem_bytes;
+        // Reserve 24 GRFs of headroom for INT4/SLM unpacking, scales/zero-points, and per-row offsets.
+        constexpr unsigned max_slm_register_bytes = (128 - 24) * 32;
+        return slm_register_bytes <= max_slm_register_bytes;
     }
     if (params.compressed && is_dyn_quantable_type) {
         if (tparams.tile_ofm != 2 && tparams.tile_ofm != 4) {
