@@ -162,6 +162,80 @@ TEST(GGUFWeight, Q8_1KeepsCodesAndScaleBitsForAllWeightNames) {
     }
 }
 
+namespace {
+
+struct WeightLayout {
+    size_t i8_weights = 0;
+    size_t f16_constants = 0;
+    size_t scale_groups = 0;
+};
+
+WeightLayout weight_layout(const std::shared_ptr<ov::Model>& model) {
+    WeightLayout layout;
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (!constant)
+            continue;
+        if (constant->get_element_type() == ov::element::i8) {
+            ++layout.i8_weights;
+        } else if (constant->get_element_type() == ov::element::f16) {
+            ++layout.f16_constants;
+            layout.scale_groups = ov::shape_size(constant->get_shape());
+        }
+    }
+    return layout;
+}
+
+}  // namespace
+
+// GPU GatherMatmul needs scale groups that are multiples of 32 and no fractional zero point, so
+// MoE expert weights in Q6_K (group 16) or Q5_1 (f16 zero point) are re-quantized to Q8_0.
+TEST(GGUFWeight, MoeExpertWeightsRequantizeToQ8_0Groups) {
+    using namespace ov::frontend::gguf;
+    const std::string name = "blk.0.ffn_down_exps.weight";
+    const auto check = [&](const std::shared_ptr<ov::Node>& node, const std::vector<float>& ref) {
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        const auto layout = weight_layout(model);
+        EXPECT_EQ(layout.i8_weights, 1);
+        EXPECT_EQ(layout.f16_constants, 1) << "expected scales only, no zero point";
+        EXPECT_EQ(layout.scale_groups, kRows * kCols / 32);
+
+        const auto out = run_on_cpu(model, {});
+        ASSERT_EQ(out.get_size(), ref.size());
+        float max_diff = 0.f;
+        for (size_t i = 0; i < ref.size(); ++i)
+            max_diff = std::max(max_diff, std::fabs(out.data<float>()[i] - ref[i]));
+        EXPECT_LE(max_diff, kTolRequant);
+    };
+    {
+        SCOPED_TRACE("Q6_K");
+        const auto bytes = load_npy<uint8_t>("q6_k_qbytes");
+        check(make_weight_node(bytes_to_u8_tensor(bytes), "Q6_K", {kRows, kCols}, name), load_npy<float>("q6_k_deq"));
+    }
+    {
+        SCOPED_TRACE("Q5_1");
+        const auto bytes = load_npy<uint8_t>("q5_1_qbytes");
+        GgufTensor tensor;
+        tensor.type = GGUF_TYPE_Q5_1;
+        tensor.bsize = bytes.size();
+        tensor.num_weights = kRows * kCols;
+        tensor.weights_data = bytes.data();
+        WeightTensors extracted{ov::Tensor(ov::element::u8, {kRows, kCols}),
+                                ov::Tensor(ov::element::f16, {kRows, kCols / 32}),
+                                ov::Tensor(gguf_zero_point_type(name, GGUF_TYPE_Q5_1), {kRows, kCols / 32})};
+        ASSERT_EQ(extracted.zero_point.get_element_type(), ov::element::f16);
+        gguf_fill_asym(tensor, extracted.weight, extracted.scales, extracted.zero_point);
+        check(make_weight_node(extracted, GGUF_TYPE_Q5_1, name), load_npy<float>("q5_1_deq"));
+    }
+}
+
+TEST(GGUFWeight, DenseQ6KKeepsGroup16Scales) {
+    const auto bytes = load_npy<uint8_t>("q6_k_qbytes");
+    const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q6_K", {kRows, kCols}, "blk.0.ffn_down.weight");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    EXPECT_EQ(weight_layout(model).scale_groups, kRows * kCols / 16);
+}
+
 TEST(GGUFWeight, Q8_1SuppliedDecoderPreservesHigherRankShape) {
     const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
     const auto reference = load_npy<float>("q8_1_deq");
