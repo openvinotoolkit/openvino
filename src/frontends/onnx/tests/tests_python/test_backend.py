@@ -38,7 +38,6 @@ from tests import (
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
-    xfail_issue_101965,
     xfail_issue_113506,
     xfail_issue_119896,
     skip_issue_119896,
@@ -94,7 +93,16 @@ pytest_plugins = "onnx.backend.test.report",
 """
 
 # import all test cases at global scope to make them visible to python.unittest
-backend_test = onnx.backend.test.BackendTest(OpenVinoTestBackend, __name__)
+backend_test = onnx.backend.test.BackendTest(
+    OpenVinoTestBackend,
+    __name__,
+    # The float32 FFT has small residuals at frequencies where the reference is near zero.
+    test_kwargs={
+        "test_dft": {"atol": 1e-4},
+        "test_dft_axis": {"atol": 1e-4},
+        "test_dft_inverse": {"atol": 1e-4},
+    },
+)
 
 skip_tests_general = [
     # Big model tests (see test_zoo_models.py):
@@ -344,12 +352,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_axes_3_2_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_larger_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_smaller_cpu",
-    ),
-    (
-        xfail_issue_101965,
-        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
-        "OnnxBackendNodeModelTest.test_dft_cpu",
-        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
     ),
     (
         xfail_issue_113506,

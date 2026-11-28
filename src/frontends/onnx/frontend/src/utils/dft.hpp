@@ -10,7 +10,7 @@ namespace ov::frontend::onnx::dft {
 
 ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
                               const ov::Output<ov::Node>& length,
-                              int64_t axis,
+                              const ov::Output<ov::Node>& axes,
                               bool is_inversed,
                               bool is_one_sided);
 }  // namespace ov::frontend::onnx::dft
