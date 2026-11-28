@@ -323,6 +323,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gather_elements_padding_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gather_indices_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/group_convolution.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/log_softmax_underflow.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/prelu_nan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp

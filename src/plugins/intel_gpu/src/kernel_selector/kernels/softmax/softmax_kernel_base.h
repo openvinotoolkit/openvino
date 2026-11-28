@@ -15,6 +15,7 @@ struct softmax_params : public base_params {
     softmax_params() : base_params(KernelType::SOFT_MAX) {}
 
     SoftmaxDim dim = SoftmaxDim::FEATURE;
+    bool log_softmax = false;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();

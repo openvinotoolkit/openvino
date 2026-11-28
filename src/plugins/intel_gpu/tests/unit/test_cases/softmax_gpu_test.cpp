@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#include "openvino/reference/log_softmax.hpp"
 #include "openvino/reference/softmax.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -1371,4 +1372,192 @@ TEST(softmax_gpu_bfyx_f16, items_class_opt_normalize_f) {
 
 TEST(softmax_gpu_bfyx_bf16, items_class_opt_normalize_f) {
     run_softmax_items_class_opt<ov::bfloat16>(2, 64, 1, 1, 1);
+}
+
+// LogSoftmax runs on the softmax primitive with log_softmax = true and must give (x - max) - log(sum(exp(x - max))).
+// The inputs make x - max reach -128, where log(softmax(x)) is -inf: softmax(x) underflows below -17.3 in f16 and
+// below -103 in f32.
+namespace {
+template <typename T>
+float log_softmax_tolerance(float expected) {
+    float rel = 2e-3f;  // f16
+    if (std::is_same_v<T, float>)
+        rel = 1e-4f;
+    else if (std::is_same_v<T, ov::bfloat16>)
+        rel = 1e-2f;
+    return rel * std::max(1.f, std::abs(expected));
+}
+
+template <typename T>
+std::vector<T> generate_log_softmax_input(tests::random_generator& rg, const ov::Shape& shape) {
+    return rg.generate_random_1d<T>(ov::shape_size(shape), -64, 64);
+}
+
+template <typename T>
+void check_log_softmax_output(const std::vector<T>& input_data,
+                              const ov::Shape& shape,
+                              int64_t axis,
+                              const cldnn::memory::ptr& output) {
+    const std::vector<float> input_f32(input_data.begin(), input_data.end());
+    std::vector<float> expected(input_f32.size());
+    ov::reference::log_softmax<float>(input_f32.data(), expected.data(), shape, ov::AxisSet{static_cast<size_t>(axis)});
+    ASSERT_LT(*std::min_element(expected.begin(), expected.end()), -104.f) << "inputs must reach the f32 exp underflow";
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(output_ptr[i])) << "i=" << i << ", expected " << expected[i];
+        ASSERT_NEAR(output_ptr[i], expected[i], log_softmax_tolerance<T>(expected[i])) << "i=" << i;
+    }
+}
+
+template <typename T>
+void run_log_softmax(const std::string& kernel_name,
+                     format::type fmt,
+                     const ov::Shape& shape,
+                     int64_t axis,
+                     bool is_dynamic,
+                     bool is_caching_test = false) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    const auto data_type = ov::element::from<T>();
+    const auto in_layout = layout{ov::PartialShape(shape), data_type, format::bfyx};
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+    ov::intel_gpu::ImplementationDesc impl_desc = {fmt, kernel_name};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"log_softmax", impl_desc}}));
+
+    topology topology;
+    topology.add(input_layout("input", is_dynamic ? layout{ov::PartialShape::dynamic(shape.size()), data_type, format::bfyx} : in_layout));
+    topology.add(reorder("input_reordered", input_info("input"), fmt, data_type));
+    topology.add(softmax("log_softmax", input_info("input_reordered"), axis, true));
+    topology.add(reorder("output", input_info("log_softmax"), format::bfyx, data_types::f32));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    const auto input_data = generate_log_softmax_input<T>(rg, shape);
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input_data);
+    network->set_input_data("input", input_mem);
+    auto outputs = network->execute();
+
+    // A plain f32 output reorder is fused into the softmax, which then takes the "output" id: find the kernel by name
+    std::string softmax_kernel;
+    for (const auto& info : network->get_primitives_info()) {
+        if (info.kernel_id.find("softmax") != std::string::npos)
+            softmax_kernel = info.kernel_id;
+    }
+    ASSERT_NE(softmax_kernel.find(kernel_name), std::string::npos) << softmax_kernel;
+
+    check_log_softmax_output(input_data, shape, axis, outputs.at("output").get_memory());
+}
+}  // namespace
+
+// Quartznet decoder logprobs: LogSoftmax over the last axis of a [1, 64, 29] tensor in f16 (CVS-43422)
+TEST(log_softmax_gpu_f16, bf_axis_y) {
+    run_log_softmax<ov::float16>("softmax_gpu_bf", format::bfyx, {1, 64, 29}, 2, false);
+}
+
+TEST(log_softmax_gpu_f16, bf_axis_y_dynamic) {
+    run_log_softmax<ov::float16>("softmax_gpu_bf", format::bfyx, {2, 64, 29}, 2, true);
+}
+
+// The data set does not fit the private array of the dynamic kernel, the output buffer keeps the intermediate values
+TEST(log_softmax_gpu_f16, bf_use_output_buffer_dynamic) {
+    run_log_softmax<ov::float16>("softmax_gpu_bf", format::bfyx, {1, 1, 1, 40000}, 3, true);
+}
+
+TEST(log_softmax_gpu_f16, ref_b_fs_yx_fsv16_axis_f) {
+    run_log_softmax<ov::float16>("softmax_gpu_ref", format::b_fs_yx_fsv16, {2, 48, 3, 2}, 1, false);
+}
+
+TEST(log_softmax_gpu_f16, ref_axis_f_dynamic) {
+    run_log_softmax<ov::float16>("softmax_gpu_ref", format::bfyx, {2, 48, 3, 2}, 1, true);
+}
+
+TEST(log_softmax_gpu_f16, items_class_optimized_axis_f) {
+    run_log_softmax<ov::float16>("softmax_gpu_items_class_optimized", format::bfyx, {2, 70, 3, 2}, 1, false);
+}
+
+TEST(log_softmax_gpu_f16, fb_yxfb_axis_f) {
+    run_log_softmax<ov::float16>("softmax_gpu_fb", format::yxfb, {8, 100, 1, 1}, 1, false);
+}
+
+TEST(log_softmax_gpu_f32, bf_axis_y) {
+    run_log_softmax<float>("softmax_gpu_bf", format::bfyx, {1, 64, 29}, 2, false);
+}
+
+TEST(log_softmax_gpu_f32, ref_b_fs_yx_fsv16_axis_f) {
+    run_log_softmax<float>("softmax_gpu_ref", format::b_fs_yx_fsv16, {2, 48, 3, 2}, 1, false);
+}
+
+TEST(log_softmax_gpu_f32, items_class_optimized_axis_f) {
+    run_log_softmax<float>("softmax_gpu_items_class_optimized", format::bfyx, {2, 70, 3, 2}, 1, false);
+}
+
+TEST(log_softmax_gpu_f32, fb_yxfb_axis_f) {
+    run_log_softmax<float>("softmax_gpu_fb", format::yxfb, {8, 100, 1, 1}, 1, false);
+}
+
+TEST(log_softmax_gpu_bf16, bf_axis_y) {
+    run_log_softmax<ov::bfloat16>("softmax_gpu_bf", format::bfyx, {1, 64, 29}, 2, false);
+}
+
+TEST(log_softmax_gpu_f16, bf_axis_y_cached) {
+    run_log_softmax<ov::float16>("softmax_gpu_bf", format::bfyx, {1, 64, 29}, 2, false, true);
+}
+
+TEST(log_softmax_gpu_f16, bf_axis_y_dynamic_cached) {
+    run_log_softmax<ov::float16>("softmax_gpu_bf", format::bfyx, {2, 64, 29}, 2, true, true);
+}
+
+// Softmax and LogSoftmax primitives that differ only in log_softmax must not share an implementation
+TEST(log_softmax_gpu_f16, softmax_and_log_softmax_same_input_dynamic) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    const ov::Shape shape{2, 64, 29};
+    const int64_t axis = 2;
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(shape.size()), data_types::f16, format::bfyx}));
+    topology.add(softmax("softmax", input_info("input"), axis));
+    topology.add(softmax("log_softmax", input_info("input"), axis, true));
+    topology.add(reorder("softmax_output", input_info("softmax"), format::bfyx, data_types::f32));
+    topology.add(reorder("log_softmax_output", input_info("log_softmax"), format::bfyx, data_types::f32));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    const auto input_data = generate_log_softmax_input<ov::float16>(rg, shape);
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f16, format::bfyx});
+    set_values(input_mem, input_data);
+    network->set_input_data("input", input_mem);
+    auto outputs = network->execute();
+
+    check_log_softmax_output(input_data, shape, axis, outputs.at("log_softmax_output").get_memory());
+
+    const std::vector<float> input_f32(input_data.begin(), input_data.end());
+    std::vector<float> expected_softmax(input_f32.size());
+    ov::reference::softmax<float>(input_f32.data(), expected_softmax.data(), shape, ov::AxisSet{static_cast<size_t>(axis)});
+    cldnn::mem_lock<float, mem_lock_type::read> softmax_ptr(outputs.at("softmax_output").get_memory(), get_test_stream());
+    ASSERT_EQ(softmax_ptr.size(), expected_softmax.size());
+    for (size_t i = 0; i < expected_softmax.size(); ++i) {
+        ASSERT_NEAR(softmax_ptr[i], expected_softmax[i], 1e-3f) << "i=" << i;
+    }
+}
+
+// The log_softmax flag has to take part in both the hash and the comparison: a Softmax and a
+// LogSoftmax over the same input and axis are different operations. Checking them separately pins
+// each half, since a hash difference alone hides a missing comparison and vice versa.
+TEST(softmax_gpu_hash, log_softmax_flag_is_part_of_hash_and_comparison) {
+    const cldnn::softmax sm("id", input_info("input"), 1);
+    const cldnn::softmax lsm("id", input_info("input"), 1, true);
+    EXPECT_NE(sm.hash(), lsm.hash());
+    EXPECT_FALSE(sm == lsm);
+    EXPECT_TRUE(sm == cldnn::softmax("id", input_info("input"), 1));
+    EXPECT_TRUE(lsm == cldnn::softmax("id", input_info("input"), 1, true));
 }

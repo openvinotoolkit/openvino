@@ -37,6 +37,14 @@
 
 #endif
 
+// LogSoftmax keeps x instead of exp(x - max) and writes (x - max) - log(sum(exp(x - max))).
+// log(softmax(x)) would give -inf as soon as softmax(x) underflows, e.g. for x - max < -17.3 in f16.
+#if LOG_SOFTMAX
+#define SOFTMAX_RESULT(val) ((val) - my_maximum - my_log_sum)
+#else
+#define SOFTMAX_RESULT(val) ((val) / my_sum)
+#endif
+
 #if !IS_DYNAMIC
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 #endif
@@ -175,14 +183,18 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     {
         INPUT0_COMPUTE_TYPE tmp = native_exp(my_chunk[j] - my_maximum);
         my_sum += tmp;
+#if !LOG_SOFTMAX
         my_chunk[j] = tmp;
+#endif
     }
 
     if (in_data_set_idx < aligned_offset)
     {
         INPUT0_COMPUTE_TYPE tmp = native_exp(my_chunk[num_iters] - my_maximum);
         my_sum += tmp;
+#if !LOG_SOFTMAX
         my_chunk[num_iters] = tmp;
+#endif
 
         num_iters++;
     }
@@ -191,7 +203,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     {
         INPUT0_COMPUTE_TYPE tmp = native_exp(my_chunk[num_iters] - my_maximum);
         my_sum += tmp;
+#if !LOG_SOFTMAX
         my_chunk[num_iters] = tmp;
+#endif
     }
 
 #if !IS_DYNAMIC
@@ -202,6 +216,10 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     #endif
 #else
     my_sum = work_group_reduce_add(my_sum);
+#endif
+
+#if LOG_SOFTMAX
+    const INPUT0_COMPUTE_TYPE my_log_sum = log(my_sum);
 #endif
 
     // Write outputs
@@ -215,7 +233,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_OUT_TYPE_OPT vec_tmp;
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++) {
-                ACTIVATION_TYPE dequantized = my_chunk[output_idx + j] / my_sum;
+                ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx + j]);
                 FUSED_OPS_MAIN;
                 vec_tmp[j] = FUSED_OPS_RESULT_MAIN;
             }
@@ -225,7 +243,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         for (; output_idx<items_num; output_idx++)
         {
             BLOCK_OUT_TYPE vec_tmp;
-            ACTIVATION_TYPE dequantized = my_chunk[output_idx] / my_sum;
+            ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx]);
             FUSED_OPS_MAIN;
             vec_tmp = FUSED_OPS_RESULT_MAIN;
             BLOCK_WRITE(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
@@ -238,13 +256,13 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_OUT_TYPE vec_tmp;
 #if SUBGROUP_BLOCK_SIZE == 1
-            ACTIVATION_TYPE dequantized = my_chunk[output_idx] / my_sum;
+            ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx]);
             FUSED_OPS_MAIN;
             vec_tmp = FUSED_OPS_RESULT_MAIN;
 #else
             for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
-                ACTIVATION_TYPE dequantized = my_chunk[output_idx + j] / my_sum;
+                ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx + j]);
                 FUSED_OPS_MAIN;
                 vec_tmp[j] = FUSED_OPS_RESULT_MAIN;
             }
@@ -255,21 +273,21 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 #endif
     for (; output_idx < items_num; output_idx++)
     {
-        ACTIVATION_TYPE dequantized = my_chunk[output_idx] / my_sum;
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx]);
         FUSED_OPS_MAIN;
         output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
     }
 
     if (in_data_set_idx < aligned_offset)
     {
-        ACTIVATION_TYPE dequantized = my_chunk[output_idx++] / my_sum;
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx++]);
         FUSED_OPS_LEFTOVERS;
         output[data_set_offset + in_data_set_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
-        ACTIVATION_TYPE dequantized = my_chunk[output_idx++] / my_sum;
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(my_chunk[output_idx++]);
         FUSED_OPS_LEFTOVERS;
         output[leftover_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
@@ -282,7 +300,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_OUT_TYPE_OPT vec_tmp;
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++){
-                vec_tmp[j] = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx + j] / my_sum, ACTIVATION_PARAMS));
+                vec_tmp[j] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx + j]), ACTIVATION_PARAMS));
             }
             BLOCK_WRITE_OPT(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
         }
@@ -290,7 +308,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         for (; output_idx < items_num; output_idx++)
         {
             BLOCK_OUT_TYPE vec_tmp;
-            vec_tmp = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx] / my_sum, ACTIVATION_PARAMS));
+            vec_tmp = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx]), ACTIVATION_PARAMS));
             BLOCK_WRITE(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
         }
     }
@@ -301,10 +319,10 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_OUT_TYPE vec_tmp;
 #if SUBGROUP_BLOCK_SIZE == 1
-            vec_tmp = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx] / my_sum, ACTIVATION_PARAMS));
+            vec_tmp = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx]), ACTIVATION_PARAMS));
 #else
             for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
-                vec_tmp[j] = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx + j] / my_sum, ACTIVATION_PARAMS));
+                vec_tmp[j] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx + j]), ACTIVATION_PARAMS));
 #endif
             BLOCK_WRITE(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
         }
@@ -312,15 +330,15 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 #endif
     for (; output_idx < items_num; output_idx++)
     {
-        output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx] / my_sum, ACTIVATION_PARAMS));
+        output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx]), ACTIVATION_PARAMS));
     }
 
     if (in_data_set_idx < aligned_offset) {
-        output[data_set_offset + in_data_set_idx] = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx++] / my_sum, ACTIVATION_PARAMS));
+        output[data_set_offset + in_data_set_idx] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx++]), ACTIVATION_PARAMS));
     }
 
     if (in_data_set_idx < actual_leftovers) {
-        output[leftover_idx] = TO_OUTPUT_TYPE(ACTIVATION(my_chunk[output_idx++] / my_sum, ACTIVATION_PARAMS));
+        output[leftover_idx] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(my_chunk[output_idx++]), ACTIVATION_PARAMS));
     }
 #endif
 #if IS_DYNAMIC
@@ -382,19 +400,25 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     for (uint j=0; j<num_iters; ++j) {
         INPUT0_COMPUTE_TYPE tmp = native_exp(TO_INPUT0_COMPUTE_TYPE(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + j * get_sub_group_size()])) - my_maximum);
         my_sum += tmp;
+#if !LOG_SOFTMAX
         output[aligned_data_offset + get_sub_group_local_id() + j * get_sub_group_size()] = TO_OUTPUT_TYPE(tmp);
+#endif
     }
 
     if (in_data_set_idx < aligned_offset) {
         INPUT0_COMPUTE_TYPE tmp = native_exp(TO_INPUT0_COMPUTE_TYPE(DECODE_OUTPUT_COMPUTE_TYPE(output[data_set_offset + in_data_set_idx])) - my_maximum);
         my_sum += tmp;
+#if !LOG_SOFTMAX
         output[data_set_offset + in_data_set_idx] = TO_OUTPUT_TYPE(tmp);
+#endif
     }
 
     if (in_data_set_idx < actual_leftovers) {
         INPUT0_COMPUTE_TYPE tmp = native_exp(TO_INPUT0_COMPUTE_TYPE(DECODE_OUTPUT_COMPUTE_TYPE(output[leftover_idx])) - my_maximum);
         my_sum += tmp;
+#if !LOG_SOFTMAX
         output[leftover_idx] = TO_OUTPUT_TYPE(tmp);
+#endif
     }
 
 #if !IS_DYNAMIC
@@ -407,6 +431,10 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     my_sum = work_group_reduce_add(my_sum);
 #endif
 
+#if LOG_SOFTMAX
+    const INPUT0_COMPUTE_TYPE my_log_sum = log(my_sum);
+#endif
+
     // Write outputs
     uint output_idx = 0;
 #if HAS_FUSED_OPS
@@ -417,7 +445,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_OUT_TYPE_OPT vec_tmp;
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++) {
-                ACTIVATION_TYPE dequantized = DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + (output_idx + j) * get_sub_group_size()]) / my_sum;
+                ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + (output_idx + j) * get_sub_group_size()]));
                 FUSED_OPS_MAIN;
                 vec_tmp[j] = FUSED_OPS_RESULT_MAIN;
             }
@@ -427,7 +455,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         for (; output_idx<items_num; output_idx++)
         {
             BLOCK_OUT_TYPE vec_tmp;
-            ACTIVATION_TYPE dequantized = DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]) / my_sum;
+            ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]));
             FUSED_OPS_MAIN;
             vec_tmp = FUSED_OPS_RESULT_MAIN;
             BLOCK_WRITE(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
@@ -436,21 +464,21 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     for (; output_idx < items_num; output_idx++)
     {
-        ACTIVATION_TYPE dequantized = DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]) / my_sum;
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]));
         FUSED_OPS_MAIN;
         output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
     }
 
     if (in_data_set_idx < aligned_offset)
     {
-        ACTIVATION_TYPE dequantized = DECODE_OUTPUT_COMPUTE_TYPE(output[data_set_offset + in_data_set_idx]) / my_sum;
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[data_set_offset + in_data_set_idx]));
         FUSED_OPS_LEFTOVERS;
         output[data_set_offset + in_data_set_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
-        ACTIVATION_TYPE dequantized = DECODE_OUTPUT_COMPUTE_TYPE(output[leftover_idx]) / my_sum;
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[leftover_idx]));
         FUSED_OPS_LEFTOVERS;
         output[leftover_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
@@ -462,7 +490,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_OUT_TYPE_OPT vec_tmp;
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++){
-                vec_tmp[j] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + (output_idx + j) * get_sub_group_size()]) / my_sum, ACTIVATION_PARAMS));
+                vec_tmp[j] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + (output_idx + j) * get_sub_group_size()])), ACTIVATION_PARAMS));
             }
             BLOCK_WRITE_OPT(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
         }
@@ -470,7 +498,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         for (; output_idx < items_num; output_idx++)
         {
             BLOCK_OUT_TYPE vec_tmp;
-            vec_tmp = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]) / my_sum, ACTIVATION_PARAMS));
+            vec_tmp = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()])), ACTIVATION_PARAMS));
             BLOCK_WRITE(output, aligned_data_offset + output_idx * get_sub_group_size(), vec_tmp);
         }
     }
@@ -478,15 +506,15 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     for (; output_idx < items_num; output_idx++)
     {
         output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]
-        = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()]) / my_sum, ACTIVATION_PARAMS));
+        = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()])), ACTIVATION_PARAMS));
     }
 
     if (in_data_set_idx < aligned_offset) {
-        output[data_set_offset + in_data_set_idx] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(output[data_set_offset + in_data_set_idx]) / my_sum, ACTIVATION_PARAMS));
+        output[data_set_offset + in_data_set_idx] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[data_set_offset + in_data_set_idx])), ACTIVATION_PARAMS));
     }
 
     if (in_data_set_idx < actual_leftovers) {
-        output[leftover_idx] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(output[leftover_idx]) / my_sum, ACTIVATION_PARAMS));
+        output[leftover_idx] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(DECODE_OUTPUT_COMPUTE_TYPE(output[leftover_idx])), ACTIVATION_PARAMS));
     }
 #endif
     }
@@ -500,3 +528,4 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 #undef BLOCK_WRITE_OPT
 #undef BLOCK_IN_TYPE_OPT
 #undef BLOCK_OUT_TYPE_OPT
+#undef SOFTMAX_RESULT

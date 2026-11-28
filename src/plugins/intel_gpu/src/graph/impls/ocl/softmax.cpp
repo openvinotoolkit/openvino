@@ -63,6 +63,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
 
         size_t rank = impl_param.get_output_layout().get_rank();
         params.dim = get_softmax_dim(primitive->dimension, rank);
+        params.log_softmax = primitive->log_softmax;
 
         return params;
     }

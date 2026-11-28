@@ -27,6 +27,14 @@ INPUT0_COMPUTE_TYPE FUNC(find_max_value)(__local INPUT0_COMPUTE_TYPE* partial_ma
     return partial_max[batch_offset];
 }
 
+// LogSoftmax writes (x - max) - log(sum(exp(x - max))), x is read from the input again.
+// log(softmax(x)) would give -inf as soon as softmax(x) underflows, e.g. for x - max < -17.3 in f16.
+#if LOG_SOFTMAX
+#define SOFTMAX_RESULT(i) (DECODE_INPUT0_COMPUTE_TYPE(input[LWS * (i) + global_id]) - max_value - log_sum)
+#else
+#define SOFTMAX_RESULT(i) (tmp_vals[i] / partial_acc[batch_offset])
+#endif
+
 KERNEL (softmax_gpu_continuous_yxfb)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -68,25 +76,30 @@ KERNEL (softmax_gpu_continuous_yxfb)(
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+#if LOG_SOFTMAX
+    const INPUT0_COMPUTE_TYPE log_sum = log(partial_acc[batch_offset]);
+#endif
 #if HAS_FUSED_OPS
     for(int i = 0; i < ITEMS_NUM; i++)
     {
-        ACTIVATION_TYPE dequantized = tmp_vals[i] / partial_acc[batch_offset];
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(i);
         FUSED_OPS_MAIN;
         output[LWS * i + global_id] = FUSED_OPS_RESULT_MAIN;
     }
     if(global_id < LEFTOVERS)
     {
-        ACTIVATION_TYPE dequantized = tmp_vals[ITEMS_NUM] / partial_acc[batch_offset];
+        ACTIVATION_TYPE dequantized = SOFTMAX_RESULT(ITEMS_NUM);
         FUSED_OPS_LEFTOVERS;
         output[LWS * ITEMS_NUM + global_id] = FUSED_OPS_RESULT_LEFTOVERS;
     }
 #else
     for(int i = 0; i < ITEMS_NUM; i++)
     {
-        output[LWS * i + global_id] = TO_OUTPUT_TYPE(ACTIVATION(tmp_vals[i] / partial_acc[batch_offset], ACTIVATION_PARAMS));
+        output[LWS * i + global_id] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(i), ACTIVATION_PARAMS));
     }
     if(global_id < LEFTOVERS)
-        output[LWS * ITEMS_NUM + global_id] = TO_OUTPUT_TYPE(ACTIVATION(tmp_vals[ITEMS_NUM] / partial_acc[batch_offset], ACTIVATION_PARAMS));
+        output[LWS * ITEMS_NUM + global_id] = TO_OUTPUT_TYPE(ACTIVATION(SOFTMAX_RESULT(ITEMS_NUM), ACTIVATION_PARAMS));
 #endif
 }
+
+#undef SOFTMAX_RESULT
