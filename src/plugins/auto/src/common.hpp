@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <tuple>
 
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -42,6 +43,33 @@ using Pipeline = std::vector<Stage>;
 
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
+
+// Identifies one compiled model owned by AUTO. The startup helper is a second model on the CPU, compiled with a
+// latency config and without cache, so it is a different instance than the CPU model that serves as a device.
+struct ModelInstanceKey {
+    enum class Profile { Main, StartupHelper };
+    ModelInstanceKey(DeviceName device_name = {}, Profile instance_profile = Profile::Main)
+        : device(std::move(device_name)),
+          profile(instance_profile) {}
+    ModelInstanceKey(const char* device_name) : ModelInstanceKey(DeviceName(device_name)) {}
+    bool is_startup_helper() const {
+        return profile == Profile::StartupHelper;
+    }
+    std::string to_string() const {
+        return is_startup_helper() ? device + "(startup helper)" : device;
+    }
+    bool operator==(const ModelInstanceKey& other) const {
+        return device == other.device && profile == other.profile;
+    }
+    bool operator!=(const ModelInstanceKey& other) const {
+        return !(*this == other);
+    }
+    bool operator<(const ModelInstanceKey& other) const {
+        return std::tie(device, profile) < std::tie(other.device, other.profile);
+    }
+    DeviceName device;
+    Profile profile;
+};
 // Bell to do, check if needed, or just use immediate exectutor is enough
 struct AutoImmediateExecutor : public ov::threading::ITaskExecutor {
 public:
@@ -72,6 +100,8 @@ struct WorkerInferRequest {
     AutoImmediateExecutor::Ptr    m_fallback_exec;
     // the request could not be started, so its completion callback will never hand this worker back
     bool                          m_dispatch_failed = false;
+    // served by the CPU helper, which is released while its requests are still alive
+    bool                          m_is_cpu_helper = false;
 };
 
 // flags the worker as not dispatched unless dismissed, i.e. when its scope is left by an exception
@@ -168,53 +198,10 @@ struct deviceChecker {
         }
 };
 
-using NotBusyPriorityWorkerRequests = ov::threading::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
-using NotBusyWorkerRequests = ov::threading::ThreadSafeBoundedQueue<WorkerInferRequest*>;
 using TaskQueue = ov::threading::ThreadSafeQueue<ov::threading::Task>;
 
-template <typename T>
-struct IdleGuard {};
-template<>
-struct IdleGuard<NotBusyWorkerRequests> {
-    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyWorkerRequests& not_busy_worker_requests) :
-        m_worker_inferrequest_ptr{worker_inferrequest_ptr},
-        m_not_busy_worker_requests{&not_busy_worker_requests} {
-    }
-    ~IdleGuard() {
-        if (nullptr != m_not_busy_worker_requests) {
-            m_not_busy_worker_requests->try_push(m_worker_inferrequest_ptr);
-        }
-    }
-    NotBusyWorkerRequests* release() {
-        auto not_busy_worker_requests = m_not_busy_worker_requests;
-        m_not_busy_worker_requests = nullptr;
-        return not_busy_worker_requests;
-    }
-    WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
-    NotBusyWorkerRequests*  m_not_busy_worker_requests = nullptr;
-};
-
-template<>
-struct IdleGuard<NotBusyPriorityWorkerRequests> {
-    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyPriorityWorkerRequests& not_busy_worker_requests) :
-        m_worker_inferrequest_ptr{worker_inferrequest_ptr},
-        m_not_busy_worker_requests{&not_busy_worker_requests} {
-    }
-    ~IdleGuard() {
-        if (nullptr != m_not_busy_worker_requests) {
-            m_not_busy_worker_requests->try_push(std::make_pair(m_worker_inferrequest_ptr->m_index, m_worker_inferrequest_ptr));
-        }
-    }
-    NotBusyPriorityWorkerRequests* release() {
-        auto not_busy_worker_requests_queue = m_not_busy_worker_requests;
-        m_not_busy_worker_requests = nullptr;
-        return not_busy_worker_requests_queue;
-    }
-    WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
-    NotBusyPriorityWorkerRequests*  m_not_busy_worker_requests = nullptr;
-};
-
 class Plugin;
+class DeviceExecutionContext;
 
 // Selection-policy inputs consumed by Plugin::select_device: a hard filter (utilization thresholds)
 // applied first, then a ranking (performance curves) applied to the survivors.
@@ -223,6 +210,17 @@ struct DeviceSelectionPolicy {
     ov::intel_auto::PerfCurveTable            perf_curve_table;
     // per inference selection takes no part in the model priority arbitration, so it reserves nothing
     bool                                      reserve_device = true;
+};
+
+// What the queries of the AUTO compiled model need from the first compiled model, taken once so that no compiled model
+// is held outside of its DeviceExecutionContext.
+struct CompiledModelMetadata {
+    std::vector<ov::Output<const ov::Node>> inputs;
+    std::vector<ov::Output<const ov::Node>> outputs;
+    ov::SoPtr<ov::IRemoteContext> context;
+    // keeps the device plugin library loaded for the ports
+    std::shared_ptr<void> so;
+    std::string model_name;
 };
 
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
@@ -249,7 +247,7 @@ public:
     ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;
     std::mutex                                     m_mutex;
     std::mutex                                     m_fallback_mutex;
-    SoCompiledModel                                m_hw_compiled_model;
+    std::shared_ptr<const CompiledModelMetadata>   m_hw_metadata;
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
     std::optional<DeviceInformation>               m_low_power_device;
@@ -263,25 +261,47 @@ public:
     virtual ~ScheduleContext() = default;
 };
 
-struct AutoCompileContext {
-    std::atomic<bool> m_is_enabled = {false};
-    std::atomic<bool> m_is_already = {false};
-    std::atomic<bool> m_is_load_success = {false};
-    std::atomic<bool> m_is_reload_success = {false};
-    std::future<void> m_future;
-    std::promise<void> m_promise;
-    SoCompiledModel m_compiled_model;
+// Input of a compilation. The device is updated in place when the compilation falls back to another candidate, and
+// the candidates that failed are removed from m_meta_devices.
+struct CompileRequest {
     DeviceInformation  m_device_info;
     std::vector<DeviceInformation> m_meta_devices;
     std::string m_model_precision;
-    std::string m_err_message;
-    ov::threading::Task m_task;
-    std::string m_worker_name = "";
+    ModelInstanceKey::Profile m_profile = ModelInstanceKey::Profile::Main;
     // the priority registration of m_device_info has already been dropped by the caller
     bool m_priority_released = false;
+    // the instance the compilation result goes to; follows m_device_info when the compilation falls back
+    ModelInstanceKey instance_key() const {
+        return {m_device_info.device_name, m_profile};
+    }
 };
 
-enum AutoCompileContextIndex {
+// Outcome of a compilation. A success without a model means the device already had a ready instance to reuse.
+struct CompileResult {
+    SoCompiledModel m_compiled_model;
+    bool m_succeeded = false;
+    // the failure of every device that was tried, in order
+    std::string m_error;
+};
+
+// One role of the AUTO schedule (startup helper, actual device or runtime fallback device).
+struct RoleSlot {
+    CompileRequest request;
+    std::atomic<bool> m_is_enabled = {false};
+    std::future<void> m_future;
+    std::promise<void> m_promise;
+    // the instance that plays the role, null while it is not compiled, failed, or replaced by another role;
+    // the contexts of a schedule are never destroyed before it, so the pointer stays valid
+    std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
+    std::string m_err_message;
+    ov::threading::Task m_task;
+    // the role is played by an instance that holds a compiled model
+    bool is_ready() const;
+    // the compiled model of the instance, empty unless it is ready
+    SoCompiledModel compiled_model() const;
+};
+
+enum ExecutionRole {
     CPU = 0,
     ACTUALDEVICE = 1,
     FALLBACKDEVICE = 2,

@@ -12,14 +12,18 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_schedule.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_warmup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compile_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/device_execution_context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/instance_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/schedule_policies.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/device_telemetry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/log.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/time_utils.cpp)

@@ -15,7 +15,7 @@ class CumuSchedule : public Schedule {
 public:
     using Ptr = std::shared_ptr<CumuSchedule>;
     virtual ~CumuSchedule();
-    std::unique_ptr<AutoCompileContext[]>      m_p_ctput_loadcontext = nullptr;
+    std::unique_ptr<RoleSlot[]>                m_p_ctput_loadcontext = nullptr;
     size_t                                  m_n_ctput_devicenums = 0;
     size_t                                  m_n_ctput_schedule_next_device = 0;
     std::string schedule_to_next_device(const std::vector<DeviceInformation>& devices,
@@ -24,8 +24,8 @@ private:
     void init() override;
     SoCompiledModel wait_first_compiled_model_ready() override;
     bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") override;
-    void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
-    bool select_other_device(const std::string& cur_dev_name) override;
+    CompileResult try_to_compile_model(CompileRequest& request, const std::shared_ptr<ov::Model>& model) override;
+    bool select_other_device(const ModelInstanceKey& failed_instance) override;
 };
 } // namespace auto_plugin
 } // namespace ov

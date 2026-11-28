@@ -15,6 +15,7 @@ void Schedule::launch(const ScheduleContext::Ptr& context) {
     m_context = context;
     m_log_tag = context->m_log_tag;
     m_plugin = std::const_pointer_cast<Plugin>(std::dynamic_pointer_cast<const Plugin>(context->m_plugin));
+    m_compile_service = std::make_unique<CompileService>(context->m_ov_core, context->m_model_path, m_log_tag);
     LOG_INFO_TAG("scheduler starting");
     init();
 }
@@ -27,22 +28,29 @@ ISyncInferPtr Schedule::create_sync_infer_request() {
     if (m_context->m_bind_buffer) {
         size_t sum = 0;
         for (const auto& device : m_context->m_device_priorities_initial) {
-            auto& dev_requests = m_worker_requests[device.device_name];
-            if ((request_id - sum) <  dev_requests.size()) {
-                request_to_share_tensors_with = dev_requests.at(request_id - sum).m_inferrequest;
+            const auto context = find_device_context(device.device_name);
+            if (!context) {
+                continue;
+            }
+            auto& pool = context->pool();
+            const auto pool_size = pool.size();
+            if ((request_id - sum) < pool_size) {
+                auto* worker = &pool.worker(request_id - sum);
+                request_to_share_tensors_with = worker->m_inferrequest;
                 INFO_RUN([&]() {
                     std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
-                    m_dev_infer.insert(std::make_pair(request_to_share_tensors_with._ptr, &dev_requests.at(request_id - sum)));
+                    m_dev_infer.insert(std::make_pair(request_to_share_tensors_with._ptr, worker));
                 });
                 break;
             }
-            sum += dev_requests.size();
+            sum += pool_size;
         }
         if (!request_to_share_tensors_with) {
             OPENVINO_THROW("binder mode does not allow oversubsciption of infer requests, please use optimal infer request");
         }
-    } else if (m_passthrough_compiled_model) {
-        request_to_share_tensors_with = {m_passthrough_compiled_model->create_infer_request(), m_passthrough_compiled_model._so};
+    } else if (m_passthrough_context) {
+        const auto& passthrough_model = m_passthrough_context->compiled_model();
+        request_to_share_tensors_with = {passthrough_model->create_infer_request(), passthrough_model._so};
     }
     return std::make_shared<InferRequest>(
         std::static_pointer_cast<const CompiledModel>(compiled_model), request_to_share_tensors_with);
@@ -52,67 +60,116 @@ void Schedule::run(ov::threading::Task pipeline_task) {
     schedule_to_worker_infer_request(std::move(pipeline_task), m_this_preferred_device_name);
 }
 
-bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
-    NotBusyPriorityWorkerRequests& idle_workerrequests,
-    const DeviceName& preferred_device) {
-    WorkerInferRequest* worker_request_ptr = nullptr;
-    std::pair<int, WorkerInferRequest*> worker;
-    if (idle_workerrequests.try_pop(worker)) {
-        worker_request_ptr = worker.second;
-        IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
-        m_this_worker_infer_request = worker_request_ptr;
-        {
-            auto captured_task = std::move(pipeline_task);
-            captured_task();
-        }
-        idle_guard.release();
-        return true;
+bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task, WorkerPool& pool) {
+    auto lease = pool.try_acquire();
+    if (!lease) {
+        return false;
     }
-    return false;
+    m_this_worker_infer_request = lease.get();
+    {
+        auto captured_task = std::move(pipeline_task);
+        captured_task();
+    }
+    // the inference has been started, its completion callback gives the worker back
+    lease.detach();
+    return true;
 }
 
-void Schedule::generate_workers(const std::string& device, const SoCompiledModel& compiled_model) {
-    std::string real_devicename;
-    if (device == "CPU_HELP") {
-        real_devicename = "CPU";
-    } else {
-        real_devicename = device;
-    }
-    auto it_numrequests = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(real_devicename, m_context->m_device_priorities, true);
-    unsigned int optimal_num = 0;
+void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) {
+    auto metadata = std::make_shared<CompiledModelMetadata>();
+    metadata->inputs = first_compiled_model->inputs();
+    metadata->outputs = first_compiled_model->outputs();
+    metadata->so = first_compiled_model._so;
     try {
-        optimal_num = compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
-    } catch (const ov::Exception& iie) {
-        OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
-                    iie.what());
+        metadata->model_name = first_compiled_model->get_property(ov::model_name.name()).as<std::string>();
+    } catch (const ov::Exception&) {
+        LOG_DEBUG_TAG("underlying hardware does not report the model name");
     }
-    auto num_requests =
-        (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
-            ? optimal_num
-            : it_numrequests->num_requests_per_devices;
+    try {
+        metadata->context = first_compiled_model->get_context();
+        if (!metadata->context._so) {
+            metadata->context._so = first_compiled_model._so;
+        }
+    } catch (ov::NotImplemented&) {
+        LOG_INFO_TAG("underlying hardware does not support hardware context");
+    }
+    if (metadata->context) {
+        // the default context belongs to the device plugin, so it does not depend on the first compiled model, which
+        // the dynamic selection may release
+        try {
+            if (auto default_context = m_context->m_ov_core->get_default_context(metadata->context->get_device_name())) {
+                metadata->context = std::move(default_context);
+            }
+        } catch (const ov::Exception&) {
+            LOG_DEBUG_TAG("no default context for device %s, keeping the context of the first compiled model",
+                          metadata->context->get_device_name().c_str());
+        }
+    }
+    m_context->m_hw_metadata = std::move(metadata);
+}
+
+DeviceExecutionContext& Schedule::add_device_context(const ModelInstanceKey& key) {
+    return m_instances.add(key);
+}
+
+DeviceExecutionContext& Schedule::get_device_context(const ModelInstanceKey& key) {
+    const auto context = find_device_context(key);
+    OPENVINO_ASSERT(context, get_log_tag(), ": device ", key.to_string(), " has no execution context");
+    return *context;
+}
+
+DeviceExecutionContext* Schedule::find_device_context(const ModelInstanceKey& key) {
+    return m_instances.find(key);
+}
+
+ActiveDevice Schedule::get_active_device() const {
+    return m_instances.active_device();
+}
+
+DeviceExecutionContext& Schedule::register_compile_result(const CompileRequest& request, SoCompiledModel compiled_model) {
+    const auto key = request.instance_key();
+    OPENVINO_ASSERT(compiled_model, get_log_tag(), ": no compiled model to register for ", key.to_string());
+    generate_workers(key, compiled_model);
+    return get_device_context(key);
+}
+
+void Schedule::mark_compile_failure(const CompileRequest& request, const std::string& reason) {
+    if (auto* device_context = find_device_context(request.instance_key())) {
+        device_context->mark_faulted(reason);
+    }
+}
+void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model) {
+    auto it_numrequests = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(key.device, m_context->m_device_priorities, true);
+    size_t num_requests = 0;
     if (m_context->m_dynamic_device_selection) {
         // inference is serialized per compiled model in this mode, so a single worker per device is enough and it
         // guarantees the device carries no other inference when the next target device is re-selected
         num_requests = 1;
-        LOG_DEBUG_TAG("device:%s, worker infer request number:%d", device.c_str(), static_cast<int>(num_requests));
+        LOG_DEBUG_TAG("device:%s, worker infer request number:%d", key.to_string().c_str(), static_cast<int>(num_requests));
     } else {
+        unsigned int optimal_num = 0;
+        try {
+            optimal_num = compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
+        } catch (const ov::Exception& iie) {
+            OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
+                        iie.what());
+        }
+        num_requests =
+            (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
+                ? optimal_num
+                : it_numrequests->num_requests_per_devices;
         num_requests = (num_requests == 1) ? 2 : num_requests;
     }
-    auto& worker_requests = m_worker_requests[device];
-    auto& idle_worker_requests = m_idle_worker_requests[device];
-    worker_requests.resize(num_requests);
-    m_infer_pipeline_tasks_device_specific[device] = std::unique_ptr<TaskQueue>(new TaskQueue);
-    auto* idle_workerrequests_ptr = &(idle_worker_requests);
-    idle_worker_requests.set_capacity(num_requests);
-    int num = 0;
-    for (auto&& worker_request : worker_requests) {
-        worker_request.m_inferrequest = {compiled_model->create_infer_request(), compiled_model._so};
+    if (m_model_only) {
+        num_requests = 0;
+    }
+    auto setup_worker = [this](DeviceExecutionContext& context, WorkerInferRequest& worker_request) {
         auto* worker_request_ptr = &worker_request;
-        worker_request_ptr->m_index = num++;
-        OPENVINO_ASSERT(idle_worker_requests.try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr)) == true);
+        auto* device_context = &context;
+        worker_request.m_is_cpu_helper = context.key().is_startup_helper();
         worker_request.m_inferrequest->set_callback(
-            [worker_request_ptr, this, device, idle_workerrequests_ptr](std::exception_ptr exception_ptr) mutable {
-                IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, *idle_workerrequests_ptr};
+            [worker_request_ptr, this, device_context](std::exception_ptr exception_ptr) mutable {
+                auto lease = device_context->pool().adopt(worker_request_ptr);
                 worker_request_ptr->m_exception_ptr = std::move(exception_ptr);
                 {
                     auto stop_retry_and_continue = [worker_request_ptr]() {
@@ -124,7 +181,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         bool select_other_device_flag = false;
                         // select other device
                         try {
-                            select_other_device_flag = select_other_device(device);
+                            select_other_device_flag = select_other_device(device_context->key());
                         } catch (const ov::Exception&) {
                             select_other_device_flag = false;
                         }
@@ -140,8 +197,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         stop_retry_and_continue();
                     }
                     // try to return the request to the idle list (fails if the overall object destruction has began)
-                    bool returned_to_idle =
-                        idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr));
+                    const bool returned_to_idle = lease.give_back();
                     if (m_context->m_dynamic_device_selection) {
                         // only recorded here, it is logged by the next dispatch so the slot is released without delay
                         INFO_RUN([&] {
@@ -161,18 +217,19 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         do {
                             m_infer_pipeline_tasks.try_pop(t);
                         } while (t && schedule_to_worker_infer_request(std::move(t)));
-                        do {
-                            m_infer_pipeline_tasks_device_specific[device]->try_pop(t);
-                        } while (t && schedule_to_worker_infer_request(std::move(t), device));
+                        while (device_context->pool().try_dequeue(t) &&
+                               schedule_to_worker_infer_request(std::move(t), device_context->name())) {
+                        }
                     }
                 }
             });
-    }
+    };
+    get_device_context(key).make_ready(compiled_model, num_requests, setup_worker);
 }
 
 Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, WorkerInferRequest** worker_infer_request) {
     Pipeline pipeline;
-    if (m_passthrough_compiled_model || std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request()) {
+    if (m_passthrough_context || std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request()) {
         struct RequestExecutor : ov::threading::ITaskExecutor {
             explicit RequestExecutor(const SoAsyncInferRequest& infer_request,
                                      WorkerInferRequest* worker)
@@ -314,11 +371,12 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     if (m_context->m_need_perf_counters) {
                         auto auto_request = std::dynamic_pointer_cast<InferRequest>
                             (infer_request);
-                        if (!m_context->m_dynamic_device_selection) {
+                        // the CPU helper is released once the actual device is ready, so its request is not pinned
+                        if (!m_context->m_dynamic_device_selection && !(*worker_infer_request)->m_is_cpu_helper) {
                             auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
                             return;
                         }
-                        // dynamic selection may release the device, so snapshot instead of pinning it
+                        // the device may be released, so snapshot instead of pinning it
                         try {
                             auto_request->set_scheduled_profiling_info(
                                 (*worker_infer_request)->m_inferrequest->get_profiling_info());
@@ -339,60 +397,12 @@ std::string Schedule::get_log_tag() const noexcept {
 
 Schedule::~Schedule() {
     INFO_RUN([this] {
-        for (auto&& worker_request : m_worker_requests) {
-            std::list<Time> req_all_start_times;
-            std::list<Time> req_all_end_times;
-            if (const auto released = m_released_infer_times.find(worker_request.first);
-                released != m_released_infer_times.end()) {
-                req_all_start_times.splice(req_all_start_times.end(), released->second.first);
-                req_all_end_times.splice(req_all_end_times.end(), released->second.second);
-            }
-            for (auto& request : worker_request.second) {
-                req_all_start_times.splice(req_all_start_times.end(), request.m_start_times);
-                req_all_end_times.splice(req_all_end_times.end(), request.m_end_times);
-            }
-            size_t count = req_all_start_times.size();
-            OPENVINO_ASSERT(count == req_all_end_times.size());
-            std::chrono::duration<double, std::milli> first_infer_duration =
-                (count != 0) ? req_all_end_times.front() - req_all_start_times.front()
-                             : std::chrono::duration<double, std::milli>(0.0);
-            req_all_start_times.sort(std::less<Time>());
-            req_all_end_times.sort(std::less<Time>());
-            // the inferences are serialized there, so the sum is the time the device was busy
-            std::chrono::duration<double, std::milli> busy_duration{0.0};
-            if (m_context && m_context->m_dynamic_device_selection) {
-                for (auto start = req_all_start_times.begin(), end = req_all_end_times.begin();
-                     start != req_all_start_times.end();
-                     ++start, ++end) {
-                    busy_duration += *end - *start;
-                }
-            }
-            {
-                auto n = req_all_start_times.size();
-                Time time;
-                while (!req_all_start_times.empty()) {
-                    time = req_all_start_times.front();
-                    if (time < m_cpuhelp_release_time) {
-                        req_all_start_times.pop_front();
-                        n--;
-                    } else {
-                        break;
-                    }
-                }
-                if (n >= 1) {
-                    LOG_INFO_TAG("%s: first inference time:%lf ms",
-                                 worker_request.first.c_str(),
-                                 first_infer_duration.count());
-                    LOG_INFO_TAG("%s:infer:%lu", worker_request.first.c_str(), static_cast<unsigned long>(count));
-                    std::chrono::duration<double, std::milli> durtation =
-                        busy_duration.count() > 0.0 ? busy_duration : req_all_end_times.back() - time;
-                    LOG_INFO_TAG("%s:fps:%lf", worker_request.first.c_str(),
-                        n * 1000 / durtation.count());
-                }
-            }
-        }
+        const bool serialized_inference = m_context && m_context->m_dynamic_device_selection;
+        m_instances.for_each([&](DeviceExecutionContext& context) {
+            context.log_summary(m_log_tag, m_cpuhelp_release_time, serialized_inference);
+        });
     });
-    m_worker_requests.clear();
+    m_instances.clear();
     LOG_INFO_TAG("scheduler ending");
 }
 }  // namespace auto_plugin
