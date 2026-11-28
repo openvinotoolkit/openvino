@@ -127,6 +127,14 @@ protected:
     // generate models.
     void validate_imported_kvcache_dim() const;
 
+    // Trust-boundary check for imported blobs: m_prefill_chunk_size and
+    // m_kvcache_desc.max_generation_token_len are read from the stream and used by the runtime
+    // staging copies to compute a right-aligned destination offset into the (independently
+    // deserialized) prefill/generate port tensors. Reject the blob unless every such port is at
+    // least as large as the scalar limit that will be subtracted from it, so that offset can
+    // never underflow.
+    void validate_imported_sequence_extents() const;
+
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
