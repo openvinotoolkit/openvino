@@ -23,6 +23,28 @@ using namespace std;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+
+TEST(ReshapeOptimizations, PreserveBoundedDynamicShape) {
+    auto input = make_shared<v0::Parameter>(element::f32, PartialShape{Dimension(1, 2), 16, 968, 80});
+    auto input_shape = make_shared<v3::ShapeOf>(input, element::i64);
+    auto axis = v0::Constant::create(element::i64, Shape{}, {0});
+    auto batch = make_shared<v1::Gather>(input_shape, v0::Constant::create(element::i64, Shape{1}, {0}), axis);
+    auto heads = v0::Constant::create(element::i64, Shape{1}, {16});
+    auto batch_heads = make_shared<v1::Multiply>(batch, heads);
+    auto flatten_pattern =
+        make_shared<v0::Concat>(OutputVector{batch_heads, v0::Constant::create(element::i64, Shape{2}, {-1, 80})}, 0);
+    auto flattened = make_shared<v1::Reshape>(input, flatten_pattern, false);
+    auto restored = make_shared<v1::Reshape>(flattened, input_shape, false);
+    auto model = make_shared<Model>(OutputVector{restored}, ParameterVector{input});
+
+    ASSERT_EQ(restored->get_output_partial_shape(0), PartialShape({Dimension(1, 2), 16, 968, 80}));
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ReshapeOptimizations>();
+    manager.run_passes(model);
+    ASSERT_EQ(restored->get_output_partial_shape(0), PartialShape({Dimension(1, 2), 16, 968, 80}));
+    EXPECT_EQ(restored->input_value(1).get_node_shared_ptr(), input_shape);
+}
+
 TEST_F(TransformationTestsF, FlattenOptimization) {
     // [A, B, C, D] -> [A, B, C*D]
 
