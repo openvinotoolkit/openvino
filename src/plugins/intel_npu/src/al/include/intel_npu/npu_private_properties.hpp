@@ -331,24 +331,6 @@ static constexpr ov::Property<ov::log::Level> compile_log_level{"NPU_COMPILE_LOG
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: integer, default is -1
- * Sets the number of DMA engines that will be used to execute the model.
- */
-static constexpr ov::Property<int64_t> dma_engines{"NPU_DMA_ENGINES"};
-
-/**
- * @brief
- * Type: Boolean. Default is "NO".
- * Determines which branch we use for dynamic shapes.
- * If set to 'YES', we immediately apply the bounds so that we have a static shape for further work.
- * If not, we store the related information in TensorAttr and the IE representation looks
- * like this: tensor<1x?x3xf32, {bounds = [1, 18, 3], ..}>.
- * Possible values: "YES", "NO".
- */
-static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_SHAPE_TO_STATIC"};
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: string, default is empty.
  * MODEL - model layer profiling is done
  * INFER - npu inference performance numbers are measured
@@ -401,40 +383,6 @@ static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: String. Default is "".
- * This option is added for providing a fine-grained batched model compilation control, otherwise batching compilation
- * params will be determined automatically. Should be specified only when a model compilation is failed due to incorrect
- * detection of batch dimension presence including false-positive and false-negative cases. NPU compiler supports two
- * batch compile options by now: "unroll" and "debatch" - either can be activated using by setting
- * "batch-compile-method" into the desired value. Leveragind the compile method "debatch" allows the additional param
- * "debatcher-settings" being configured, which introduces the declared fine-grained compilation control suboptions. The
- * suboption "debatcher-input-coefficients-partitions" determines how to split or debatch input tensors of an original
- * model.
- *
- * Let's look at the following example:
- * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[13-4],[1-1]}".
- *
- * These mean that we want to "debatch" inputs of a batched network providing that:
- * - a batch dimension N of a first intput is on the 0-position (of its layout abbreviation);
- * - the N dimension of a second input is on 13th-position of its layout;
- * - and the N dimension of a third input is on 1-position of its layout accordingly.
- * Thus the first digit of a pair of values enclosed by symbols'[' and ']' determines N dimension position in a layout
- * of a corresponding input. A second value of the pair represents a "native" value of N-dimension of a tensor in
- * assumption that having this value, the tensor becomes "non-batched" or a plain tensor. In the example above:
- * - the non-batched tensor of the first input is assumed to have 1 in N-dimension (on the 0 position);
- * - the second tensor assumed non-batched when it got 4 as a valua of N-dimension on the 13th-position
- * - the third tensor is a plain tensor when it has 1 in N-dimension on the 1-position of its layout
- *
- * The given "debatcher-input-coefficients-partitions" provides the NPU compiler with sufficient information in order to
- * compile a complicatied batched model, which might not be auto recognized by intrinsic heuristics
- *
- * Possible values: "", "batch-compile-method=unroll batch-unroll-settings={skip-unroll-batch=false}",
- * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[0-1],[0-1]}".
- */
-static constexpr ov::Property<std::string> batch_compiler_mode_settings{"NPU_BATCH_COMPILER_MODE_SETTINGS"};
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
  */
@@ -444,16 +392,6 @@ static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
  * @brief Read-only property to get the name of used backend
  */
 static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_name{"NPU_BACKEND_NAME"};
-
-/**
- * @brief [Only for NPU compiler]
- * Type: std::string, default is empty.
- * Config for Backend pipeline
-
- * Available values: enable-memory-side-cache=true/false
- * Available values: enable-partial-workload-management=true/false
- */
-static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
 
 /**
  * @brief [Only for NPU Plugin]
