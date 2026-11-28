@@ -5,6 +5,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/infer_request_reuse.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convolution.hpp"
@@ -92,6 +93,18 @@ TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
 }
 
+TEST_P(ConcatConstantInPlaceTest, ReuseRequestWithAlternatingInputs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto compiled = core->compile_model(function, targetDevice, configuration);
+    const auto shape = function->input(0).get_shape();
+    ov::Tensor a(ov::element::f32, shape);
+    ov::Tensor b(ov::element::f32, shape);
+    for (size_t i = 0; i < a.get_size(); ++i) {
+        a.data<float>()[i] = static_cast<float>(i);
+        b.data<float>()[i] = -static_cast<float>(i);
+    }
+    check_reused_request(*core, function, configuration, compiled, {a}, {b});
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU,
                          ConcatConstantInPlaceTest,
