@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -84,6 +85,32 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     MoEActivationType activation_type = MoEActivationType::SWISH,
     bool use_per_expert_scale = false,
     bool use_layernorm_multiply = false);
+
+/// Expert sort of a grouped experts forward (transformers `grouped_mm_experts_forward`, optimum-intel `ov_grouped_mm`).
+/// @param topk_ids                  Router expert ids [T, K].
+/// @param number_of_experts         Number of experts E.
+/// @param with_token                Build the token index of each sorted row.
+/// @param with_inverse_permutation  Build the argsort of the permutation.
+/// @param descending_argsort        Argsort with TopK mode MAX instead of MIN.
+/// @param slice_on_updates          Scatter-add updates are Slice(Broadcast(1)), as exported by the PyTorch frontend.
+/// @param permutation_to_i32        Convert the permutation to i32 before its users.
+/// @param token_source_top_k        top_k the token source is expanded to, the one of topk_ids if not set.
+/// @param token_source_tokens       Tensor whose dim 0 is the number of tokens of the token source, topk_ids if empty.
+/// @return {perm, offsets, token, inv_perm}:
+///         perm     - argsort of the flattened topk_ids [T*K],
+///         offsets  - inclusive end row of each expert [E] (GroupedMatMul offsets),
+///         token    - token of each sorted row [T*K], empty if !with_token,
+///         inv_perm - argsort of perm [T*K], empty if !with_inverse_permutation.
+std::tuple<ov::Output<ov::Node>, ov::Output<ov::Node>, ov::Output<ov::Node>, ov::Output<ov::Node>>
+build_moe_expert_sort_subgraph(const ov::Output<ov::Node>& topk_ids,
+                               size_t number_of_experts,
+                               bool with_token = true,
+                               bool with_inverse_permutation = true,
+                               bool descending_argsort = false,
+                               bool slice_on_updates = false,
+                               bool permutation_to_i32 = false,
+                               const std::optional<size_t>& token_source_top_k = std::nullopt,
+                               const ov::Output<ov::Node>& token_source_tokens = {});
 
 }  // namespace test
 }  // namespace ov

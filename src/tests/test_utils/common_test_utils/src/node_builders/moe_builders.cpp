@@ -18,6 +18,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/cum_sum.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
@@ -26,6 +27,7 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -34,6 +36,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
@@ -665,6 +668,80 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(final_reshape)},
                                        params,
                                        "MoE3GeMMSubgraph");
+}
+
+std::tuple<ov::Output<ov::Node>, ov::Output<ov::Node>, ov::Output<ov::Node>, ov::Output<ov::Node>>
+build_moe_expert_sort_subgraph(const ov::Output<ov::Node>& topk_ids,
+                               size_t number_of_experts,
+                               bool with_token,
+                               bool with_inverse_permutation,
+                               bool descending_argsort,
+                               bool slice_on_updates,
+                               bool permutation_to_i32,
+                               const std::optional<size_t>& token_source_top_k,
+                               const ov::Output<ov::Node>& token_source_tokens) {
+    using namespace ov::op;
+    auto argsort = [](const ov::Output<ov::Node>& data, v11::TopK::Mode mode) {
+        auto len = std::make_shared<v0::Squeeze>(std::make_shared<v3::ShapeOf>(data));
+        return std::make_shared<v11::TopK>(data, len, -1, mode, v11::TopK::SortType::SORT_VALUES, ov::element::i64);
+    };
+    auto flatten = [](const ov::Output<ov::Node>& data) {
+        return std::make_shared<v1::Reshape>(data, v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), false);
+    };
+    auto axis0 = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+
+    auto flat_ids = flatten(topk_ids);
+    auto sort = argsort(flat_ids, descending_argsort ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN);
+    ov::Output<ov::Node> perm = sort->output(1);
+    if (permutation_to_i32) {
+        perm = std::make_shared<v0::Convert>(perm, ov::element::i32);
+    }
+
+    auto sorted_ids =
+        std::make_shared<v0::Convert>(std::make_shared<v8::Gather>(flat_ids, perm, axis0), ov::element::i32);
+    ov::Output<ov::Node> updates =
+        std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i32, ov::Shape{}, {1}),
+                                        std::make_shared<v3::ShapeOf>(perm));
+    if (slice_on_updates) {
+        updates = std::make_shared<v8::Slice>(updates,
+                                              v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}),
+                                              std::make_shared<v3::ShapeOf>(sorted_ids, ov::element::i32),
+                                              v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}),
+                                              v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
+    }
+    auto counts = std::make_shared<v12::ScatterElementsUpdate>(
+        v0::Constant::create(ov::element::i32, ov::Shape{number_of_experts}, {0}),
+        sorted_ids,
+        updates,
+        v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+        v12::ScatterElementsUpdate::Reduction::SUM);
+    auto offsets = std::make_shared<v0::CumSum>(counts, v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+
+    ov::Output<ov::Node> token;
+    if (with_token) {
+        const auto& tokens = token_source_tokens.get_node() ? token_source_tokens : topk_ids;
+        const auto top_k =
+            token_source_top_k.value_or(static_cast<size_t>(topk_ids.get_partial_shape()[1].get_length()));
+        auto num_tokens = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(tokens),
+                                                       v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+                                                       v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        auto range = std::make_shared<v4::Range>(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+                                                 num_tokens,
+                                                 v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                                 ov::element::i64);
+        auto unsqueeze =
+            std::make_shared<v0::Unsqueeze>(range, v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+        auto expand = std::make_shared<v3::Broadcast>(
+            unsqueeze,
+            v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<size_t>{1, top_k}),
+            ov::op::BroadcastType::BIDIRECTIONAL);
+        token = std::make_shared<v8::Gather>(flatten(expand), perm, axis0);
+    }
+    ov::Output<ov::Node> inv_perm;
+    if (with_inverse_permutation) {
+        inv_perm = argsort(sort->output(1), v11::TopK::Mode::MIN)->output(1);
+    }
+    return {perm, offsets, token, inv_perm};
 }
 
 }  // namespace test

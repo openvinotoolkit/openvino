@@ -3,7 +3,9 @@
 //
 
 #include <iostream>
+#include <algorithm>
 #include <numeric>
+#include <random>
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -41,7 +43,7 @@ TEST(moe_unit, moe_mask_gen_test) {
     std::vector<int32_t> num_actually_used_experts_ref = {num_actually_used_experts};
     topology topology(
         input_layout("input_topk", topk_layout),
-        moe_mask_gen("moe_mask_gen", input_info("input_topk"), 32, 2, true),
+        moe_mask_gen("moe_mask_gen", input_info("input_topk"), 32, 2),
         moe_mask_gen_reshape("moe_mask_gen_reshape",
                              input_info("moe_mask_gen", 0),
                              input_info("moe_mask_gen", 1),
@@ -102,3 +104,104 @@ TEST(moe_unit, moe_mask_gen_test) {
         ASSERT_EQ(static_cast<int32_t>(output_tokens_lens_per_expert_ptr[i]), tokens_lens_per_expert_ref[i]);
     }
 }
+
+namespace {
+
+// Distinct experts per token, as produced by a router TopK
+std::vector<int32_t> make_router_ids(int32_t num_tokens, int32_t top_k, int32_t num_experts, std::mt19937& gen) {
+    std::vector<int32_t> topk_idx(static_cast<size_t>(num_tokens) * top_k);
+    std::vector<int32_t> experts(num_experts);
+    std::iota(experts.begin(), experts.end(), 0);
+    for (int32_t t = 0; t < num_tokens; t++) {
+        std::shuffle(experts.begin(), experts.end(), gen);
+        std::copy_n(experts.begin(), top_k, topk_idx.begin() + t * top_k);
+    }
+    return topk_idx;
+}
+
+// Stable counting sort of the (token, slot) rows by expert
+struct SortReference {
+    std::vector<int32_t> end_offsets;  // inclusive end row of each expert
+    std::vector<int32_t> token_index;  // token of each sorted row
+    std::vector<int32_t> row_lut;      // sorted row of each (token, slot) position
+};
+
+SortReference make_sort_reference(const std::vector<int32_t>& topk_idx, int32_t top_k, int32_t num_experts) {
+    SortReference ref;
+    std::vector<int32_t> lens(num_experts, 0);
+    for (auto e : topk_idx) {
+        lens[e]++;
+    }
+    ref.end_offsets.resize(num_experts);
+    std::partial_sum(lens.begin(), lens.end(), ref.end_offsets.begin());
+    std::vector<int32_t> next_row(num_experts, 0);
+    for (int32_t e = 1; e < num_experts; e++) {
+        next_row[e] = ref.end_offsets[e - 1];
+    }
+    ref.token_index.resize(topk_idx.size());
+    ref.row_lut.resize(topk_idx.size());
+    for (size_t s = 0; s < topk_idx.size(); s++) {
+        const int32_t row = next_row[topk_idx[s]]++;
+        ref.token_index[row] = static_cast<int32_t>(s) / top_k;
+        ref.row_lut[s] = row;
+    }
+    return ref;
+}
+
+}  // namespace
+
+// GEMM3_SWIGLU outputs: counting sort of the (token, slot) pairs by expert, stable by flat position.
+// With the dynamic input the token counts run through one network, with the static input a network is built per token count.
+class moe_mask_gen_3gemm : public ::testing::TestWithParam<std::tuple<int32_t, int32_t, bool>> {};  // top_k, experts, dynamic input
+
+TEST_P(moe_mask_gen_3gemm, matches_reference) {
+    auto& engine = get_test_engine();
+    const int32_t top_k = std::get<0>(GetParam());
+    const int32_t num_experts = std::get<1>(GetParam());
+    const bool dynamic_input = std::get<2>(GetParam());
+
+    const std::vector<std::string> names{"token_index", "end_offsets", "row_lut"};
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto build_network = [&](const ov::PartialShape& topk_shape) {
+        topology topology(input_layout("topk", layout{topk_shape, data_types::i32, format::bfyx}),
+                          moe_mask_gen("mask_gen", input_info("topk"), num_experts, top_k, moe_mask_gen::expert_type::GEMM3_SWIGLU));
+        for (size_t i = 0; i < names.size(); i++) {
+            topology.add(reorder(names[i], input_info("mask_gen", static_cast<int>(i)), format::bfyx, data_types::i32));
+        }
+        return get_network(engine, topology, config, get_test_stream_ptr(), false);
+    };
+    auto dynamic_network = dynamic_input ? build_network(ov::PartialShape{ov::Dimension::dynamic(), top_k}) : nullptr;
+
+    std::mt19937 gen((top_k * 31) + num_experts);
+    for (const int32_t num_tokens : {1, 38, 256, 100, 1, 731}) {
+        const auto topk_idx = make_router_ids(num_tokens, top_k, num_experts, gen);
+        const auto ref = make_sort_reference(topk_idx, top_k, num_experts);
+
+        auto network = dynamic_input ? dynamic_network : build_network(ov::PartialShape{num_tokens, top_k});
+        auto topk_mem = engine.allocate_memory(layout{ov::PartialShape{num_tokens, top_k}, data_types::i32, format::bfyx});
+        set_values(topk_mem, topk_idx);
+        network->set_input_data("topk", topk_mem);
+        auto outputs = network->execute();
+
+        auto check = [&](size_t output_idx, const std::vector<int32_t>& expected) {
+            auto mem = outputs.at(names[output_idx]).get_memory();
+            cldnn::mem_lock<int32_t, mem_lock_type::read> ptr(mem, get_test_stream());
+            for (size_t i = 0; i < expected.size(); i++) {
+                ASSERT_EQ(ptr[i], expected[i]) << names[output_idx] << " index " << i << " tokens " << num_tokens;
+            }
+        };
+        check(moe_mask_gen::MoEMaskGen3GemmOutputIdx::TOKEN_INDEX, ref.token_index);
+        check(moe_mask_gen::MoEMaskGen3GemmOutputIdx::EXPERT_END_OFFSETS, ref.end_offsets);
+        check(moe_mask_gen::MoEMaskGen3GemmOutputIdx::ROW_LUT, ref.row_lut);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_mask_gen_3gemm,
+                         ::testing::Values(std::make_tuple(6, 64, true),
+                                           std::make_tuple(6, 64, false),
+                                           std::make_tuple(8, 56, true),
+                                           std::make_tuple(8, 56, false),
+                                           std::make_tuple(8, 256, true),
+                                           std::make_tuple(8, 256, false)));

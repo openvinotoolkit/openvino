@@ -11,23 +11,20 @@
 
 namespace ov::intel_gpu::ocl {
 
-#define MOE_INTERNAL_BUFFER_UP_OUTPUT                      0   // up output
-#define MOE_INTERNAL_BUFFER_DOWN_OUTPUT                    1   // down output
-#define MOE_INTERNAL_BUFFER_GATE_UP_INPUT                  2   // gather input tensor
-#define MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS                3   // routing_weights
-#define MOE_INTERNAL_BUFFER_GATE_OUTPUT                    4   // gate output
-#define MOE_INTERNAL_BUFFER_EXPERT_MASK_BATCH              5   // expert_mask_batch
-#define MOE_INTERNAL_BUFFER_EXPERT_MASK_TOPK               6   // expert_mask_topk
-#define MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS           7   // experts_ids for each activated expert
-#define MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT 8   // token len (input gather tokens) for each activated expert
-#define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT           9   // token idx per expert
-#define MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM         10  // num_actual_used_experts
-#define MOE_INTERNAL_BUFFER_GROUPED_OFFSETS                11  // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
-#define MOE_INTERNAL_BUFFER_ROW_LUT                        12  // gathered row index per (token, topk), inverse of token idx per expert
+#define MOE_INTERNAL_BUFFER_UP_OUTPUT            0  // up output
+#define MOE_INTERNAL_BUFFER_DOWN_OUTPUT          1  // down output
+#define MOE_INTERNAL_BUFFER_GATE_UP_INPUT        2  // gather input tensor
+#define MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS      3  // routing_weights
+#define MOE_INTERNAL_BUFFER_GATE_OUTPUT          4  // gate output
+#define MOE_INTERNAL_BUFFER_EXPERT_MASK_BATCH    5  // expert_mask_batch
+#define MOE_INTERNAL_BUFFER_EXPERT_MASK_TOPK     6  // expert_mask_topk
+#define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT 7  // token idx per expert
+#define MOE_INTERNAL_BUFFER_GROUPED_OFFSETS      8  // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
+#define MOE_INTERNAL_BUFFER_ROW_LUT              9  // gathered row index per (token, topk), inverse of token idx per expert
 // Scale / zero point slots of an offloaded layer (gate/up/down), at fixed indices so that they keep the loaded experts
-#define MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS 13
-#define MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS    16
-#define MOE_INTERNAL_BUFFER_OTD_END         19
+#define MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS 10
+#define MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS    13
+#define MOE_INTERNAL_BUFFER_OTD_END         16
 
 enum class MOE3GemmInputIndex : uint8_t {
     HIDDEN_STATES = 0,
