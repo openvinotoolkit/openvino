@@ -21,6 +21,9 @@
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/hyper_connection_mix.hpp"
+#include "openvino/op/hyper_connection_pre.hpp"
+#include "openvino/op/hyper_connection_post.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
@@ -97,6 +100,13 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
     if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
         ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
+        return true;
+    }
+
+    // Three outputs: the legacy static-shape multi-output path looks consumers of outputs 1/2 up as
+    // separate "<name>.outN" primitives, which this op does not create.
+    if (ov::is_type<ov::op::internal::HyperConnectionMix>(op) || ov::is_type<ov::op::internal::HyperConnectionPost>(op) ||
+        ov::is_type<ov::op::internal::HyperConnectionPre>(op)) {
         return true;
     }
 

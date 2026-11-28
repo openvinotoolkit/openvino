@@ -13,6 +13,18 @@ namespace ov::frontend::gguf::blocks {
 
 namespace {
 
+std::string clamp_swiglu_gate(GraphEmitter& e, const std::string& x, float limit, const std::string& name) {
+    return e.add_op("GGML_OP_CLAMP",
+                    name,
+                    {x},
+                    0,
+                    {{"clamp_min", std::numeric_limits<float>::lowest()}, {"clamp_max", limit}});
+}
+
+std::string clamp_swiglu_up(GraphEmitter& e, const std::string& x, float limit, const std::string& name) {
+    return e.add_op("GGML_OP_CLAMP", name, {x}, 0, {{"clamp_min", -limit}, {"clamp_max", limit}});
+}
+
 std::string gated_gate_up(GraphEmitter& e,
                           const std::string& glu_op,
                           const std::string& gate_w,
@@ -21,7 +33,8 @@ std::string gated_gate_up(GraphEmitter& e,
                           const std::string& gate_name,
                           const std::string& up_name,
                           const std::string& glu_name,
-                          bool has_bias) {
+                          bool has_bias,
+                          float clamp = 0.0f) {
     e.add_weight(gate_w);
     e.add_weight(up_w);
     const auto& shape = e.value(ffn_norm).get_partial_shape();
@@ -41,6 +54,10 @@ std::string gated_gate_up(GraphEmitter& e,
     auto up = e.add_op("GGML_OP_MUL_MAT", up_name, {up_w, ffn_norm}, 0, attributes);
     if (has_bias) {
         up = add_bias(e, up, bias_weight_name(up_w), up_name + "_b");
+    }
+    if (clamp > 0.0f) {
+        gate = clamp_swiglu_gate(e, gate, clamp, gate_name + "_clamped");
+        up = clamp_swiglu_up(e, up, clamp, up_name + "_clamped");
     }
     auto glu = e.add_op(glu_op, glu_name, {gate, up}, 0, {{"swapped", false}});
     if (rank3) {
@@ -71,8 +88,18 @@ std::string swiglu_gate_up(GraphEmitter& e,
                            const std::string& gate_name,
                            const std::string& up_name,
                            const std::string& glu_name,
-                           bool has_bias) {
-    return gated_gate_up(e, "GGML_GLU_OP_SWIGLU", gate_w, up_w, ffn_norm, gate_name, up_name, glu_name, has_bias);
+                           bool has_bias,
+                           float clamp) {
+    return gated_gate_up(e,
+                         "GGML_GLU_OP_SWIGLU",
+                         gate_w,
+                         up_w,
+                         ffn_norm,
+                         gate_name,
+                         up_name,
+                         glu_name,
+                         has_bias,
+                         clamp);
 }
 
 std::string geglu_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& p, const std::string& ffn_norm) {
@@ -112,7 +139,8 @@ std::string dense_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::stri
                              p + "ffn_gate",
                              p + "ffn_up",
                              p + "ffn_swiglu",
-                             has_ffn_bias);
+                             has_ffn_bias,
+                             cfg.swiglu_clamp);
     }
     auto out = e.add_op("GGML_OP_MUL_MAT", p + "ffn_out", {p + "ffn_down.weight", glu});
     if (has_ffn_bias) {
@@ -236,6 +264,10 @@ std::string moe_ffn(GraphEmitter& e,
                            // is the external contract the shared translators read: glu_alpha/glu_limit.
                        {{"swapped", false}, {"glu_alpha", 1.702f}, {"glu_limit", 7.0f}});
     } else {
+        if (cfg.swiglu_clamp > 0.0f) {
+            gate = clamp_swiglu_gate(e, gate, cfg.swiglu_clamp, p + "moe_gate_clamped");
+            up = clamp_swiglu_up(e, up, cfg.swiglu_clamp, p + "moe_up_clamped");
+        }
         act = e.add_op(cfg.is_geglu ? "GGML_GLU_OP_GEGLU" : "GGML_GLU_OP_SWIGLU",
                        p + "moe_act",
                        {gate, up},
@@ -283,7 +315,8 @@ std::string moe_ffn(GraphEmitter& e,
                                     p + "shexp_gate",
                                     p + "shexp_up",
                                     p + "shexp_act",
-                                    /*has_bias=*/false);
+                                    /*has_bias=*/false,
+                                    cfg.swiglu_clamp);
         e.add_weight(p + "ffn_down_shexp.weight");
         auto s_down = e.add_op("GGML_OP_MUL_MAT", p + "shexp_out", {p + "ffn_down_shexp.weight", s_act});
         if (e.has_weight(p + "ffn_gate_inp_shexp.weight")) {

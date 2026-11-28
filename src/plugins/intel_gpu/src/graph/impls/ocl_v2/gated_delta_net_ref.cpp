@@ -56,6 +56,9 @@ protected:
         jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
         jit.make("OUTPUT_STATE", output_state);
+        // Gate [B, T, H] decays each head state by one scalar; a rank-4 gate [B, T, H, K] (Kimi Delta
+        // Attention) decays row k of the [K, V] head state by exp(gate[.., k]).
+        jit.make("PER_KEY_GATE", params.get_input_layout(4).get_partial_shape().size() == 4 ? 1 : 0);
 
         return jit;
     }

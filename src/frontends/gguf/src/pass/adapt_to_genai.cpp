@@ -761,8 +761,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             if (!read || std::find(states.begin(), states.end(), read->get_variable_id()) == states.end())
                 continue;
             auto info = read->get_variable()->get_info();
-            auto tail = info.data_shape.to_shape();
-            tail.erase(tail.begin());
+            // growing states (dynamic axes, e.g. QSAPrepare block keys) start with those axes empty
+            std::vector<int64_t> tail;
+            for (size_t ax = 1; ax < info.data_shape.size(); ++ax)
+                tail.push_back(info.data_shape[ax].is_static() ? info.data_shape[ax].get_length() : 0);
             auto initializer_shape = make_shared<v0::Concat>(
                 ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {tail.size()}, tail)},
                 0);

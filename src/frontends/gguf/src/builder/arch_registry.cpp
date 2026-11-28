@@ -10,6 +10,7 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/arch/glm5next_builder.hpp"
 #include "builder/arch/inkling_builder.hpp"
 #include "builder/arch/lfm_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
@@ -65,6 +66,8 @@ const ArchitectureEntry architectures[] = {
     {"gemma3", RopeMode::Neox},
     {"gemma4", RopeMode::Neox},
     {"glm4moe", RopeMode::Neox},
+    {"glm5-next", make_glm5next_builder},
+    {"glm5next", make_glm5next_builder},
     {"gpt-oss", RopeMode::Neox},
     {"hunyuan-dense", RopeMode::Neox},
     {"hunyuan-moe", RopeMode::Neox},

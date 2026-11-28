@@ -12,7 +12,7 @@ namespace ov::intel_gpu {
 
 static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexer>& op) {
     using In = ov::op::internal::PagedQSAIndexer::InputIdx;
-    validate_inputs_count(op, {In::COUNT});
+    validate_inputs_count(op, {In::COUNT, In::COUNT_DSA});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
 
@@ -23,10 +23,10 @@ static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov:
                     "': ",
                     reason);
 
-    OPENVINO_ASSERT(op->get_config().query_norm && op->get_config().query_rope,
+    OPENVINO_ASSERT(op->get_config().dsa_kpool || (op->get_config().query_norm && op->get_config().query_rope),
                     "[GPU] PagedQSAIndexer '",
                     layer_name,
-                    "': only query_norm == true and query_rope == true are supported");
+                    "': only query_norm == true and query_rope == true are supported outside dsa_kpool mode");
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
                     "[GPU] PagedQSAIndexer '",
                     layer_name,

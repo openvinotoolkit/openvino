@@ -30,6 +30,7 @@
 #include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -96,7 +97,18 @@ struct GraphOptions {
     // FuseQSAIndexer padding: the block-key cache is grown by a Concat.
     bool padding = true;
     int64_t rope_batch = -1;
+    // DSA k-pool mode: [key | gate] raw rows, no RoPE, pool_ape and head_weights inputs.
+    bool dsa = false;
 };
+
+GraphOptions dsa_kpool(bool padding = true) {
+    GraphOptions o;
+    o.query_norm = false;
+    o.query_rope = false;
+    o.padding = padding;
+    o.dsa = true;
+    return o;
+}
 
 GraphOptions unpadded() {
     GraphOptions o;
@@ -111,10 +123,16 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
         params.push_back(std::make_shared<v0::Parameter>(type, shape));
         return params.back();
     };
+    const int64_t rot = o.dsa ? 0 : rotary_dim;
+    const int64_t raw_width = o.dsa ? 2 * head_size : head_size;
     const auto query = param(data_type, PartialShape{-1, -1, query_heads, head_size});
-    const auto raw_keys = param(data_type, PartialShape{-1, -1, key_heads, head_size});
-    const auto rope_cos = param(data_type, PartialShape{o.rope_batch, o.rope_length, rotary_dim});
-    const auto rope_sin = param(data_type, PartialShape{o.rope_batch, o.rope_length, rotary_dim});
+    const auto raw_keys = param(data_type, PartialShape{-1, -1, key_heads, raw_width});
+    const auto rope_cos = param(data_type, PartialShape{o.rope_batch, o.rope_length, rot});
+    const auto rope_sin = param(data_type, PartialShape{o.rope_batch, o.rope_length, rot});
+    const auto head_weights = o.dsa ? param(data_type, PartialShape{-1, -1, query_heads}) : nullptr;
+    const auto pool_ape =
+        o.dsa ? v0::Constant::create(data_type, Shape{static_cast<size_t>(head_size), key_block_size}, {0.25f})
+              : nullptr;
     const auto key_length = param(element::i32, PartialShape{-1});
     const auto beam_idx = o.gathered_states ? param(element::i32, PartialShape{-1}) : nullptr;
 
@@ -132,8 +150,8 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
         return state;
     };
     const auto past_block_keys = read_state("block_keys", PartialShape{-1, -1, head_size});
-    const auto incomplete_raw_keys = read_state("incomplete_raw_keys", PartialShape{-1, key_block_size - 1, head_size});
-    const auto incomplete_rope = read_state("incomplete_rope", PartialShape{-1, 2 * rotary_dim});
+    const auto incomplete_raw_keys = read_state("incomplete_raw_keys", PartialShape{-1, key_block_size - 1, raw_width});
+    const auto incomplete_rope = read_state("incomplete_rope", PartialShape{-1, 2 * rot});
     Output<Node> block_keys_cache = std::make_shared<v0::Unsqueeze>(past_block_keys, i64({1}));
     if (o.padding) {
         const auto cache_padding = param(data_type, PartialShape{-1, key_heads, -1, head_size});
@@ -147,12 +165,13 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
     config.key_block_size = key_block_size;
     config.block_topk = block_topk;
     config.num_selection_heads = selection_heads;
-    config.indexer_rotary_dim = rotary_dim;
+    config.indexer_rotary_dim = rot;
     config.indexer_head_dim = head_size;
     config.epsilon = epsilon;
     config.scale = o.scale;
     config.query_norm = o.query_norm;
     config.query_rope = o.query_rope;
+    config.dsa_kpool = o.dsa;
 
     Output<Node> indices, count, block_keys_state, raw_keys_state, rope_state;
     if (paged) {
@@ -161,9 +180,9 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
         const auto block_indices = make_named_param("block_indices", element::i32, PartialShape{-1});
         const auto block_indices_begins = make_named_param("block_indices_begins", element::i32, PartialShape{-1});
         const auto index_key_cache =
-            make_named_param("index_key_cache.0", data_type, PartialShape{-1, key_heads, -1, head_size});
+            make_named_param("index_key_cache.0", data_type, PartialShape{-1, key_heads, -1, raw_width});
         const auto index_block_rope_cache =
-            make_named_param("index_block_rope_cache.0", data_type, PartialShape{-1, -1, 2 * rotary_dim});
+            make_named_param("index_block_rope_cache.0", data_type, PartialShape{-1, -1, 2 * rot});
         const auto block_index_keys_cache =
             make_named_param("block_index_keys_cache.0", data_type, PartialShape{-1, key_heads, -1, head_size});
         params.insert(params.end(),
@@ -178,11 +197,30 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
         const auto flatten = [](const Output<Node>& data, int64_t width) {
             return std::make_shared<v1::Reshape>(data, i64({-1, width}), false);
         };
-        OutputVector inputs(PagedQSAIndexerInputIdx::COUNT);
+        // DSA: the zero-width rope inputs are flattened by the query's token count (B * L).
+        const auto flatten_tokens = [&query](const Output<Node>& data, int64_t width) {
+            const auto bl = std::make_shared<v8::Gather>(std::make_shared<op::v3::ShapeOf>(query, element::i64),
+                                                         v0::Constant::create(element::i64, Shape{2}, {0, 1}),
+                                                         v0::Constant::create(element::i64, Shape{}, {0}));
+            const auto tokens =
+                std::make_shared<v1::ReduceProd>(bl, v0::Constant::create(element::i64, Shape{1}, {0}), true);
+            const auto shape = std::make_shared<v0::Concat>(
+                OutputVector{tokens, v0::Constant::create(element::i64, Shape{1}, {width})},
+                0);
+            return std::make_shared<v1::Reshape>(data, shape, false);
+        };
+        OutputVector inputs(o.dsa ? PagedQSAIndexerInputIdx::COUNT_DSA : PagedQSAIndexerInputIdx::COUNT);
         inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] = flatten(query, query_heads * head_size);
-        inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] = flatten(raw_keys, key_heads * head_size);
-        inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten(rope_cos, rotary_dim);
-        inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten(rope_sin, rotary_dim);
+        inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] = flatten(raw_keys, key_heads * raw_width);
+        if (o.dsa) {
+            inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten_tokens(rope_cos, 0);
+            inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten_tokens(rope_sin, 0);
+            inputs[PagedQSAIndexerInputIdx::POOL_APE] = pool_ape;
+            inputs[PagedQSAIndexerInputIdx::HEAD_WEIGHTS] = flatten(head_weights, query_heads);
+        } else {
+            inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten(rope_cos, rotary_dim);
+            inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten(rope_sin, rotary_dim);
+        }
         inputs[PagedQSAIndexerInputIdx::Q_NORM_WEIGHT] = q_norm_weight;
         inputs[PagedQSAIndexerInputIdx::K_NORM_WEIGHT] = k_norm_weight;
         inputs[PagedQSAIndexerInputIdx::PAST_LENS] = past_lens;
@@ -202,6 +240,7 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
         paged_config.scale = o.scale == 0.0f ? 1.0f / std::sqrt(static_cast<float>(head_size)) : o.scale;
         paged_config.query_norm = config.query_norm;
         paged_config.query_rope = config.query_rope;
+        paged_config.dsa_kpool = config.dsa_kpool;
         const auto paged_indexer = std::make_shared<op_internal::PagedQSAIndexer>(inputs, paged_config);
 
         const auto batch_and_length = op::util::node_to_get_shape_value_of_indices_from_shape_source(query, {0, 1});
@@ -216,7 +255,11 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Ty
         raw_keys_state = incomplete_raw_keys_with_head;
         rope_state = incomplete_rope;
     } else {
-        OutputVector inputs(QSAIndexerInputIdx::COUNT);
+        OutputVector inputs(o.dsa ? QSAIndexerInputIdx::COUNT_DSA : QSAIndexerInputIdx::COUNT);
+        if (o.dsa) {
+            inputs[QSAIndexerInputIdx::POOL_APE] = pool_ape;
+            inputs[QSAIndexerInputIdx::HEAD_WEIGHTS] = head_weights;
+        }
         inputs[QSAIndexerInputIdx::INDEX_QUERY] = query;
         inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] = raw_keys;
         inputs[QSAIndexerInputIdx::ROPE_COS] = rope_cos;
@@ -340,7 +383,9 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                                          GraphOptions{false, false, true, false},
                                          GraphOptions{true, false, true, true, -1, 0.0f},
                                          GraphOptions{true, false, true, true, -1, 0.5f},
-                                         unpadded()),
+                                         unpadded(),
+                                         dsa_kpool(),
+                                         dsa_kpool(false)),
                          [](const testing::TestParamInfo<GraphOptions>& info) {
                              const auto& o = info.param;
                              std::string name = o.gathered_states ? "GatheredStates" : "DirectStates";
@@ -353,6 +398,9 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                              }
                              if (!o.padding) {
                                  name += "_NoPadding";
+                             }
+                             if (o.dsa) {
+                                 name += "_DsaKpool";
                              }
                              return name;
                          });

@@ -102,6 +102,8 @@ struct DecoderConfig {
     float logit_scale = 1.0f;
     float attention_temperature_scale = 0.0f;
     float expert_weights_scale = 0.0f;  // 0 -> 1.0 no-op
+    // GLM-5.3 / DeepSeek-V4 clamp every SwiGLU: gate = min(gate, limit), up = clamp(up, -limit, limit). 0 = off.
+    float swiglu_clamp = 0.0f;
     bool expert_weights_norm = false;   // renormalize top-K gate weights to sum to 1 (qwen3moe etc.)
     float attn_soft_cap = 0.0f;
     float final_logit_soft_cap = 0.0f;

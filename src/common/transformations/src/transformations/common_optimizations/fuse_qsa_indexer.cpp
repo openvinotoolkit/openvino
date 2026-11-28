@@ -80,8 +80,26 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
                                                                     p_incomplete_raw_keys,
                                                                     p_incomplete_rope});
 
-    const auto p_indexer = wrap_type<v17::SparseAttentionIndexer>({p_query, p_prepare->output(0), p_key_length},
-                                                                  {{"num_selection_heads", 1}});
+    const auto p_indexer_qsa = wrap_type<v17::SparseAttentionIndexer>({p_query, p_prepare->output(0), p_key_length},
+                                                                      {{"num_selection_heads", 1}});
+    // DSA k-pool form (DeepSeek / GLM-5.3): QSAPrepare pooling="softmax_gate" with a pool_bias input, and per-head
+    // index weights on the indexer. Fuses to QSAIndexer with dsa_kpool.
+    const auto p_pool_bias = any_input(rank_equals(2));
+    const auto p_prepare_dsa = wrap_type_strict_index<v17::QSAPrepare>({p_raw_keys,
+                                                                        p_past_block_keys,
+                                                                        p_key_length,
+                                                                        p_rope_cos,
+                                                                        p_rope_sin,
+                                                                        p_k_norm_weight,
+                                                                        p_incomplete_raw_keys,
+                                                                        p_incomplete_rope,
+                                                                        p_pool_bias},
+                                                                       {{"pooling", "softmax_gate"}});
+    const auto p_index_weights = any_input(rank_equals(3));
+    const auto p_indexer_dsa =
+        wrap_type<v17::SparseAttentionIndexer>({p_query, p_prepare_dsa->output(0), p_key_length, p_index_weights},
+                                               {{"num_selection_heads", 1}});
+    const auto p_indexer = p_indexer_qsa | p_indexer_dsa;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -91,7 +109,8 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
         if (transformation_callback(indexer)) {
             return false;
         }
-        const auto prepare = ov::as_type_ptr<v17::QSAPrepare>(m.get_pattern_map().at(p_prepare));
+        const bool dsa = pattern_map.count(p_prepare_dsa) != 0;
+        const auto prepare = ov::as_type_ptr<v17::QSAPrepare>(m.get_pattern_map().at(dsa ? p_prepare_dsa : p_prepare));
         OPENVINO_ASSERT(prepare, "FuseQSAIndexer: matched node is expected to be QSAPrepare");
 
         const auto& query = pattern_map.at(p_query);
@@ -103,7 +122,7 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
         if (!query.get_partial_shape()[query_sequence_axis].compatible(
                 raw_keys.get_partial_shape()[keys_sequence_axis]) ||
             indexer->get_key_block_size() != prepare->get_key_block_size() ||
-            !k_norm_weight.get_partial_shape()[0].compatible(head_dim)) {
+            (!dsa && !k_norm_weight.get_partial_shape()[0].compatible(head_dim))) {
             return false;
         }
         const auto& past_block_keys = pattern_map.at(p_past_block_keys);
@@ -120,10 +139,13 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
         op_internal::QSAIndexer::Config config;
         config.key_block_size = static_cast<size_t>(key_block_size);
         config.block_topk = static_cast<size_t>(indexer->get_token_budget() / key_block_size);
-        config.indexer_rotary_dim = static_cast<size_t>(rope_cos.get_partial_shape()[rotary_dim_axis].get_length());
+        config.indexer_rotary_dim =
+            dsa ? 0 : static_cast<size_t>(rope_cos.get_partial_shape()[rotary_dim_axis].get_length());
         config.indexer_head_dim = static_cast<size_t>(head_dim.get_length());
         config.epsilon = prepare->get_epsilon();
-        config.scale = op_internal::QSAIndexer::effective_scale(config);
+        config.dsa_kpool = dsa;
+        // DSA scores are sum_h w[h] * relu(q . k): the caller folds any scale into the index weights.
+        config.scale = dsa ? 1.0f : op_internal::QSAIndexer::effective_scale(config);
         config.query_norm = false;
         config.query_rope = false;
 
@@ -201,17 +223,43 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
 
         const auto query_blhd =
             rg.make<v1::Transpose>(query, v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
-        const auto fused = rg.make<op_internal::QSAIndexer>(ov::OutputVector{query_blhd,
-                                                                             raw_keys_blhd,
-                                                                             rope_for_batch(rope_cos),
-                                                                             rope_for_batch(rope_sin),
-                                                                             key_length_i32,
-                                                                             q_norm_weight,
-                                                                             k_norm_weight,
-                                                                             block_keys_cache,
-                                                                             incomplete_raw_keys_with_head,
-                                                                             incomplete_rope},
-                                                            config);
+        ov::OutputVector fused_inputs;
+        if (dsa) {
+            // DSA: no RoPE ([B, L, 0] rows), no key norm (unit weights), plus pool_bias and the index weights.
+            const auto empty_rope_shape = rg.add(ov::op::util::make_try_fold<v0::Concat>(
+                ov::OutputVector{dims_of(raw_keys, {0, keys_sequence_axis}),
+                                 v0::Constant::create(ov::element::i32, ov::Shape{1}, {0})},
+                0));
+            const auto empty_rope =
+                rg.make<v3::Broadcast>(rg.make<v0::Constant>(data_type, ov::Shape{}, std::vector<float>{0.0f}),
+                                       empty_rope_shape);
+            const auto unit_k_norm =
+                rg.make<v0::Constant>(data_type, ov::Shape{config.indexer_head_dim}, std::vector<float>{1.0f});
+            fused_inputs = {query_blhd,
+                            raw_keys_blhd,
+                            empty_rope,
+                            empty_rope,
+                            key_length_i32,
+                            q_norm_weight,
+                            unit_k_norm,
+                            block_keys_cache,
+                            incomplete_raw_keys_with_head,
+                            incomplete_rope,
+                            pattern_map.at(p_pool_bias),
+                            pattern_map.at(p_index_weights)};
+        } else {
+            fused_inputs = {query_blhd,
+                            raw_keys_blhd,
+                            rope_for_batch(rope_cos),
+                            rope_for_batch(rope_sin),
+                            key_length_i32,
+                            q_norm_weight,
+                            k_norm_weight,
+                            block_keys_cache,
+                            incomplete_raw_keys_with_head,
+                            incomplete_rope};
+        }
+        const auto fused = rg.make<op_internal::QSAIndexer>(fused_inputs, config);
         fused->set_friendly_name(indexer->get_friendly_name());
         register_new_node(fused);
         // The squeezed states replace QSAPrepare outputs 0 and 1, so they are named after them.

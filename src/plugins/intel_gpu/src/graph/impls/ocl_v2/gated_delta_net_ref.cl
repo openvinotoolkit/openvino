@@ -203,9 +203,20 @@ KERNEL(gated_delta_net_ref)
 #if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
         // 2. LOAD COMMON TIMESTEP DATA
         int g_idx = (b * T_len + t) * H_len + h;
-        float b_g = exp(convert_float(g[g_idx]));
         float b_beta = convert_float(beta[g_idx]);
         const int lane_k_base = lid * (K_HEAD_DIM / SUBGROUP_SIZE);
+#    if PER_KEY_GATE
+        // Row lane_k_base + 8 c + j of this lane's state slice decays by exp(gate[.., row]).
+        float8 g_vec[K_CHUNKS];
+#        pragma unroll
+        for (int c = 0; c < K_CHUNKS; c++) {
+#        pragma unroll
+            for (int j = 0; j < 8; j++)
+                g_vec[c][j] = exp(convert_float(g[g_idx * K_HEAD_DIM + lane_k_base + c * 8 + j]));
+        }
+#    else
+        float b_g = exp(convert_float(g[g_idx]));
+#    endif
 
         int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + (hk + query_offset) * K_len;
         int k_offset = b * K_B_STRIDE + t * K_T_STRIDE + (hk + key_offset) * K_len;
@@ -236,7 +247,11 @@ KERNEL(gated_delta_net_ref)
             float dot_part_k = 0.0f;
 #    pragma unroll
             for (int c = 0; c < K_CHUNKS; c++) {
+#    if PER_KEY_GATE
+                float8 s = h_state[v_idx][c] * g_vec[c];
+#    else
                 float8 s = h_state[v_idx][c] * (float8)(b_g);
+#    endif
                 h_state[v_idx][c] = s;
                 dot_part_k += FUNC(dot8_fma)(s, b_k[c]);
             }
@@ -274,7 +289,9 @@ KERNEL(gated_delta_net_ref)
 #else
         if (lid == 0) {
             int g_idx = (b * T_len + t) * H_len + h;
+#    if !PER_KEY_GATE
             float b_g = exp(convert_float(g[g_idx]));
+#    endif
             float b_beta = convert_float(beta[g_idx]);
 
             int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + (hk + query_offset) * K_len;
@@ -308,7 +325,11 @@ KERNEL(gated_delta_net_ref)
 
                 float h_k = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
+#    if PER_KEY_GATE
+                    h_state_f[v_idx][k_idx] *= exp(convert_float(g[g_idx * K_HEAD_DIM + k_idx]));
+#    else
                     h_state_f[v_idx][k_idx] *= b_g;
+#    endif
                     h_k = fma(h_state_f[v_idx][k_idx], k_norm[k_idx], h_k);
                 }
 
