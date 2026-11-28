@@ -163,26 +163,10 @@ ov::Shape getInitialTensorShape(const intel_npu::IODescriptor& descriptor, const
     }
 
     if (descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->is_dynamic()) {
-        const auto minShape = descriptor.shapeFromIRModel->get_min_shape();
-        ov::Shape result;
-        result.reserve(minShape.size());
-        for (const auto& dim : minShape) {
-            result.push_back(dim == 0 ? 1 : dim);
-        }
-        return result;
+        return descriptor.shapeFromCompiler.get_max_shape();
     }
 
-    if (descriptor.shapeFromCompiler.rank().is_static()) {
-        const auto minShape = descriptor.shapeFromCompiler.get_min_shape();
-        ov::Shape result;
-        result.reserve(minShape.size());
-        for (const auto& dim : minShape) {
-            result.push_back(dim == 0 ? 1 : dim);
-        }
-        return result;
-    }
-
-    return descriptor.shapeFromCompiler.get_shape();
+    return descriptor.shapeFromCompiler.get_max_shape();
 }
 
 }  // namespace

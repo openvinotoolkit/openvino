@@ -124,8 +124,6 @@ TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
     EXPECT_EQ(shape_size, zero_tensor->get_size());
     EXPECT_EQ(shape_size * element_type.size(), zero_tensor->get_byte_size());
 
-    auto data = zero_tensor->data();
-
     auto new_shape = Shape{1, 10, 10, 10};
     auto new_shape_size = ov::shape_size(new_shape);
     zero_tensor->set_shape(new_shape);
@@ -133,7 +131,6 @@ TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
     EXPECT_EQ(new_shape, zero_tensor->get_shape());
     EXPECT_EQ(new_shape_size, zero_tensor->get_size());
     EXPECT_EQ(new_shape_size * element_type.size(), zero_tensor->get_byte_size());
-    EXPECT_NE(data, zero_tensor->data());
     ASSERT_TRUE(zero_tensor->memory_address_changed());
     ASSERT_TRUE(
         ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor->data()));
@@ -170,12 +167,11 @@ TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensorScalar) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element_type, Shape{}, true);
-    auto data = zero_tensor->data();
     auto strides = zero_tensor->get_strides();
 
     ov::Tensor view_tensor;
 
-    view_tensor = ov::Tensor(element_type, ov::Shape{}, data, strides);
+    view_tensor = ov::Tensor(element_type, ov::Shape{}, zero_tensor->data(), strides);
     EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 

@@ -28,35 +28,7 @@ namespace intel_npu {
 namespace {
 
 ov::Shape getInitialMemRefShape(const IODescriptor& descriptor) {
-    if (descriptor.relatedDescriptorIndex.has_value()) {
-        return descriptor.shapeFromCompiler.get_max_shape();
-    }
-
-    if (descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->is_static()) {
-        return descriptor.shapeFromIRModel->get_shape();
-    }
-
-    if (descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->is_dynamic()) {
-        const auto minShape = descriptor.shapeFromIRModel->get_min_shape();
-        ov::Shape result;
-        result.reserve(minShape.size());
-        for (const auto& dim : minShape) {
-            result.push_back(dim == 0 ? 1 : dim);
-        }
-        return result;
-    }
-
-    if (descriptor.shapeFromCompiler.rank().is_static()) {
-        const auto minShape = descriptor.shapeFromCompiler.get_min_shape();
-        ov::Shape result;
-        result.reserve(minShape.size());
-        for (const auto& dim : minShape) {
-            result.push_back(dim == 0 ? 1 : dim);
-        }
-        return result;
-    }
-
-    return descriptor.shapeFromCompiler.get_shape();
+    return descriptor.shapeFromCompiler.get_max_shape();
 }
 
 }  // namespace
