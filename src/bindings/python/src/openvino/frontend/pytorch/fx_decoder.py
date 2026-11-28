@@ -289,6 +289,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
             self.input_types = []
             self._subgraph_inputs = []  # Separate storage for subgraph arguments
+            # Number of inputs each tuple/list argument of a higher-order op was flattened into, in order.
+            # Ops like scan(combine_fn, init, xs, additional_inputs) need it to split inputs() back into groups.
+            self._hop_input_group_sizes = []
 
             # Check if this is a higher-order operation that needs special tuple handling
             is_higher_order_op = self._is_higher_order_op(pt_module)
@@ -312,6 +315,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self._subgraph_inputs.append(SubgraphInput(arg, graph_module, arg_idx))
                 elif is_higher_order_op and isinstance(arg, (tuple, list)):
                     # Special handling for higher-order operations (while_loop, cond, etc.)
+                    num_inputs_before = len(self._inputs)
                     if len(arg) == 0:
                         # Empty tuple/list (e.g., additional_inputs=() in while_loop) - skip entirely
                         pass
@@ -324,6 +328,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                         # Mixed tuple - keep as single InlinedInput
                         self._inputs.append(InlinedInput(arg))
                         self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+                    self._hop_input_group_sizes.append(len(self._inputs) - num_inputs_before)
                 elif isinstance(arg, torch.fx.Node):
                     self._inputs.append(self._nodes.index(arg))
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
@@ -647,6 +652,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_attribute(self, name):
         if name == "__openvino_legacy_op_type":
             return OVAny(self.get_legacy_op_type())
+        if name == "__openvino_hop_input_group_sizes":
+            sizes = getattr(self, "_hop_input_group_sizes", None)
+            return OVAny(list(sizes)) if sizes else OVAny(None)
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
