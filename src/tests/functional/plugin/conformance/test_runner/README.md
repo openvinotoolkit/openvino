@@ -174,12 +174,16 @@ The target is able to take the following command-line arguments:
 > * similar load time per one worker based on test execution time. May contain different test count per worker.
 >
 > The example of usage is:
-> ```
-> python3 run_parallel.py -e=/path/to/openvino/bin/intel64/Debug/conformanceTests -d .
-> --gtest_filter=*Add*:*BinaryConv* -- --input_folders=/path/to/ir_1,/path/to/ir_2 --device=CPU
-> --report_unique_name --output_folder=/path/to/temp_output_report_folder
+> ```sh
+> python3 run_parallel.py -e=/path/to/openvino/bin/intel64/Debug/conformanceTests -w . -- \
+>   '--gtest_filter=*Add*:*BinaryConv*-*Skip*:*Flaky*' \
+>   --input_folders=/path/to/ir_1,/path/to/ir_2 --device=CPU \
+>   --report_unique_name --output_folder=/path/to/temp_output_report_folder
 > ```
 > All arguments after `--` symbol is forwarding to `conformanceTests` target.
+> In a Google Test filter, `-` separates included patterns from excluded patterns, and `:` separates alternatives.
+> A `-` in a test name cannot be escaped in the positive pattern; `?` matches any single character in its place.
+> The `GTEST_FILTER` environment variable is also supported; `--gtest_filter` takes precedence.
 >
 >  If you use the `--report_unique_name` argument, run
 > [the merge xml script](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py)

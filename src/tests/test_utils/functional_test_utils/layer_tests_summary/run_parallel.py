@@ -148,7 +148,7 @@ def get_device_by_args(args: list):
     device = constants.NOT_EXIST_DEVICE
     is_device = False
     for argument in args:
-        if "--device" in argument or "-d" == argument[0:2]:
+        if argument.startswith("--device") or argument.startswith("-d"):
             is_device = True
             if argument.find("=") == -1:
                 continue
@@ -338,7 +338,7 @@ class TestParallelRunner:
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._conformance_ir_filelists = list()
-        self._original_gtest_filter = None
+        self._original_gtest_filter = os.environ.get("GTEST_FILTER")
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         # gtest treats everything after the first '-' as negative patterns; keep them for every batch filter
         self._gtest_filter, _, self._gtest_negative_filter = (self._original_gtest_filter or "").partition("-")
@@ -370,16 +370,16 @@ class TestParallelRunner:
             self._timeout = DEFAULT_TEST_TIMEOUT if self._split_unit == constants.TEST_UNIT_NAME else DEFAULT_SUITE_TIMEOUT
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
-        command = self.__quote_command_argument(self._exec_file_path)
+        command = self.__quote_command_argument(str(self._exec_file_path))
         is_input_folder = False
         for argument in test_command_line:
-            if "--input_folders" in argument:
+            if argument.startswith("--input_folders"):
                 is_input_folder = True
                 command += " --input_folders="
                 argument = argument[argument.find("=") + 1 :]
             elif argument.startswith("--gtest_filter="):
                 test_filter = argument.partition("=")[2]
-                if len(test_filter) >= 2 and test_filter[0] == test_filter[-1] == '"':
+                if len(test_filter) >= 2 and test_filter[0] in ('"', "'") and test_filter[0] == test_filter[-1]:
                     test_filter = test_filter[1:-1]
                 self._original_gtest_filter = test_filter
                 is_input_folder = False
@@ -416,9 +416,9 @@ class TestParallelRunner:
 
     @staticmethod
     def __replace_restricted_symbols(input_string: str):
-        restricted_symbols = '!@$%^&-+`~:;",<>?'
-        for symbol in restricted_symbols:
-            input_string = input_string.replace(symbol, "*")
+        # Google Test cannot escape filter metacharacters; '?' preserves their length.
+        for symbol in "-:*":
+            input_string = input_string.replace(symbol, "?")
         return input_string
 
     def __get_test_list_by_runtime(self, test_unit=constants.TEST_UNIT_NAME):
@@ -540,16 +540,16 @@ class TestParallelRunner:
         tasks = []
         for name, duration in proved_test_dict.items():
             if name in partial_suites:
-                names = partial_suites[name]
+                names = [self.__replace_restricted_symbols(test_name) for test_name in partial_suites[name]]
             elif self._split_unit == constants.SUITE_UNIT_NAME:
-                names = [f"{name}.*"]
+                names = [f"{self.__replace_restricted_symbols(name)}.*"]
             else:
-                names = [name]
+                names = [self.__replace_restricted_symbols(name)]
 
             patterns = ""
             pattern_count = 0
-            for test_name in names:
-                pattern = f"{self.__replace_restricted_symbols(test_name)}:"
+            for name in names:
+                pattern = f"{name}:"
                 if patterns and command_length(patterns + pattern) >= MAX_LENGHT:
                     weight = -1 if duration == -1 else duration * pattern_count / len(names)
                     tasks.append((weight, patterns))
