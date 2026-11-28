@@ -5,18 +5,19 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <openvino/core/model.hpp>
 #include <string>
-#include <unordered_map>
+#include <transformations/convert_precision.hpp>
+#include <transformations/rt_info/disable_constant_folding.hpp>
+#include <transformations/rt_info/disable_precision_conversion.hpp>
+#include <tuple>
 #include <unordered_set>
 
-#include <openvino/core/model.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/convert_precision.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/rt_info/disable_precision_conversion.hpp>
-
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -54,7 +55,8 @@ enum class Variant {
 
 // relu(x - (mean(x) + k * sqrt(mean((x - mean(x))^2)))), as emitted by the PyTorch frontend
 // for torch.std-based Gaussian top-k activation sparsity (e.g. Gemma-3n MLP).
-std::shared_ptr<ov::Model> create_model(Variant variant, bool mean_first_in_threshold = true) {
+// With is_reference the nodes marked by the pass carry the FP16 conversion mark.
+std::shared_ptr<ov::Model> create_model(Variant variant, bool mean_first_in_threshold = true, bool is_reference = false) {
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 8});
     ov::ParameterVector parameters{x};
     auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
@@ -100,80 +102,121 @@ std::shared_ptr<ov::Model> create_model(Variant variant, bool mean_first_in_thre
     auto relu = std::make_shared<ov::op::v0::Relu>(sparsified);
     relu->set_friendly_name(name_relu);
 
+    if (is_reference) {
+        for (const auto& node : ov::NodeVector{squared_deviation, variance, std_dev, scaled_std_dev, threshold})
+            ov::disable_conversion(node, ov::element::f16);
+    }
+
     return std::make_shared<ov::Model>(ov::OutputVector{relu}, parameters);
 }
 
-// Runs the pass alone: the marks checked here are the ones the pass itself sets.
-void run_test(const std::shared_ptr<ov::Model>& model,
-              const std::unordered_map<std::string, bool>& expected_fp16_disabled_status) {
-    ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGaussianTopK>();
-    manager.run_passes(model);
+// The model after DisableFP16CompForGaussianTopK and ConvertPrecision as registered in the GPU plugin: the FP32 mark
+// spreads over the whole subgraph and every consumer of x reads it through a Convert.
+std::shared_ptr<ov::Model> create_mixed_precision_model(Variant variant) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 8});
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
 
-    size_t matched_count = 0;
-    for (const auto& op : model->get_ops()) {
-        auto it = expected_fp16_disabled_status.find(op->get_friendly_name());
-        if (it == expected_fp16_disabled_status.end())
-            continue;
-        ++matched_count;
-        if (it->second) {
-            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "FP16 compression is not disabled for node: " << op->get_friendly_name();
-        } else {
-            ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "FP16 compression is unexpectedly disabled for node: " << op->get_friendly_name();
+    auto keep_f32 = [](std::shared_ptr<ov::Node> node) {
+        ov::disable_conversion(node, ov::element::f16);
+        return node;
+    };
+    auto x_f32 = [&]() {
+        auto convert = std::make_shared<ov::op::v0::Convert>(x, ov::element::f32);
+        ov::disable_constant_folding(convert);
+        return keep_f32(convert);
+    };
+
+    auto mean = keep_f32(std::make_shared<ov::op::v1::ReduceMean>(x_f32(), axes, true));
+    auto deviation = keep_f32(std::make_shared<ov::op::v1::Subtract>(x_f32(), mean));
+    auto squared_deviation = keep_f32(std::make_shared<ov::op::v1::Multiply>(deviation, deviation));
+    auto variance = keep_f32(std::make_shared<ov::op::v1::ReduceMean>(squared_deviation, axes, true));
+    auto std_dev = keep_f32(std::make_shared<ov::op::v0::Sqrt>(variance));
+    auto k = keep_f32(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.6448536f}));
+    auto scaled_std_dev = keep_f32(std::make_shared<ov::op::v1::Multiply>(std_dev, k));
+    auto threshold_mean = variant == Variant::SeparateMeans ? keep_f32(std::make_shared<ov::op::v1::ReduceMean>(x_f32(), axes, true)) : mean;
+    auto threshold = keep_f32(std::make_shared<ov::op::v1::Add>(threshold_mean, scaled_std_dev));
+    auto sparsified = keep_f32(std::make_shared<ov::op::v1::Subtract>(x_f32(), threshold));
+    auto relu = keep_f32(std::make_shared<ov::op::v0::Relu>(sparsified));
+
+    auto relu_f16 = std::make_shared<ov::op::v0::Convert>(relu, ov::element::f16);
+    ov::disable_constant_folding(relu_f16);
+    auto zero = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.f});
+    auto mask = std::make_shared<ov::op::v1::Greater>(relu_f16, zero);
+    return std::make_shared<ov::Model>(ov::OutputVector{mask}, ov::ParameterVector{x});
+}
+
+// ConvertPrecision rounds a floating-point model output to FP16 and back and loses its tensor name, which the test fixture
+// checks, so the model ends with a comparison.
+std::shared_ptr<ov::Model> add_mask_output(const std::shared_ptr<ov::Model>& model) {
+    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.f});
+    auto mask = std::make_shared<ov::op::v1::Greater>(model->get_results()[0]->input_value(0), zero);
+    return std::make_shared<ov::Model>(ov::OutputVector{mask}, model->get_parameters());
+}
+
+// The comparator only requires the marks of model_ref to be present in the model, so the exact set of marked nodes is
+// asserted as well.
+class DisableFP16CompForGaussianTopKTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<DisableFP16CompForGaussianTopK>();
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+
+        size_t matched_count = 0;
+        for (const auto& op : model->get_ops()) {
+            const bool is_marked = marked_nodes.count(op->get_friendly_name()) > 0;
+            matched_count += is_marked;
+            ASSERT_EQ(ov::is_conversion_disabled(op, ov::element::f16), is_marked) << "Node: " << op->get_friendly_name();
+        }
+        ASSERT_EQ(matched_count, marked_nodes.size()) << "Some marked nodes are missing in the model";
+    }
+
+    std::unordered_set<std::string> marked_nodes;
+};
+
+using PositiveParams = std::tuple<Variant, bool>;  // variant, mean is the first input of the threshold
+
+class DisableFP16CompForGaussianTopKPositiveTest : public testing::WithParamInterface<PositiveParams>, public DisableFP16CompForGaussianTopKTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PositiveParams>& obj) {
+        const auto& [variant, mean_first] = obj.param;
+        return std::string(variant == Variant::GaussianTopK ? "SharedMean" : "SeparateMeans") + (mean_first ? "_MeanFirst" : "_ScaledStdFirst");
+    }
+};
+
+class DisableFP16CompForGaussianTopKNoOpTest : public testing::WithParamInterface<Variant>, public DisableFP16CompForGaussianTopKTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<Variant>& obj) {
+        switch (obj.param) {
+        case Variant::NonSquaredDeviation:
+            return "NonSquaredDeviation";
+        case Variant::ThresholdFromOtherMean:
+            return "ThresholdFromOtherMean";
+        case Variant::ThresholdMeanKeepDimsMismatch:
+            return "ThresholdMeanKeepDimsMismatch";
+        case Variant::MismatchedReduceAxes:
+            return "MismatchedReduceAxes";
+        case Variant::ThresholdMeanOfOtherInput:
+            return "ThresholdMeanOfOtherInput";
+        default:
+            return "Unknown";
         }
     }
-    ASSERT_EQ(matched_count, expected_fp16_disabled_status.size()) << "Some expected nodes are missing in the model";
-}
-}  // namespace
-
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_Positive) {
-    // The pass itself marks the squared deviation and the nodes computed from it. mean and deviation are not marked
-    // here: ConvertPrecision propagates the mark up to them (see DisableFP16CompForGaussianTopK_KeepPrecisionSensitiveInFP32).
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, true},
-        {name_variance, true},
-        {name_std_dev, true},
-        {name_scaled_std_dev, true},
-        {name_threshold, true},
-        {name_sparsified, false},
-        {name_relu, false},
-    };
-    for (bool mean_first : {true, false}) {
-        SCOPED_TRACE(mean_first ? "Add(mean, k * std)" : "Add(k * std, mean)");
-        run_test(create_model(Variant::GaussianTopK, mean_first), expected_status);
-    }
-}
-
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_SeparateMeans_Positive) {
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_threshold_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, true},
-        {name_variance, true},
-        {name_std_dev, true},
-        {name_scaled_std_dev, true},
-        {name_threshold, true},
-        {name_sparsified, false},
-        {name_relu, false},
-    };
-    for (bool mean_first : {true, false}) {
-        SCOPED_TRACE(mean_first ? "Add(mean, k * std)" : "Add(k * std, mean)");
-        run_test(create_model(Variant::SeparateMeans, mean_first), expected_status);
-    }
-}
+};
 
 // ConvertPrecision is registered as in the GPU plugin: the mark set by the pass propagates up to mean and deviation.
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_KeepPrecisionSensitiveInFP32) {
-    for (auto variant : {Variant::GaussianTopK, Variant::SeparateMeans}) {
-        SCOPED_TRACE(variant == Variant::GaussianTopK ? "shared mean" : "separate means");
-        auto model = create_model(variant);
+class DisableFP16CompForGaussianTopKConvertPrecisionTest : public testing::WithParamInterface<Variant>, public TransformationTestsF {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<Variant>& obj) {
+        return obj.param == Variant::GaussianTopK ? "SharedMean" : "SeparateMeans";
+    }
 
-        ov::pass::Manager manager;
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
         manager.register_pass<DisableFP16CompForGaussianTopK>();
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
@@ -181,83 +224,61 @@ TEST(TransformationTests, DisableFP16CompForGaussianTopK_KeepPrecisionSensitiveI
                                                           true,   // keep_precision_sensitive_in_fp32
                                                           false,  // convert_input_output_precision
                                                           true);  // store_original_precision_as_rt_attribute
-        manager.run_passes(model);
+    }
 
-        std::unordered_set<std::string> expected_fp32_nodes =
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+
+        std::unordered_set<std::string> fp32_nodes =
             {name_mean, name_deviation, name_squared_deviation, name_variance, name_std_dev, name_scaled_std_dev, name_threshold};
-        if (variant == Variant::SeparateMeans)
-            expected_fp32_nodes.insert(name_threshold_mean);
+        if (GetParam() == Variant::SeparateMeans)
+            fp32_nodes.insert(name_threshold_mean);
 
         size_t matched_count = 0;
         for (const auto& op : model->get_ops()) {
-            if (expected_fp32_nodes.count(op->get_friendly_name()) == 0)
+            if (fp32_nodes.count(op->get_friendly_name()) == 0)
                 continue;
             ++matched_count;
             ASSERT_EQ(op->get_output_element_type(0), ov::element::f32) << "Node is converted to FP16: " << op->get_friendly_name();
         }
-        ASSERT_EQ(matched_count, expected_fp32_nodes.size()) << "Some expected nodes are missing in the model";
+        ASSERT_EQ(matched_count, fp32_nodes.size()) << "Some FP32 nodes are missing in the model";
     }
+};
+}  // namespace
+
+// mean and deviation are not marked by the pass: ConvertPrecision propagates the mark up to them
+// (see DisableFP16CompForGaussianTopKConvertPrecisionTest).
+TEST_P(DisableFP16CompForGaussianTopKPositiveTest, MarksOverflowProneNodes) {
+    const auto& [variant, mean_first] = GetParam();
+    model = create_model(variant, mean_first);
+    model_ref = create_model(variant, mean_first, true);
+    marked_nodes = {name_squared_deviation, name_variance, name_std_dev, name_scaled_std_dev, name_threshold};
 }
 
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_NonSquaredDeviation_NoOp) {
-    auto model = create_model(Variant::NonSquaredDeviation);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, false},
-        {name_variance, false},
-        {name_threshold, false},
-    };
-    run_test(model, expected_status);
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         DisableFP16CompForGaussianTopKPositiveTest,
+                         testing::Combine(testing::Values(Variant::GaussianTopK, Variant::SeparateMeans), testing::Bool()),
+                         DisableFP16CompForGaussianTopKPositiveTest::getTestCaseName);
+
+TEST_P(DisableFP16CompForGaussianTopKConvertPrecisionTest, KeepsMeanAndDeviationInFP32) {
+    model = add_mask_output(create_model(GetParam()));
+    model_ref = create_mixed_precision_model(GetParam());
 }
 
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_ThresholdFromOtherMean_NoOp) {
-    auto model = create_model(Variant::ThresholdFromOtherMean);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_threshold_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, false},
-        {name_variance, false},
-        {name_threshold, false},
-    };
-    run_test(model, expected_status);
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         DisableFP16CompForGaussianTopKConvertPrecisionTest,
+                         testing::Values(Variant::GaussianTopK, Variant::SeparateMeans),
+                         DisableFP16CompForGaussianTopKConvertPrecisionTest::getTestCaseName);
+
+TEST_P(DisableFP16CompForGaussianTopKNoOpTest, NothingIsMarked) {
+    model = create_model(GetParam());
 }
 
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_ThresholdMeanKeepDimsMismatch_NoOp) {
-    auto model = create_model(Variant::ThresholdMeanKeepDimsMismatch);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_threshold_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, false},
-        {name_variance, false},
-        {name_threshold, false},
-    };
-    run_test(model, expected_status);
-}
-
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_MismatchedReduceAxes_NoOp) {
-    auto model = create_model(Variant::MismatchedReduceAxes);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, false},
-        {name_variance, false},
-        {name_threshold, false},
-    };
-    run_test(model, expected_status);
-}
-
-TEST(TransformationTests, DisableFP16CompForGaussianTopK_ThresholdMeanOfOtherInput_NoOp) {
-    auto model = create_model(Variant::ThresholdMeanOfOtherInput);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, false},
-        {name_threshold_mean, false},
-        {name_deviation, false},
-        {name_squared_deviation, false},
-        {name_variance, false},
-        {name_threshold, false},
-    };
-    run_test(model, expected_status);
-}
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         DisableFP16CompForGaussianTopKNoOpTest,
+                         testing::Values(Variant::NonSquaredDeviation,
+                                         Variant::ThresholdFromOtherMean,
+                                         Variant::ThresholdMeanKeepDimsMismatch,
+                                         Variant::MismatchedReduceAxes,
+                                         Variant::ThresholdMeanOfOtherInput),
+                         DisableFP16CompForGaussianTopKNoOpTest::getTestCaseName);

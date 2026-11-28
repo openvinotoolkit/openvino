@@ -54,7 +54,7 @@ protected:
     }
 };
 
-TEST_F(GaussianTopKFP16Overflow, Inference) {
+TEST_F(GaussianTopKFP16Overflow, smoke_GPU_GaussianTopKFP16Overflow) {
     run();
 }
 }  // namespace
