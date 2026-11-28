@@ -31,7 +31,7 @@ namespace intel_npu {
 class WeightlessGraph final : public Graph {
 public:
     WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-                    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                    const ZeroGraphDeps& zeroDeps,
                     const GraphDescriptor& mainGraphDesc,
                     NetworkMetadata mainMetadata,
                     std::optional<ov::Tensor> mainBlob,

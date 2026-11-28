@@ -223,7 +223,7 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
 }
 
 //------------------------------------------------------------------------------
-ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroContext>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const Config& config)
     : _initStructs(initStructs),
@@ -454,7 +454,7 @@ void ZeroInferRequest::setup_pipeline() {
                                 batchSize.value());
             }
 
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+            if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0)) {
                 _logger.debug("setup_pipeline - tensors %s were already allocated",
                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
             } else {
@@ -844,7 +844,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
 
     // For dynamic bounds (related shape tensor present), we must keep Level Zero allocation at max shape.
     // Therefore user-memory import is allowed only when there is no related shape tensor.
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+    if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0) &&
         !has_related_shape_tensor(metadata, foundPort.idx)) {
         bool updateCommandListArg = false;
         try {
@@ -896,7 +896,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
         if (levelZeroTensor == nullptr) {
             levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _batchSize);
         } else if (foundPort.is_input() && _batchSize.has_value() && _graph->get_kind() != GraphKind::Dynamic &&
-                   _initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0) &&
+                   _initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion < ZE_MAKE_VERSION(1, 0) &&
                    !has_related_shape_tensor(metadata, foundPort.idx) && !levelZeroTensor->get_shape().empty() &&
                    determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx),
                                                 _compiledModel->inputs()[foundPort.idx].get_partial_shape(),
@@ -964,7 +964,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
 
     // For dynamic bounds (related shape tensor present), we must keep Level Zero allocation at max shape.
     // Therefore user-memory import is allowed only when there is no related shape tensor.
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+    if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0) &&
         !has_related_shape_tensor(_metadata.inputs, foundPort.idx)) {
         if (batchSize.has_value()) {
             get_level_zero_inputs(foundPort.idx).resize(tensors.size());
@@ -1169,7 +1169,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         if (levelZeroTensor.at(SINGLE_TENSOR)->memory_address_changed()) {
             // Memory address can change only a through tensor reshape. Tensor reallocation for a larger shape is
             // allowed only when mutable command list version >= 1.0. This point should not be reached otherwise.
-            if (_initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
+            if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
             }
 
@@ -1199,7 +1199,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         if (levelZeroTensor->memory_address_changed()) {
             // Memory address can change only a through tensor reshape. Tensor reallocation for a larger shape is
             // allowed only when mutable command list version >= 1.0. This point should not be reached otherwise.
-            if (_initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
+            if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
             }
 
@@ -1228,7 +1228,7 @@ void ZeroInferRequest::update_states_if_memory_changed() {
             // states tensors are not visible inside the pipeline.
             // Update input and output arguments that correspond to the state only if command lists are supported.
             // Push/pull methods would later perform memory copies otherwise.
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+            if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0) &&
                 zeroState->zero_state_update_pending()) {
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
@@ -1338,7 +1338,8 @@ void ZeroInferRequest::prepare_inputs() {
         // 1. Batch size is set and batching is handled by the plugin.
         // 2. Batch size is not set and batching is handled by the compiler.
         if (is_batched_input(inputIndex)) {
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batch_size.has_value()) {
+            if (_initStructs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion >= ZE_MAKE_VERSION(1, 0) &&
+                batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     const auto& levelZeroTensor = get_level_zero_input(inputIndex, i);
                     OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");

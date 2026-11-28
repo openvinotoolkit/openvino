@@ -44,7 +44,7 @@ LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query)
 constexpr uint32_t POOL_SIZE = 1;
 
 struct ProfilingPool {
-    ProfilingPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    ProfilingPool(const std::shared_ptr<ZeroContext>& init_structs,
                   const std::shared_ptr<IGraph>& graph,
                   uint32_t profiling_count)
         : _init_structs(init_structs),
@@ -56,7 +56,7 @@ struct ProfilingPool {
 
     ~ProfilingPool();
 
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const uint32_t _profiling_count;
 
@@ -64,7 +64,7 @@ struct ProfilingPool {
 };
 
 struct ProfilingQuery {
-    ProfilingQuery(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t index)
+    ProfilingQuery(const std::shared_ptr<ZeroContext>& init_structs, uint32_t index)
         : _init_structs(init_structs),
           _index(index) {}
     ProfilingQuery(const ProfilingQuery&) = delete;
@@ -83,7 +83,7 @@ private:
     void getProfilingProperties(ze_device_profiling_data_properties_t* properties) const;
     void verifyProfilingProperties() const;
 
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
     const uint32_t _index;
 
     std::shared_ptr<ProfilingPool> _profiling_pool = nullptr;
@@ -96,7 +96,7 @@ extern template std::vector<uint8_t> ProfilingQuery::getData<uint8_t>() const;
 using NpuInferStatistics = std::vector<ov::ProfilingInfo>;
 
 struct NpuInferProfiling final {
-    explicit NpuInferProfiling(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, ov::log::Level loglevel);
+    explicit NpuInferProfiling(const std::shared_ptr<ZeroContext>& init_structs, ov::log::Level loglevel);
     NpuInferProfiling(const NpuInferProfiling&) = delete;
     NpuInferProfiling& operator=(const NpuInferProfiling&) = delete;
     NpuInferProfiling(NpuInferProfiling&&) = delete;
@@ -112,7 +112,7 @@ struct NpuInferProfiling final {
     void* npu_ts_infer_end = 0;
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
     ov::log::Level _loglevel;
     Logger _logger;
     ze_device_properties_t _dev_properties = {};

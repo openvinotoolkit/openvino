@@ -111,8 +111,8 @@ public:
                 return property == ov::intel_npu::enable_strides_for.name();
             });
 
-        auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-        if (zeroInit->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        auto zeroInit = ::intel_npu::ZeroContext::getInstance();
+        if (zeroInit->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
             stridesEnabled = false;
         }
 
@@ -566,12 +566,12 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
-    init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    init_struct = ::intel_npu::ZeroContext::getInstance();
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -623,12 +623,12 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToAnotherRemoteTensor) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
-    init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    init_struct = ::intel_npu::ZeroContext::getInstance();
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -688,12 +688,12 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToA
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFromAnotherRemoteTensor) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
-    init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    init_struct = ::intel_npu::ZeroContext::getInstance();
 
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;

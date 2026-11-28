@@ -10,7 +10,7 @@
 
 namespace intel_npu {
 
-ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+ZeroMem::ZeroMem(const std::shared_ptr<ZeroContext>& init_structs,
                  const size_t bytes,
                  const size_t alignment,
                  const bool is_input)
@@ -30,7 +30,7 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     OPENVINO_ASSERT(_id != 0, "Failed to get memory allocation id of the allocated memory");
 }
 
-ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+ZeroMem::ZeroMem(const std::shared_ptr<ZeroContext>& init_structs,
                  const void* data,
                  const size_t bytes,
                  const bool is_input,
@@ -39,7 +39,7 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _logger("ZeHostMem", Logger::global().level()),
       _size(bytes) {
     if (standard_allocation) {
-        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
+        if (!_init_structs->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
             throw ZeroMemException("Importing standard allocation is not supported with this driver version");
         }
 
@@ -74,7 +74,7 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    ze_result_to_description(result).c_str());
         }
     } else {
-        OPENVINO_ASSERT(_init_structs->isExternalMemoryFdWin32Supported(),
+        OPENVINO_ASSERT(_init_structs->getZeroDriver()->getCapabilities().externalMemoryFdWin32Supported,
                         "Remote tensor functionality is not supported with this driver version");
 
         OPENVINO_ASSERT(data != nullptr, "Data pointer for importing memory can't be null");

@@ -12,7 +12,7 @@ namespace intel_npu {
 
 class ZeroDynamicInferRequest final : public ZeroInferRequest {
 public:
-    explicit ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    explicit ZeroDynamicInferRequest(const std::shared_ptr<ZeroContext>& initStructs,
                                      const std::shared_ptr<const ICompiledModel>& compiledModel,
                                      const Config& config);
 

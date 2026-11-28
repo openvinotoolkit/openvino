@@ -4,6 +4,8 @@
 
 #include "plugin_property_manager.hpp"
 
+#include <level_zero/ze_api.h>
+
 #include <algorithm>
 #include <optional>
 #include <tuple>
@@ -27,8 +29,7 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
         return false;
     }
 
-    const auto initStructs = backend->getInitStructs();
-    if (initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
+    if (utils::driverOf(backend)->getApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
         return true;
     }
 
@@ -73,9 +74,8 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     OPENVINO_ASSERT(backend && backend->getDevice(), "Device is not available for compatibility descriptor validation");
 
     const auto device = backend->getDevice();
-    const auto initStructs = backend->getInitStructs();
 
-    if (device != nullptr && initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
+    if (device != nullptr && utils::driverOf(backend)->getApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
         auto result = device->validateCompatibilityDescriptor(compatibilityDescriptor);
         return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
     }
@@ -534,7 +534,7 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::intel_npu::disable_idle_memory_prunning.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name()) && _backend != nullptr &&
-                   _backend->isContextExtSupported();
+                   utils::driverOf(_backend)->isContextExtSupported();
         },
         [this](const ov::AnyMap&) {
             return _config.get<DISABLE_IDLE_MEMORY_PRUNING>();
@@ -601,7 +601,7 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::intel_npu::turbo.name(), true, ov::PropertyMutability::RW,
         [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
             return _config.hasOpt(ov::intel_npu::turbo.name()) &&
-                   ((_backend != nullptr && _backend->isCommandQueueExtSupported()) ||
+                   ((_backend != nullptr && utils::driverOf(_backend)->isCommandQueueExtSupported()) ||
                     isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments));
         },
         [this](const ov::AnyMap&) {
@@ -617,7 +617,7 @@ void PluginPropertyManager::registerProperties() {
                 !isCompilerOptionSupported(ov::intel_npu::enable_strides_for.name(), arguments)) {
                 return false;
             }
-            if (_backend != nullptr && _backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
+            if (_backend != nullptr && utils::driverOf(_backend)->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
                 _logger.info("Config option %s not supported by the driver! Requirements not met.", ov::intel_npu::enable_strides_for.name());
                 return false;
             }
@@ -643,8 +643,7 @@ void PluginPropertyManager::registerProperties() {
     );
 
     const auto hasRequiredCommandQueueVersion = [this] {
-        return _backend && _backend->getInitStructs() &&
-               _backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+        return _backend && utils::driverOf(_backend)->getCommandQueueExtVersion() >= ZE_MAKE_VERSION(1, 1);
     };
     // Returns the value a property would have once the request is applied: the requested value when the caller
     // supplied one, otherwise the value currently stored in the config.
@@ -848,7 +847,7 @@ void PluginPropertyManager::registerProperties() {
 
     register_property(ov::intel_npu::driver_version.name(), true, ov::PropertyMutability::RO, hasBackendPredicate, [this](const ov::AnyMap&) {
         OPENVINO_ASSERT(_backend != nullptr, "No available backend");
-        return _backend->getDriverVersion();
+        return utils::driverOf(_backend)->getDriverVersion();
     }, readOnlySetter);
     register_property(ov::device::pci_info.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getPciInfo(_backend, getDeviceIdOrDefault(arguments));
@@ -875,7 +874,7 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::device::full_name.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getFullDeviceName(_backend, getDeviceIdOrDefault(arguments));
     }, readOnlySetter);
-    register_property(ov::device::luid.name(), _backend != nullptr && _backend->isLUIDExtSupported(), ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
+    register_property(ov::device::luid.name(), _backend != nullptr && utils::driverOf(_backend)->isLUIDExtSupported(), ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getDeviceLUID(_backend, getDeviceIdOrDefault(arguments));
     }, readOnlySetter);
     

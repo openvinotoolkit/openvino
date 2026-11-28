@@ -7,38 +7,18 @@
 #include <vector>
 
 #include "intel_npu/config/options.hpp"
-#include "zero_device.hpp"
+#include "intel_npu/utils/zero/zero_device.hpp"
 
 namespace intel_npu {
 
 ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
 
-    _initStruct = ZeroInitStructsHolder::getInstance();
+    _initStruct = ZeroContext::getInstance();
 
-    auto device = std::make_shared<ZeroDevice>(_initStruct);
+    auto device = _initStruct->getZeroDriver()->getDefaultDevice();
     _devices.emplace(std::make_pair(device->getName(), device));
     _logger.debug("ZeroEngineBackend - initialize completed");
-}
-
-uint32_t ZeroEngineBackend::getDriverVersion() const {
-    return _initStruct->getDriverVersion();
-}
-
-uint32_t ZeroEngineBackend::getGraphExtVersion() const {
-    return _initStruct->getGraphExtVersion();
-}
-
-bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _initStruct->isCommandQueueExtSupported();
-}
-
-bool ZeroEngineBackend::isLUIDExtSupported() const {
-    return _initStruct->isLUIDExtSupported();
-}
-
-bool ZeroEngineBackend::isContextExtSupported() const {
-    return _initStruct->isContextExtSupported();
 }
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
@@ -130,8 +110,12 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     return devicesNames;
 }
 
-void* ZeroEngineBackend::getContext() const {
-    return _initStruct->getContext();
+std::shared_ptr<IDriver> ZeroEngineBackend::getDriver() const {
+    return _initStruct->getZeroDriver();
+}
+
+std::shared_ptr<IContext> ZeroEngineBackend::getContext() const {
+    return _initStruct;
 }
 
 void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties) {
@@ -152,10 +136,6 @@ void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties) {
             dev.second->updateInfo(properties);
         }
     }
-}
-
-const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
-    return _initStruct;
 }
 
 }  // namespace intel_npu

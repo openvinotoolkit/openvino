@@ -18,7 +18,7 @@ namespace intel_npu {
  */
 class ZeroVariableState final : public ov::IVariableState {
 public:
-    explicit ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    explicit ZeroVariableState(const std::shared_ptr<ZeroContext>& init_structs,
                                const std::string& name,
                                const std::shared_ptr<ZeroTensor>& zero_tensor,
                                size_t tensor_index,
@@ -83,7 +83,7 @@ public:
     ~ZeroVariableState() override = default;
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
     size_t _tensor_index;
     size_t _related_tensor_index;
 

@@ -107,7 +107,7 @@ class DynamicPipeline final : public IPipeline {
     };
 
 public:
-    DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    DynamicPipeline(const std::shared_ptr<ZeroContext>& init_structs,
                     const std::shared_ptr<IGraph>& graph,
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,

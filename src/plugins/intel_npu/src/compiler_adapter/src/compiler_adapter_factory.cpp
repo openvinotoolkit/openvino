@@ -61,7 +61,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(ov::intel_
                                      ex.what());
         }
 
-        return std::make_unique<PluginCompilerAdapter>(_engineBackend ? _engineBackend->getInitStructs() : nullptr,
+        return std::make_unique<PluginCompilerAdapter>(_engineBackend ? asZeroContext(_engineBackend->getContext()) : nullptr,
                                                        compiler,
                                                        profilingDecoder);
     }
@@ -79,7 +79,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(ov::intel_
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 
-        return std::make_unique<DriverCompilerAdapter>(_engineBackend->getInitStructs(), _optionSupportCache);
+        return std::make_unique<DriverCompilerAdapter>(asZeroContext(_engineBackend->getContext()), _optionSupportCache);
     }
 
     OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");

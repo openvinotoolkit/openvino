@@ -14,6 +14,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_graph_deps.hpp"
 #include "ivcl_compiler.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -26,12 +27,12 @@ public:
      *
      * The adapter never loads or constructs a compiler itself; composition is the caller's job.
      *
-     * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
+     * @param zeroDeps Pass empty to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
      * @param compiler The compiler-in-plugin to adapt; must be non-null.
      * @param profilingDecoder The profiling decoder to hand to every compiled graph; may be empty.
      */
-    PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    PluginCompilerAdapter(const ZeroGraphDeps& zeroDeps,
                           const std::shared_ptr<IVCLCompiler>& compiler,
                           const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
@@ -53,7 +54,7 @@ public:
     uint32_t get_version() const override;
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    ZeroGraphDeps _zeroDeps;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<IVCLCompiler> _compiler;
     std::shared_ptr<IProfilingDecoder> _profilingDecoder;

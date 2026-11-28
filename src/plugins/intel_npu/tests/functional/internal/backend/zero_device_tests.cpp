@@ -13,7 +13,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "zero_device.hpp"
+#include "intel_npu/utils/zero/zero_device.hpp"
 
 namespace ov::test::behavior {
 
@@ -47,23 +47,23 @@ protected:
 
         std::tie(targetDevice, configuration) = this->GetParam();
 
-        zeroInitStruct = ZeroInitStructsHolder::getInstance();
+        zeroInitStruct = ZeroContext::getInstance();
         ASSERT_NE(zeroInitStruct, nullptr);
-        ASSERT_NE(zeroInitStruct->getDevice(), nullptr);
+        ASSERT_NE(zeroInitStruct->getZeroDriver()->getDefaultDevice()->getZeDevice(), nullptr);
 
-        device = std::make_unique<ZeroDevice>(zeroInitStruct);
+        device = zeroInitStruct->getZeroDriver()->getDefaultDevice();
     }
 
     std::string targetDevice;
     ov::AnyMap configuration;
-    std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
-    std::unique_ptr<ZeroDevice> device;
+    std::shared_ptr<ZeroContext> zeroInitStruct;
+    std::shared_ptr<ZeroDevice> device;
 };
 
 // E2E tests fail earlier (at metadata parse), so this narrow unit test provides
 // the only coverage for the L0 driver validation branch with invalid descriptors.
 TEST_P(ZeroDeviceTest, ValidateRejectsInvalidString) {
-    if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+    if (zeroInitStruct->getZeroDriver()->getCapabilities().zeApiVersion < ZE_MAKE_VERSION(1, 16)) {
         ASSERT_ANY_THROW(device->validateCompatibilityDescriptor("not_a_valid_compat_string"));
     } else {
         bool isCompatible = true;

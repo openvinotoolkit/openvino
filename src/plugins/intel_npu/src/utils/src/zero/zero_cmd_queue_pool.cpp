@@ -19,9 +19,9 @@ ZeroCmdQueuePool& ZeroCmdQueuePool::getInstance() {
 }
 
 std::shared_ptr<CommandQueue> ZeroCmdQueuePool::getCommandQueue(
-    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    const std::shared_ptr<ZeroContext>& init_structs,
     const CommandQueueDesc& command_queue_desc) {
-    ZeroCmdQueueKey key{init_structs->getContext(), init_structs->getDevice(), command_queue_desc};
+    ZeroCmdQueueKey key{init_structs->getContext(), init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice(), command_queue_desc};
 
     std::lock_guard<std::mutex> lock(_mutex);
     auto it = _pool.find(key);

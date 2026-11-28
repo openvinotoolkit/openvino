@@ -31,6 +31,7 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
+        openvino::npu_zero_utils
         openvino_npu_compiler_adapter
         openvino_npu_level_zero_backend
 )

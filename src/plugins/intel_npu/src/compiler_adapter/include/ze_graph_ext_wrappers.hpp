@@ -15,6 +15,7 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_graph_deps.hpp"
 #include "model_serializer.hpp"
 
 namespace intel_npu {
@@ -31,7 +32,7 @@ struct GraphDescriptor {
  */
 class ZeGraphExtWrappers {
 public:
-    ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
+    ZeGraphExtWrappers(const ZeroGraphDeps& zeroDeps);
     ZeGraphExtWrappers(const ZeGraphExtWrappers&) = delete;
     ZeGraphExtWrappers& operator=(const ZeGraphExtWrappers&) = delete;
     ~ZeGraphExtWrappers();
@@ -121,7 +122,7 @@ private:
 
     bool canCpuVaBeImported(const void* data, size_t size) const;
 
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    ZeroGraphDeps _zeroDeps;
     uint32_t _graphExtVersion;
     bool _isCompilerOptionQuerySupported;
 

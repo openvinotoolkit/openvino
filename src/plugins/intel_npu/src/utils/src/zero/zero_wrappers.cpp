@@ -74,14 +74,14 @@ void CommandQueueDesc::updateKey() {
     _key = hash;
 }
 
-EventPool::EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t event_count)
+EventPool::EventPool(const std::shared_ptr<ZeroContext>& init_structs, uint32_t event_count)
     : _init_structs(init_structs),
       _log("EventPool", Logger::global().level()) {
     ze_event_pool_desc_t event_pool_desc = {ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
                                             nullptr,
                                             ZE_EVENT_POOL_FLAG_HOST_VISIBLE,
                                             event_count};
-    auto device_handle = _init_structs->getDevice();
+    auto device_handle = _init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice();
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeEventPoolCreate",
         zeEventPoolCreate(_init_structs->getContext(), &event_pool_desc, 1, &device_handle, &_handle));
@@ -139,20 +139,20 @@ Event::~Event() {
     }
 }
 
-CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
+CommandList::CommandList(const std::shared_ptr<ZeroContext>& init_structs)
     : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
                                    &mutable_desc,
-                                   _init_structs->getCommandQueueGroupOrdinal(),
+                                   _init_structs->getZeroDriver()->getCapabilities().commandQueueGroupOrdinal,
                                    0};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
-        zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
+        zeCommandListCreate(_init_structs->getContext(), _init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice(), &desc, &_handle));
 
     try {
-        uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
+        uint32_t mutable_command_list_ext_version = _init_structs->getZeroDriver()->getCapabilities().mutableCommandListExtVersion;
         if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
             ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
 
@@ -196,14 +196,14 @@ void CommandList::appendMemoryCopy(void* dst, const void* src, const std::size_t
 }
 void CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) const {
     ze_result_t result =
-        _init_structs->getGraphDdiTable().pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _init_structs->getGraphDdiTable());
+        _init_structs->getZeroDriver()->getGraphDdiTable().pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _init_structs->getZeroDriver()->getGraphDdiTable());
 }
 void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
                                      const ze_graph_profiling_query_handle_t& profiling_query_handle) const {
-    ze_result_t result = _init_structs->getGraphDdiTable()
+    ze_result_t result = _init_structs->getZeroDriver()->getGraphDdiTable()
                              .pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _init_structs->getGraphDdiTable());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _init_structs->getZeroDriver()->getGraphDdiTable());
 }
 void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp",
@@ -233,7 +233,7 @@ CommandList::~CommandList() {
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
-    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+    desc.stype = (_init_structs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
     desc.commandId = _command_id;
@@ -252,7 +252,7 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                                       const std::vector<size_t>& strides) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
-    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+    desc.stype = (_init_structs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
     desc.commandId = _command_id;
@@ -261,7 +261,7 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
 
     ze_graph_argument_value_strides_t strides_value = {};
     if (!strides.empty()) {
-        if (_init_structs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 15)) {
+        if (_init_structs->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 15)) {
             OPENVINO_THROW("Strides are not supported by the current driver version.");
         }
 
@@ -290,13 +290,13 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                 zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc)
+CommandQueue::CommandQueue(const std::shared_ptr<ZeroContext>& init_structs, const CommandQueueDesc& desc)
     : _init_structs(init_structs),
       _desc(desc),
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t ze_queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
                                              nullptr,
-                                             _init_structs->getCommandQueueGroupOrdinal(),
+                                             _init_structs->getZeroDriver()->getCapabilities().commandQueueGroupOrdinal,
                                              0,
                                              0,
                                              ZE_COMMAND_QUEUE_MODE_DEFAULT,
@@ -305,11 +305,11 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
     if (_desc.options()) {
-        if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
+        if (_init_structs->getZeroDriver()->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
             turbo_cfg.turbo = _desc.options() & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
             ze_queue_desc.pNext = &turbo_cfg;
-        } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
+        } else if (_init_structs->getZeroDriver()->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
             command_queue_desc.options = _desc.options();
             ze_queue_desc.pNext = &command_queue_desc;
@@ -318,7 +318,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
 
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
-        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
+        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice(), &ze_queue_desc, &_handle));
 
     if (_desc.workload().has_value()) {
         try {
@@ -335,14 +335,14 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
     }
 }
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+    if (_init_structs->getZeroDriver()->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
         OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
     }
     THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
-                                _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
+                                _init_structs->getZeroDriver()->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
 }
 void CommandQueue::setPriority(ze_command_queue_priority_t priority) const {
-    if (!_init_structs->isCommandQueueSetPrioritySupported()) {
+    if (!_init_structs->getZeroDriver()->getCapabilities().commandQueueSetPrioritySupported) {
         OPENVINO_THROW("The Priority property is not supported by the current Driver Version!");
     }
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueSetPriorityExt", zeCommandQueueSetPriorityExt(_handle, priority));

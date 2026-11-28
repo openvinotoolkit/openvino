@@ -21,7 +21,7 @@ namespace intel_npu {
 class ZeroRemoteTensor final : public ov::IRemoteTensor {
 public:
     ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
-                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                     const std::shared_ptr<ZeroContext>& init_structs,
                      const ov::element::Type& element_type,
                      const ov::Shape& shape,
                      ov::intel_npu::TensorType zero_tensor_type = ov::intel_npu::TensorType::BINDED,
@@ -92,7 +92,7 @@ private:
     void copy_file_data_to_level_zero_memory(const size_t size_to_read);
 
     std::shared_ptr<ov::IRemoteContext> _context;
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
 
     ov::element::Type _element_type;
     ov::Shape _shape;

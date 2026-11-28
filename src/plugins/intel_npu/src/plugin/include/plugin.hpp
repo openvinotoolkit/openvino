@@ -86,6 +86,8 @@ private:
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
+    // Creates the inference requests of the compiled models, null when there is no backend
+    std::shared_ptr<IInferRequestFactory> _inferRequestFactory;
 
     // Loading is deferred until a provider is invoked. Cache both success and failure for this plugin.
     mutable std::mutex _vclLoaderMutex;

@@ -7,7 +7,7 @@
 #include <map>
 #include <memory>
 
-#include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/iengine_backend.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 
@@ -23,21 +23,14 @@ public:
         return "LEVEL0";
     }
     const std::vector<std::string> getDeviceNames() const override;
-    uint32_t getDriverVersion() const override;
-    uint32_t getGraphExtVersion() const override;
 
-    bool isCommandQueueExtSupported() const override;
-    bool isLUIDExtSupported() const override;
-    bool isContextExtSupported() const override;
-
-    void* getContext() const override;
+    std::shared_ptr<IContext> getContext() const override;
+    std::shared_ptr<IDriver> getDriver() const override;
 
     void updateInfo(const ov::AnyMap& properties) override;
 
-    const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
-
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStruct;
+    std::shared_ptr<ZeroContext> _initStruct;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
     Logger _logger;

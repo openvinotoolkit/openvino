@@ -14,6 +14,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_al"
         "openvino::npu_logger_utils"
         "openvino_npu_common"
+        "openvino::npu_zero_utils"
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
         "openvino_npu_compiler_adapter"
@@ -207,6 +208,9 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/state_tensor_binding_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/mem_ref_type_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/engine_backend_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_capabilities_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_context_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_extension_query_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_utils_strides_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp

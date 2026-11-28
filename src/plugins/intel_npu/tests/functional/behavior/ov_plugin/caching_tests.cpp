@@ -19,7 +19,7 @@ using OVCompileModelLoadFromFileTestBaseNPU = CompileModelLoadFromFileTestBase;
 TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImported) {
     core->set_property(ov::cache_dir(m_cacheFolderName));
 
-    if (!::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
+    if (!::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "Standard allocation is not supported by the current configuration.";
     }
 

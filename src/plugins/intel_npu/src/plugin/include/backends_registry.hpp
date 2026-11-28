@@ -31,12 +31,16 @@ public:
     ~BackendsRegistry() = default;
 
     ov::SoPtr<IEngineBackend> getEngineBackend();
+    /** @brief The factory that creates inference requests for the backend that getEngineBackend() returns, nullptr if
+     * there is none */
+    std::shared_ptr<IInferRequestFactory> getInferRequestFactory() const;
 
 private:
     ov::SoPtr<IEngineBackend> initializeBackend(const AvailableBackends& backendName);
     void registerBackend(const AvailableBackends& backendName);
 
     std::unordered_map<AvailableBackends, ov::SoPtr<IEngineBackend>> _registeredBackends;
+    std::unordered_map<AvailableBackends, std::shared_ptr<IInferRequestFactory>> _inferRequestFactories;
 
     Logger _logger;
 };

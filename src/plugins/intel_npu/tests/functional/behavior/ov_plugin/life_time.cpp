@@ -266,7 +266,7 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterTensorIsDestroyed) {
         {
             std::ostringstream sstream;
             ov::InferRequest infer_request;
-            if (i == 0 && std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getGraphDdiTable().version() >=
+            if (i == 0 && std::make_shared<::intel_npu::ZeroContext>()->getZeroDriver()->getGraphDdiTable().version() >=
                               ZE_MAKE_VERSION(1, 8)) {  // older drivers will own the blob and not deallocate
                 ASSERT_THROW(compiled_model.export_model(sstream), ov::Exception);  // model was imported, not compiled
             } else {

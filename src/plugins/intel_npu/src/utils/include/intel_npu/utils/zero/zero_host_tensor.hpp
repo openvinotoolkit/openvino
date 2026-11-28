@@ -13,7 +13,7 @@ namespace intel_npu {
 class ZeroHostTensor : public ov::ITensor {
 public:
     ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& context,
-                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                   const std::shared_ptr<ZeroContext>& init_structs,
                    const ov::element::Type element_type,
                    const ov::Shape& shape,
                    ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);

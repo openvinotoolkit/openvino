@@ -25,6 +25,8 @@ namespace intel_npu {
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
+                             const std::shared_ptr<const IDriver>& driver,
+                             const std::shared_ptr<IInferRequestFactory>& inferRequestFactory,
                              const std::shared_ptr<IGraph>& graph,
                              const Config& config,
                              const ov::AnyMap& properties,
@@ -32,6 +34,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
+      _driver(driver),
+      _inferRequestFactory(inferRequestFactory),
       _graph(graph),
       _batchSize(batchSize),
       _propertiesManager(
@@ -54,7 +58,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     // sanity check
-    OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
+    OPENVINO_ASSERT(_device != nullptr && _inferRequestFactory != nullptr, "No available devices. Failed to create infer request!");
 
     const auto localConfig = _propertiesManager->getConfig();
     if (!localConfig.get<CREATE_EXECUTOR>() || localConfig.get<DEFER_WEIGHTS_LOAD>()) {
@@ -66,14 +70,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                     "Graph is unavailable or failed to initialize. The driver may be missing or too old to run "
                     "inference for this blob.");
 
-    const std::shared_ptr<InferRequest>& inferRequest = _device->createInferRequest(shared_from_this(), localConfig);
+    const std::shared_ptr<InferRequest>& inferRequest = _inferRequestFactory->createInferRequest(shared_from_this(), localConfig);
 
     std::call_once(_streamExecutorsInitFlag, [this, &localConfig] {
         const_cast<CompiledModel*>(this)->configure_stream_executors(
             localConfig.get<NUM_STREAMS>(),
             localConfig.get<RUN_INFERENCES_SEQUENTIALLY>(),
             localConfig.get<SHARED_COMMON_QUEUE>(),
-            localConfig.get<SHARED_COMMON_QUEUE>() ? _graph->get_command_queue_desc().key() : 0);
+            localConfig.get<SHARED_COMMON_QUEUE>() ? _graph->get_command_queue_key() : 0);
     });
 
     return std::make_shared<AsyncInferRequest>(inferRequest,

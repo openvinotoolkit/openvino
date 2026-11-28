@@ -64,6 +64,7 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
+        openvino::npu_zero_utils
         openvino::npu_al
         openvino::xml_util
 )

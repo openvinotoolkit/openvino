@@ -2,30 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_device.hpp"
+#include "intel_npu/utils/zero/zero_device.hpp"
 
-#include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/itt.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_dynamic_infer_request.hpp"
-#include "zero_infer_request.hpp"
 
 using namespace intel_npu;
 
-ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
-    : _initStructs(initStructs),
+ZeroDevice::ZeroDevice(ze_device_handle_t deviceHandle,
+                       const std::shared_ptr<ZeroDriver>& driver)
+    : _zero_api(ZeroApi::get_instance()),
+      _device_handle(deviceHandle),
+      _driver(driver),
       _log("ZeroDevice", Logger::global().level()) {
     _log.debug("ZeroDevice::ZeroDevice init");
     _device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
 
     // Get LUID info, if supported
-    if (_initStructs->isLUIDExtSupported()) {
+    if (driver->getCapabilities().luidExtSupported) {
         _device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
         _device_properties.pNext = &_device_luid;
     }
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_initStructs->getDevice(), &_device_properties));
+                                zeDeviceGetProperties(_device_handle, &_device_properties));
 
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
@@ -33,7 +33,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     // compatibility. For any other error, we just fall-back to device ID to assure backwards compatibilty with even
     // older drivers
     _pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
-    ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &_pci_properties);
+    ze_result_t retpci = zeDevicePciGetPropertiesExt(_device_handle, &_pci_properties);
     if (ZE_RESULT_SUCCESS == retpci) {
         // windows driver specific backwards compatibility
         if (_pci_properties.address.device == 0) {
@@ -54,7 +54,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
 #else                                 // _WIN32 || __CYGWIN__
     gops_support_drv_version = 1715354569;  /// Linux driver version which supports Gops calculations
 #endif                                // _WIN32 || __CYGWIN__
-    if (_initStructs->getDriverVersion() >= gops_support_drv_version) {
+    if (driver->getCapabilities().driverVersion >= gops_support_drv_version) {
         float gops = (_device_properties.coreClockRate / powf(1000, 3)) * _device_properties.numSlices *
                      _device_properties.physicalEUSimdWidth;
         _device_gops[ov::element::f32] = 0;
@@ -135,43 +135,23 @@ uint32_t ZeroDevice::getMaxNumSlices() const {
     return _device_properties.numSlices;
 }
 
-uint64_t ZeroDevice::getAllocMemSize() const {
-    ze_graph_memory_query_t query{};
-    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
-                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
-                                                                                &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
-
-    return query.allocated;
+ze_device_graph_properties_t ZeroDevice::getCompilerProperties() {
+    std::lock_guard<std::mutex> lock(_compiler_mutex);
+    if (!_compiler_properties.has_value()) {
+        // Keep the optional disengaged unless the driver query succeeds
+        ze_device_graph_properties_t compiler_properties = {};
+        compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "pfnDeviceGetGraphProperties",
+            lockDriver()->getGraphDdiTable().pfnDeviceGetGraphProperties(_device_handle, &compiler_properties));
+        _compiler_properties = compiler_properties;
+    }
+    return _compiler_properties.value();
 }
 
-uint64_t ZeroDevice::getTotalMemSize() const {
-#define LEGACY_MAX_MEM_ALLOC_SIZE_BYTES (2147483648)  // 2GB in base-2
-
-    ze_graph_memory_query_t query{};
-    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
-                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
-                                                                                &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
-
-    // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
-    // For drivers with graph_extension > 1.9 we report the value they return
-    const uint32_t graph_ext_version = _initStructs->getGraphExtVersion();
-    if (graph_ext_version >= ZE_MAKE_VERSION(1, 9)) {
-        // we are safe here, can return the value directly from driver
-        return query.total;
-    }
-#if defined(_WIN32) || defined(__CYGWIN__)
-    // Special case for windows drivers with graph_extension v 1.8
-    if (graph_ext_version == ZE_MAKE_VERSION(1, 8)) {
-        // query here returns total system memory in KB, which we need to
-        // divide by 2 (OS limitation) and convert to bytes
-        return (query.total << 9);
-    }
-#endif
-
-    // Default for older drivers: return 2GB
-    return LEGACY_MAX_MEM_ALLOC_SIZE_BYTES;
+uint32_t ZeroDevice::getCompilerVersion() {
+    const auto properties = getCompilerProperties();
+    return ZE_MAKE_VERSION(properties.compilerVersion.major, properties.compilerVersion.minor);
 }
 
 ov::device::PCIInfo ZeroDevice::getPciInfo() const {
@@ -185,16 +165,22 @@ std::map<ov::element::Type, float> ZeroDevice::getGops() const {
     return _device_gops;
 }
 
-ov::device::Type ZeroDevice::getDeviceType() const {
-    return ov::device::Type::INTEGRATED;
+std::shared_ptr<ZeroDriver> ZeroDevice::lockDriver() const {
+    auto driver = _driver.lock();
+    OPENVINO_ASSERT(driver != nullptr, "The driver of the device is no longer available");
+    return driver;
 }
 
-std::shared_ptr<InferRequest> ZeroDevice::createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                                             const Config& config) {
-    if (compiledModel->get_graph()->get_kind() == GraphKind::Dynamic) {
-        return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
-    }
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
+std::shared_ptr<IDriver> ZeroDevice::getDriver() const {
+    return lockDriver();
+}
+
+void* ZeroDevice::getDeviceHandle() const {
+    return _device_handle;
+}
+
+ov::device::Type ZeroDevice::getDeviceType() const {
+    return ov::device::Type::INTEGRATED;
 }
 
 void ZeroDevice::updateInfo(const ov::AnyMap& properties) {
@@ -204,7 +190,7 @@ void ZeroDevice::updateInfo(const ov::AnyMap& properties) {
 }
 
 bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const {
-    if (_initStructs->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+    if (lockDriver()->getCapabilities().zeApiVersion < ZE_MAKE_VERSION(1, 16)) {
         OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
     }
 
@@ -213,7 +199,7 @@ bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilit
     output.pNext = nullptr;
 
     const ze_result_t result =
-        zeDeviceValidateRuntimeRequirements(_initStructs->getDevice(), compatibilityDescriptor.c_str(), &output);
+        zeDeviceValidateRuntimeRequirements(_device_handle, compatibilityDescriptor.c_str(), &output);
 
     if (result != ZE_RESULT_SUCCESS) {
         _log.warning("zeDeviceValidateRuntimeRequirements returned error: 0x%x", static_cast<uint32_t>(result));

@@ -22,7 +22,7 @@ class ParserFactoryFunctionalTests : public ::testing::Test {
 protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        initStructs = ZeroInitStructsHolder::getInstance();
+        initStructs = ZeroContext::getInstance();
         loader = std::make_shared<VCLLoader>();
     }
 
@@ -34,7 +34,7 @@ protected:
         };
     }
 
-    std::shared_ptr<ZeroInitStructsHolder> initStructs;
+    std::shared_ptr<ZeroContext> initStructs;
     std::shared_ptr<VCLLoader> loader;
     std::size_t calls = 0;
     ParserFactory factory;

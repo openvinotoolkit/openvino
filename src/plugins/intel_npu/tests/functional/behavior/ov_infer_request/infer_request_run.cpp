@@ -17,7 +17,6 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/zero_init_mock.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -485,8 +484,8 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
 using ProfilingBlob = InferRequestRunTests;
 
 TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+    std::shared_ptr<::intel_npu::ZeroContext> initStructs = ::intel_npu::ZeroContext::getInstance();
+    if (initStructs->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
     ov::CompiledModel compiled_model;
@@ -512,8 +511,8 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+    std::shared_ptr<::intel_npu::ZeroContext> initStructs = ::intel_npu::ZeroContext::getInstance();
+    if (initStructs->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
     ov::CompiledModel compiled_model;
@@ -535,8 +534,8 @@ TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+    std::shared_ptr<::intel_npu::ZeroContext> initStructs = ::intel_npu::ZeroContext::getInstance();
+    if (initStructs->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
     ov::CompiledModel compiled_model;
@@ -559,8 +558,8 @@ TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
 using ProfilingBlobInferOnly = InferRequestRunTests;
 
 TEST_P(ProfilingBlobInferOnly, PerfCountOnInferProfilingCompilesUnprofiledBlob) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+    std::shared_ptr<::intel_npu::ZeroContext> initStructs = ::intel_npu::ZeroContext::getInstance();
+    if (initStructs->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
 
@@ -587,8 +586,8 @@ TEST_P(ProfilingBlobInferOnly, PerfCountOnInferProfilingCompilesUnprofiledBlob) 
 }
 
 TEST_P(ProfilingBlobInferOnly, CacheDirDoesNotReuseBlobAcrossProfilingTypes) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+    std::shared_ptr<::intel_npu::ZeroContext> initStructs = ::intel_npu::ZeroContext::getInstance();
+    if (initStructs->getZeroDriver()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
 
@@ -1273,7 +1272,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
             return property == intel_npu::run_inferences_sequentially.name();
         });
 
-    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >=
+    if (::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getCommandQueueDdiTable().version() >=
         ZE_MAKE_VERSION(1, 1)) {
         ASSERT_TRUE(isRunInferencesSequentially);
 
@@ -1646,7 +1645,7 @@ TEST_P(RunSeqTests, CheckRunSeqWithSharedCommonQueue) {
         {ov::intel_npu::shared_common_queue.name(), true},
     };
     const bool commandQueueSupported =
-        ::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+        ::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
 
     {
         ov::Core testCore;
@@ -1692,7 +1691,7 @@ TEST_P(RunSeqTests, CheckSharedCommonQueueAfterRunSeqSetProperty) {
     const ov::AnyMap runSeqConfiguration = {{ov::intel_npu::run_inferences_sequentially.name(), true}};
     const ov::AnyMap sharedQueueConfiguration = {{ov::intel_npu::shared_common_queue.name(), true}};
     const bool commandQueueSupported =
-        ::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+        ::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
 
     {
         ov::Core testCore;
@@ -1739,7 +1738,7 @@ TEST_P(RunSeqTests, CheckRunSeqAfterSharedCommonQueueSetProperty) {
     const ov::AnyMap sharedQueueConfiguration = {{ov::intel_npu::shared_common_queue.name(), true}};
     const ov::AnyMap runSeqConfiguration = {{ov::intel_npu::run_inferences_sequentially.name(), true}};
     const bool commandQueueSupported =
-        ::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+        ::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
 
     {
         ov::Core testCore;
@@ -3469,8 +3468,8 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
 TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAfterEachRun) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    auto zeroInit = ::intel_npu::ZeroContext::getInstance();
+    if (!zeroInit->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3529,8 +3528,8 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
 TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    auto zeroInit = ::intel_npu::ZeroContext::getInstance();
+    if (!zeroInit->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3595,8 +3594,8 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
 TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTimes) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    auto zeroInit = ::intel_npu::ZeroContext::getInstance();
+    if (!zeroInit->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3655,8 +3654,8 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
 TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultipleTimes) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    auto zeroInit = ::intel_npu::ZeroContext::getInstance();
+    if (!zeroInit->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3717,8 +3716,8 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
 TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimesAllocatingRandomZeroMemoryInBetween) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    auto zeroInit = ::intel_npu::ZeroContext::getInstance();
+    if (!zeroInit->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 

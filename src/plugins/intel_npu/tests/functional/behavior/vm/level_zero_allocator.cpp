@@ -59,7 +59,7 @@ protected:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         _targetDevice = GetParam();
         try {
-            _initStruct = std::make_shared<intel_npu::ZeroInitStructsHolder>();
+            _initStruct = std::make_shared<intel_npu::ZeroContext>();
         } catch (const std::exception& e) {
             GTEST_SKIP() << "No Level Zero / NPU device available: " << e.what();
         }
@@ -68,7 +68,7 @@ protected:
     }
 
     std::string _targetDevice;
-    std::shared_ptr<intel_npu::ZeroInitStructsHolder> _initStruct;
+    std::shared_ptr<intel_npu::ZeroContext> _initStruct;
     ze_context_handle_t _context = nullptr;
 };
 

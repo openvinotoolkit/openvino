@@ -25,23 +25,15 @@ const std::vector<std::string> IEngineBackend::getDeviceNames() const {
     OPENVINO_THROW("Get all device names not implemented");
 }
 
-uint32_t IEngineBackend::getDriverVersion() const {
-    OPENVINO_THROW("Get NPU driver version is not supported with this backend");
+std::shared_ptr<IDriver> IEngineBackend::getDriver() const {
+    return nullptr;
 }
 
-uint32_t IEngineBackend::getGraphExtVersion() const {
-    OPENVINO_THROW("Get NPU driver extension version is not supported with this backend");
-}
-
-void* IEngineBackend::getContext() const {
-    OPENVINO_THROW("Get NPU context is not supported with this backend");
+std::shared_ptr<IContext> IEngineBackend::getContext() const {
+    return nullptr;
 }
 
 void IEngineBackend::registerOptions(OptionsDesc&) const {}
-
-const std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
-    return nullptr;
-}
 
 IDevice::Uuid IDevice::getUuid() const {
     OPENVINO_THROW("Get UUID not supported");
@@ -59,20 +51,20 @@ uint32_t IDevice::getMaxNumSlices() const {
     OPENVINO_THROW("Get MaxNumSlices is not supported");
 }
 
-uint64_t IDevice::getAllocMemSize() const {
-    OPENVINO_THROW("Get AllocMemSize is not supported");
-}
-
-uint64_t IDevice::getTotalMemSize() const {
-    OPENVINO_THROW("Get TotalMemSize is not supported");
-}
-
 ov::device::PCIInfo IDevice::getPciInfo() const {
     OPENVINO_THROW("Get PCIInfo is not supported");
 }
 
 ov::device::Type IDevice::getDeviceType() const {
     OPENVINO_THROW("Get DEVICE_TYPE is not supported");
+}
+
+std::shared_ptr<IDriver> IDevice::getDriver() const {
+    OPENVINO_THROW("Get driver is not supported");
+}
+
+void* IDevice::getDeviceHandle() const {
+    OPENVINO_THROW("Get device handle is not supported");
 }
 
 std::map<ov::element::Type, float> IDevice::getGops() const {

@@ -411,7 +411,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
     m_logger.trace("Creating the parser");
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(backend->getInitStructs(), vclFunctionsProvider, m_config.get<PERF_COUNT>());
+    auto parser = parserFactory.getParser(backend->getContext(), vclFunctionsProvider, m_config.get<PERF_COUNT>());
 
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>
         weights_source;

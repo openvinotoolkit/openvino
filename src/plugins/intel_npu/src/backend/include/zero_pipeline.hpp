@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/utils/zero/zero_graph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_profiling.hpp"
@@ -15,7 +16,7 @@ namespace intel_npu {
 
 class IPipeline {
 public:
-    IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    IPipeline(const std::shared_ptr<ZeroContext>& init_structs,
               const std::shared_ptr<IGraph>& graph,
               size_t batch_size,
               const Config& config,
@@ -47,8 +48,8 @@ protected:
     // instances, hence static
     static std::vector<size_t> get_strides(const ov::ITensor& tensor, bool reverse_order = false);
 
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
-    std::shared_ptr<IGraph> _graph;
+    std::shared_ptr<ZeroContext> _init_structs;
+    std::shared_ptr<IZeroGraph> _graph;
     const Config _config;
 
     /**
@@ -75,7 +76,7 @@ protected:
 
 class Pipeline final : public IPipeline {
 public:
-    Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    Pipeline(const std::shared_ptr<ZeroContext>& init_structs,
              const std::shared_ptr<IGraph>& graph,
              const Config& config,
              const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,

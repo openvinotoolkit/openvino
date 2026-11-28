@@ -206,7 +206,7 @@ void copy_data(const std::shared_ptr<const ov::ITensor>& src,
 namespace intel_npu {
 
 ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
-                                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                                   const std::shared_ptr<ZeroContext>& init_structs,
                                    const ov::element::Type& element_type,
                                    const ov::Shape& shape,
                                    TensorType zero_tensor_type,
@@ -371,7 +371,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             _tensor_type = TensorType::INPUT;
         }
 
-        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
+        if (!_init_structs->getZeroDriver()->getCapabilities().externalMemoryStandardAllocationSupported) {
             _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
                          "the level zero memory");
             copy_file_data_to_level_zero_memory(bytes);

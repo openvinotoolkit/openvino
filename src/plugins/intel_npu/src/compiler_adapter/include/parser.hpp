@@ -12,6 +12,7 @@
 #include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_graph_deps.hpp"
 #include "openvino/core/model.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -19,7 +20,7 @@ namespace intel_npu {
 
 class Parser final : public IParser {
 public:
-    Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    Parser(const ZeroGraphDeps& zeroDeps,
            const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     std::shared_ptr<IGraph> parse(const ov::Tensor& mainBlob,
@@ -32,7 +33,7 @@ public:
                                   const std::optional<BlobType>& blobType = std::nullopt) const override;
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    ZeroGraphDeps _zeroDeps;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 

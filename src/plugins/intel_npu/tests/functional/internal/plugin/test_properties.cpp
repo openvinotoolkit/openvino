@@ -21,7 +21,9 @@
 #include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
+#include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
@@ -145,7 +147,7 @@ public:
         if (backend) {
             REGISTER_OPTION(MODEL_PRIORITY);
 
-            if (backend->isCommandQueueExtSupported()) {
+            if (::intel_npu::utils::driverOf(backend)->isCommandQueueExtSupported()) {
                 REGISTER_OPTION(WORKLOAD_TYPE);
             }
         }
@@ -271,9 +273,9 @@ TEST_P(CompatibilityCheckTests, CompatibilityCheckUsesPluginCompilerAdapterOnlyW
 
     // Determine at runtime whether the driver version is sufficient to handle the
     // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = backend ? backend->getInitStructs() : nullptr;
+    const auto initStructs = backend ? asZeroContext(backend->getContext()) : nullptr;
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getZeroDriver()->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     bool isSupported = false;
     {
@@ -314,7 +316,7 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyIsSupported) {
         logs.push_back('\n');
     };
 
-    const bool turboSupportedByDevice = backend && backend->isCommandQueueExtSupported();
+    const bool turboSupportedByDevice = backend && ::intel_npu::utils::driverOf(backend)->isCommandQueueExtSupported();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
@@ -383,7 +385,7 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
         logs.push_back('\n');
     };
 
-    if (backend->isCommandQueueExtSupported()) {
+    if (::intel_npu::utils::driverOf(backend)->isCommandQueueExtSupported()) {
         auto [config, unknownProperties] = [&]() {
             utils::LogCallbackGuard log_callback_guard(log_cb);
             utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
@@ -443,7 +445,7 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
     ASSERT_TRUE(config.get<::intel_npu::TURBO>());
     ASSERT_TRUE(unknownProperties.empty());
 
-    if (backend->isCommandQueueExtSupported()) {
+    if (::intel_npu::utils::driverOf(backend)->isCommandQueueExtSupported()) {
         ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     } else {
         ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
@@ -931,7 +933,7 @@ TEST_P(SharedCommonQueueCompatibilityTests, DisablingOnePropertyWhileTheOtherIsE
 class DisableIdleMemoryPruningPropertyTests : public PropertiesManagerTests {
 protected:
     bool isSupportedByDriver() const {
-        return backend && backend->isContextExtSupported();
+        return backend && ::intel_npu::utils::driverOf(backend)->isContextExtSupported();
     }
 
     void TearDown() override {

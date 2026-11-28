@@ -68,20 +68,20 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
 
 }  // namespace
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+DriverCompilerAdapter::DriverCompilerAdapter(const ZeroGraphDeps& zeroDeps,
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache)
-    : _zeroInitStruct(zeroInitStruct),
+    : _zeroDeps(zeroDeps),
       _optionSupportCache(optionSupportCache, driverOptionSupportKey),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize DriverCompilerAdapter start");
 
-    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    uint32_t graphExtVersion = _zeroDeps.driver->getGraphDdiTable().version();
 
-    _compilerProperties = _zeroInitStruct->getCompilerProperties();
+    _compilerProperties = _zeroDeps.device->getCompilerProperties();
 
     _logger.debug("DriverCompilerAdapter creating adapter using graphExtVersion");
 
-    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroDeps);
 
     _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),
@@ -140,7 +140,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     networkMeta.name = model->get_friendly_name();
 
     return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
+                                   _zeroDeps,
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
@@ -259,7 +259,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
+                                             _zeroDeps,
                                              mainGraphHandle,
                                              std::move(mainNetworkMetadata),
                                              /* mainBlob = */ std::nullopt,
@@ -322,7 +322,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 }
 
 uint32_t DriverCompilerAdapter::get_version() const {
-    return _zeroInitStruct->getCompilerVersion();
+    return _zeroDeps.device->getCompilerVersion();
 }
 
 std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {

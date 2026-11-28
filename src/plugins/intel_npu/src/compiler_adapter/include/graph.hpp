@@ -10,18 +10,19 @@
 
 #include <mutex>
 
-#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/utils/zero/zero_graph.hpp"
 #include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_graph_deps.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
 
-class Graph : public IGraph {
+class Graph : public IZeroGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+          const ZeroGraphDeps& zeroDeps,
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
@@ -76,7 +77,7 @@ protected:
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    ZeroGraphDeps _zeroDeps;
 
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;

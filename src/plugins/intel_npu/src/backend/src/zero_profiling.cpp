@@ -41,7 +41,7 @@ bool ProfilingPool::create() {
         return false;
     }
 
-    auto ret = _init_structs->getProfilingDdiTable().pfnProfilingPoolCreate(
+    auto ret = _init_structs->getZeroDriver()->getProfilingDdiTable().pfnProfilingPoolCreate(
         static_cast<ze_graph_handle_t>(_graph->get_handle()),
         _profiling_count,
         &_handle);
@@ -50,7 +50,7 @@ bool ProfilingPool::create() {
 
 ProfilingPool::~ProfilingPool() {
     if (_handle && _init_structs->getContext()) {
-        _init_structs->getProfilingDdiTable().pfnProfilingPoolDestroy(_handle);
+        _init_structs->getZeroDriver()->getProfilingDdiTable().pfnProfilingPoolDestroy(_handle);
     }
 }
 
@@ -59,7 +59,7 @@ void ProfilingQuery::create(const std::shared_ptr<ProfilingPool>& profiling_pool
         profiling_pool;  // store profiling pool to make sure it is keeped alive until profiling query is destroyed
     THROW_ON_FAIL_FOR_LEVELZERO(
         "pfnProfilingQueryCreate",
-        _init_structs->getProfilingDdiTable().pfnProfilingQueryCreate(_profiling_pool->_handle, _index, &_handle));
+        _init_structs->getZeroDriver()->getProfilingDdiTable().pfnProfilingQueryCreate(_profiling_pool->_handle, _index, &_handle));
 }
 
 LayerStatistics ProfilingQuery::getLayerStatistics() const {
@@ -70,7 +70,7 @@ LayerStatistics ProfilingQuery::getLayerStatistics() const {
 
 ProfilingQuery::~ProfilingQuery() {
     if (_handle && _init_structs->getContext()) {
-        _init_structs->getProfilingDdiTable().pfnProfilingQueryDestroy(_handle);
+        _init_structs->getZeroDriver()->getProfilingDdiTable().pfnProfilingQueryDestroy(_handle);
     }
 }
 
@@ -80,7 +80,7 @@ void ProfilingQuery::queryGetData(const ze_graph_profiling_type_t profilingType,
     if (_handle && pSize) {
         THROW_ON_FAIL_FOR_LEVELZERO(
             "pfnProfilingQueryGetData",
-            _init_structs->getProfilingDdiTable().pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
+            _init_structs->getZeroDriver()->getProfilingDdiTable().pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
     }
 }
 
@@ -106,7 +106,7 @@ void ProfilingQuery::getProfilingProperties(ze_device_profiling_data_properties_
     if (_handle && properties) {
         THROW_ON_FAIL_FOR_LEVELZERO(
             "getProfilingProperties",
-            _init_structs->getProfilingDdiTable().pfnDeviceGetProfilingDataProperties(_init_structs->getDevice(),
+            _init_structs->getZeroDriver()->getProfilingDdiTable().pfnDeviceGetProfilingDataProperties(_init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice(),
                                                                                       properties));
     }
 }
@@ -195,7 +195,7 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
     return npuPerfCounts;
 }
 
-NpuInferProfiling::NpuInferProfiling(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+NpuInferProfiling::NpuInferProfiling(const std::shared_ptr<ZeroContext>& init_structs,
                                      ov::log::Level loglevel)
     : _init_structs(init_structs),
       _loglevel(loglevel),
@@ -203,7 +203,7 @@ NpuInferProfiling::NpuInferProfiling(const std::shared_ptr<ZeroInitStructsHolder
     /// Fetch and store the device timer resolution
     _dev_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_init_structs->getDevice(), &_dev_properties));
+                                zeDeviceGetProperties(_init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice(), &_dev_properties));
     /// Request mem allocations
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
                                      nullptr,

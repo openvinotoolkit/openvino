@@ -38,16 +38,16 @@ std::vector<size_t> IPipeline::get_strides(const ov::ITensor& tensor, bool rever
     return element_strides;
 }
 
-IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+IPipeline::IPipeline(const std::shared_ptr<ZeroContext>& init_structs,
                      const std::shared_ptr<IGraph>& graph,
                      size_t batch_size,
                      const Config& config,
                      const char* logName)
     : _init_structs(init_structs),
-      _graph(graph),
+      _graph(asZeroGraph(graph)),
       _config(config),
       _batch_size(batch_size),
-      _extension_version(init_structs->getCommandQueueDdiTable().version()),
+      _extension_version(init_structs->getZeroDriver()->getCommandQueueDdiTable().version()),
       _run_inferences_sequentially(_extension_version < ZE_MAKE_VERSION(1, 1) &&
                                    _config.get<RUN_INFERENCES_SEQUENTIALLY>()),
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
@@ -127,7 +127,7 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     return zeroProfiling::getModelLayerStatistics(*_graph, *_profiling_query);
 }
 
-Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+Pipeline::Pipeline(const std::shared_ptr<ZeroContext>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
                    const Config& config,
                    const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,

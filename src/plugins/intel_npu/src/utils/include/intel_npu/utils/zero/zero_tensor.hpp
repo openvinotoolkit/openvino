@@ -29,7 +29,7 @@ public:
      * @param shape Tensor shape
      * @param is_input Indicates if the tensor is used as a network input ( true) or output (false)
      */
-    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    ZeroTensor(const std::shared_ptr<ZeroContext>& init_structs,
                const ov::element::Type element_type,
                const ov::Shape& shape,
                const bool is_input);
@@ -38,10 +38,10 @@ public:
      * @brief Creates a ZeroTensor from the given tensor. This constructor will throw if the memory of the given tensor
      * is not allocated in the level zero context specified through init_structs or in case the memory cannot be
      * imported in that context ( to be implemented). ZeroTensor will keep a reference to the source tensor.
-     * @param init_structs Shared pointer to ZeroInitStructsHolder
+     * @param init_structs Shared pointer to ZeroContext
      * @param user_tensor Tensor to create ZeroTensor from
      */
-    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const ov::SoPtr<ov::ITensor>& user_tensor);
+    ZeroTensor(const std::shared_ptr<ZeroContext>& init_structs, const ov::SoPtr<ov::ITensor>& user_tensor);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -85,7 +85,7 @@ private:
     void update_strides() const;
     size_t get_bytes_capacity() const;
 
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
     Logger _logger;
 
     ov::SoPtr<ov::ITensor> _user_tensor;

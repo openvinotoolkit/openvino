@@ -8,11 +8,15 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
@@ -86,7 +90,8 @@ public:
 
     virtual void update_network_name(std::string_view name);
 
-    virtual CommandQueueDesc get_command_queue_desc() const;
+    // Key of the command queue the graph runs on, graphs that do not use one throw
+    virtual uint64_t get_command_queue_key() const;
     virtual void set_workload_type(const ov::WorkloadType workloadType);
     virtual void set_model_priority(const ov::hint::Priority modelPriority);
 
@@ -98,8 +103,6 @@ public:
         return _init_completed.load(std::memory_order_acquire);
     }
 
-    virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
-    virtual const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
     virtual void resize_last_submitted_event(size_t batch);
     virtual void set_batch_size(std::size_t batch);
 

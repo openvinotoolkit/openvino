@@ -14,14 +14,14 @@
 
 namespace intel_npu {
 
-Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+Parser::Parser(const ZeroGraphDeps& zeroDeps,
                const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
-    : _zeroInitStruct(zeroInitStruct),
+    : _zeroDeps(zeroDeps),
       _profilingDecoder(profilingDecoder),
       _logger("Parser", Logger::global().level()) {
     _logger.info("initialize Parser start");
 
-    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroDeps);
 
     OPENVINO_ASSERT(_zeGraphExt != nullptr,
                     "Failed to create ZeGraphExtWrappers in Parser. Please check if the driver is properly installed.");
@@ -46,7 +46,7 @@ std::shared_ptr<IGraph> Parser::parse(
             "NPU driver, and NPU_ALLOW_BYTECODE is disabled, so only native NPU device blobs are accepted.");
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
-        auto dynamicGraph = std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, blobType.value());
+        auto dynamicGraph = std::make_shared<DynamicGraph>(_zeroDeps, mainBlob, blobType.value());
         dynamicGraph->initialize(config);  // load metadata
         return dynamicGraph;
     }
@@ -70,7 +70,7 @@ std::shared_ptr<IGraph> Parser::parse(
 
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
-                                       _zeroInitStruct,
+                                       _zeroDeps,
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
@@ -97,7 +97,7 @@ std::shared_ptr<IGraph> Parser::parse(
     _logger.debug("inits schedule parse end");
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
+                                             _zeroDeps,
                                              mainGraphDesc,
                                              std::move(mainNetworkMetadata),
                                              mainBlob,

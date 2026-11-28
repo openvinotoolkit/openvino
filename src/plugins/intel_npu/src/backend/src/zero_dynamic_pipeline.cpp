@@ -147,7 +147,7 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
     }
 }
 
-DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroContext>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
                                  const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
@@ -171,10 +171,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     const auto commandQueueDesc = _graph->get_command_queue_desc();
     _executionContext.ensure(vmRuntime,
                              init_structs->getContext(),
-                             init_structs->getDevice(),
+                             init_structs->getZeroDriver()->getDefaultDevice()->getZeDevice(),
                              commandQueueDesc.sharedCommonQueue() ? _command_queue->handle() : nullptr,
-                             _init_structs->getGraphDdiTable().getImpl(),
-                             _init_structs->getCommandQueueDdiTable().getImpl());
+                             _init_structs->getZeroDriver()->getGraphDdiTable().getImpl(),
+                             _init_structs->getZeroDriver()->getCommandQueueDdiTable().getImpl());
     if (commandQueueDesc.sharedCommonQueue()) {
         _vm_referenced_command_queues.push_back(_command_queue);
     }

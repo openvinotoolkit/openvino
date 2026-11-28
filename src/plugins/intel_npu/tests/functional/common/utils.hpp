@@ -262,7 +262,7 @@ inline bool isDefaultDriverCompiler(const std::string& target_device) {
 }
 
 inline bool isGraphExtVersionLowerThan(uint32_t major, uint32_t minor) {
-    const auto graph_ext_version = ::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version();
+    const auto graph_ext_version = ::intel_npu::ZeroContext::getInstance()->getZeroDriver()->getGraphDdiTable().version();
     const auto required_version = ZE_MAKE_VERSION(major, minor);
     return graph_ext_version < required_version;
 }

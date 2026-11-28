@@ -48,7 +48,7 @@ class ZeroVariableStateTests : public ov::test::behavior::OVPluginTestBase,
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
+    std::shared_ptr<::intel_npu::ZeroContext> init_struct;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
@@ -76,7 +76,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
-        init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        init_struct = ::intel_npu::ZeroContext::getInstance();
     }
 
     void TearDown() override {

@@ -67,7 +67,7 @@ public:
 struct PluginCompilerAdapterTest : public ::testing::Test {
     std::shared_ptr<FakeVCLCompiler> compiler = std::make_shared<FakeVCLCompiler>();
 
-    // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
+    // The adapter is built with a null ZeroContext throughout: that is the no-driver path,
     // which is the only one reachable without an NPU.
     std::unique_ptr<PluginCompilerAdapter> makeAdapter(
         const std::shared_ptr<::intel_npu::IProfilingDecoder>& profilingDecoder = nullptr) {

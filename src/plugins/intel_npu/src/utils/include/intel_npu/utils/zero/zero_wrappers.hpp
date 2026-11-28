@@ -82,7 +82,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
+    CommandList(const std::shared_ptr<ZeroContext>& init_structs);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -107,7 +107,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
 
     Logger _log;
 
@@ -142,7 +142,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc);
+    CommandQueue(const std::shared_ptr<ZeroContext>& init_structs, const CommandQueueDesc& desc);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;
@@ -164,7 +164,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
 
     CommandQueueDesc _desc;
     ze_command_queue_handle_t _handle = nullptr;
@@ -175,7 +175,7 @@ private:
 class EventPool {
 public:
     EventPool() = delete;
-    EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t event_count);
+    EventPool(const std::shared_ptr<ZeroContext>& init_structs, uint32_t event_count);
     EventPool(const EventPool&) = delete;
     EventPool(EventPool&&) = delete;
     EventPool& operator=(const EventPool&) = delete;
@@ -189,7 +189,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<ZeroContext> _init_structs;
 
     ze_event_pool_handle_t _handle = nullptr;
 

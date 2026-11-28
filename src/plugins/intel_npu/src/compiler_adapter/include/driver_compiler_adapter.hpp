@@ -14,13 +14,14 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_graph_deps.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
 
 class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
-    DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    DriverCompilerAdapter(const ZeroGraphDeps& zeroDeps,
                           const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
@@ -46,7 +47,7 @@ private:
     // implement the extension, the handle is null, or the query fails.
     std::optional<std::string> get_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
 
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    ZeroGraphDeps _zeroDeps;
     ScopedOptionSupportCache _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
