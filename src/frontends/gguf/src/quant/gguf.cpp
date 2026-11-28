@@ -112,9 +112,13 @@ struct QuantLayout {
     ov::element::Type weight_type;  // element type of the repacked weight blob
     size_t weight_div;              // innermost-dim divisor of the weight shape (8 = u32-packed u4)
     ov::element::Type scale_type;
-    size_t group_size;  // weights per scale
+    size_t group_size;  // weights per scale; 0 means one scale per row
     bool asymmetric;    // carries a per-group zero-point
 };
+
+size_t layout_group_size(const QuantLayout& layout, const ov::Shape& shape) {
+    return layout.group_size != 0 ? layout.group_size : std::max<size_t>(shape.back(), 1);
+}
 
 std::optional<QuantLayout> quant_layout(uint32_t type, const std::string& name) {
     constexpr bool asymmetric = true;
@@ -131,7 +135,11 @@ std::optional<QuantLayout> quant_layout(uint32_t type, const std::string& name) 
     case GGUF_TYPE_Q8_1:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q6_K:
-        return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, symmetric};
+        return QuantLayout{ov::element::i8,
+                           1,
+                           ov::element::f16,
+                           native_q6_k_is_channelwise(name) ? 0u : 16u,
+                           symmetric};
     case GGUF_TYPE_Q8_K:
         // 256 i8 weights + an f32 (not f16) scale + 16 i16 bsums, which the dequant ignores.
         return QuantLayout{ov::element::i8, 1, ov::element::f32, 256, symmetric};
@@ -381,13 +389,14 @@ WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& sh
         result.weight = ov::Tensor(source.data.get_element_type(), shape);
         return result;
     }
-    OPENVINO_ASSERT(!shape.empty() && shape.back() % layout->group_size == 0 && shape.back() % layout->weight_div == 0,
+    OPENVINO_ASSERT(!shape.empty() && shape.back() % layout_group_size(*layout, shape) == 0 &&
+                        shape.back() % layout->weight_div == 0,
                     "Invalid GGUF weight shape ",
                     shape);
     auto weight_shape = shape;
     weight_shape.back() /= layout->weight_div;
     auto scale_shape = shape;
-    scale_shape.back() /= layout->group_size;
+    scale_shape.back() /= layout_group_size(*layout, shape);
     result.weight = ov::Tensor(layout->weight_type, weight_shape);
     result.scales = ov::Tensor(layout->scale_type, scale_shape);
     if (layout->asymmetric)
@@ -414,16 +423,30 @@ void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destinatio
     tensor.namelen = source.source_name.size();
     tensor.weights_data = source.data.data<const uint8_t>();
     tensor.bsize = source.data.get_byte_size();
-    if (source.qtype == GGUF_TYPE_Q5_K && !layout->asymmetric)
+    if (source.qtype == GGUF_TYPE_Q5_K && !layout->asymmetric) {
         gguf_fill_q5_k_i8(tensor, destination.weight, destination.scales);
-    else if (source.qtype == GGUF_TYPE_MXFP4)
+    } else if (layout->group_size == 0) {
+        const size_t cols = source.shape.back();
+        if (cols == 0)
+            return;
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q8_0_C_REQUANT);
+        OPENVINO_ASSERT(requantize_q8_0_channelwise_faithful(tensor,
+                                                             tensor.num_weights / cols,
+                                                             cols,
+                                                             source.qtype,
+                                                             destination.weight.data<int8_t>(),
+                                                             destination.scales.data<ov::float16>()),
+                        "[GGUF] channel-wise requantization failed for ",
+                        source.source_name);
+    } else if (source.qtype == GGUF_TYPE_MXFP4) {
         gguf_fill_mxfp4(tensor, destination.weight, destination.scales);
-    else if (gguf_is_q2_0_family(source.qtype))
+    } else if (gguf_is_q2_0_family(source.qtype)) {
         gguf_fill_q2_0(tensor, destination.weight, destination.scales, destination.zero_point);
-    else if (layout->asymmetric)
+    } else if (layout->asymmetric) {
         gguf_fill_asym(tensor, destination.weight, destination.scales, destination.zero_point);
-    else
+    } else {
         gguf_fill_sym(tensor, destination.weight, destination.scales);
+    }
 }
 
 WeightTensors unpack_gguf_weight(const GgufWeight& source) {
@@ -466,10 +489,13 @@ bool gguf_has_u2_weights(GgufTensorType type) {
 
 size_t gguf_weight_group_size(const GgufWeight& source) {
     const auto layout = quant_layout(source.qtype, source.source_name);
-    return layout ? layout->group_size : 1;
+    return layout ? layout_group_size(*layout, source.shape) : 1;
 }
 
 bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns) {
+    const auto layout = quant_layout(source.qtype, source.source_name);
+    if (layout && layout->group_size == 0 && columns.size() != source.shape.back())
+        return false;
     const auto group = gguf_weight_group_size(source);
     if (columns.size() % group != 0)
         return false;
@@ -656,7 +682,7 @@ void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
         ov::Shape weight_shape = shape;
         weight_shape.back() /= ql.weight_div;
         ov::Shape scale_shape = shape;
-        scale_shape.back() /= ql.group_size;
+        scale_shape.back() /= layout_group_size(ql, shape);
         const size_t z_bytes =
             ql.asymmetric ? bytes(gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)), scale_shape) : 0;
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};

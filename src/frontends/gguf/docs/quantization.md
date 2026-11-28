@@ -40,7 +40,8 @@ Compatible matrix row patterns use the existing native unpacker for each format;
 row patterns also fold.
 Inputs must share their format and conversion policy. Aligned column permutations move complete
 quantization groups and may use packed intermediate buffers. Unsupported views, including
-unaligned column gathers, retain ordinary graph operations after leaf materialization.
+unaligned column gathers and width-changing channel-wise gathers, retain ordinary graph operations
+after leaf materialization.
 Supplied-decoder weights materialize individually using their existing conversion policy.
 Embedding/output policies, quantization groups and zero points are preserved.
 
@@ -71,7 +72,9 @@ Matrix multiplication consumers keep their `u2` representation, including tied w
 The usual graph is `Convert -> [Subtract] -> Multiply -> Reshape -> Convert(F32)`. Decompression
 uses the scale's element type, normally F16. Q6_K, Q8_1 and formats with fractional F16 zero points
 and code widths of at least four bits instead perform subtraction/multiplication in F32.
-Q8_K uses F32 scales and thus F32 arithmetic. MXFP4 uses an F16 multiply. A final F32 output
+Q8_K uses F32 scales and thus F32 arithmetic. MXFP4 uses an F16 multiply. Q6_K
+`token_embd.weight`/`output.weight` use the channel-wise Q8_0_C graph described in the Q6_K
+section: an F16 multiply without a Reshape. A final F32 output
 does not undo rounding in earlier F16 operations, and does not imply that a full F32 weight
 buffer is stored by the frontend.
 
@@ -108,7 +111,8 @@ The type columns describe extracted tensors; their decompression or Convert outp
 | Q5_1 | 32 | 24 | `i8` | `f16` | `f16` | `32 + 2 + 2` = 36 | +50.0% |
 | Q5_K, ordinary matrix | 256 | 176 | `i8` | `f16` | — | `256 + 16` = 272 | +54.5% |
 | Q5_K, fractional zero point | 256 | 176 | `u8` | `f16` | `f16` | `256 + 16 + 16` = 288 | +63.6% |
-| Q6_K | 256 | 210 | `i8` | `f16` | — | `256 + 32` = 288 | +37.1% |
+| Q6_K, ordinary matrix | 256 | 210 | `i8` | `f16` | — | `256 + 32` = 288 | +37.1% |
+| Q6_K, `token_embd`/`output`, `K` columns per row | `K` | `K/256*210` | `i8` | `f16` | — | `K + 2` | about +22% |
 | Q8_0 | 32 | 34 | `i8` | `f16` | — | `32 + 2` = 34 | 0% |
 | Q8_1 | 32 | 36 | `i8` | `f16` | — | `32 + 2` = 34 | -5.6% |
 | Q8_K | 256 | 292 | `i8` | `f32` | — | `256 + 4` = 260 | -11.0% |
@@ -250,6 +254,17 @@ Code values are preserved, but widening to eight bits and expanding sub-scales i
 F32 graph arithmetic avoids an F16 multiply, but the combined scales have already been rounded
 to F16 at import.
 
+Native Q6_K `token_embd.weight` and `output.weight` instead use channel-wise Q8_0_C, the same
+representation as the raw-byte path: each row is decoded with ggml's F32 arithmetic and
+requantized to `i8` codes with one F16 scale per row (see the Q8_0_C rule below). The graph is
+`Convert(i8 -> F16) -> Multiply(F16 scale) -> Convert(F32)` without a Reshape. This is lossy:
+per-row scales replace the source's 16-weight sub-scales. The result stores 8 bits plus one scale
+per row instead of 9 bits per weight. A large vocabulary projection is bandwidth-bound in
+decoding, so the smaller payload speeds up generation. For example, Qwen3.5-4B Q4_0 has a Q6_K
+`output.weight` of 248320 x 2560. Its payload drops from 682 MiB to 607 MiB, and decoding on a
+Panther Lake integrated GPU is about 2% faster. The maximum absolute weight change for that
+tensor is 7.6e-4 (mean 1.1e-4; mean absolute weight 1.0e-2).
+
 ### Q8_0, Q8_1 and Q8_K
 
 Q8_0 directly copies 32 `i8` codes and one F16 scale per block. There is no code expansion,
@@ -351,9 +366,9 @@ currently differs as follows:
 | Q4_1, Q5_1 | Full F32 Constant decoded with `d*q + m` before other format handling | 128 bytes per 32 weights: +540% for Q4_1, +433.3% for Q5_1 |
 | Q1_0, including embedding/output | Packed `u1` plus per-128 F16 scales, as in native loading | Requires plugin binary decompression support to remain packed at execution |
 | Q8_1, including embedding/output | Original `i8` codes plus per-32 F16 scales, with F32 graph multiplication, as in native loading | Device compilation determines execution storage and precision |
-| Quantized `token_embd.weight` / `output.weight`, except Q1_0/Q8_1 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
+| Quantized `token_embd.weight` / `output.weight`, except Q1_0/Q8_1 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand. Native Q6_K uses the same representation |
 | Q5_K ordinary matrices | The same channel-wise Q8_0_C representation | Additional lossy quantization; different scale grouping from native Q5_K |
-| Q4_K/Q5_K/Q6_K selected for Q8_0_C | Stream original F32-dequantized rows directly into channel-wise quantization | Per-worker F32 row scratch; avoids allocating a full temporary F32 matrix |
+| Q4_K/Q5_K/Q6_K selected for Q8_0_C | Stream original F32-dequantized rows directly into channel-wise quantization; native Q6_K `token_embd`/`output` use the same conversion | Per-worker F32 row scratch; avoids allocating a full temporary F32 matrix |
 | Rank greater than two MXFP4 experts | Packed `u8` blocks retaining scale/code interleaving; expert selection and decompression happen on the graph | Different graph layout; device fusion and temporary storage depend on expert execution |
 
 For Q8_0_C, each row uses `d = max(abs(values))/127`, stored as F16, and signed codes rounded

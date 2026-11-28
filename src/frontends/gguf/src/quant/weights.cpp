@@ -288,7 +288,7 @@ static std::shared_ptr<ov::Node> build_q8_0_c_node(ov::Tensor weights, ov::Tenso
     // (3D weight + Reshape) defeats that fusion and roughly halves prefill throughput.
     auto weights_node = make_shared_constant(ov::element::i8, ov::Shape{rows, cols}, weights);
     auto weights_f16 = std::make_shared<ov::op::v0::Convert>(weights_node, ov::element::f16);
-    auto scales_node = std::make_shared<ov::op::v0::Constant>(scales);  // {rows, 1}
+    auto scales_node = make_shared_constant(ov::element::f16, ov::Shape{rows, 1}, scales);
     auto scaled = std::make_shared<ov::op::v1::Multiply>(weights_f16, scales_node, ov::op::AutoBroadcastType::NUMPY);
     return std::make_shared<ov::op::v0::Convert>(scaled, ov::element::f32);
 }
@@ -363,8 +363,8 @@ std::shared_ptr<ov::Node> requantize_extracted_q8_0_channelwise(const WeightTens
     return build_q8_0_c_node(weights, scales, rows, cols);
 }
 
-// token_embd/output weights: requantized to Q8_0_C on the raw-byte path, and kept on a faithful
-// f16 zero-point on the extracted-tensor path.
+// token_embd/output weights: requantized to Q8_0_C on the raw-byte path. On the native path, Q6_K
+// is also requantized to Q8_0_C and affine formats keep a faithful f16 zero-point.
 bool is_embedding_or_output(const std::string& name) {
     return name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0;
 }
@@ -628,6 +628,10 @@ bool native_q5_k_is_symmetric(const std::string& name) {
     return !fractional_zero_point_enabled() && !is_embedding_or_output(name) && ov::util::ends_with(name, ".weight");
 }
 
+bool native_q6_k_is_channelwise(const std::string& name) {
+    return is_embedding_or_output(name);
+}
+
 void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
     // Written to std::cerr, NOT OPENVINO_WARN: the latter expands to a no-op unless the build sets
     // ENABLE_OPENVINO_DEBUG (cmake/features.cmake defaults it OFF), so in every shipped build it
@@ -729,6 +733,21 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                         "[GGUF] Q5_K symmetric scales must be f16: ",
                         name);
         node = make_compressed(tensors, format.node_element_type(), false);
+    } else if (qtype == GGUF_TYPE_Q6_K && native_q6_k_is_channelwise(name)) {
+        const auto& shape = tensors.weight.get_shape();
+        const auto& scale_shape = tensors.scales.get_shape();
+        OPENVINO_ASSERT(shape.size() >= 2 && tensors.weight.get_element_type() == ov::element::i8 &&
+                            scale_shape.size() == shape.size() && scale_shape.back() == 1 &&
+                            std::equal(shape.begin(), shape.end() - 1, scale_shape.begin()) &&
+                            tensors.scales.get_element_type() == ov::element::f16,
+                        "[GGUF] invalid channel-wise Q6_K layout: ",
+                        name);
+        const auto rows = ov::shape_size(shape) / shape.back();
+        node = build_q8_0_c_node(tensors.weight, tensors.scales, rows, shape.back());
+        if (shape.size() > 2) {
+            auto target = ov::op::v0::Constant::create(ov::element::i64, {shape.size()}, shape);
+            node = std::make_shared<ov::op::v1::Reshape>(node, target, false);
+        }
     } else if (format.fill == FillKind::MXFP4) {
         node = make_mxfp4(tensors);
     } else {

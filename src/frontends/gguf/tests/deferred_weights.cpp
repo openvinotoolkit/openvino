@@ -166,6 +166,43 @@ TEST(GGUFWeightNormalization, UnalignedColumnGatherPreservesLogicalValues) {
     expect_values(evaluate(model)[0], expected);
 }
 
+TEST(GGUFWeightNormalization, Q6KColumnGatherPreservesChannelwiseScales) {
+    const auto bytes = ov_gguf_test::load_npy<uint8_t>("q6_k_qbytes");
+    ASSERT_GE(bytes.size(), 2 * 210);
+    GgufWeight source;
+    source.data = ov::Tensor(ov::element::u8, {2 * 210});
+    std::memcpy(source.data.data(), bytes.data(), source.data.get_byte_size());
+    source.shape = {2, 256};
+    source.qtype = GGUF_TYPE_Q6_K;
+
+    for (const std::string name : {"output.weight", "token_embd.weight", "blk.0.attn_q.weight"}) {
+        SCOPED_TRACE(name);
+        source.source_name = name;
+        const auto reference_model =
+            std::make_shared<ov::Model>(ov::OutputVector{make_weight_node(source)}, ov::ParameterVector{});
+        const auto reference = evaluate(reference_model)[0];
+        for (size_t repeats : {1u, 2u}) {
+            SCOPED_TRACE(repeats);
+            std::vector<int64_t> columns(256 * repeats);
+            for (size_t i = 0; i < columns.size(); ++i)
+                columns[i] = i % 256;
+            const auto gather = std::make_shared<ov::op::v8::Gather>(
+                std::make_shared<GGUFConstant>(source),
+                ov::op::v0::Constant::create(ov::element::i64, {columns.size()}, columns),
+                ov::op::v0::Constant::create(ov::element::i64, {}, {1}));
+            const auto model = std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{});
+            normalize(model);
+            const bool channelwise = name != "blk.0.attn_q.weight";
+            EXPECT_EQ(count_ops_of_type<ov::op::v8::Gather>(model), channelwise && repeats == 2 ? 1 : 0);
+            std::vector<float> expected;
+            for (size_t row = 0; row < 2; ++row)
+                for (auto col : columns)
+                    expected.push_back(reference.data<const float>()[row * 256 + col]);
+            expect_values(evaluate(model)[0], expected);
+        }
+    }
+}
+
 TEST(GGUFWeightNormalization, SharedProjectionsPreserveUnequalSizesTiesAndCodeThree) {
     const auto a = ternary(2, 0), b = ternary(3, 1, true), c = ternary(1, 2);
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 128});

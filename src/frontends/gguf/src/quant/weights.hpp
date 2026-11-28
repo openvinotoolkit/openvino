@@ -37,6 +37,8 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype, bool fractional_zero_point);
 
 bool native_q5_k_is_symmetric(const std::string& name);
+// Native Q6_K token_embd/output weights are requantized to channel-wise Q8_0_C.
+bool native_q6_k_is_channelwise(const std::string& name);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
 // later accuracy investigation starts from the right place.
