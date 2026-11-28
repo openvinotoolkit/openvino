@@ -55,6 +55,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
     OV_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+    NODE_VALIDATION_CHECK(this, m_bodies[0] != nullptr, "TensorIterator body is not set");
 
     NODE_VALIDATION_CHECK(this, m_input_descriptions.size() == 1, "Loop contains input descriptions for other bodies");
     NODE_VALIDATION_CHECK(this,
@@ -189,7 +190,9 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->set_output_size(m_output_descriptions.size());
 
     op->m_num_iterations = m_num_iterations;
-    op->m_bodies[0] = get_function()->clone();
+    if (const auto& body = get_function()) {
+        op->m_bodies[0] = body->clone();
+    }
 
     for (auto& input_description : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(input_description->copy());
@@ -197,7 +200,9 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     for (auto& output_description : m_output_descriptions[0]) {
         op->m_output_descriptions[0].push_back(output_description->copy());
     }
-    op->validate_and_infer_types();
+    if (op->m_bodies[0] != nullptr) {
+        op->validate_and_infer_types();
+    }
     return op;
 }
 }  // namespace ov

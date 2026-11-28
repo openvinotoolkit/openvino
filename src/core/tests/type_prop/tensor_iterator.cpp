@@ -264,3 +264,12 @@ TEST(type_prop, tensor_iterator_dyn_slice) {
     PartialShape ref_ps = {N, part_size, I};
     EXPECT_EQ(X->get_partial_shape(), ref_ps);
 }
+
+TEST(type_prop, tensor_iterator_clone_with_null_body) {
+    auto ti = std::make_shared<ov::op::v0::TensorIterator>();
+    std::shared_ptr<ov::Node> cloned;
+    EXPECT_NO_THROW(cloned = ti->clone_with_new_inputs({}));
+    ASSERT_NE(cloned, nullptr);
+    EXPECT_EQ(ov::as_type_ptr<ov::op::v0::TensorIterator>(cloned)->get_function(), nullptr);
+    EXPECT_THROW(ti->validate_and_infer_types(), ov::NodeValidationFailure);
+}

@@ -34,6 +34,7 @@ void Loop::validate_and_infer_types() {
     OV_OP_SCOPE(v5_Loop_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+    NODE_VALIDATION_CHECK(this, m_bodies[0] != nullptr, "Loop body is not set");
 
     NODE_VALIDATION_CHECK(this, m_input_descriptions.size() == 1, "Loop contains input descriptions for other bodies");
     NODE_VALIDATION_CHECK(this,
@@ -394,7 +395,9 @@ void Loop::clone_to(Loop& dst, const OutputVector& new_args) const {
     dst.m_num_iterations = m_num_iterations;
     dst.m_special_body_ports = m_special_body_ports;
 
-    dst.m_bodies[0] = get_function()->clone();
+    if (const auto& body = get_function()) {
+        dst.m_bodies[0] = body->clone();
+    }
 
     for (auto& input_description : m_input_descriptions[0]) {
         dst.m_input_descriptions[0].push_back(input_description->copy());
@@ -402,7 +405,9 @@ void Loop::clone_to(Loop& dst, const OutputVector& new_args) const {
     for (auto& output_description : m_output_descriptions[0]) {
         dst.m_output_descriptions[0].push_back(output_description->copy());
     }
-    dst.validate_and_infer_types();
+    if (dst.m_bodies[0] != nullptr) {
+        dst.validate_and_infer_types();
+    }
 }
 
 Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {

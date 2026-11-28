@@ -447,3 +447,15 @@ TEST(type_prop, if_invalid_false_body) {
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
 }
+
+TEST(type_prop, if_clone_with_null_body) {
+    auto cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{1});
+    auto if_op = std::make_shared<ov::op::v8::If>(cond);
+    std::shared_ptr<ov::Node> cloned;
+    EXPECT_NO_THROW(cloned = if_op->clone_with_new_inputs({cond}));
+    ASSERT_NE(cloned, nullptr);
+    auto cloned_if = ov::as_type_ptr<ov::op::v8::If>(cloned);
+    EXPECT_EQ(cloned_if->get_then_body(), nullptr);
+    EXPECT_EQ(cloned_if->get_else_body(), nullptr);
+    EXPECT_THROW(if_op->validate_and_infer_types(), ov::NodeValidationFailure);
+}

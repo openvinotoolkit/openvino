@@ -107,8 +107,10 @@ void ov::op::v8::If::validate_and_infer_types() {
 
         // Condition is constant we only need to validate one body
         if (val[0]) {
+            NODE_VALIDATION_CHECK(this, get_then_body() != nullptr, "If then_body is not set");
             validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
         } else {
+            NODE_VALIDATION_CHECK(this, get_else_body() != nullptr, "If else_body is not set");
             validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
         }
         auto output_nodes = outputs();
@@ -124,6 +126,9 @@ void ov::op::v8::If::validate_and_infer_types() {
     } else  // condition is non constant
     {
         // If cond is non const, shape and type inference is run for both bodies
+        NODE_VALIDATION_CHECK(this,
+                              get_then_body() != nullptr && get_else_body() != nullptr,
+                              "If then_body and else_body must both be set");
         validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
         validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
         auto output_nodes = outputs();
@@ -188,8 +193,12 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(get_then_body()->clone());
-    op->set_else_body(get_else_body()->clone());
+    if (const auto& then_body = get_then_body()) {
+        op->set_then_body(then_body->clone());
+    }
+    if (const auto& else_body = get_else_body()) {
+        op->set_else_body(else_body->clone());
+    }
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {
@@ -199,7 +208,9 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
             op->m_output_descriptions[body_index].push_back(m_output_descr->copy());
         }
     }
-    op->validate_and_infer_types();
+    if (op->get_then_body() != nullptr && op->get_else_body() != nullptr) {
+        op->validate_and_infer_types();
+    }
 
     return op;
 }

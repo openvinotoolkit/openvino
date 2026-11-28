@@ -1580,3 +1580,12 @@ TEST(type_prop, loop_merged_static_seed_relaxed_when_body_value_dynamic) {
     EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{1, Dimension::dynamic()}));
     EXPECT_TRUE(loop->get_output_partial_shape(0)[1].is_dynamic());
 }
+
+TEST(type_prop, loop_clone_with_null_body) {
+    auto loop = std::make_shared<ov::op::v5::Loop>();
+    std::shared_ptr<ov::Node> cloned;
+    EXPECT_NO_THROW(cloned = loop->clone_with_new_inputs({}));
+    ASSERT_NE(cloned, nullptr);
+    EXPECT_EQ(ov::as_type_ptr<ov::op::v5::Loop>(cloned)->get_function(), nullptr);
+    EXPECT_THROW(loop->validate_and_infer_types(), ov::NodeValidationFailure);
+}
