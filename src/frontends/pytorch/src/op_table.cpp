@@ -193,6 +193,7 @@ OP_CONVERTER(translate_movedim);
 OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
+OP_CONVERTER(translate_ndtr);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
@@ -675,6 +676,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
+        {"aten::ndtr", op::translate_ndtr},
         {"aten::neg", op::translate_neg},
         {"aten::new_empty", op::translate_new_zeros},
         {"aten::new_full", op::translate_new_full},
@@ -772,6 +774,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sort", op::translate_sort},
         {"aten::special_expit",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
+        {"aten::special_ndtr", op::translate_ndtr},
         // aten::split - Supported in limited set of patterns
         {"aten::split_with_sizes", op::translate_split_with_sizes},
         {"aten::split_with_sizes_copy", op::translate_split_with_sizes},
