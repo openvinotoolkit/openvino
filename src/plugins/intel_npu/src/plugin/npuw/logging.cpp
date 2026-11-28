@@ -10,7 +10,6 @@
 #include <mutex>
 #include <sstream>
 
-#include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
 namespace {
@@ -102,9 +101,7 @@ int ov::npuw::__logging_indent__::__level__() {
 void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::string& base_path) {
     ov::SoPtr<ov::ITensor> tensor;
 
-    // A device tensor has no host memory to read, so it is copied out like a strided one
-    const bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(input._ptr) != nullptr;
-    if (input->is_continuous() && !is_remote) {
+    if (input->is_continuous()) {
         tensor = input;
     } else {
         // Create temporary tensor and copy data in. Dumping is never fast, anyway

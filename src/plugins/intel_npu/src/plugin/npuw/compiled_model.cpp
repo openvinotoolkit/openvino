@@ -243,22 +243,18 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
         if (device_properties.end() == properties_it) {
-            const bool is_npu = ov::npuw::util::starts_with(device_name, "NPU");
-            // The DEVICE_ID this plugin was given names an NPU device. The other
-            // devices take theirs from their names in NPUW_DEVICES.
-            auto own_properties = properties;
-            if (!is_npu) {
-                own_properties.erase(ov::device::id.name());
-            }
-            device_properties[device_name] = core->get_supported_property(device_name, own_properties);
+            device_properties[device_name] = core->get_supported_property(device_name, properties);
 
             // Do extra handling for the private NPU options
-            if (is_npu) {
+            if (ov::npuw::util::starts_with(device_name, "NPU")) {
                 for (auto&& opt : properties) {
                     if (ov::npuw::util::starts_with(opt.first, "NPU")) {
                         device_properties[device_name][opt.first] = opt.second;
                     }
                 }
+            } else {
+                // The DEVICE_ID this plugin was given names an NPU device.
+                device_properties[device_name].erase(ov::device::id.name());
             }  // if(NPU)
         }
     }
@@ -820,8 +816,15 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 #endif
 
-    auto forced_sub_devices =
-        ov::npuw::util::parse_submodel_devices(m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>(), end_sub_idx);
+    std::map<std::size_t, std::string> forced_sub_devices{};
+    std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
+    // Change "last" keyword to tail subgraph number
+    std::size_t last_pos = fsd_opt.find("last");
+    if (last_pos != std::string::npos) {
+        fsd_opt.erase(last_pos, 4);
+        fsd_opt.insert(last_pos, std::to_string(end_sub_idx - 1));
+    }
+    forced_sub_devices = ::intel_npu::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
     // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
     // block in the same chunk
@@ -2486,8 +2489,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
         }
     }  // if(subgraphs > 1)
     if (ov::npuw::util::starts_with(device, "GPU")) {
-        // The GPU cannot build a PA op with a static token count, see the pass.
-        // The submodel itself stays as it is for the other devices.
+        // GPU workaround: the GPU cannot build a PA op with a static token
+        // count, see the pass. The submodel stays as it is for the other devices.
         const auto relaxed = submodel->clone();
         if (ov::npuw::DynamicPATokens().run_on_model(relaxed)) {
             return core->compile_model(relaxed, device, device_config);
