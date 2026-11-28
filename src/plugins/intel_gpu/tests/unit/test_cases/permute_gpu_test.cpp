@@ -2864,3 +2864,165 @@ TEST(permute_gpu_u2, bf_swap_packed_output_matches_permutation) {
         EXPECT_EQ(expected_data[i], output_ptr[i]) << "mismatch at packed byte " << i;
     }
 }
+
+// permute_ref vectorized path: static planar permutes that keep the innermost axis in place
+// (window/grid partition and reverse) copy several consecutive elements per work item.
+// Results are compared with a host reference.
+namespace {
+template <typename T>
+std::vector<T> make_inner_vec_values(size_t count) {
+    std::mt19937 gen(42);
+    std::uniform_int_distribution<int> dist(-100, 100);
+    std::vector<T> values(count);
+    for (auto& v : values) {
+        v = static_cast<T>(static_cast<float>(dist(gen)));
+    }
+    return values;
+}
+
+// Row-major transpose: out[i0..in] = in[idx permuted by order].
+template <typename T>
+std::vector<T> permute_host_ref(const std::vector<T>& in, const std::vector<ov::Dimension::value_type>& shape,
+                                const std::vector<uint16_t>& order) {
+    const size_t rank = shape.size();
+    std::vector<size_t> in_strides(rank, 1);
+    for (size_t i = rank - 1; i > 0; --i) {
+        in_strides[i - 1] = in_strides[i] * shape[i];
+    }
+    std::vector<size_t> out_shape(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        out_shape[i] = shape[order[i]];
+    }
+    std::vector<T> out(in.size());
+    std::vector<size_t> idx(rank, 0);
+    for (size_t o = 0; o < out.size(); ++o) {
+        size_t in_off = 0;
+        for (size_t i = 0; i < rank; ++i) {
+            in_off += idx[i] * in_strides[order[i]];
+        }
+        out[o] = in[in_off];
+        for (size_t i = rank; i-- > 0;) {
+            if (++idx[i] < out_shape[i]) {
+                break;
+            }
+            idx[i] = 0;
+        }
+    }
+    return out;
+}
+
+format planar_format(size_t rank) {
+    return rank == 4 ? format::bfyx : (rank == 5 ? format::bfzyx : format::bfwzyx);
+}
+
+template <typename T>
+void expect_equal(const cldnn::memory::ptr& mem, const std::vector<T>& expected) {
+    cldnn::mem_lock<T, mem_lock_type::read> ptr(mem, get_test_stream());
+    ASSERT_EQ(ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(static_cast<float>(ptr[i]), static_cast<float>(expected[i])) << "mismatch at " << i;
+    }
+}
+
+template <data_types DT>
+void run_permute_ref_inner_vec(const std::vector<ov::Dimension::value_type>& shape, const std::vector<uint16_t>& order) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory(layout{ov::PartialShape(shape), DT, planar_format(shape.size())});
+    const auto data = make_inner_vec_values<T>(input->count());
+    set_values(input, data);
+
+    topology topo(input_layout("input", input->get_layout()), permute("output", input_info("input"), order));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"output", {planar_format(shape.size()), "permute_ref"}}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input);
+    auto outputs = net.execute();
+    expect_equal(outputs.at("output").get_memory(), permute_host_ref(data, shape, order));
+}
+}  // namespace
+
+struct PermuteRefInnerVecParam {
+    std::vector<ov::Dimension::value_type> shape;
+    std::vector<uint16_t> order;
+};
+
+class permute_ref_inner_vec : public ::testing::TestWithParam<PermuteRefInnerVecParam> {};
+
+TEST_P(permute_ref_inner_vec, all_types) {
+    const auto& p = GetParam();
+    run_permute_ref_inner_vec<data_types::f32>(p.shape, p.order);
+    run_permute_ref_inner_vec<data_types::f16>(p.shape, p.order);
+    run_permute_ref_inner_vec<data_types::bf16>(p.shape, p.order);
+    run_permute_ref_inner_vec<data_types::i8>(p.shape, p.order);
+}
+
+// The innermost sizes cover vector widths 8 (i8) / 4 / 2 and an odd size using the scalar path.
+INSTANTIATE_TEST_SUITE_P(smoke_permute_ref_inner_vec,
+                         permute_ref_inner_vec,
+                         ::testing::ValuesIn(std::vector<PermuteRefInnerVecParam>{
+                             {{1, 4, 8, 4, 8, 16}, {0, 1, 3, 2, 4, 5}},  // window partition/reverse
+                             {{2, 4, 4, 4, 4, 24}, {0, 2, 4, 1, 3, 5}},  // grid partition
+                             {{1, 2, 3, 2, 3, 6}, {0, 3, 1, 4, 2, 5}},   // grid reverse
+                             {{3, 5, 2, 7, 12}, {0, 3, 2, 1, 4}},
+                             {{2, 6, 10, 6}, {0, 2, 1, 3}},
+                             {{1, 2, 3, 2, 3, 5}, {0, 1, 3, 2, 4, 5}},
+                         }));
+
+// A following reorder to a lower planar rank is fused into the permute, which then writes
+// through the linear offset of the permuted shape. The reorder is followed by another permute
+// so that it is not a network output and is fused like in a real graph.
+TEST(permute_ref_inner_vec_fused_reorder, rank_6d_to_4d) {
+    auto& engine = get_test_engine();
+    const std::vector<ov::Dimension::value_type> shape = {1, 4, 8, 4, 8, 16};
+    const std::vector<uint16_t> order = {0, 1, 3, 2, 4, 5};
+    const std::vector<uint16_t> next_order = {0, 1, 3, 2};
+    auto input = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f16, format::bfwzyx});
+    const auto data = make_inner_vec_values<ov::float16>(input->count());
+    set_values(input, data);
+
+    topology topo(input_layout("input", input->get_layout()),
+                  permute("permute", input_info("input"), order),
+                  reorder("reorder", input_info("permute"), format::bfyx, data_types::f16),
+                  permute("output", input_info("reorder"), next_order));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"permute", {format::bfwzyx, "permute_ref"}}}));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    net->set_input_data("input", input);
+    auto outputs = net->execute();
+
+    // The reorder is fused: the permute itself writes the 4D bfyx output.
+    EXPECT_NE(net->get_primitive_info("permute").find("permute_ref"), std::string::npos);
+    const auto fused_layout = net->get_primitive("permute")->get_output_layout();
+    ASSERT_EQ(fused_layout.format, format::bfyx);
+    EXPECT_EQ(net->get_executed_primitives().size(), 3u);  // input_layout, permute, output
+
+    const auto shape_4d = fused_layout.get_shape();
+    const std::vector<ov::Dimension::value_type> dims_4d(shape_4d.begin(), shape_4d.end());
+    const auto expected = permute_host_ref(permute_host_ref(data, shape, order), dims_4d, next_order);
+    expect_equal(outputs.at("output").get_memory(), expected);
+}
+
+// Shape-agnostic kernels keep the scalar path, also when the dispatch is updated for a static shape.
+TEST(permute_ref_inner_vec_dynamic, window_partition) {
+    auto& engine = get_test_engine();
+    const std::vector<uint16_t> order = {0, 1, 3, 2, 4, 5};
+    topology topo(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f16, format::bfwzyx}),
+                  permute("output", input_info("input"), order));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net(engine, topo, config);
+    ASSERT_TRUE(net.get_primitive("output")->get_impl()->is_dynamic());
+
+    for (const auto& shape : std::vector<std::vector<ov::Dimension::value_type>>{{1, 4, 8, 4, 8, 16}, {2, 2, 4, 2, 4, 8}}) {
+        auto input = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f16, format::bfwzyx});
+        const auto data = make_inner_vec_values<ov::float16>(input->count());
+        set_values(input, data);
+        net.set_input_data("input", input);
+        auto outputs = net.execute();
+        expect_equal(outputs.at("output").get_memory(), permute_host_ref(data, shape, order));
+    }
+}

@@ -4,7 +4,11 @@
 
 #include "permute_kernel_ref.h"
 #include "kernel_selector_utils.h"
+#include <algorithm>
+#include <limits>
+#include <map>
 #include <string>
+#include <vector>
 
 namespace kernel_selector {
 namespace {
@@ -31,6 +35,77 @@ bool Process_F_First(const permute_params& params) {
     };
 
     return (f_to_x(params.order) && is_fsv(in_layout) && SimpleLayout(out_layout));
+}
+
+// Wider per-work-item vectors make neighbouring lanes stride apart and lose coalescing;
+// 8 bytes measured best for window-partition permutes on Xe2.
+constexpr size_t kInnerVecMaxBytes = 8;
+
+// Vector width for permutes of planar 4D-6D tensors that keep the innermost axis in place
+// (cldnn order[2] == 2, e.g. window partition/reverse): each work item then copies VEC_SIZE
+// consecutive X elements with vector loads/stores. Returns 0 when the scalar path must be used.
+// Shape-agnostic kernels are excluded so that runtime dispatch updates stay scalar as well.
+size_t GetInnerVecSize(const permute_params& params) {
+    const auto& in = params.inputs[0];
+    const auto& out = params.outputs[0];
+    if (params.has_dynamic_tensors() || params.is_shape_agnostic || !params.fused_ops.empty() || !params.activations.empty()) {
+        return 0;
+    }
+    auto is_planar = [](DataLayout l) {
+        return l == DataLayout::bfyx || l == DataLayout::bfzyx || l == DataLayout::bfwzyx;
+    };
+    if (!is_planar(in.GetLayout()) || !is_planar(out.GetLayout()) || in.GetDType() != out.GetDType()) {
+        return 0;
+    }
+    // A fused following reorder may change the (planar) output rank: the output is then
+    // addressed by the linear offset of the permuted shape.
+    if (in.LogicalSize() != out.LogicalSize() || in.PitchesDifferFromLogicalDims() || out.PitchesDifferFromLogicalDims()) {
+        return 0;
+    }
+    // The linear output offset is computed in 32-bit uint arithmetic (size_t measured ~4% slower
+    // on Xe2), so larger tensors keep the scalar path.
+    if (out.LogicalSize() > std::numeric_limits<uint32_t>::max()) {
+        return 0;
+    }
+    const auto& order = params.order;
+    if (order.size() != in.GetDims().size() || order.size() < 4 || order.size() > 6 || order[2] != 2) {
+        return 0;
+    }
+    bool is_identity = true;
+    for (size_t i = 0; i < order.size(); ++i) {
+        is_identity &= order[i] == i;
+    }
+    if (is_identity) {
+        return 0;
+    }
+    const size_t elem_bytes = BytesPerElement(in.GetDType());
+    for (const size_t vec : {16, 8, 4, 2}) {
+        if (vec * elem_bytes <= kInnerVecMaxBytes && in.X().v % vec == 0) {
+            return vec;
+        }
+    }
+    return 0;
+}
+
+// Linear offset of the permuted coordinates in the unpadded planar permuted shape.
+// permute_out_idx[i] names the input coordinate placed at cldnn position i of the output.
+std::string GetLinearOutputIndex(const std::vector<std::string>& permute_out_idx) {
+    static const std::map<std::string, std::string> sizes = {{"b", "INPUT0_BATCH_NUM"},
+                                                             {"f", "INPUT0_FEATURE_NUM"},
+                                                             {"x", "INPUT0_SIZE_X"},
+                                                             {"y", "INPUT0_SIZE_Y"},
+                                                             {"z", "INPUT0_SIZE_Z"},
+                                                             {"w", "INPUT0_SIZE_W"}};
+    // Outermost to innermost: b, f, then spatials from the last cldnn position down to x.
+    std::vector<std::string> outer_to_inner = {permute_out_idx[0], permute_out_idx[1]};
+    for (size_t i = permute_out_idx.size() - 1; i > 1; --i) {
+        outer_to_inner.push_back(permute_out_idx[i]);
+    }
+    std::string expr = outer_to_inner[0];
+    for (size_t i = 1; i < outer_to_inner.size(); ++i) {
+        expr = "(" + expr + ")*" + sizes.at(outer_to_inner[i]) + "+" + outer_to_inner[i];
+    }
+    return "OUTPUT_OFFSET+" + expr;
 }
 
 void GetOrderVector(std::string s, std::vector<std::string>* res) {
@@ -145,7 +220,8 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
                                                                          Tensor::DataChannelName::U, Tensor::DataChannelName::V},
                                                                         {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-        dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v * in.U().v  * in.V().v , in.Feature().v * in.Batch().v};
+        const size_t vec_size = std::max<size_t>(GetInnerVecSize(params), 1);
+        dispatchData.gws = {in.X().v / vec_size, in.Y().v * in.Z().v * in.W().v * in.U().v  * in.V().v , in.Feature().v * in.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
@@ -204,7 +280,10 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     if (Process_F_First(params)) {
         jit.AddConstant(MakeJitConstant("F_FIRST", 1));
     }
-    if (reorder_to_different_dim) {
+    if (const size_t vec_size = GetInnerVecSize(params); vec_size > 0) {
+        jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+        jit.AddConstant(MakeJitConstant("OUT_IDX", GetLinearOutputIndex(permute_out_idx)));
+    } else if (reorder_to_different_dim) {
         auto reordered_order = GetReorderedOutputOrder(params, permute_out_idx, dim_change);
         jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + reordered_order + ")"));
         GetOrderVector(reordered_order, &reordered_out_idx);

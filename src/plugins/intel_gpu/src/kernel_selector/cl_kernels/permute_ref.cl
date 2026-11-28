@@ -67,13 +67,20 @@ KERNEL (permute_ref)(
         const uint y = gid_0 % INPUT0_SIZE_Y;
     #endif
 
+#ifdef VEC_SIZE
+    // Innermost axis kept in place: each work item copies VEC_SIZE consecutive x elements.
+    const uint x = (uint)get_global_id(0) * VEC_SIZE;
+#else
     const uint x = get_global_id(0);
+#endif
     const uint f = (uint)get_global_id(2) % INPUT0_FEATURE_NUM;
     const uint b = (uint)get_global_id(2) / INPUT0_FEATURE_NUM;
 #endif
+#ifdef VEC_SIZE
+    const MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) data = CAT(vload, VEC_SIZE)(0, input + IN_IDX);
+    CAT(vstore, VEC_SIZE)(data, 0, output + OUT_IDX);
+#elif HAS_FUSED_OPS
     INPUT0_TYPE input_var = input[IN_IDX];
-
-#if HAS_FUSED_OPS
     FUSED_OPS;
     output[OUT_IDX] = FUSED_OPS_RESULT;
 #else
