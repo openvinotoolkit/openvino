@@ -188,6 +188,134 @@ INSTANTIATE_TEST_SUITE_P(
     paged_attention_swa_partition_finalization_test,
     ::testing::Values(paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));
 
+// The FlashAttention-2 prefill (sdpa_opt) normalizes each key partition with the running maximum of the partitions so
+// far, while the scores output keeps every partition relative to its own maximum. Here the keys of the second partition
+// score more than 100 above all others, so all weights of the last partition relative to the running maximum underflow
+// to 0. The scores exported from them were 0 / 0 = NaN, and the scores calculation spread the NaN over all keys.
+// The keys of the second partition have the elements high_key, the others low_key, and element 0 adds up to 32, so the
+// scores of a partition differ by up to 4: 16 and 2 give scores around 128 and 16, 8192 and 8160 scores beyond the f16
+// range, around 65536 and 65280.
+struct paged_attention_fa2_partition_scores_params : paged_attention_test_params {
+    float high_key = 0.0f;
+    float low_key = 0.0f;
+};
+
+class paged_attention_fa2_partition_scores_test : public PagedAttentionTest<paged_attention_fa2_partition_scores_params> {};
+
+TEST_P(paged_attention_fa2_partition_scores_test, matches_reference) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    ASSERT_EQ(p.subsequences.size(), 1u);
+    ASSERT_EQ(p.subsequences[0].past_len, 0);
+    ASSERT_EQ(p.num_heads, p.num_kv_heads);
+    ASSERT_EQ(p.k_head_size, 64);
+    ASSERT_EQ(p.v_head_size, p.k_head_size);
+
+    const int num_tokens = p.subsequences[0].num_tokens;
+    const int num_heads = p.num_heads;
+    const int head_size = p.k_head_size;
+    // Prefill key partitions of sdpa_opt are 2 * head_size keys wide (see get_partitioning_size)
+    const int partition_size = 2 * head_size;
+    ASSERT_GT(num_tokens, 2 * partition_size);
+
+    // Q = 1 and scale 1/8: the score of a key is 8 * key element + (its offset on element 0) / 8
+    std::fill(pam.query_data[0].begin(), pam.query_data[0].end(), ov::float16(1.0f));
+    for (int token = 0; token < num_tokens; ++token) {
+        const bool high = token >= partition_size && token < 2 * partition_size;
+        for (int head = 0; head < num_heads; ++head) {
+            const size_t offset = (static_cast<size_t>(token) * num_heads + head) * head_size;
+            std::fill_n(pam.key_data[0].begin() + offset, head_size, ov::float16(high ? p.high_key : p.low_key));
+            pam.key_data[0][offset] = ov::float16((high ? p.high_key : p.low_key) + 8.0f * static_cast<float>((token + head) % 5));
+            for (int e = 0; e < head_size; ++e) {
+                pam.value_data[0][offset + e] = ov::float16(static_cast<float>((token + 2 * e + head) % 9 - 4) / 8.0f);
+            }
+        }
+    }
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    const auto kernels = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(kernels.find("sdpa_opt"), std::string::npos) << "Executed kernels: " << kernels;
+
+    // Double reference on the f16 inputs
+    const double scale = pam.get_default_scale();
+    const int window_size = p.scores_mode == ScoresMode::SNAPKV ? pam.score_aggregation[0] : 1;
+    std::vector<double> expected_output(static_cast<size_t>(num_tokens) * num_heads * head_size, 0.0);
+    std::vector<double> expected_scores(num_tokens, 0.0);
+    std::vector<double> weights(num_tokens);
+    for (int head = 0; head < num_heads; ++head) {
+        for (int row = 0; row < num_tokens; ++row) {
+            double max_logit = -std::numeric_limits<double>::infinity();
+            for (int key = 0; key <= row; ++key) {
+                double dot = 0.0;
+                for (int e = 0; e < head_size; ++e) {
+                    dot += static_cast<double>(pam.query_data[0][(static_cast<size_t>(row) * num_heads + head) * head_size + e]) *
+                           static_cast<double>(pam.key_data[0][(static_cast<size_t>(key) * num_heads + head) * head_size + e]);
+                }
+                weights[key] = dot * scale;
+                max_logit = std::max(max_logit, weights[key]);
+            }
+            double sum = 0.0;
+            for (int key = 0; key <= row; ++key) {
+                weights[key] = std::exp(weights[key] - max_logit);
+                sum += weights[key];
+            }
+            auto* out = &expected_output[(static_cast<size_t>(row) * num_heads + head) * head_size];
+            for (int key = 0; key <= row; ++key) {
+                const double probability = weights[key] / sum;
+                for (int e = 0; e < head_size; ++e) {
+                    out[e] += probability * static_cast<double>(pam.value_data[0][(static_cast<size_t>(key) * num_heads + head) * head_size + e]);
+                }
+                if (row >= num_tokens - window_size) {
+                    expected_scores[key] += probability;
+                }
+            }
+        }
+    }
+
+    auto check = [](const cldnn::memory::ptr& mem, const std::vector<double>& expected, const std::string& name) {
+        ASSERT_EQ(mem->count(), expected.size()) << name;
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> data(mem, tests::get_test_stream());
+        double max_diff = 0.0;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            const double value = static_cast<float>(data[i]);
+            ASSERT_TRUE(std::isfinite(value)) << name << " index " << i;
+            ASSERT_NEAR(value, expected[i], 2e-3) << name << " index " << i;
+            max_diff = std::max(max_diff, std::abs(value - expected[i]));
+        }
+        ::testing::Test::RecordProperty(name + "_max_abs_diff", std::to_string(max_diff));
+    };
+    check(result.outputs.at("output_data").get_memory(), expected_output, "output");
+    check(result.outputs.at("output_scores").get_memory(), expected_scores, "scores");
+}
+
+static paged_attention_fa2_partition_scores_params make_fa2_partition_scores_params(ScoresMode scores_mode, float high_key, float low_key) {
+    // 300 tokens: three key partitions, the last one partial
+    return {paged_attention_test_params{{{300, 0}},
+                                        2,
+                                        2,
+                                        64,
+                                        64,
+                                        16,
+                                        0,
+                                        DISABLE_CACHE_COMPRESSION,
+                                        ov::internal::CacheQuantMode::BY_TOKEN,
+                                        STATIC_INPUT_PAD,
+                                        scores_mode,
+                                        DISABLE_ROTATION,
+                                        ENABLE_FA_V2},
+            high_key,
+            low_key};
+}
+
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention_fa2_partition_scores,
+                         paged_attention_fa2_partition_scores_test,
+                         ::testing::Values(make_fa2_partition_scores_params(ENABLE_SCORES, 16.0f, 2.0f),
+                                           make_fa2_partition_scores_params(ENABLE_SCORES, 8192.0f, 8160.0f),
+                                           make_fa2_partition_scores_params(ENABLE_SCORES_SNAPKV, 16.0f, 2.0f),
+                                           make_fa2_partition_scores_params(ENABLE_SCORES_SNAPKV, 8192.0f, 8160.0f)));
+
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();
