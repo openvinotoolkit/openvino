@@ -32,20 +32,25 @@ public:
 ///         out          = Concat(out_0, ..., out_{G-1}, axis=0)     // [T, N]
 ///     Requires the group dimension G (mat_b.shape[0]) to be static so that a
 ///     fixed number of MatMuls can be generated.
+///     With only_compressed_split, only GroupedMatMuls whose compressed weights can be split per group are
+///     decomposed; the others are left for a later regular decomposition.
 class TRANSFORMATIONS_API ConvertGroupedMatMul2Dx3DToMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGroupedMatMul2Dx3DToMatMul");
-    ConvertGroupedMatMul2Dx3DToMatMul();
+    explicit ConvertGroupedMatMul2Dx3DToMatMul(bool only_compressed_split = false);
 };
 
 /// @brief Decomposes the public op v17::GroupedMatMul into a regular v0::MatMul operations graph,
 /// covering both the 3Dx3D and 2Dx3D (with offsets) cases.
+/// With only_compressed_split, only 2Dx3D GroupedMatMuls with splittable compressed weights are decomposed.
 class TRANSFORMATIONS_API ConvertGroupedMatMulToMatMul : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ConvertGroupedMatMulToMatMul");
-    ConvertGroupedMatMulToMatMul() {
-        add_matcher<ConvertGroupedMatMul3Dx3DToMatMul>();
-        add_matcher<ConvertGroupedMatMul2Dx3DToMatMul>();
+    explicit ConvertGroupedMatMulToMatMul(bool only_compressed_split = false) {
+        if (!only_compressed_split) {
+            add_matcher<ConvertGroupedMatMul3Dx3DToMatMul>();
+        }
+        add_matcher<ConvertGroupedMatMul2Dx3DToMatMul>(only_compressed_split);
     }
 };
 

@@ -65,6 +65,9 @@ protected:
                 ASSERT_TRUE(zp_it != rt.end())
                     << "Node '" << n->get_friendly_name()
                     << "' is missing 'wzp_precision' rt_info";
+                // Decomposed compressed FCs may keep the zero point in the decompression precision, like a plain MatMul.
+                if (rt.at("layerType").as<std::string>() != "grouped_matmul")
+                    continue;
                 ov::element::Type actual_zp_prec(zp_it->second.as<std::string>());
                 ASSERT_EQ(actual_zp_prec, expected_weights_prec)
                     << "Node '" << n->get_friendly_name()
@@ -174,7 +177,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnectedCompressed")),
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 
@@ -238,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_f32_2d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(std::string("FullyConnected")),
+                                            ::testing::Values(expected_primitive("FullyConnected", "FullyConnectedCompressed")),
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 
@@ -256,7 +259,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_DynamicPrecision_f32_2d3
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::ValuesIn(subtract_types),
                                             ::testing::Values(true),
-                                            ::testing::Values(-1, 128),
+                                            ::testing::Values(128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("FullyConnected", "FullyConnectedCompressed")),
+                                            ::testing::Values(dynamic_precision_config)),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+// Per-channel f16 scales leave Multiply -> Convert(f32) without a Reshape, which FC compression does not match.
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_DynamicPrecision_f32_2d3d_per_channel,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(-1),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(std::string("FullyConnected")),
                                             ::testing::Values(dynamic_precision_config)),
@@ -274,7 +294,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_DynamicPrecision_f16_2d3
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnectedCompressed")),
                                             ::testing::Values(dynamic_precision_config)),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 }  // namespace
