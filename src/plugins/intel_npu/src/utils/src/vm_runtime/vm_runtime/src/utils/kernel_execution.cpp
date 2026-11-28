@@ -310,8 +310,7 @@ result_t ExecutionContext::EventPool::initialize(ze_device_handle_t deviceHandle
     _executionMode = executionMode;
 
     // counter based event will be used only for TILE_AGNOSTIC execution mode
-    _eventType = (isCounterBasedEventSupported &&
-                  (executionMode != ExecutionMode::TILE_BOUND || batchMode != npu_vm_batch_mode_dynamic))
+    _eventType = (isCounterBasedEventSupported && executionMode != ExecutionMode::TILE_BOUND)
                          ? EventPool::EventType::COUNTER_BASED
                          : EventPool::EventType::DEFAULT;
 
