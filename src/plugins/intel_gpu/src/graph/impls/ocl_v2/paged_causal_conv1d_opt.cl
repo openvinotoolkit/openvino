@@ -4,6 +4,19 @@
 
 #include "include/batch_headers/common.cl"
 
+// Optional fused SWISH (SiLU) epilogue, identical to paged_causal_conv1d_ref: the convolution is rounded to
+// OUTPUT_TYPE first and SiLU is evaluated in that type, matching the stand-alone activation kernel.
+#if FUSE_SWISH
+    #define APPLY_CONV1D_EPILOGUE(acc)                                       \
+        ({                                                                   \
+            OUTPUT_TYPE _v = TO_OUTPUT_TYPE(acc);                            \
+            _v / (TO_OUTPUT_TYPE(1.0f) +                                     \
+                  exp(-(TO_OUTPUT_TYPE(FUSE_SWISH_BETA) * _v)));             \
+        })
+#else
+    #define APPLY_CONV1D_EPILOGUE(acc) TO_OUTPUT_TYPE(acc)
+#endif
+
 // Token-parallel variant of paged_causal_conv1d_ref.
 // Each work-item handles one hidden channel over a range of tokens_per_item flattened tokens and
 // rebuilds its convolution window from the input, so the sequential chain is bounded by the range
@@ -151,7 +164,7 @@ KERNEL(paged_causal_conv1d_opt)
             for (int k = 0; k < KERNEL_SIZE; k++) {
                 sum = fma(state[k], weight[k], sum);
             }
-            output_embeds[token_idx * output_token_stride + out_h] = TO_OUTPUT_TYPE(sum);
+            output_embeds[token_idx * output_token_stride + out_h] = APPLY_CONV1D_EPILOGUE(sum);
 
             if (is_head) {
                 const int cached_tokens = prev_nums + (lt + 1);
