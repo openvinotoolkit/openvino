@@ -283,7 +283,10 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
             target_shape[axis + 1] = 1;
             y_scale = ov::op::util::reshape(y_scale, target_shape);
-            y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
+            // The default scalar zero broadcasts across every block.
+            if (node.get_inputs_size() > 2 && !node.input(2).empty()) {
+                y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
+            }
 
             auto fake_quantize = detail::make_fake_quantize(y_scale, y_zero_point, input_x);
             return {ov::op::util::reshape(fake_quantize, x_shape.to_shape())};

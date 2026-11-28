@@ -454,7 +454,6 @@ tests_expected_to_fail = [
     (
         skip_misalignment,
         "OnnxBackendNodeModelTest.test_reduce_max_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_quantizelinear_blocked_symmetric_cpu",
     ),
     (
         skip_issue_124587,
