@@ -6,6 +6,7 @@
 
 #include <gmock/gmock.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/constant.hpp"
@@ -274,4 +275,41 @@ TEST(type_prop, space_to_batch_invalid_value_block_shape) {
     } catch (...) {
         FAIL() << "block_shape value node validation check failed for unexpected reason";
     }
+}
+
+class TypePropSpaceToBatchBlockSizeTest : public TypePropOpTest<op::v1::SpaceToBatch>,
+                                          public WithParamInterface<size_t> {};
+
+INSTANTIATE_TEST_SUITE_P(type_prop, TypePropSpaceToBatchBlockSizeTest, Values(0, 2, 4), PrintToStringParamName());
+
+TEST_P(TypePropSpaceToBatchBlockSizeTest, const_inputs_size_not_equal_to_data_rank) {
+    const auto size = GetParam();
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 6});
+    const auto block_shape = op::v0::Constant::create(element::i64, Shape{size}, vector<int64_t>(size, 1));
+    const auto pads = op::v0::Constant::create(element::i64, Shape{size}, vector<int64_t>(size, 0));
+
+    OV_EXPECT_THROW(make_op(data, block_shape, pads, pads),
+                    NodeValidationFailure,
+                    HasSubstr("block_shape and pads inputs must have the same number of elements as data input rank"));
+}
+
+TEST_P(TypePropSpaceToBatchBlockSizeTest, non_const_inputs_size_not_equal_to_data_rank) {
+    const auto size = static_cast<int64_t>(GetParam());
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 6});
+    const auto block_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape{size});
+    const auto pads = make_shared<op::v0::Parameter>(element::i64, PartialShape{size});
+
+    OV_EXPECT_THROW(make_op(data, block_shape, pads, pads),
+                    NodeValidationFailure,
+                    HasSubstr("block_shape and pads inputs must have the same number of elements as data input rank"));
+}
+
+TEST(type_prop, space_to_batch_inputs_size_interval_compatible_with_data_rank) {
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 6});
+    const auto block_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape{{2, 4}});
+    const auto pads = make_shared<op::v0::Parameter>(element::i64, PartialShape{{2, 4}});
+
+    const auto op = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads, pads);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
