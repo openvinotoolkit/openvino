@@ -858,6 +858,121 @@ inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
 static constexpr Property<WorkloadType, PropertyMutability::RW> workload_type{"WORKLOAD_TYPE"};
 
 /**
+ * @brief Enum to define possible Quality of Service levels
+ *
+ * QoS level expresses the desired power/energy characteristics of the work submitted through the command queue used
+ * for model execution.
+ *
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class QoS {
+    DEFAULT = 0,  //!< Driver/OS selected level
+    HIGH = 1,     //!< Foreground / latency-sensitive workloads
+    MEDIUM = 2,   //!< Nominal scheduling class
+    LOW = 3,      //!< Reduced energy usage with forward progress guaranteed
+    UTILITY = 4,  //!< More energy efficient than LOW while still guaranteeing forward progress
+    ECO = 5,      //!< Maximum energy savings; no forward progress guarantee
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const QoS& qos) {
+    switch (qos) {
+    case QoS::DEFAULT:
+        return os << "DEFAULT";
+    case QoS::HIGH:
+        return os << "HIGH";
+    case QoS::MEDIUM:
+        return os << "MEDIUM";
+    case QoS::LOW:
+        return os << "LOW";
+    case QoS::UTILITY:
+        return os << "UTILITY";
+    case QoS::ECO:
+        return os << "ECO";
+    default:
+        OPENVINO_THROW("Unsupported QoS level");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, QoS& qos) {
+    std::string str;
+    is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    if (str == "default") {
+        qos = QoS::DEFAULT;
+    } else if (str == "high") {
+        qos = QoS::HIGH;
+    } else if (str == "medium") {
+        qos = QoS::MEDIUM;
+    } else if (str == "low") {
+        qos = QoS::LOW;
+    } else if (str == "utility") {
+        qos = QoS::UTILITY;
+    } else if (str == "eco") {
+        qos = QoS::ECO;
+    } else {
+        OPENVINO_THROW("Unsupported QoS level: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Structure to store the effective Quality of Service state reported by the device
+ *
+ * A default-constructed QoSInfo ({QoS::DEFAULT, false}) holds no device information: it only marks that the QoS
+ * state has not been queried yet. A QoSInfo returned by ov::qos_info always reports a concrete level, never
+ * QoS::DEFAULT.
+ *
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct QoSInfo {
+    QoS level = QoS::DEFAULT;    //!< Effective level; never DEFAULT, the resolved driver/OS level is reported instead
+    bool is_overridden = false;  //!< True if the level was specified by the application through ov::qos, false if the
+                                 //!< level is the driver/OS-selected default
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const QoSInfo& qos_info) {
+    return os << "{level: " << qos_info.level << " is_overridden: " << qos_info.is_overridden << "}";
+}
+
+inline std::istream& operator>>(std::istream& is, QoSInfo& qos_info) {
+    std::string delim;
+    if (!(is >> delim >> qos_info.level >> delim >> qos_info.is_overridden)) {
+        OPENVINO_THROW("Could not deserialize QoSInfo. Invalid format!");
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Write-only property to request the Quality of Service (QoS) level of the command queue used for model
+ * execution. The QoS level expresses the desired power/energy characteristics of the work submitted through that
+ * command queue. It is configured independently of ov::hint::model_priority and ov::workload_type: setting one of
+ * these properties does not change the others.
+ *
+ * The level can be set in the configuration the compiled model is created with, or changed on the compiled model at
+ * runtime. It is a runtime property: it does not affect how the model is compiled, only the command queue used for its
+ * execution. Setting QoS::DEFAULT reverts to the driver/OS-selected level. Use ov::qos_info on the compiled model to
+ * query the effective level.
+ *
+ * Setting the level at core level applies only to the command queues created from that point on. Models that are
+ * already compiled keep their current QoS level; use CompiledModel::set_property to change it for them.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<QoS, PropertyMutability::WO> qos{"QOS"};
+
+/**
+ * @brief Read-only compiled model property to get the effective Quality of Service level and whether it was requested
+ * by the application. See QoSInfo struct definition for details.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<QoSInfo, PropertyMutability::RO> qos_info{"QOS_INFO"};
+
+/**
  * @brief Enum to define possible cache mode
  * @ingroup ov_runtime_cpp_prop_api
  */

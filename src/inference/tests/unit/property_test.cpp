@@ -5,6 +5,10 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -303,6 +307,83 @@ TEST(PropertiesValidation, BoolPropertyAcceptsIntegerValues) {
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(1));
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(2));
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(0));
+}
+
+// --- ov::QoS / ov::qos (write-only enum property) ---
+
+TEST(PropertyQoS, NameAndMutability) {
+    EXPECT_EQ(std::string(ov::qos.name()), "QOS");
+    static_assert(ov::qos.mutability == ov::PropertyMutability::WO);
+}
+
+TEST(PropertyQoS, PrintAndParseAllLevels) {
+    const std::vector<std::pair<ov::QoS, std::string>> levels = {{ov::QoS::DEFAULT, "DEFAULT"},
+                                                                 {ov::QoS::HIGH, "HIGH"},
+                                                                 {ov::QoS::MEDIUM, "MEDIUM"},
+                                                                 {ov::QoS::LOW, "LOW"},
+                                                                 {ov::QoS::UTILITY, "UTILITY"},
+                                                                 {ov::QoS::ECO, "ECO"}};
+    for (const auto& [level, name] : levels) {
+        std::stringstream out;
+        out << level;
+        EXPECT_EQ(out.str(), name);
+
+        std::stringstream in(name);
+        ov::QoS parsed = ov::QoS::DEFAULT;
+        in >> parsed;
+        EXPECT_EQ(parsed, level);
+    }
+}
+
+TEST(PropertyQoS, ParseIsCaseInsensitive) {
+    EXPECT_EQ(ov::Any("eco").as<ov::QoS>(), ov::QoS::ECO);
+    EXPECT_EQ(ov::Any("Utility").as<ov::QoS>(), ov::QoS::UTILITY);
+}
+
+TEST(PropertyQoS, ParseRejectsUnknownLevel) {
+    OV_EXPECT_THROW(std::ignore = ov::Any("ultra").as<ov::QoS>(),
+                    ov::Exception,
+                    testing::HasSubstr("Unsupported QoS level"));
+}
+
+TEST(PropertyQoS, PropertyHoldsValue) {
+    auto kv = ov::qos(ov::QoS::LOW);
+    EXPECT_EQ(kv.first, "QOS");
+    EXPECT_EQ(kv.second.as<ov::QoS>(), ov::QoS::LOW);
+    EXPECT_EQ(kv.second.as<std::string>(), "LOW");
+}
+
+// --- ov::QoSInfo / ov::qos_info (read-only struct property) ---
+
+TEST(PropertyQoSInfo, NameAndMutability) {
+    EXPECT_EQ(std::string(ov::qos_info.name()), "QOS_INFO");
+    static_assert(ov::qos_info.mutability == ov::PropertyMutability::RO);
+}
+
+TEST(PropertyQoSInfo, DefaultConstructedAtCompileTime) {
+    constexpr ov::QoSInfo info{};
+    static_assert(info.level == ov::QoS::DEFAULT);
+    static_assert(!info.is_overridden);
+}
+
+TEST(PropertyQoSInfo, Print) {
+    std::stringstream out;
+    out << ov::QoSInfo{ov::QoS::LOW, true};
+    EXPECT_EQ(out.str(), "{level: LOW is_overridden: 1}");
+}
+
+TEST(PropertyQoSInfo, PrintAndParseRoundTrip) {
+    for (const auto& expected : {ov::QoSInfo{ov::QoS::ECO, true}, ov::QoSInfo{ov::QoS::MEDIUM, false}}) {
+        const auto parsed = ov::Any(ov::Any(expected).as<std::string>()).as<ov::QoSInfo>();
+        EXPECT_EQ(parsed.level, expected.level);
+        EXPECT_EQ(parsed.is_overridden, expected.is_overridden);
+    }
+}
+
+TEST(PropertyQoSInfo, ParseRejectsInvalidFormat) {
+    OV_EXPECT_THROW(std::ignore = ov::Any("{level: LOW is_overridden: maybe}").as<ov::QoSInfo>(),
+                    ov::Exception,
+                    testing::HasSubstr("Could not deserialize QoSInfo"));
 }
 
 }  // namespace ov::test

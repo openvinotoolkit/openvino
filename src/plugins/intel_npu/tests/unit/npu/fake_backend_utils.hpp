@@ -146,6 +146,9 @@ public:
     bool isContextExtSupported() const override {
         return _options.contextExtensionSupported;
     }
+    bool isCommandQueueQosExtSupported() const override {
+        return false;
+    }
     void updateInfo(const ov::AnyMap& properties) override {
         _updatedProperties = properties;
     }

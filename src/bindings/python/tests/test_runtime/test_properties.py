@@ -21,6 +21,8 @@ import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
 from openvino import properties
 
+from tests.utils.helpers import get_relu_model
+
 
 ###
 # Base properties API
@@ -138,6 +140,17 @@ def test_properties_rw_base():
                 (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEVICE_PRIORITY", 1),
             ),
         ),
+        (
+            props.QoS,
+            (
+                (props.QoS.DEFAULT, "QoS.DEFAULT", 0),
+                (props.QoS.HIGH, "QoS.HIGH", 1),
+                (props.QoS.MEDIUM, "QoS.MEDIUM", 2),
+                (props.QoS.LOW, "QoS.LOW", 3),
+                (props.QoS.UTILITY, "QoS.UTILITY", 4),
+                (props.QoS.ECO, "QoS.ECO", 5),
+            ),
+        ),
     ],
 )
 def test_properties_enums(ov_enum, expected_values):
@@ -212,7 +225,8 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
-        (intel_npu.max_tiles, "NPU_MAX_TILES")
+        (intel_npu.max_tiles, "NPU_MAX_TILES"),
+        (props.qos_info, "QOS_INFO"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -558,6 +572,104 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 ###
 # Special cases
 ###
+def test_properties_qos_info():
+    # QoSInfo is output-only: it is returned by ov::qos_info and cannot be constructed from Python
+    with pytest.raises(TypeError):
+        props.QoSInfo()
+    assert isinstance(props.QoSInfo.level, property)
+    assert isinstance(props.QoSInfo.is_overridden, property)
+    assert props.QoSInfo.level.fset is None
+    assert props.QoSInfo.is_overridden.fset is None
+    # __eq__ is defined without __hash__, so instances are intentionally unhashable
+    assert props.QoSInfo.__hash__ is None
+
+
+@pytest.mark.parametrize("level", [props.QoS.DEFAULT, props.QoS.HIGH, props.QoS.MEDIUM,
+                                   props.QoS.LOW, props.QoS.UTILITY, props.QoS.ECO])
+def test_properties_qos(level):
+    # Access through the public openvino.properties module, which wraps the binding in Property
+    assert props.qos == "QOS"
+    assert props.qos() == "QOS"
+
+    property_tuple = props.qos(level)
+    assert property_tuple[0] == "QOS"
+    assert property_tuple[1].value == level
+
+
+@pytest.mark.parametrize("level", [props.QoS.DEFAULT, props.QoS.HIGH, props.QoS.MEDIUM,
+                                   props.QoS.LOW, props.QoS.UTILITY, props.QoS.ECO])
+def test_properties_qos_from_ov_any(level):
+    # ov::Any holding ov::QoS must convert back to the Python QoS enum, not a string or int
+    value = OVAny(level).value
+    assert isinstance(value, props.QoS)
+    assert value == level
+
+
+def test_properties_qos_in_config_dict():
+    config = dict([props.qos(props.QoS.ECO)])  # noqa: C406
+    assert list(config.keys()) == ["QOS"]
+    assert config["QOS"].value == props.QoS.ECO
+
+
+# The qos_info tests below need a device that supports QOS (NPU with the command queue QoS driver extension).
+# Python tests do not run on such a device in CI, so these tests are always skipped there and must be run manually,
+def skip_if_qos_not_supported(core, device):
+    # QOS is registered only by devices (and drivers) that support Quality of Service
+    if props.qos() not in core.get_property(device, props.supported_properties):
+        pytest.skip(f"{device} does not support the {props.qos()} property")
+
+
+@pytest.mark.parametrize("level", [props.QoS.HIGH, props.QoS.MEDIUM, props.QoS.LOW,
+                                   props.QoS.UTILITY, props.QoS.ECO])
+def test_properties_qos_info_requested_level(device, level):
+    core = Core()
+    skip_if_qos_not_supported(core, device)
+    compiled_model = core.compile_model(get_relu_model(), device, dict([props.qos(level)]))  # noqa: C406
+
+    info = compiled_model.get_property(props.qos_info)
+    assert isinstance(info, props.QoSInfo)
+    # The driver/OS may adjust the effective level, so only require a concrete level, not the requested one
+    assert info.level != props.QoS.DEFAULT
+    assert info.is_overridden is True
+    assert str(info.level).split(".")[-1] in repr(info)
+
+
+def test_properties_qos_info_driver_default(device):
+    core = Core()
+    skip_if_qos_not_supported(core, device)
+    compiled_model = core.compile_model(get_relu_model(), device)
+
+    info = compiled_model.get_property(props.qos_info)
+    # The reported level is the resolved driver/OS default, never DEFAULT
+    assert info.level != props.QoS.DEFAULT
+    assert info.is_overridden is False
+
+
+def test_properties_qos_info_equality_and_immutability(device):
+    core = Core()
+    skip_if_qos_not_supported(core, device)
+    compiled_model = core.compile_model(get_relu_model(), device, dict([props.qos(props.QoS.LOW)]))  # noqa: C406
+
+    info = compiled_model.get_property(props.qos_info)
+    assert info.is_overridden is True
+    assert info == compiled_model.get_property(props.qos_info)
+    assert info != "LOW"
+
+    # Resetting to DEFAULT clears the override, so is_overridden is guaranteed to change
+    compiled_model.set_property(dict([props.qos(props.QoS.DEFAULT)]))  # noqa: C406
+    updated_info = compiled_model.get_property(props.qos_info)
+    assert updated_info.level != props.QoS.DEFAULT
+    assert updated_info.is_overridden is False
+    assert updated_info != info
+
+    with pytest.raises(AttributeError):
+        info.level = props.QoS.ECO
+    with pytest.raises(AttributeError):
+        info.is_overridden = False
+    with pytest.raises(TypeError):
+        hash(info)
+
+
 def test_compiled_blob_property():
     assert hints.compiled_blob == "COMPILED_BLOB"
     compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2, 5]))

@@ -2,22 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <level_zero/ze_api.h>
+#include <ze_command_queue_npu_ext.h>
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <exception>
-#include <gmock/gmock-matchers.h>
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-#include <level_zero/ze_api.h>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <thread>
 #include <vector>
-#include <ze_command_queue_npu_ext.h>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -28,6 +30,18 @@
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
+
+namespace {
+// All the levels which can be explicitly requested by the application; ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT is excluded
+// since it reverts the queue to the driver/OS-selected level.
+constexpr std::array<ze_command_queue_qos_ext_t, 5> explicitQosLevels = {ZE_COMMAND_QUEUE_QOS_EXT_HIGH,
+                                                                         ZE_COMMAND_QUEUE_QOS_EXT_MEDIUM,
+                                                                         ZE_COMMAND_QUEUE_QOS_EXT_LOW,
+                                                                         ZE_COMMAND_QUEUE_QOS_EXT_UTILITY,
+                                                                         ZE_COMMAND_QUEUE_QOS_EXT_ECO};
+
+constexpr const char* qosNotSupportedMessage = "The QoS property is not supported by the current Driver Version!";
+}  // namespace
 
 namespace ov {
 namespace test {
@@ -76,6 +90,7 @@ public:
 TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeForNewQueue) {
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_BACKGROUND,
+                                                     std::nullopt,
                                                      0,
                                                      nullptr,
                                                      true};
@@ -99,6 +114,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
     int owner = 1;
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      0,
                                                      &owner,
                                                      false};
@@ -118,6 +134,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
     int owner = 1;
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      0,
                                                      &owner,
                                                      false};
@@ -129,19 +146,311 @@ TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
     OV_ASSERT_NO_THROW(cmd_queue->setPriority(ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH));
 }
 
+TEST_P(ZeroCmdQueuePoolTests, CreateQueueWithQos) {
+    int owner = 1;
+    for (auto qos : explicitQosLevels) {
+        ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                         std::nullopt,
+                                                         qos,
+                                                         0,
+                                                         &owner,
+                                                         false};
+
+        if (!init_struct->isCommandQueueQosSupported()) {
+            OV_EXPECT_THROW_HAS_SUBSTRING(
+                ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc),
+                ov::Exception,
+                qosNotSupportedMessage);
+            continue;
+        }
+
+        std::shared_ptr<::intel_npu::CommandQueue> cmd_queue;
+        OV_ASSERT_NO_THROW(
+            cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc));
+        ASSERT_NE(cmd_queue, nullptr);
+
+        // The effective level may be adjusted by the driver/OS, so only check that it is reported as requested by the
+        // user.
+        ze_command_queue_qos_ext_properties_t qos_properties = {};
+        OV_ASSERT_NO_THROW(qos_properties = cmd_queue->getQos());
+        EXPECT_TRUE(qos_properties.isOverridden)
+            << "A level requested at creation time must be reported as overridden, qos=" << (int)qos;
+    }
+}
+
+TEST_P(ZeroCmdQueuePoolTests, CreateQueueWithoutQosReportsDriverDefault) {
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     std::nullopt,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    // Not requesting a QoS level must work on every driver.
+    std::shared_ptr<::intel_npu::CommandQueue> cmd_queue;
+    OV_ASSERT_NO_THROW(
+        cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc));
+    ASSERT_NE(cmd_queue, nullptr);
+
+    if (!init_struct->isCommandQueueQosSupported()) {
+        OV_EXPECT_THROW_HAS_SUBSTRING(cmd_queue->getQos(), ov::Exception, qosNotSupportedMessage);
+        return;
+    }
+
+    ze_command_queue_qos_ext_properties_t qos_properties = {};
+    OV_ASSERT_NO_THROW(qos_properties = cmd_queue->getQos());
+    EXPECT_NE(qos_properties.qos, ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT)
+        << "The effective level is never DEFAULT, it must be resolved by the driver/OS";
+    EXPECT_FALSE(qos_properties.isOverridden) << "No level was requested, so it must not be reported as overridden";
+}
+
+TEST_P(ZeroCmdQueuePoolTests, CreateQueueWithExplicitDefaultQosReportsDriverDefault) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
+    ASSERT_NE(cmd_queue, nullptr);
+
+    auto qos_properties = cmd_queue->getQos();
+    EXPECT_NE(qos_properties.qos, ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT);
+    EXPECT_FALSE(qos_properties.isOverridden) << "Requesting DEFAULT means using the driver/OS-selected level";
+}
+
+TEST_P(ZeroCmdQueuePoolTests, SetQosOnExistingQueue) {
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     std::nullopt,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
+    ASSERT_NE(cmd_queue, nullptr);
+
+    if (!init_struct->isCommandQueueQosSupported()) {
+        OV_EXPECT_THROW_HAS_SUBSTRING(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_LOW),
+                                      ov::Exception,
+                                      qosNotSupportedMessage);
+        return;
+    }
+
+    for (auto qos : explicitQosLevels) {
+        OV_ASSERT_NO_THROW(cmd_queue->setQos(qos));
+        EXPECT_TRUE(cmd_queue->getQos().isOverridden)
+            << "A level applied by setQos must be reported as overridden, qos=" << (int)qos;
+    }
+
+    // Setting DEFAULT reverts the queue to the driver/OS-selected level.
+    OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT));
+    auto qos_properties = cmd_queue->getQos();
+    EXPECT_NE(qos_properties.qos, ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT);
+    EXPECT_FALSE(qos_properties.isOverridden);
+}
+
+TEST_P(ZeroCmdQueuePoolTests, SetQosOnQueueCreatedWithQos) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     ZE_COMMAND_QUEUE_QOS_EXT_HIGH,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
+    ASSERT_NE(cmd_queue, nullptr);
+    ASSERT_TRUE(cmd_queue->getQos().isOverridden);
+
+    OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_ECO));
+    EXPECT_TRUE(cmd_queue->getQos().isOverridden);
+
+    // Setting DEFAULT must revert the creation-time level to the driver/OS-selected one.
+    OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT));
+    EXPECT_FALSE(cmd_queue->getQos().isOverridden);
+}
+
+TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnQueueCreatedWithQosKeepsQos) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+
+    // The plugin assumes that every driver supporting QoS also supports changing the priority of an existing queue.
+    // Otherwise, Graph::set_model_priority falls back to recreating the queue, which drops a QoS level applied
+    // directly on the existing queue.
+    ASSERT_TRUE(init_struct->isCommandQueueSetPrioritySupported())
+        << "QoS is supported, but changing the priority of an existing queue is not. Graph::set_model_priority "
+           "would recreate the queue and lose the QoS level.";
+
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     ZE_COMMAND_QUEUE_QOS_EXT_LOW,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
+    ASSERT_NE(cmd_queue, nullptr);
+
+    // The effective QoS level may be adjusted by the driver/OS based on other properties, so only check that the
+    // level requested by the user is still reported as overridden.
+    for (auto priority : {ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH,
+                          ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW,
+                          ZE_COMMAND_QUEUE_PRIORITY_NORMAL}) {
+        OV_ASSERT_NO_THROW(cmd_queue->setPriority(priority));
+        EXPECT_TRUE(cmd_queue->getQos().isOverridden)
+            << "Changing the priority must not drop the QoS requested by the user, priority=" << (int)priority;
+    }
+
+    // The same must hold after the QoS level is changed on the existing queue.
+    OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_ECO));
+    OV_ASSERT_NO_THROW(cmd_queue->setPriority(ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH));
+    EXPECT_TRUE(cmd_queue->getQos().isOverridden);
+}
+
+TEST_P(ZeroCmdQueuePoolTests, SetQosDoesNotAffectOtherQueues) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+
+    // The effective level may be adjusted by the driver/OS, so the other queue is created without a QoS level and
+    // must keep reporting it as not overridden.
+    int owner_a = 1;
+    int owner_b = 2;
+    ::intel_npu::CommandQueueDesc desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                         std::nullopt,
+                                         std::nullopt,
+                                         0,
+                                         &owner_a,
+                                         false};
+    ::intel_npu::CommandQueueDesc desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                         std::nullopt,
+                                         std::nullopt,
+                                         0,
+                                         &owner_b,
+                                         false};
+
+    auto queue_a = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, desc_a);
+    auto queue_b = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, desc_b);
+    ASSERT_NE(queue_a.get(), queue_b.get());
+
+    OV_ASSERT_NO_THROW(queue_a->setQos(ZE_COMMAND_QUEUE_QOS_EXT_LOW));
+
+    EXPECT_TRUE(queue_a->getQos().isOverridden);
+    EXPECT_FALSE(queue_b->getQos().isOverridden) << "setQos on one queue must not affect another queue";
+}
+
+TEST_P(ZeroCmdQueuePoolTests, QosParticipatesInPooling) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+
+    for (bool shared_common_queue : {true, false}) {
+        int owner = 1;
+        auto make_desc = [&](std::optional<ze_command_queue_qos_ext_t> qos) {
+            return ::intel_npu::CommandQueueDesc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                 std::nullopt,
+                                                 qos,
+                                                 0,
+                                                 &owner,
+                                                 shared_common_queue};
+        };
+
+        auto no_qos_queue =
+            ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, make_desc(std::nullopt));
+        auto default_qos_queue =
+            ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct,
+                                                                         make_desc(ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT));
+        auto low_qos_queue =
+            ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct,
+                                                                         make_desc(ZE_COMMAND_QUEUE_QOS_EXT_LOW));
+        auto same_low_qos_queue =
+            ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct,
+                                                                         make_desc(ZE_COMMAND_QUEUE_QOS_EXT_LOW));
+        auto high_qos_queue =
+            ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct,
+                                                                         make_desc(ZE_COMMAND_QUEUE_QOS_EXT_HIGH));
+
+        EXPECT_EQ(low_qos_queue.get(), same_low_qos_queue.get())
+            << "Same QoS level should reuse the same queue, shared_common_queue=" << shared_common_queue;
+        EXPECT_NE(low_qos_queue.get(), high_qos_queue.get())
+            << "Different QoS levels should create different queues, shared_common_queue=" << shared_common_queue;
+        EXPECT_NE(no_qos_queue.get(), low_qos_queue.get())
+            << "Requesting a QoS level should create a different queue, shared_common_queue=" << shared_common_queue;
+        EXPECT_NE(no_qos_queue.get(), default_qos_queue.get())
+            << "No QoS and explicit DEFAULT QoS should not share the same queue, shared_common_queue="
+            << shared_common_queue;
+    }
+}
+
+TEST_P(ZeroCmdQueuePoolTests, AllQosLevelsWithCommandQueueOptions) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+    if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
+        GTEST_SKIP() << "Not all the command queue options are supported by the current driver.\n";
+    }
+
+    // QoS is applied right after the queue is created, together with the workload type, so check it is applied
+    // correctly for every combination of creation options.
+    std::vector<uint32_t> option_combinations{
+        0,
+        ZE_NPU_COMMAND_QUEUE_OPTION_TURBO,
+        ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
+        ZE_NPU_COMMAND_QUEUE_OPTION_TURBO | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC};
+
+    int owner = 1;
+    for (auto qos : explicitQosLevels) {
+        for (auto options : option_combinations) {
+            ::intel_npu::CommandQueueDesc cmd_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                   ZE_WORKLOAD_TYPE_DEFAULT,
+                                                   qos,
+                                                   options,
+                                                   &owner,
+                                                   false};
+
+            std::shared_ptr<::intel_npu::CommandQueue> cmd_queue;
+            OV_ASSERT_NO_THROW(cmd_queue =
+                                   ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, cmd_desc));
+            ASSERT_NE(cmd_queue, nullptr);
+            EXPECT_TRUE(cmd_queue->getQos().isOverridden) << "qos=" << (int)qos << " options=" << options;
+        }
+    }
+}
+
 TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledRequiresOwnerTag) {
     OV_EXPECT_THROW_HAS_SUBSTRING((::intel_npu::CommandQueueDesc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                                                  std::nullopt,
-                                                                  0,
-                                                                  nullptr,
-                                                                  false}),
+                                                                 std::nullopt,
+                                                                 std::nullopt,
+                                                                 0,
+                                                                 nullptr,
+                                                                 false}),
                                   ov::Exception,
                                   "owner_tag must not be null");
 }
 
 TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityTest) {
     // Test that the pool correctly reuses queues after weak_ptr cleanup
-    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, 0, nullptr, true};
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     std::nullopt,
+                                                     0,
+                                                     nullptr,
+                                                     true};
 
     // First allocation
     std::shared_ptr<::intel_npu::CommandQueue> queue1 =
@@ -170,6 +479,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
     int pointer1 = 1;  // Just a dummy pointer value for testing
     ::intel_npu::CommandQueueDesc command_queue_desc1{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                       std::nullopt,
+                                                      std::nullopt,
                                                       0,
                                                       &pointer1,
                                                       false};
@@ -181,6 +491,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
 
     int pointer2 = 2;  // Just a dummy pointer value for testing
     ::intel_npu::CommandQueueDesc command_queue_desc2{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
                                                       std::nullopt,
                                                       0,
                                                       &pointer2,
@@ -195,6 +506,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
 
     int pointer3 = 3;  // Just a dummy pointer value for testing
     ::intel_npu::CommandQueueDesc command_queue_desc3{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
                                                       std::nullopt,
                                                       0,
                                                       &pointer3,
@@ -216,7 +528,12 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
 TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescriptorChanges) {
     int owner = 1;
 
-    ::intel_npu::CommandQueueDesc base_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, 0, &owner, false};
+    ::intel_npu::CommandQueueDesc base_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                            std::nullopt,
+                                            std::nullopt,
+                                            0,
+                                            &owner,
+                                            false};
     auto base_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, base_desc);
     auto same_base_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, base_desc);
 
@@ -225,6 +542,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
 
     ::intel_npu::CommandQueueDesc priority_desc{
         ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH,
+        std::nullopt,
         std::nullopt,
         0,
         &owner,
@@ -240,6 +558,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
         ::intel_npu::CommandQueueDesc workload_desc{
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
             ZE_WORKLOAD_TYPE_BACKGROUND,
+            std::nullopt,
             0,
             &owner,
             false,
@@ -251,9 +570,26 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
             << "Changing workload type should create a different queue for shared_common_queue=false";
     }
 
+    if (init_struct->isCommandQueueQosSupported()) {
+        ::intel_npu::CommandQueueDesc qos_desc{
+            ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+            std::nullopt,
+            ZE_COMMAND_QUEUE_QOS_EXT_LOW,
+            0,
+            &owner,
+            false,
+        };
+        auto qos_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, qos_desc);
+
+        ASSERT_NE(qos_queue, nullptr);
+        EXPECT_NE(base_queue.get(), qos_queue.get())
+            << "Changing QoS should create a different queue for shared_common_queue=false";
+    }
+
     if (init_struct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
         ::intel_npu::CommandQueueDesc option_desc{
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+            std::nullopt,
             std::nullopt,
             ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
             &owner,
@@ -292,7 +628,7 @@ TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
         for (auto workload_type : workload_types) {
             for (auto options : option_combinations) {
                 static int owner = 1;  // Just a dummy pointer value for testing
-                ::intel_npu::CommandQueueDesc cmd_desc{priority, workload_type, options, &owner, true};
+                ::intel_npu::CommandQueueDesc cmd_desc{priority, workload_type, std::nullopt, options, &owner, true};
 
                 auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, cmd_desc);
 
@@ -327,6 +663,7 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
     // including when DEVICE_SYNC is enabled.
     ::intel_npu::CommandQueueDesc device_sync_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
                                                      &owner_a,
                                                      true};
@@ -341,6 +678,7 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
 
     ::intel_npu::CommandQueueDesc device_sync_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
                                                      &owner_b,
                                                      true};
@@ -354,11 +692,13 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
     // Without DEVICE_SYNC, owner_tag must not affect pooling.
     ::intel_npu::CommandQueueDesc no_device_sync_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                         ZE_WORKLOAD_TYPE_DEFAULT,
+                                                        std::nullopt,
                                                         0,
                                                         &owner_a,
                                                         true};
     ::intel_npu::CommandQueueDesc no_device_sync_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                         ZE_WORKLOAD_TYPE_DEFAULT,
+                                                        std::nullopt,
                                                         0,
                                                         &owner_b,
                                                         true};
@@ -374,11 +714,13 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
     // With shared_common_queue disabled, owner_tag differentiates pooled queues.
     ::intel_npu::CommandQueueDesc non_shared_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                     ZE_WORKLOAD_TYPE_DEFAULT,
+                                                    std::nullopt,
                                                     0,
                                                     &owner_a,
                                                     false};
     ::intel_npu::CommandQueueDesc non_shared_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                     ZE_WORKLOAD_TYPE_DEFAULT,
+                                                    std::nullopt,
                                                     0,
                                                     &owner_b,
                                                     false};
@@ -439,6 +781,7 @@ TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTest) {
 
             ::intel_npu::CommandQueueDesc command_queue_desc{priority,
                                                              workload_type,
+                                                             std::nullopt,
                                                              commandQueueOptions,
                                                              nullptr,
                                                              true};
@@ -510,6 +853,7 @@ TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTestWithDestroyCmdQueue) {
 
                 ::intel_npu::CommandQueueDesc command_queue_desc{priority,
                                                                  workload_type,
+                                                                 std::nullopt,
                                                                  commandQueueOptions,
                                                                  nullptr,
                                                                  true};

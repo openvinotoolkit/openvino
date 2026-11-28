@@ -149,6 +149,10 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
         if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
+
+        if (backend->isCommandQueueQosExtSupported()) {
+            REGISTER_OPTION(QOS);
+        }
     }
 
     // NPUW properties are requested by OV Core during caching and
