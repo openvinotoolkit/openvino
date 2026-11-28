@@ -1420,6 +1420,367 @@ ExecutorConfigTestCase _streams_info_table_cores_limit_false_2 = {
     {},
 };
 
+// Synthetic topologies where the only efficiency cores are LP E-cores (e.g. Lunar Lake with an
+// affinity mask restricted to the LP cluster). Regression coverage for issue #39088.
+ExecutorConfigTestCase _lp_ecore_any_streams_4_threads_1 = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 0, -1},
+    },
+    4,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    true,
+    {},
+    {
+        {4, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {{0}, {1}, {2}, {3}},
+};
+
+ExecutorConfigTestCase _lp_ecore_any_streams_2_threads_2 = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 0, -1},
+    },
+    2,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    true,
+    {},
+    {
+        {2, LP_EFFICIENT_CORE_PROC, 2, 0, 0},
+    },
+    {{0, 1}, {2, 3}},
+};
+
+ExecutorConfigTestCase _lp_ecore_any_streams_2_threads_1_reservation = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 0, -1},
+    },
+    2,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    false,
+    true,
+    {},
+    {
+        {2, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {{0}, {1}},
+};
+
+// The single stream spans all (LP) cores, so it is represented by an ALL_PROC row plus a
+// zero-stream LP row describing the core composition.
+ExecutorConfigTestCase _lp_ecore_any_streams_1_threads_4 = {
+    {{4, 0, 0, 4, 0, 0, 0}},
+    {},
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, ALL_PROC, 4, 0, 0},
+        {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _lp_ecore_ecore_only_streams_4_threads_1 = {
+    {{4, 0, 0, 4, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 0, -1},
+    },
+    4,
+    1,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    true,
+    true,
+    {},
+    {
+        {4, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {{0}, {1}, {2}, {3}},
+};
+
+ExecutorConfigTestCase _lp_ecore_ecore_only_streams_1_threads_4 = {
+    {{4, 0, 0, 4, 0, 0, 0}},
+    {},
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, LP_EFFICIENT_CORE_PROC, 4, 0, 0},
+    },
+    {},
+};
+
+// PCORE_ONLY cannot be satisfied on an LP-only topology and falls back to ANY_CORE.
+ExecutorConfigTestCase _lp_ecore_pcore_only_streams_4_threads_1 = {
+    {{4, 0, 0, 4, 0, 0, 0}},
+    {},
+    4,
+    1,
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    false,
+    false,
+    true,
+    {},
+    {
+        {4, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {},
+};
+
+// P-core + LP E-core topology: ECORE_ONLY must select the LP E-cores, not the P-cores.
+ExecutorConfigTestCase _lp_ecore_with_pcore_ecore_only_streams_4_threads_1 = {
+    {{8, 4, 0, 4, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 0, -1},
+        {4, 0, 0, 4, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {5, 0, 0, 5, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {6, 0, 0, 6, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {7, 0, 0, 7, LP_EFFICIENT_CORE_PROC, 0, -1},
+    },
+    4,
+    1,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    true,
+    true,
+    {},
+    {
+        {4, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {{4}, {5}, {6}, {7}},
+};
+
+// P-core + LP E-core topology: PCORE_ONLY must keep using only P-cores.
+ExecutorConfigTestCase _lp_ecore_with_pcore_pcore_only_streams_4_threads_1 = {
+    {{8, 4, 0, 4, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 0, -1},
+        {4, 0, 0, 4, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {5, 0, 0, 5, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {6, 0, 0, 6, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {7, 0, 0, 7, LP_EFFICIENT_CORE_PROC, 0, -1},
+    },
+    4,
+    1,
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    false,
+    true,
+    true,
+    {},
+    {
+        {4, MAIN_CORE_PROC, 1, 0, 0},
+    },
+    {{0}, {1}, {2}, {3}},
+};
+
+// P-core + LP E-core topology, one stream over all 8 cores: composition must list both types.
+ExecutorConfigTestCase _lp_ecore_with_pcore_any_streams_1_threads_8 = {
+    {{8, 4, 0, 4, 0, 0, 0}},
+    {},
+    1,
+    8,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, ALL_PROC, 8, 0, 0},
+        {0, MAIN_CORE_PROC, 4, 0, 0},
+        {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _mixed_ecores_any_streams_6_threads_1 = {
+    {{6, 2, 2, 2, 0, 0, 0}},
+    {},
+    6,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {2, MAIN_CORE_PROC, 1, 0, 0},
+        {2, EFFICIENT_CORE_PROC, 1, 0, 0},
+        {2, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _mixed_ecores_ecore_only_streams_2_threads_3_binding = {
+    {{4, 0, 2, 2, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+    },
+    2,
+    3,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    true,
+    true,
+    {},
+    {
+        {1, EFFICIENT_CORE_PROC, 2, 0, 0},
+        {1, LP_EFFICIENT_CORE_PROC, 2, 0, 0},
+    },
+    {{0, 1}, {2, 3}},
+};
+
+ExecutorConfigTestCase _mixed_ecores_ecore_only_streams_1_threads_4 = {
+    {{4, 0, 2, 2, 0, 0, 0}},
+    {},
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, ALL_PROC, 4, 0, 0},
+        {0, EFFICIENT_CORE_PROC, 2, 0, 0},
+        {0, LP_EFFICIENT_CORE_PROC, 2, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _mixed_ecores_ecore_only_streams_4_threads_1_reservation = {
+    {{6, 2, 2, 2, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, MAIN_CORE_PROC, 5, -1},
+    },
+    4,
+    1,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    true,
+    false,
+    true,
+    {},
+    {
+        {2, EFFICIENT_CORE_PROC, 1, 0, 0},
+        {2, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {{0}, {1}, {2}, {3}},
+};
+
+ExecutorConfigTestCase _mixed_ecores_multinum_ecore_only_streams_4_threads_2_binding_reservation = {
+    {{6, 2, 2, 2, 0, -1, -1}, {3, 1, 1, 1, 0, 0, 0}, {3, 1, 1, 1, 0, 1, 1}},
+    {
+        {0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {2, 1, 1, 2, EFFICIENT_CORE_PROC, 1, -1},
+        {3, 1, 1, 3, LP_EFFICIENT_CORE_PROC, 1, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 1, 1, 5, MAIN_CORE_PROC, 5, -1},
+    },
+    4,
+    2,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    true,
+    true,
+    true,
+    {},
+    {
+        {1, EFFICIENT_CORE_PROC, 1, 0, 0},
+        {1, EFFICIENT_CORE_PROC, 1, 1, 1},
+        {1, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+        {1, LP_EFFICIENT_CORE_PROC, 1, 1, 1},
+    },
+    {{0}, {2}, {1}, {3}},
+};
+
+ExecutorConfigTestCase _mixed_ecores_multinum_ecore_only_streams_1_threads_4 = {
+    {{6, 2, 2, 2, 0, -1, -1}, {3, 1, 1, 1, 0, 0, 0}, {3, 1, 1, 1, 0, 1, 1}},
+    {},
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, ALL_PROC, 4, -1, -1},
+        {0, EFFICIENT_CORE_PROC, 1, 0, 0},
+        {0, EFFICIENT_CORE_PROC, 1, 1, 1},
+        {0, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+        {0, LP_EFFICIENT_CORE_PROC, 1, 1, 1},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _mixed_ecores_multinum_ecore_only_streams_1_threads_2 = {
+    {{6, 2, 2, 2, 0, -1, -1}, {3, 1, 1, 1, 0, 0, 0}, {3, 1, 1, 1, 0, 1, 1}},
+    {},
+    1,
+    2,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, ALL_PROC, 2, -1, -1},
+        {0, EFFICIENT_CORE_PROC, 1, 0, 0},
+        {0, EFFICIENT_CORE_PROC, 1, 1, 1},
+    },
+    {},
+};
+
 TEST_P(ExecutorConfigTest, ExecutorConfig) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
@@ -1460,6 +1821,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
                                          _pecore_streams_info_table_1,
                                          _pecore_streams_info_table_2,
                                          _streams_info_table_cores_limit_false_1,
-                                         _streams_info_table_cores_limit_false_2));
+                                         _streams_info_table_cores_limit_false_2,
+                                         _lp_ecore_any_streams_4_threads_1,
+                                         _lp_ecore_any_streams_2_threads_2,
+                                         _lp_ecore_any_streams_2_threads_1_reservation,
+                                         _lp_ecore_any_streams_1_threads_4,
+                                         _lp_ecore_ecore_only_streams_4_threads_1,
+                                         _lp_ecore_ecore_only_streams_1_threads_4,
+                                         _lp_ecore_pcore_only_streams_4_threads_1,
+                                         _lp_ecore_with_pcore_ecore_only_streams_4_threads_1,
+                                         _lp_ecore_with_pcore_pcore_only_streams_4_threads_1,
+                                         _lp_ecore_with_pcore_any_streams_1_threads_8,
+                                         _mixed_ecores_any_streams_6_threads_1,
+                                         _mixed_ecores_ecore_only_streams_2_threads_3_binding,
+                                         _mixed_ecores_ecore_only_streams_1_threads_4,
+                                         _mixed_ecores_ecore_only_streams_4_threads_1_reservation,
+                                         _mixed_ecores_multinum_ecore_only_streams_4_threads_2_binding_reservation,
+                                         _mixed_ecores_multinum_ecore_only_streams_1_threads_4,
+                                         _mixed_ecores_multinum_ecore_only_streams_1_threads_2));
 #endif
 }  // namespace
