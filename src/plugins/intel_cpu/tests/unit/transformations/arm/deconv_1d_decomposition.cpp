@@ -25,6 +25,7 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/reverse.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -33,6 +34,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/reference/convolution.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
@@ -71,6 +73,9 @@ struct DeconvTestParams {
     ov::op::PadType pad_type = ov::op::PadType::EXPLICIT;
     bool expect_transformation = true;
     bool with_output_shape = false;  // Test 3-input variant
+    std::vector<float> weight_values{1.0f};
+    bool check_accuracy = false;
+    bool dynamic_weights = false;
 };
 
 class DeconvDecomposition1DTest : public TransformationTestsF, public ::testing::WithParamInterface<DeconvTestParams> {
@@ -78,11 +83,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<DeconvTestParams>& obj) {
         const auto& p = obj.param;
         std::ostringstream result;
-        result << "IS=" << p.input_shape
-               << "_WS=" << p.weights_shape
-               << "_S=" << p.stride
-               << "_PT=" << p.pad_type
-               << "_WithOS=" << p.with_output_shape
+        result << "IS=" << p.input_shape << "_WS=" << p.weights_shape << "_S=" << p.stride << "_PT=" << p.pad_type
+               << "_WithOS=" << p.with_output_shape << "_DynamicWeights=" << p.dynamic_weights
                << "_ExpectTransf=" << p.expect_transformation;
         return result.str();
     }
@@ -92,7 +94,15 @@ public:
             return nullptr;
 
         auto input_e = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.input_shape);
-        auto weights_e = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, {1});
+        ov::Output<ov::Node> weights_e;
+        ov::ParameterVector parameters{input_e};
+        if (p.dynamic_weights) {
+            auto weights_parameter = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.weights_shape);
+            weights_e = weights_parameter;
+            parameters.push_back(weights_parameter);
+        } else {
+            weights_e = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, p.weight_values);
+        }
 
         auto zero_scalar = c0_i32();
         auto one_scalar = c1_i32();
@@ -188,29 +198,54 @@ public:
         auto pad_value = ov::op::v0::Constant::create(result.get_element_type(), {}, {0});
         result = std::make_shared<ov::op::v1::Pad>(result, pads_begin_dyn, pads_end_dyn, pad_value, ov::op::PadMode::CONSTANT);
 
-        // Weights: reshape to 4D and transpose
-        auto weights_shape_1d = shape_of_i32(weights_e);
-        auto weights_4d_shape = concat0({weights_shape_1d, c1_1d()});
-        auto weights_4d = std::make_shared<ov::op::v1::Reshape>(weights_e, weights_4d_shape, false);
-        std::vector<int32_t> transpose_order = {1, 0, 2, 3};
-        auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {4}, transpose_order);
-        auto weights_transposed = std::make_shared<ov::op::v1::Transpose>(weights_4d, transpose_const);
+        ov::Output<ov::Node> weights_reversed;
+        if (p.dynamic_weights) {
+            auto weights_4d_shape = concat0({shape_of_weights, c1_1d()});
+            auto weights_4d = std::make_shared<ov::op::v1::Reshape>(weights_e, weights_4d_shape, false);
+            auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 0, 2, 3});
+            auto weights_transposed = std::make_shared<ov::op::v1::Transpose>(weights_4d, transpose_order);
+            auto reverse_axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
+            weights_reversed = std::make_shared<ov::op::v1::Reverse>(weights_transposed,
+                                                                     reverse_axes,
+                                                                     ov::op::v1::Reverse::Mode::INDEX);
+        } else {
+            const auto in_channels = p.weights_shape[0];
+            const auto out_channels = p.weights_shape[1];
+            const auto kernel_size = p.weights_shape[2];
+            std::vector<float> expected_weights(in_channels * out_channels * kernel_size);
+            for (size_t in = 0; in < in_channels; ++in) {
+                for (size_t out = 0; out < out_channels; ++out) {
+                    for (size_t k = 0; k < kernel_size; ++k) {
+                        const auto src = (in * out_channels + out) * kernel_size + (kernel_size - 1 - k);
+                        const auto dst = (out * in_channels + in) * kernel_size + k;
+                        expected_weights[dst] = p.weight_values.size() == 1 ? p.weight_values[0] : p.weight_values[src];
+                    }
+                }
+            }
+            weights_reversed = ov::op::v0::Constant::create(ov::element::f32,
+                                                            ov::Shape{out_channels, in_channels, kernel_size, 1},
+                                                            expected_weights);
+        }
 
         // 2D Convolution
         ov::Strides conv_strides{1, 1};
         ov::CoordinateDiff conv_pads_begin{0, 0};
         ov::CoordinateDiff conv_pads_end{0, 0};
         ov::Strides conv_dilations{1, 1};
-        auto conv = std::make_shared<ov::op::v1::Convolution>(result, weights_transposed,
-                                                              conv_strides, conv_pads_begin, conv_pads_end,
-                                                              conv_dilations, ov::op::PadType::EXPLICIT);
+        auto conv = std::make_shared<ov::op::v1::Convolution>(result,
+                                                              weights_reversed,
+                                                              conv_strides,
+                                                              conv_pads_begin,
+                                                              conv_pads_end,
+                                                              conv_dilations,
+                                                              ov::op::PadType::EXPLICIT);
 
         // Reshape back to 3D using first 3 dims of conv shape
         auto conv_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(conv, ov::element::i32);
         auto output_3d_shape = ov::op::util::make_try_fold<ov::op::v8::Slice>(conv_shape, zero_1d, three_1d, one_const);
         auto output_3d = std::make_shared<ov::op::v1::Reshape>(conv, output_3d_shape, false);
 
-        return std::make_shared<ov::Model>(ov::OutputVector{output_3d}, ov::ParameterVector{input_e});
+        return std::make_shared<ov::Model>(ov::OutputVector{output_3d}, parameters);
     }
 
 protected:
@@ -220,7 +255,15 @@ protected:
         const auto rank = p.input_shape.size();
 
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.input_shape);
-        auto weights = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, {1});
+        std::shared_ptr<ov::Node> weights;
+        ov::ParameterVector parameters{input};
+        if (p.dynamic_weights) {
+            auto weights_parameter = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.weights_shape);
+            weights = weights_parameter;
+            parameters.push_back(weights_parameter);
+        } else {
+            weights = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, p.weight_values);
+        }
 
         // Create strides/pads based on dimensionality (3D vs 4D)
         ov::Strides strides = (rank == 3) ? ov::Strides{p.stride} : ov::Strides{1, 1};
@@ -261,13 +304,77 @@ protected:
                                                                            p.pad_type);
         }
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{deconv}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{deconv}, parameters);
 
         if (p.expect_transformation && rank == 3) {
             model_ref = buildExpectedModel(p);
         }
 
+        if (p.check_accuracy || p.dynamic_weights) {
+            comparator.enable(FunctionsComparator::CONST_VALUES);
+            comparator.enable(FunctionsComparator::ATTRIBUTES);
+        }
         manager.register_pass<Deconv1DDecomposition>();
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        const auto& p = GetParam();
+        if (!p.check_accuracy || HasFailure()) {
+            return;
+        }
+
+        std::shared_ptr<ov::op::v1::Convolution> conv;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto candidate = ov::as_type_ptr<ov::op::v1::Convolution>(op)) {
+                ASSERT_EQ(conv, nullptr);
+                conv = candidate;
+            }
+        }
+        ASSERT_NE(conv, nullptr);
+        auto inputs_model = std::make_shared<ov::Model>(ov::OutputVector{conv->input_value(0), conv->input_value(1)},
+                                                        model->get_parameters());
+        ov::Tensor input(ov::element::f32, p.input_shape.to_shape());
+        for (size_t i = 0; i < input.get_size(); ++i) {
+            input.data<float>()[i] = static_cast<float>(i + 1);
+        }
+        ov::TensorVector conv_inputs{ov::Tensor(ov::element::f32, conv->get_input_shape(0)),
+                                     ov::Tensor(ov::element::f32, conv->get_input_shape(1))};
+        ASSERT_TRUE(inputs_model->evaluate(conv_inputs, {input}));
+
+        const auto output_shape = model->get_output_shape(0);
+        const auto conv_shape = conv->get_output_shape(0);
+        ASSERT_EQ(conv_shape.size(), 4);
+        ASSERT_EQ(conv_shape.back(), 1);
+        ASSERT_EQ(ov::shape_size(output_shape), ov::shape_size(conv_shape));
+        ASSERT_EQ(p.weight_values.size(), ov::shape_size(p.weights_shape));
+        std::vector<float> actual(ov::shape_size(conv_shape));
+        std::vector<float> expected(ov::shape_size(output_shape));
+        ov::reference::convolution(conv_inputs[0].data<float>(),
+                                   conv_inputs[1].data<float>(),
+                                   actual.data(),
+                                   conv_inputs[0].get_shape(),
+                                   conv_inputs[1].get_shape(),
+                                   conv_shape,
+                                   conv->get_strides(),
+                                   conv->get_dilations(),
+                                   conv->get_pads_begin(),
+                                   conv->get_pads_end());
+        ov::reference::convolution_backprop_in(input.data<float>(),
+                                               p.weight_values.data(),
+                                               expected.data(),
+                                               input.get_shape(),
+                                               p.weights_shape,
+                                               output_shape,
+                                               ov::Strides{1},
+                                               ov::Strides{1},
+                                               ov::CoordinateDiff{0},
+                                               ov::CoordinateDiff{0},
+                                               ov::Strides{p.stride},
+                                               ov::CoordinateDiff{0});
+        for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(actual[i], expected[i], 1e-5f) << "output index " << i;
+        }
     }
 };
 
@@ -323,4 +430,50 @@ INSTANTIATE_TEST_SUITE_P(DeconvDecomposition1DTests,
                                               ov::op::PadType::EXPLICIT,
                                               false,  // Should NOT transform
                                               false}),
+                         DeconvDecomposition1DTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(AsymmetricKernel,
+                         DeconvDecomposition1DTest,
+                         ::testing::Values(DeconvTestParams{ov::PartialShape{1, 1, 2},
+                                                            ov::Shape{1, 1, 2},
+                                                            2,
+                                                            ov::op::PadType::EXPLICIT,
+                                                            true,
+                                                            false,
+                                                            {1.0f, 10.0f},
+                                                            true},
+                                           DeconvTestParams{ov::PartialShape{1, 2, 4},
+                                                            ov::Shape{2, 3, 3},
+                                                            1,
+                                                            ov::op::PadType::EXPLICIT,
+                                                            true,
+                                                            false,
+                                                            {1.0f,
+                                                             2.0f,
+                                                             3.0f,
+                                                             4.0f,
+                                                             5.0f,
+                                                             6.0f,
+                                                             7.0f,
+                                                             8.0f,
+                                                             9.0f,
+                                                             10.0f,
+                                                             11.0f,
+                                                             12.0f,
+                                                             13.0f,
+                                                             14.0f,
+                                                             15.0f,
+                                                             16.0f,
+                                                             17.0f,
+                                                             18.0f},
+                                                            true},
+                                           DeconvTestParams{ov::PartialShape{1, 1, 2},
+                                                            ov::Shape{1, 1, 2},
+                                                            1,
+                                                            ov::op::PadType::EXPLICIT,
+                                                            true,
+                                                            false,
+                                                            {1.0f},
+                                                            false,
+                                                            true}),
                          DeconvDecomposition1DTest::getTestCaseName);

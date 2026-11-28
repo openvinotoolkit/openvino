@@ -1400,3 +1400,251 @@ TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_feature_axis) {
 TYPED_TEST(rms_gpu_mixed_gamma_type_test, ref_feature_axis) {
     run_rms_test_bfyx_feature_axis<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_ref");
 }
+
+// Feature-axis RMS on fsv16-blocked tensors (b_fs_yx_fsv16 / b_fs_zyx_fsv16). Whole-fsv16-block cases are served by
+// rms_gpu_fsv16 (sub-group block read/write over XBLK columns), the others by the feature-axis path of rms_gpu_bfyx_opt;
+// the tiling rms_gpu_fsv16 picks is checked through the jit constants of the compiled kernel.
+// A blocked input with a plain output is not covered: rms takes its output format from its input
+// (calc_output_layout), so forcing a plain rms format just moves the reorder in front of rms.
+namespace {
+
+enum class rms_fsv16_gamma { per_channel, scalar, none };
+
+struct rms_fsv16_case {
+    std::string name;
+    ov::Shape shape;  // [B, C, (Z,) Y, X]
+    data_types dt;
+    rms_fsv16_gamma gamma;
+    bool fused_sum;            // eltwise sum (full-shape bias) fused into rms
+    padding in_pad;            // padding of the blocked rms input
+    padding out_pad;           // padding of the rms output
+    bool expect_fsv16_kernel;  // rms_gpu_fsv16 selected, else rms_gpu_bfyx_opt
+    int64_t expect_xblk;       // -1: don't check
+    int64_t expect_fsplit;     // -1: don't check, 0: expect > 1, else exact value
+    int64_t expect_cache;      // -1: don't check
+};
+
+std::string rms_fsv16_jit_value(const std::string& jit, const std::string& name) {
+    const std::string key = "#define " + name + " ";
+    const auto pos = jit.find(key);
+    if (pos == std::string::npos) {
+        return {};
+    }
+    const auto begin = pos + key.size();
+    return jit.substr(begin, jit.find_first_of(" \n\r\\", begin) - begin);
+}
+
+int64_t rms_fsv16_jit_int(const std::string& jit, const std::string& name) {
+    const auto value = rms_fsv16_jit_value(jit, name);
+    return value.empty() ? -1 : std::stoll(value);
+}
+
+template <typename T>
+void run_rms_fsv16_feature_axis(const rms_fsv16_case& p) {
+    auto& engine = get_test_engine();
+    const bool is_5d = p.shape.size() == 5;
+    const auto plain_fmt = is_5d ? format::bfzyx : format::bfyx;
+    const auto blocked_fmt = is_5d ? format::b_fs_zyx_fsv16 : format::b_fs_yx_fsv16;
+    const size_t batch_size = p.shape[0];
+    const size_t channels = p.shape[1];
+    const size_t spatial = ov::shape_size(p.shape) / (batch_size * channels);
+    constexpr float epsilon = 1e-5f;
+
+    uint32_t random_state = 0x2468ace1u + static_cast<uint32_t>(ov::shape_size(p.shape));
+    auto next_unit = [&]() {
+        random_state = random_state * 1664525u + 1013904223u;
+        return static_cast<float>(random_state >> 8) / static_cast<float>(1u << 24);
+    };
+
+    std::vector<T> input_values(ov::shape_size(p.shape));
+    for (auto& v : input_values) {
+        v = static_cast<T>((next_unit() * 2.0f - 1.0f) * 3.0f);
+    }
+    const size_t gamma_size = p.gamma == rms_fsv16_gamma::scalar ? 1 : channels;
+    std::vector<T> gamma_values(gamma_size);
+    for (auto& v : gamma_values) {
+        v = static_cast<T>(0.25f + next_unit() * 1.75f);
+    }
+    std::vector<T> bias_values(p.fused_sum ? input_values.size() : 0);
+    for (auto& v : bias_values) {
+        v = static_cast<T>(next_unit() * 2.0f - 1.0f);
+    }
+
+    // Reference on the plain [B, C, S] view, computed in double from the (rounded) host values.
+    std::vector<float> expected(input_values.size());
+    for (size_t b = 0; b < batch_size; ++b) {
+        for (size_t s = 0; s < spatial; ++s) {
+            double sum_squares = 0.0;
+            for (size_t c = 0; c < channels; ++c) {
+                const double v = static_cast<float>(input_values[(b * channels + c) * spatial + s]);
+                sum_squares += v * v;
+            }
+            const double inv_rms = 1.0 / std::sqrt(sum_squares / channels + epsilon);
+            for (size_t c = 0; c < channels; ++c) {
+                const size_t idx = (b * channels + c) * spatial + s;
+                double g = 1.0;
+                if (p.gamma != rms_fsv16_gamma::none) {
+                    g = static_cast<float>(gamma_values[p.gamma == rms_fsv16_gamma::scalar ? 0 : c]);
+                }
+                double r = static_cast<float>(input_values[idx]) * inv_rms * g;
+                if (p.fused_sum) {
+                    r += static_cast<float>(bias_values[idx]);
+                }
+                expected[idx] = static_cast<float>(r);
+            }
+        }
+    }
+
+    auto input = engine.allocate_memory({ov::PartialShape(p.shape), p.dt, plain_fmt});
+    set_values(input, input_values);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(reorder("input_blocked", input_info("input"), layout{ov::PartialShape(p.shape), p.dt, blocked_fmt, p.in_pad}));
+    std::shared_ptr<rms> rms_prim;
+    if (p.gamma == rms_fsv16_gamma::none) {
+        rms_prim = std::make_shared<rms>("rms", input_info("input_blocked"), epsilon, 1);
+    } else {
+        auto gamma = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(gamma_size)}, p.dt, format::bfyx});
+        set_values(gamma, gamma_values);
+        topology.add(data("gamma", gamma));
+        rms_prim = std::make_shared<rms>("rms", input_info("input_blocked"), input_info("gamma"), epsilon, 1);
+    }
+    rms_prim->output_paddings = {p.out_pad};
+    topology.add_primitive(rms_prim);
+    std::string last = "rms";
+    if (p.fused_sum) {
+        auto bias = engine.allocate_memory({ov::PartialShape(p.shape), p.dt, plain_fmt});
+        set_values(bias, bias_values);
+        topology.add(data("bias", bias));
+        topology.add(eltwise("sum", {input_info("rms"), input_info("bias")}, eltwise_mode::sum, p.dt));
+        last = "sum";
+    }
+    topology.add(reorder("output", input_info(last), plain_fmt, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"rms", {blocked_fmt, ""}}}));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("rms");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_EQ(impl->get_kernel_name(), p.expect_fsv16_kernel ? "rms_gpu_fsv16" : "rms_gpu_bfyx_opt");
+    const auto& node = inst->get_node();
+    const auto in_layout = node.get_input_layout(0);
+    const auto out_layout = node.get_output_layout(0);
+    ASSERT_EQ(in_layout.format, blocked_fmt) << in_layout.to_short_string();
+    ASSERT_EQ(out_layout.format, blocked_fmt) << out_layout.to_short_string();
+    ASSERT_EQ(in_layout.data_padding, p.in_pad) << in_layout.to_short_string();
+    ASSERT_EQ(out_layout.data_padding, p.out_pad) << out_layout.to_short_string();
+    ASSERT_EQ(node.has_fused_primitives(), p.fused_sum);
+
+    std::string jit;
+    auto source_impl = node.type()->create_impl(node);
+    ASSERT_NE(source_impl, nullptr);
+    for (const auto& source : source_impl->get_kernels_source()) {
+        if (source) {
+            jit += source->jit;
+        }
+    }
+    ASSERT_FALSE(jit.empty());
+    if (p.expect_xblk >= 0) {
+        EXPECT_EQ(rms_fsv16_jit_int(jit, "XBLK"), p.expect_xblk);
+    }
+    if (p.expect_fsplit > 0) {
+        EXPECT_EQ(rms_fsv16_jit_int(jit, "FSPLIT"), p.expect_fsplit);
+    } else if (p.expect_fsplit == 0) {
+        EXPECT_GT(rms_fsv16_jit_int(jit, "FSPLIT"), 1);
+    }
+    if (p.expect_cache >= 0) {
+        EXPECT_EQ(rms_fsv16_jit_int(jit, "CACHE_INPUT"), p.expect_cache);
+    }
+
+    auto outputs = network.execute();
+    if (p.fused_sum) {
+        ASSERT_EQ(network.get_executed_primitives().count("sum"), 0);
+    }
+    auto output = outputs.at("output").get_memory();
+    ASSERT_EQ(output->get_layout().format, plain_fmt);
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    const bool is_f32 = p.dt == data_types::f32;
+    const bool is_bf16 = p.dt == data_types::bf16;
+    const float abs_tol = is_f32 ? 1e-4f : (is_bf16 ? 3e-2f : 1e-2f);
+    const float rel_tol = is_f32 ? 1e-5f : (is_bf16 ? 1.6e-2f : 4e-3f);
+    size_t failures = 0;
+    for (size_t i = 0; i < expected.size() && failures < 10; ++i) {
+        const float tol = abs_tol + rel_tol * std::fabs(expected[i]);
+        if (!std::isfinite(output_ptr[i]) || std::fabs(output_ptr[i] - expected[i]) > tol) {
+            ++failures;
+            ADD_FAILURE() << "index=" << i << " got=" << output_ptr[i] << " expected=" << expected[i];
+        }
+    }
+}
+
+const padding no_pad{};
+const padding pad_4d_in({0, 0, 1, 2}, {0, 0, 2, 1});
+const padding pad_4d_out({0, 0, 2, 1}, {0, 0, 1, 3});
+const padding pad_5d_in({0, 0, 1, 1, 2}, {0, 0, 0, 2, 1});
+const padding pad_5d_out({0, 0, 0, 1, 1}, {0, 0, 1, 0, 2});
+
+// Tiling (get_fsv16_tiling): XBLK = largest of 8/4/2/1 dividing X; FSPLIT grows while blocks per sub-group * XBLK > 64
+// or tiles * FSPLIT < 32 * EUs (capped at 16 and F/16); CACHE_INPUT = blocks per sub-group * XBLK <= 64.
+const std::vector<rms_fsv16_case> rms_fsv16_cases = {
+    // clang-format off
+    // name                         shape                     dt              gamma                         fused  in_pad     out_pad     fsv16  xblk fsplit cache
+    {"f32_4d_xblk8",                {2, 32, 3, 8},            data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  8,   -1,  1},
+    {"f16_4d_xblk4",                {1, 48, 5, 4},            data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  4,   -1,  1},
+    {"f32_4d_xblk2",                {1, 32, 2, 6},            data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  2,   -1,  1},
+    {"f16_4d_xblk1",                {2, 16, 3, 3},            data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  1,    1,  1},
+    {"f16_5d_xblk8",                {1, 32, 2, 3, 8},         data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  8,   -1,  1},
+    {"f32_5d_xblk1",                {1, 48, 2, 2, 3},         data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  1,   -1,  1},
+    {"f16_4d_fsplit",               {1, 256, 1, 2},           data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  2,    0,  1},
+    {"f32_5d_fsplit",               {1, 128, 1, 1, 4},        data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  4,    0,  1},
+    {"f16_4d_no_cache",             {1, 4096, 1, 8},          data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  8,   16,  0},
+    {"f32_5d_no_cache",             {1, 4096, 1, 1, 8},       data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  8,   16,  0},
+    {"f16_4d_scalar_gamma",         {1, 64, 2, 4},            data_types::f16, rms_fsv16_gamma::scalar,      false, no_pad,    no_pad,     true,  4,   -1,  1},
+    {"f32_5d_scalar_gamma",         {1, 32, 2, 2, 6},         data_types::f32, rms_fsv16_gamma::scalar,      false, no_pad,    no_pad,     true,  2,   -1,  1},
+    {"f32_4d_no_gamma",             {1, 32, 3, 8},            data_types::f32, rms_fsv16_gamma::none,        false, no_pad,    no_pad,     true,  8,   -1,  1},
+    {"f16_5d_no_gamma",             {1, 16, 2, 2, 4},         data_types::f16, rms_fsv16_gamma::none,        false, no_pad,    no_pad,     true,  4,    1,  1},
+    {"f16_4d_fused_sum",            {1, 32, 3, 8},            data_types::f16, rms_fsv16_gamma::per_channel, true,  no_pad,    no_pad,     true,  8,   -1,  1},
+    {"f32_5d_fused_sum_xblk2",      {1, 48, 2, 2, 6},         data_types::f32, rms_fsv16_gamma::per_channel, true,  no_pad,    no_pad,     true,  2,   -1,  1},
+    {"f16_4d_in_out_pad",           {1, 32, 3, 8},            data_types::f16, rms_fsv16_gamma::per_channel, false, pad_4d_in, pad_4d_out, true,  8,   -1,  1},
+    {"f32_4d_in_pad_xblk1",         {1, 32, 3, 5},            data_types::f32, rms_fsv16_gamma::per_channel, false, pad_4d_in, no_pad,     true,  1,   -1,  1},
+    {"f32_5d_in_out_pad",           {1, 32, 2, 3, 4},         data_types::f32, rms_fsv16_gamma::per_channel, false, pad_5d_in, pad_5d_out, true,  4,   -1,  1},
+    // F % 16 != 0: generic feature-axis path on the blocked layout
+    {"f16_4d_generic_f24",          {1, 24, 3, 8},            data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     false, -1,  -1, -1},
+    {"f32_5d_generic_f40_fused",    {1, 40, 2, 2, 4},         data_types::f32, rms_fsv16_gamma::per_channel, true,  no_pad,    no_pad,     false, -1,  -1, -1},
+    {"bf16_4d_xblk8",               {1, 32, 3, 8},            data_types::bf16, rms_fsv16_gamma::per_channel, false, no_pad,   no_pad,     true,  8,   -1,  1},
+    {"bf16_5d_no_gamma",            {1, 16, 2, 2, 4},         data_types::bf16, rms_fsv16_gamma::none,        false, no_pad,   no_pad,     true,  4,    1,  1},
+    {"bf16_4d_scalar_gamma_fsplit", {1, 256, 1, 2},           data_types::bf16, rms_fsv16_gamma::scalar,      false, no_pad,   no_pad,     true,  2,    0,  1},
+    {"bf16_4d_fused_sum_in_out_pad",{1, 32, 3, 8},            data_types::bf16, rms_fsv16_gamma::per_channel, true,  pad_4d_in, pad_4d_out, true, 8,   -1,  1},
+    {"bf16_4d_no_cache",            {1, 4096, 1, 8},          data_types::bf16, rms_fsv16_gamma::per_channel, false, no_pad,   no_pad,     true,  8,   16,  0},
+    {"bf16_5d_fused_sum_xblk2",     {1, 48, 2, 2, 6},         data_types::bf16, rms_fsv16_gamma::per_channel, true,  no_pad,   no_pad,     true,  2,   -1,  1},
+    {"bf16_4d_generic_f24",         {1, 24, 3, 8},            data_types::bf16, rms_fsv16_gamma::per_channel, false, no_pad,   no_pad,     false, -1,  -1, -1},
+    // clang-format on
+};
+
+}  // namespace
+
+class rms_gpu_fsv16_feature_axis_test : public ::testing::TestWithParam<rms_fsv16_case> {};
+
+TEST_P(rms_gpu_fsv16_feature_axis_test, feature_axis) {
+    const auto& p = GetParam();
+    if (p.dt == data_types::f16) {
+        run_rms_fsv16_feature_axis<ov::float16>(p);
+    } else if (p.dt == data_types::bf16) {
+        run_rms_fsv16_feature_axis<ov::bfloat16>(p);
+    } else {
+        run_rms_fsv16_feature_axis<float>(p);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(rms_gpu_fsv16,
+                         rms_gpu_fsv16_feature_axis_test,
+                         ::testing::ValuesIn(rms_fsv16_cases),
+                         [](const ::testing::TestParamInfo<rms_fsv16_case>& info) {
+                             return info.param.name;
+                         });

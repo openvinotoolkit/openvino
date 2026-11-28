@@ -31,6 +31,7 @@ TEST_P(GroupConvBackpropDilationTest, Inference) {
 }  // namespace ov
 
 namespace {
+using ov::test::GroupConvBackpropDilationTest;
 using ov::test::GroupConvBackpropLayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
@@ -103,6 +104,47 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_OutputPadding_DynamicShap
                          ::testing::Combine(groupConvBackpropData1DParams_OutputPadding,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(inputShapes1DDynamic),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
+// A single group, in f32 and f16 (GroupConvBackpropDilationTest has thresholds for the f16 accumulation error)
+const auto groupConvBackpropData1DParams_SingleGroup = ::testing::Combine(::testing::ValuesIn(kernels1D),
+                                                                          ::testing::ValuesIn(strides1D),
+                                                                          ::testing::ValuesIn(padBegins1D),
+                                                                          ::testing::ValuesIn(padEnds1D),
+                                                                          ::testing::ValuesIn(dilations1D),
+                                                                          ::testing::ValuesIn(numOutChannels),
+                                                                          ::testing::Values(1),
+                                                                          ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                          ::testing::ValuesIn(emptyOutputPadding));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_SingleGroup,
+                         GroupConvBackpropDilationTest,
+                         ::testing::Combine(groupConvBackpropData1DParams_SingleGroup,
+                                            ::testing::Values(ov::element::f32, ov::element::f16),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes1D)),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
+const std::vector<ov::test::InputShape> inputShapes1DSingleGroupDynamic = {{{1, 16, -1}, {{1, 16, 10}, {1, 16, 21}, {1, 16, 10}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_SingleGroup_DynamicShape,
+                         GroupConvBackpropDilationTest,
+                         ::testing::Combine(groupConvBackpropData1DParams_SingleGroup,
+                                            ::testing::Values(ov::element::f32, ov::element::f16),
+                                            ::testing::Values(inputShapes1DSingleGroupDynamic),
+                                            ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GroupConvBackpropLayerTest::getTestCaseName);
+
+// The grouped cases in f16, the default inference precision of GPU
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_ExplicitPadding_f16,
+                         GroupConvBackpropDilationTest,
+                         ::testing::Combine(groupConvBackpropData1DParams_ExplicitPadding,
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes1D)),
                                             ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          GroupConvBackpropLayerTest::getTestCaseName);
@@ -247,7 +289,6 @@ const auto groupConvBackpropData2DParams_Dilation = ::testing::Combine(::testing
                                                                        ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                        ::testing::ValuesIn(emptyOutputPadding));
 
-using ov::test::GroupConvBackpropDilationTest;
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_Dilation,
                          GroupConvBackpropDilationTest,
                          ::testing::Combine(groupConvBackpropData2DParams_Dilation,

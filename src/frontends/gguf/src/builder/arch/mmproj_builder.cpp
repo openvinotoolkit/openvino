@@ -50,6 +50,7 @@ enum class EncoderTopology {
     UNIFIED_AUDIO,
     MINICPM46,
     MUSE_GLIMMER,
+    INKLING2,
     PHI4,
     LFM2,
     GEMMA4_AUDIO,
@@ -86,6 +87,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "phi4", EncoderTopology::PHI4},
     {"vision", "lfm2", EncoderTopology::LFM2, 0, ProjectorLayout::Image},
     {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER, 0, ProjectorLayout::WindowedPatches},
+    {"vision", "inkling2v", EncoderTopology::INKLING2},
     {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM, ProjectorLayout::PaddedPatches},
     {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION, 0, ProjectorLayout::PaddedPatches},
     {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO, 0, ProjectorLayout::Unsupported, AudioLayout::Gemma4},
@@ -240,6 +242,13 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
             c.activation = "GGML_UNARY_OP_GELU_ERF";
             OPENVINO_ASSERT(c.merge > 0 && c.width / c.heads % 4 == 0,
                             "[GGUF] invalid Muse Glimmer merge or rotary head dimensions");
+            return c;
+        }
+        if (c.topology == EncoderTopology::INKLING2) {
+            c.merge = positive(meta, key + "spatial_merge_size");
+            c.activation = "GGML_UNARY_OP_GELU_ERF";
+            OPENVINO_ASSERT(c.merge > 1 && c.width / c.heads % 4 == 0,
+                            "[GGUF] Inkling vision requires spatial merging and rotary head width divisible by four");
             return c;
         }
         if (c.topology == EncoderTopology::RESAMPLER) {
@@ -704,6 +713,8 @@ private:
             return qwen_vision(c);
         if (c.topology == EncoderTopology::MUSE_GLIMMER)
             return muse_glimmer_vision(c);
+        if (c.topology == EncoderTopology::INKLING2)
+            return inkling_vision(c);
         if (c.topology == EncoderTopology::RESAMPLER)
             return resampler_vision(c);
         auto x = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, c.image_size, c.image_size});
@@ -865,6 +876,23 @@ private:
             x = slice(x, 2, 0, -1);  // no break after the final row
         }
         return x;
+    }
+    GgufValue inkling_vision(const EncoderConfig& c) {
+        const auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
+        const auto spatial = convolution(pixels, "v.patch_embd.weight", c.patch);
+        auto x = patch_embeddings(spatial, c.width);
+        auto learned =
+            resize_square_table(g.tensors().require("v.position_embd.weight"), spatial, c.width, 1, "Inkling");
+        x = add(x, reshape(transpose(learned, {0, 2, 3, 1}), {1, 1, -1, c.width}));
+        const auto cls = add(g.tensors().require("v.class_embd"), g.tensors().require("v.class_position_embd.weight"));
+        x = concat(reshape(cls, {1, 1, 1, c.width}), x, 1);
+        g.tensors().require("v.pre_ln.weight");
+        g.tensors().require("v.pre_ln.bias");
+        x = vit(x, c, {}, index_input("position_x"), {}, index_input("position_y"));
+        x = slice(x, 2, 1, std::numeric_limits<int64_t>::max() - 1);
+        x = gather_rows(x, "merge_indices");
+        x = reshape(x, {1, 1, -1, c.width * c.merge * c.merge});
+        return ffn(x, "mm.1", "mm.2", "GGML_UNARY_OP_GELU_ERF");
     }
     GgufValue minicpm46(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});

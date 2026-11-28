@@ -140,6 +140,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(ov::frontend::pytorch::DecoderRTInfo, TorchDecoder, get_rt_info);
     }
 
+    ov::element::Type get_default_float_type() const override {
+        PYBIND11_OVERRIDE(ov::element::Type, TorchDecoder, get_default_float_type);
+    }
+
     bool has_converter() const override {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, has_converter);
     }
