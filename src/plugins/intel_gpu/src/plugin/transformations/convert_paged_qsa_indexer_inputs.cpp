@@ -45,11 +45,14 @@ ConvertPagedQSAIndexerInputs::ConvertPagedQSAIndexerInputs(size_t page_size) {
             return false;
         }
 
-        const auto heads = raw_keys[1].get_length() / static_cast<int64_t>(config.indexer_head_dim);
+        // In DSA k-pool mode a raw key row of one head is [key | gate] (2 * indexer_head_dim), and index_key_cache
+        // keeps the whole row; block_index_keys_cache keeps only the pooled key (indexer_head_dim).
+        const int64_t raw_mult = config.dsa_kpool ? 2 : 1;
         const auto head_dim = static_cast<int64_t>(config.indexer_head_dim);
+        const auto heads = raw_keys[1].get_length() / (head_dim * raw_mult);
         const auto summaries = static_cast<int64_t>(page / config.key_block_size);
         const std::pair<size_t, ov::PartialShape> layouts[] = {
-            {In::INDEX_KEY_CACHE, {-1, heads, static_cast<int64_t>(page), head_dim}},
+            {In::INDEX_KEY_CACHE, {-1, heads, static_cast<int64_t>(page), head_dim * raw_mult}},
             {In::INDEX_BLOCK_ROPE_CACHE, {-1, summaries, static_cast<int64_t>(2 * config.indexer_rotary_dim)}},
             {In::BLOCK_INDEX_KEYS_CACHE, {-1, heads, summaries, head_dim}},
         };
