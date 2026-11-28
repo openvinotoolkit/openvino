@@ -33,6 +33,8 @@ private:
                                                                 const std::shared_ptr<RemoteContextImpl>& context);
     static void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context);
     static void register_primitives();
+    static bool supports_model_execution();
+    static void validate_custom_layer_config(const ov::AnyMap& config);
     static bool is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model);
     static void set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model);
     static void create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config);
@@ -41,6 +43,8 @@ private:
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
 
     static std::vector<ov::PropertyName> get_caching_properties();
+    static bool supports_runtime_property(const std::string& name);
+    static std::vector<ov::PropertyName> filter_runtime_properties(std::vector<ov::PropertyName> properties);
     static std::vector<ov::PropertyName> get_supported_properties();
     static std::vector<ov::PropertyName> get_supported_internal_properties();
     static std::vector<std::string> get_device_capabilities(const cldnn::device_info& info);
@@ -49,6 +53,7 @@ private:
 
     static bool is_metric(const std::string& name);
     ov::Any get_metric(const std::string& name, const ov::AnyMap& options) const;
+    ov::Any get_model_metric(const std::string& name, const ov::AnyMap& options, const cldnn::device_info& device_info) const;
 
 public:
     Plugin();

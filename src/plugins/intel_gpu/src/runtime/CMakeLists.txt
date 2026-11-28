@@ -48,6 +48,10 @@ if(OV_GPU_RT STREQUAL "SYCL")
     set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
 endif()
 
+if(OV_GPU_RT STREQUAL "VULKAN")
+    list(APPEND LIBRARY_SOURCES_ALL ${GPU_RUNTIME_VULKAN_SOURCES})
+endif()
+
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
 if(NOT BUILD_SHARED_LIBS)
@@ -86,9 +90,14 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
-# Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
+if(OV_GPU_RT STREQUAL "VULKAN")
+    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+else()
+    # The existing runtimes share the OpenCL kernel builder and oneDNN dependencies.
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE
-    OpenCL::OpenCL
     openvino::itt
     openvino::runtime::dev
   )

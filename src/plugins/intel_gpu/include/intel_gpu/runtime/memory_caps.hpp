@@ -4,23 +4,26 @@
 
 #pragma once
 
-#include <map>
-#include <string>
-#include <vector>
 #include <algorithm>
+#include <array>
+#include <map>
 #include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace cldnn {
 
 enum class allocation_type {
-    unknown,     // Not specified (i.e simple_attached_memory class).
-    cl_mem,      // Use standard OpenCL cl_mem allocations.
-    usm_host,    // Accessible by host and device. Not Migratable
-    usm_shared,  // Accessible by host and device. Migrtable.
-    usm_device,  // Accessible only by device. Not migratable.
-    sycl_buffer, // Use standard SYCL buffer allocations.
-    ze_image,    // Level Zero image allocation. Accessible only by device.
-    max_value,   // Used for data array size. Shall be last
+    unknown,      // Not specified (i.e simple_attached_memory class).
+    cl_mem,       // Use standard OpenCL cl_mem allocations.
+    usm_host,     // Accessible by host and device. Not Migratable
+    usm_shared,   // Accessible by host and device. Migrtable.
+    usm_device,   // Accessible only by device. Not migratable.
+    sycl_buffer,  // Use standard SYCL buffer allocations.
+    ze_image,     // Level Zero image allocation. Accessible only by device.
+    vk_buffer,    // Linear Vulkan VkBuffer. The memory type determines host visibility.
+    max_value,    // Used for data array size. Shall be last
 };
 
 inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_type) {
@@ -31,6 +34,9 @@ inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_
         case allocation_type::usm_device: out << "usm_device"; break;
         case allocation_type::sycl_buffer: out << "sycl_buffer"; break;
         case allocation_type::ze_image:    out << "ze_image";    break;
+        case allocation_type::vk_buffer:
+            out << "vk_buffer";
+            break;
         default: out << "unknown"; break;
     }
 
@@ -39,13 +45,29 @@ inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_
 
 class memory_capabilities {
 public:
-    memory_capabilities(std::vector<allocation_type> supported_allocation_types) : _caps(supported_allocation_types) {}
+    memory_capabilities(std::vector<allocation_type> supported_allocation_types, allocation_type additional_statistics_type = allocation_type::unknown)
+        : _caps(std::move(supported_allocation_types)),
+          _additional_statistics_type(additional_statistics_type) {}
     bool supports_usm() const {
-        return find_in_caps(allocation_type::usm_host) ||
-               find_in_caps(allocation_type::usm_shared) ||
-               find_in_caps(allocation_type::usm_device);
+        return find_in_caps(allocation_type::usm_host) || find_in_caps(allocation_type::usm_shared) || find_in_caps(allocation_type::usm_device);
     }
-    bool support_allocation_type(allocation_type type) const { return find_in_caps(type); }
+    bool support_allocation_type(allocation_type type) const {
+        return find_in_caps(type);
+    }
+
+    std::vector<allocation_type> get_memory_statistics_types() const {
+        const std::array types{allocation_type::unknown,
+                               allocation_type::cl_mem,
+                               allocation_type::usm_host,
+                               allocation_type::usm_shared,
+                               allocation_type::usm_device,
+                               _additional_statistics_type};
+        decltype(types)::const_iterator end = types.cend();
+        if (_additional_statistics_type == allocation_type::unknown || !support_allocation_type(_additional_statistics_type)) {
+            --end;
+        }
+        return {types.begin(), end};
+    }
 
     static bool is_usm_type(allocation_type type) {
         return type == allocation_type::usm_host ||
@@ -61,6 +83,7 @@ public:
 
 private:
     std::vector<allocation_type> _caps;
+    allocation_type _additional_statistics_type;
 
     bool find_in_caps(const allocation_type& type) const {
         return std::find_if(_caps.begin(), _caps.end(), [&](const allocation_type& t) { return t == type; }) != _caps.end();

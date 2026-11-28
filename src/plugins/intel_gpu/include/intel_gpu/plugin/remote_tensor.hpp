@@ -8,13 +8,6 @@
 # define NOMINMAX
 #endif
 
-
-#ifdef _WIN32
-# include <openvino/runtime/intel_gpu/ocl/dx.hpp>
-#else
-# include <openvino/runtime/intel_gpu/ocl/va.hpp>
-#endif
-
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -96,7 +89,9 @@ private:
     void update_hash();
     void update_strides();
     void update_properties();
+    AnyMap get_memory_properties(const cldnn::memory& memory, TensorType mem_type) const;
 
+    static ov::PartialShape make_partial_shape(const ov::Shape& shape, const ov::element::Type& type);
     static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
 };
 

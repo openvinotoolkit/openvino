@@ -17,8 +17,12 @@ This document provides description and default values for CMake options that can
 * Inference plugins:
     * `ENABLE_INTEL_CPU` enables CPU plugin compilation:
         * `ON` is default for x86 platforms; `OFF`, otherwise.
-    * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
-        * `ON` is default for x86 platforms; not available, otherwise.
+    * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation.
+        * The default is `ON` on x86-64 and `OFF` on AArch64.
+    * `GPU_RT_TYPE` selects the GPU runtime. The default is `OCL`.
+        * Set `GPU_RT_TYPE=VULKAN` to enable Vulkan on UNIX targets.
+        * Building Vulkan requires Vulkan 1.3 or later headers and loader.
+        * Projects that use the static Vulkan package require CMake 3.23 or later to discover Vulkan.
     * `ENABLE_INTEL_NPU` enables Intel NPU plugin compilation:
         * `ON` is default for Windows and Linux x86 platforms; not available, otherwise.
     * `ENABLE_HETERO` enables HETERO plugin build:

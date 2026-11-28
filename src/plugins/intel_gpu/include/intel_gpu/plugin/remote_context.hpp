@@ -101,6 +101,8 @@ private:
     std::shared_ptr<ov::IRemoteTensor> create_usm(ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
 
+    ov::SoPtr<ov::IRemoteTensor> create_tensor_from_params(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params);
+    void init_default_context_type();
     void init_properties();
 
     std::shared_ptr<cldnn::device> m_device;
@@ -108,8 +110,7 @@ private:
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
 
-
-    ContextType m_type;
+    ContextType m_type{};
     std::string m_device_name;
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, std::weak_ptr<cldnn::memory>> m_memory_cache =

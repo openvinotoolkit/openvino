@@ -10,6 +10,13 @@ set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
+if(GPU_RT_TYPE STREQUAL "VULKAN")
+    if(NOT UNIX)
+        message(FATAL_ERROR "GPU_RT_TYPE=VULKAN currently requires a UNIX target")
+    endif()
+    find_package(Vulkan 1.3 REQUIRED)
+endif()
+
 # convert white-space separated string to list
 string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
@@ -18,7 +25,7 @@ if(GPU_VENDOR STREQUAL "NVIDIA")
     list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
 endif()
 
-if(OV_COMPILER_IS_INTEL_LLVM)
+if(OV_COMPILER_IS_INTEL_LLVM AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
         ov_add_compiler_flags(/WX-)
@@ -43,7 +50,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
-if(OV_COMPILER_IS_CLANG)
+if(OV_COMPILER_IS_CLANG AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
     include(CMakePushCheckState)
     include(CheckCXXSourceCompiles)
 
@@ -167,7 +174,7 @@ if(ENABLE_MLIR_FOR_GPU)
     include(thirdparty/cmake/graph-compiler.cmake)
 endif()
 
-# Build one full GPU stack (runtime + kernel_selector + graph + plugin) for runtime RT_TYPE.
+# Build one GPU stack for runtime RT_TYPE.
 # SUFFIX distinguishes a COMBINED build's two stacks (empty for the ZE/default twin, "_ocl"
 # for the OCL twin) and single-RT builds (empty). MODULE_NAME is the plugin library name.
 # EXTRA_PLUGIN_ARGS are forwarded to ov_add_plugin (e.g. DISPATCH_GROUP for COMBINED).
@@ -177,8 +184,18 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     # Distinct binary dirs so the same source dirs can be added twice in a COMBINED build.
     add_subdirectory(src/runtime         runtime${SUFFIX})
-    add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
-    add_subdirectory(src/graph           graph${SUFFIX})
+    if(RT_TYPE STREQUAL "VULKAN")
+        # This runtime supports device discovery and remote tensors.
+        set(PLUGIN_SOURCES
+            src/plugin/plugin.cpp
+            src/runtime/vulkan/vulkan_model_execution.cpp
+            ${GPU_PLUGIN_VULKAN_CONTEXT_SOURCES})
+        set(plugin_backend openvino_intel_gpu_runtime${SUFFIX} openvino::reference)
+    else()
+        add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
+        add_subdirectory(src/graph           graph${SUFFIX})
+        set(plugin_backend openvino_intel_gpu_graph${SUFFIX})
+    endif()
 
     # One per stack: the objects link this stack's graph library, so a COMBINED build cannot
     # share a single target between the twins.
@@ -222,7 +239,7 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
         target_link_options(${MODULE_NAME} PRIVATE "LINKER:-z,nodelete")
     endif()
 
-    target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml)
+    target_link_libraries(${MODULE_NAME} PRIVATE ${plugin_backend} openvino::pugixml)
 
     if(ENABLE_MLIR_FOR_GPU)
         target_link_libraries(${MODULE_NAME} PRIVATE GraphCompiler)
@@ -262,7 +279,11 @@ else()
 endif()
 
 if(ENABLE_TESTS)
-  add_subdirectory(tests)
+    if(GPU_RT_TYPE STREQUAL "VULKAN")
+        add_subdirectory(tests/vulkan)
+    else()
+        add_subdirectory(tests)
+    endif()
 endif()
 
 # Failed because of OpenCL

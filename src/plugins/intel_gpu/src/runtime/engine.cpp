@@ -9,11 +9,18 @@
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "ocl/ocl_engine_factory.hpp"
-#include "ze/ze_engine_factory.hpp"
+#ifdef OV_GPU_WITH_OCL_RT
+#    include "ocl/ocl_engine_factory.hpp"
+#endif
+#ifdef OV_GPU_WITH_ZE_RT
+#    include "ze/ze_engine_factory.hpp"
+#endif
 #ifdef OV_GPU_WITH_SYCL_RT
 #include "sycl/sycl_engine_factory.hpp"
 #endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_VULKAN_RT
+#    include "vulkan/vulkan_engine_factory.hpp"
+#endif
 
 #include <string>
 #include <vector>
@@ -235,19 +242,11 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     std::map<std::string, uint64_t> statistics;
-    const auto add_stat = [&](allocation_type type) {
-        auto idx = static_cast<size_t>(type);
-        auto value = _memory_usage_data[idx].load();
-        std::ostringstream oss;
-        oss << type;
-        statistics[oss.str()] = value;
-    };
-
-    add_stat(allocation_type::unknown);
-    add_stat(allocation_type::cl_mem);
-    add_stat(allocation_type::usm_host);
-    add_stat(allocation_type::usm_shared);
-    add_stat(allocation_type::usm_device);
+    for (const auto type : _device->get_mem_caps().get_memory_statistics_types()) {
+        std::ostringstream name;
+        name << type;
+        statistics[name.str()] = get_used_device_memory(type);
+    }
     return statistics;
 }
 
@@ -269,7 +268,7 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
 }
 
 void engine::set_enable_large_allocations(bool enable_large_allocations) {
-    this->enable_large_allocations = enable_large_allocations;
+    this->enable_large_allocations = enable_large_allocations && supports_large_allocations();
 }
 
 bool engine::get_enable_large_allocations() const {
@@ -297,6 +296,11 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
 #ifdef OV_GPU_WITH_ZE_RT
     case engine_types::ze:
         ret = ze::create_ze_engine(device, runtime_type);
+        break;
+#endif
+#ifdef OV_GPU_WITH_VULKAN_RT
+    case engine_types::vulkan:
+        ret = vulkan::create_vulkan_engine(device, runtime_type);
         break;
 #endif
     default:
@@ -334,10 +338,15 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) const
 
         OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                         "[GPU] Exceeded max size of memory object allocation: ",
-                        "requested ", layout.bytes_count(), " bytes, "
-                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
-                        "Please try to reduce batch size, use lower precision, "
-                        "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
+                        "requested ",
+                        layout.bytes_count(),
+                        " bytes, "
+                        "but max alloc size supported by device is ",
+                        get_device_info().max_alloc_mem_size,
+                        " bytes. ",
+                        supports_large_allocations() ? "Please try to reduce batch size, use lower precision, "
+                                                       "or set ov::intel_gpu::hint::enable_large_allocations config property to true."
+                                                     : "Reduce the requested allocation size.");
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);

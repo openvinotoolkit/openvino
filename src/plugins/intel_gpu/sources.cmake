@@ -2,21 +2,32 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(GPU_PLUGIN_CORE_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/async_infer_request.cpp
+set(GPU_PLUGIN_CONTEXT_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/common_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_context.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_tensor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/usm_host_tensor.cpp
+)
+
+set(GPU_PLUGIN_VULKAN_CONTEXT_SOURCES
+    ${GPU_PLUGIN_CONTEXT_SOURCES}
+    ${CMAKE_CURRENT_LIST_DIR}/src/runtime/vulkan/vulkan_remote_context.cpp
+)
+
+set(GPU_PLUGIN_CORE_SOURCES
+    ${GPU_PLUGIN_CONTEXT_SOURCES}
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/async_infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/compiled_model.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/custom_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/graph.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/model_execution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/multi_tensor_variable_state.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/plugin.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/program_builder.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_context.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_tensor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_context_interop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/simple_math.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/sync_infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/usm_host_tensor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/variable_state.cpp
 )
 

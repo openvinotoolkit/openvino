@@ -141,6 +141,22 @@ void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, co
         }
     }
 }
+
+cldnn::memory::ptr allocate_internal_buffer(cldnn::engine& engine, const cldnn::layout& layout, TensorType& mem_type) {
+    using cldnn::allocation_type;
+    if (mem_type == TensorType::BT_BUF_INTERNAL) {
+        for (const auto type : {allocation_type::cl_mem, allocation_type::sycl_buffer, engine.get_default_allocation_type()}) {
+            if (type != allocation_type::unknown && !cldnn::memory_capabilities::is_usm_type(type) && engine.supports_allocation(type)) {
+                return engine.allocate_memory(layout, type, false);
+            }
+        }
+        GPU_DEBUG_INFO << "[Warning] [GPU] Could not allocate cl_mem, using usm_device allocation instead\n";
+        mem_type = TensorType::BT_USM_DEVICE_INTERNAL;
+    }
+
+    const auto type = mem_type == TensorType::BT_USM_HOST_INTERNAL ? allocation_type::usm_host : allocation_type::usm_device;
+    return engine.allocate_memory(layout, type, false);
+}
 }  // namespace
 
 TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
@@ -164,17 +180,17 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
                                    ov::intel_gpu::VirtualAddressMemory va_mem,
                                    std::shared_ptr<ov::MappedMemory> mapped_memory)
-    : m_context(context)
-    , m_element_type(element_type)
-    , m_shape(shape)
-    , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
-    , m_mem_type(mem_type)
-    , m_mem(mem)
-    , m_surf(surf)
-    , m_plane(plane)
-    , m_shared_buffer_handle(shared_buffer_handle)
-    , m_va_mem(va_mem)
-    , m_mapped_memory(std::move(mapped_memory)) {
+    : m_context(context),
+      m_element_type(element_type),
+      m_shape(shape),
+      m_layout(cldnn::layout{make_partial_shape(shape, element_type), element_type, cldnn::format::get_default_format(shape.size())}),
+      m_mem_type(mem_type),
+      m_mem(mem),
+      m_surf(surf),
+      m_plane(plane),
+      m_shared_buffer_handle(shared_buffer_handle),
+      m_va_mem(va_mem),
+      m_mapped_memory(std::move(mapped_memory)) {
 #ifdef OV_GPU_WITH_SYCL_RT
     // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
     OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
@@ -323,20 +339,24 @@ const AnyMap& RemoteTensorImpl::get_properties() const {
 }
 
 void RemoteTensorImpl::set_shape(ov::Shape shape) {
-    m_layout.set_partial_shape(ov::PartialShape{shape});
-    m_shape = shape;
-
+    const auto partial_shape = make_partial_shape(shape, m_element_type);
+    auto strides = calculate_strides(shape, m_element_type);
     if (ov::shape_size(shape) > m_memory_object->count()) {
         GPU_DEBUG_TRACE_DETAIL << "Remote realloc" << std::endl;
         OPENVINO_ASSERT(!is_shared(), "Cannot call set_shape for Tensor created on top of preallocated memory if shape was increased.");
-        if (!deallocate()) {
-            OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");
-        }
 
-        allocate();
+        auto mem_type = m_mem_type;
+        auto memory = allocate_internal_buffer(m_context->get_engine(), m_layout.clone_with_other_shape(partial_shape), mem_type);
+        auto properties = get_memory_properties(*memory, mem_type);
+        m_layout.set_partial_shape(partial_shape);
+        m_memory_object = std::move(memory);
+        m_mem_type = mem_type;
+        m_properties = std::move(properties);
     } else {
-        update_strides();
+        m_layout.set_partial_shape(partial_shape);
     }
+    m_shape = std::move(shape);
+    m_strides = std::move(strides);
 }
 
 bool RemoteTensorImpl::deallocate() noexcept {
@@ -368,30 +388,12 @@ void RemoteTensorImpl::allocate() {
     }
 
     auto& engine = context->get_engine();
-    const bool reset = false;
-
     switch (m_mem_type) {
-    case TensorType::BT_BUF_INTERNAL: {
-        if (engine.supports_allocation(cldnn::allocation_type::cl_mem)) {
-            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
-        } else if (engine.supports_allocation(cldnn::allocation_type::sycl_buffer)) {
-            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::sycl_buffer, reset);
-        } else {
-            // Fall back to usm_device and override memory type
-            GPU_DEBUG_INFO << "[Warning] [GPU] Could not allocate cl_mem, using usm_device allocation instead\n";
-            m_mem_type = TensorType::BT_USM_DEVICE_INTERNAL;
-            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device, reset);
-        }
+    case TensorType::BT_BUF_INTERNAL:
+    case TensorType::BT_USM_HOST_INTERNAL:
+    case TensorType::BT_USM_DEVICE_INTERNAL:
+        m_memory_object = allocate_internal_buffer(engine, m_layout, m_mem_type);
         break;
-    }
-    case TensorType::BT_USM_HOST_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
-        break;
-    }
-    case TensorType::BT_USM_DEVICE_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device, reset);
-        break;
-    }
     case TensorType::BT_BUF_SHARED: {
         m_memory_object = engine.share_buffer(m_layout, m_mem);
         break;
@@ -524,104 +526,7 @@ std::shared_ptr<RemoteContextImpl> RemoteTensorImpl::get_context() const {
 
 void RemoteTensorImpl::update_properties() {
     OPENVINO_ASSERT(is_allocated(), "[GPU] Can't initialize RemoteTensorImpl parameters as memory was not allocated");
-    const auto &ctx_props = m_context->get_property();
-    const auto it = ctx_props.find(ov::intel_gpu::context_type.name());
-    OPENVINO_ASSERT(it != ctx_props.end(), "[GPU] Could not find context type in RemoteContext properties");
-    const auto ctx_type = it->second.as<ContextType>();
-
-    cldnn::shared_mem_params params;
-    if (ctx_type == ContextType::OCL || ctx_type == ContextType::VA_SHARED) {
-        params = m_memory_object->get_internal_params(cldnn::runtime_types::ocl);
-    } else if (ctx_type == ContextType::ZE) {
-        params = m_memory_object->get_internal_params(cldnn::runtime_types::ze);
-    } else {
-        OPENVINO_THROW("[GPU] Can't update RemoteTensorImpl properties for unsupported context type (", ctx_type, ")");
-    }
-
-    switch (m_mem_type) {
-    case TensorType::BT_BUF_INTERNAL:
-    case TensorType::BT_BUF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_BUF_SHARED_FROM_HANDLE:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_USM_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_USER_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_CPU_VA: {
-        // Report the size and access mode together with the pointer so that the properties returned by
-        // get_properties() are sufficient to re-wrap the same memory with create_tensor(), which requires
-        // cpu_va_size. This is the size the host buffer was imported with (resolved in the constructor for size -1),
-        // so it is also correct for tensors that were found in the memory cache.
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::cpu_va(m_va_mem.ptr),
-            ov::intel_gpu::cpu_va_size(m_va_mem.size),
-            ov::intel_gpu::cpu_va_access(m_va_mem.access),
-        };
-        break;
-    }
-    case TensorType::BT_USM_HOST_INTERNAL:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_USM_DEVICE_INTERNAL:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-
-#ifdef _WIN32
-    case TensorType::BT_DX_BUF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::DX_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::va_device(params.user_device),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::dev_object_handle(params.surface),
-        };
-        break;
-#endif
-    case TensorType::BT_IMG_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_IMAGE2D),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_SURF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::VA_SURFACE),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::va_device(params.user_device),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::dev_object_handle(params.surface),
-            ov::intel_gpu::va_plane(params.plane),
-        };
-        break;
-    default:
-        OPENVINO_THROW("[GPU] Unsupported shared object type ", static_cast<int>(m_mem_type));
-    }
+    m_properties = get_memory_properties(*m_memory_object, m_mem_type);
 }
 
 }  // namespace ov::intel_gpu

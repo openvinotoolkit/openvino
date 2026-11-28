@@ -143,3 +143,24 @@ set(GPU_RUNTIME_SYCL_INTEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.hpp
 )
+
+set(GPU_RUNTIME_VULKAN_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_api.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_device.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_device.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_device_detector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_device_detector.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_engine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_engine.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_engine_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_instance.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_instance.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory_allocator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_required_device_profile.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_required_device_profile.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_stream.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_stream.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_tensor_shape.hpp
+)

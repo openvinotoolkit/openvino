@@ -80,7 +80,7 @@ endif()
 # OpenCL
 #
 
-if(ENABLE_INTEL_GPU)
+if(ENABLE_INTEL_GPU AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
     if(ENABLE_SYSTEM_OPENCL)
         # try to find system OpenCL:
         # - 'apt-get install opencl-headers ocl-icd-opencl-dev'

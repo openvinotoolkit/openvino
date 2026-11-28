@@ -8,6 +8,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 
 #if !defined(_WIN32)
 # include <fcntl.h>
@@ -15,6 +16,7 @@
 # include <unistd.h>
 #endif
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -3127,6 +3129,71 @@ void expect_bytes_eq(const ov::Tensor& expected, const ov::Tensor& actual) {
     }
 }
 }  // namespace
+
+struct RemoteTensorRejectedGrowth : ::testing::TestWithParam<RemoteTensorSharingType> {};
+
+TEST_P(RemoteTensorRejectedGrowth, smoke_PreservesState) {
+    auto core = ov::Core();
+    const auto& device_name = ov::test::utils::DEVICE_GPU;
+    if (core.get_property(device_name, ov::intel_gpu::runtime_type) != "OCL") {
+        GTEST_SKIP() << "OpenCL runtime is required";
+    }
+
+    auto context = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
+    const auto sharing_type = GetParam();
+    if (sharing_type != RemoteTensorSharingType::PLUGIN_CL_TENSOR) {
+        const auto capabilities = core.get_property(context.get_device_name(), ov::device::capabilities);
+        if (std::find(capabilities.begin(), capabilities.end(), ov::intel_gpu::capability::USM_MEMORY) == capabilities.end()) {
+            GTEST_SKIP() << "The device does not support USM";
+        }
+
+        const cl::Context cl_context = context;
+        const auto cl_device = cl_context.getInfo<CL_CONTEXT_DEVICES>().front();
+        const cl_device_info query =
+            sharing_type == RemoteTensorSharingType::PLUGIN_HOST_TENSOR ? CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL : CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL;
+        cl_device_unified_shared_memory_capabilities_intel access = 0;
+        ASSERT_EQ(clGetDeviceInfo(cl_device.get(), query, sizeof(access), &access, nullptr), CL_SUCCESS);
+        if ((access & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0) {
+            GTEST_SKIP() << "The device does not support this USM allocation type";
+        }
+    }
+
+    const auto type = ov::element::u8;
+    const ov::Shape shape{2, 3};
+    auto remote = create_tensor(context, sharing_type, type, shape);
+    ov::Tensor input(type, shape);
+    fill_bytes(input);
+    remote.copy_from(input);
+
+    const auto strides = remote.get_strides();
+    const auto properties = remote.get_params();
+    ASSERT_NE(properties.at(ov::intel_gpu::mem_handle.name()).as<ov::intel_gpu::gpu_handle_param>(), nullptr);
+
+    // Exceed the reported limit so the engine rejects growth before allocating memory.
+    const auto limit = core.get_property(context.get_device_name(), ov::intel_gpu::device_max_alloc_mem_size);
+    ASSERT_LT(limit, (std::numeric_limits<size_t>::max)() / type.bitwidth());
+    const ov::Shape rejected_shape{1, static_cast<size_t>(limit) + 1};
+    OV_EXPECT_THROW_HAS_SUBSTRING(remote.set_shape(rejected_shape), ov::Exception, "Exceeded max size of memory object allocation");
+
+    ASSERT_EQ(remote.get_shape(), shape);
+    ASSERT_EQ(remote.get_strides(), strides);
+    ASSERT_EQ(remote.get_params(), properties);
+    ov::Tensor output(type, shape);
+    remote.copy_to(output);
+    expect_bytes_eq(input, output);
+
+    const ov::Shape larger_shape{3, 4};
+    OV_ASSERT_NO_THROW(remote.set_shape(larger_shape));
+    ASSERT_EQ(remote.get_shape(), larger_shape);
+    EXPECT_EQ(remote.get_strides(), ov::Tensor(type, larger_shape).get_strides());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         RemoteTensorRejectedGrowth,
+                         ::testing::Values(RemoteTensorSharingType::PLUGIN_CL_TENSOR,
+                                           RemoteTensorSharingType::PLUGIN_HOST_TENSOR,
+                                           RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR),
+                         ::testing::PrintToStringParamName());
 
 using RemoteTensorSubByteParams = std::tuple<ov::element::Type, RemoteTensorSharingType, ov::Shape>;
 
