@@ -653,15 +653,19 @@ void Partitioner::identifySubgraphs() {
                     continue;
                 } else if ((ov::is_type<ov::op::v8::Slice>(input_node) ||
                             ov::is_type<ov::op::v0::Convert>(input_node)) &&
-                           !nodes_known_now.count(input_node) &&
+                           !nodes_known_now.count(input_node) && group_nodes.find(input_node) == group_nodes.end() &&
                            ov::op::util::is_parameter(input_node->input(0).get_source_output().get_node_shared_ptr())) {
                     // So the situation is:
                     //  - a group has an input layer
                     //  - which reads from a Slice or Convert
                     //  - which reads from a Parameter
-                    //  - not a part of any prior group
+                    //  - not a part of any prior group (and not a part of this group)
                     // This happens when an offline plan is used with a kvcache
                     // model extended with slices to maintain zero-copy (LLM case)
+                    // Note: if the Slice/Convert is a part of this group, it may be
+                    // an input layer itself whose input was already replaced with a
+                    // newly created cut-off Parameter. Treating it as an extra param
+                    // would drop the cross-subgraph link for that Parameter.
                     auto extra_param = input_node->input(0).get_source_output().get_node_shared_ptr();
                     input_mapping[input_node->output(0)] = extra_param;
                     extra_params.insert(extra_param);

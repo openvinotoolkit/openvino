@@ -12,6 +12,8 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "attention.hpp"
 #include "intel_npu/config/config.hpp"
@@ -265,6 +267,96 @@ std::shared_ptr<ov::Model> build_single_pair_model() {
     auto result = std::make_shared<ov::op::v0::Result>(prev);
     result->set_friendly_name("output");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+}
+
+// x -> producer_sin | -> <in_op> -> add(<in_op>, y) -> Result
+// where <in_op> is a Convert or a Slice which belongs to the second group and is
+// an input layer of it. Its name must sort before "producer_sin" to reproduce the
+// lost-link issue in identifySubgraphs().
+std::shared_ptr<ov::Model> build_in_group_input_op_model(bool use_slice) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    x->set_friendly_name("x");
+    auto producer = std::make_shared<ov::op::v0::Sin>(x);
+    producer->set_friendly_name("producer_sin");
+
+    std::shared_ptr<ov::Node> in_op;
+    std::shared_ptr<ov::op::v0::Parameter> y;
+    if (use_slice) {
+        auto start = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto stop = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        in_op = std::make_shared<ov::op::v8::Slice>(producer, start, stop, step, axes);
+        in_op->set_friendly_name("kv_slice");
+        y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    } else {
+        in_op = std::make_shared<ov::op::v0::Convert>(producer, ov::element::f16);
+        in_op->set_friendly_name("cvt");
+        y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    }
+    y->set_friendly_name("y");
+
+    auto add = std::make_shared<ov::op::v1::Add>(in_op, y);
+    add->set_friendly_name("add");
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{x, y});
+}
+
+// Plan: group0 = {producer_sin}, group1 = {<in_op>, add} with input layers listed
+// in the order <in_op>, add - so <in_op>'s input is already replaced with a cut-off
+// Parameter when add is processed.
+void write_in_group_input_op_plan(const std::filesystem::path& path, const std::string& in_op_name) {
+    std::ofstream plan(path);
+    plan << "<?xml version=\"1.0\"?>\n"
+         << "<ensemble gflops=\"0\">\n"
+         << "  <partitioning>\n"
+         << "    <group id=\"0\" gflops=\"0\">\n"
+         << "      <input name=\"producer_sin\"/>\n"
+         << "      <output name=\"producer_sin\"/>\n"
+         << "      <layer name=\"producer_sin\"/>\n"
+         << "    </group>\n"
+         << "    <group id=\"1\" gflops=\"0\">\n"
+         << "      <input name=\"" << in_op_name << "\"/>\n"
+         << "      <input name=\"add\"/>\n"
+         << "      <output name=\"add\"/>\n"
+         << "      <layer name=\"" << in_op_name << "\"/>\n"
+         << "      <layer name=\"add\"/>\n"
+         << "    </group>\n"
+         << "  </partitioning>\n"
+         << "</ensemble>\n";
+}
+
+void check_in_group_input_op_keeps_link(bool use_slice) {
+    const std::string in_op_name = use_slice ? "kv_slice" : "cvt";
+    const auto plan_path = make_unique_temp_path("npuw_in_group_" + in_op_name + "_plan", ".xml");
+    write_in_group_input_op_plan(plan_path, in_op_name);
+
+    // F16IC would insert a Convert between the cut-off Parameter and <in_op>,
+    // which hides the issue - disable it.
+    auto cfg = make_cfg({{"NPUW_PLAN", plan_path.string()}, {"NPUW_F16IC", "NO"}});
+    const auto partitioning = ov::npuw::getPartitioning(build_in_group_input_op_model(use_slice), cfg);
+    std::filesystem::remove(plan_path);
+
+    ASSERT_EQ(partitioning.subgraphs.size(), 2u);
+    const auto& sg1 = partitioning.subgraphs[1];
+    ASSERT_EQ(sg1._parameters.size(), 2u);  // cut-off Parameter + y
+
+    std::vector<std::pair<ov::npuw::LinkTo, ov::npuw::LinkFrom>> links_to_sg1;
+    for (const auto& link : partitioning.input_to_prev_output) {
+        if (link.first.first == 1u) {
+            links_to_sg1.push_back(link);
+        }
+    }
+    // The cross-subgraph link producer_sin -> <in_op> must not be dropped,
+    // otherwise the input is never fed at runtime (reads zeros).
+    ASSERT_EQ(links_to_sg1.size(), 1u);
+    EXPECT_EQ(links_to_sg1[0].second, (ov::npuw::LinkFrom{0u, 0u}));
+
+    const auto& linked_param = sg1._parameters.at(links_to_sg1[0].first.second);
+    EXPECT_NE(linked_param->get_friendly_name(), "y");
+    EXPECT_EQ(linked_param->get_element_type(), ov::element::f32);
+    EXPECT_EQ(linked_param->get_partial_shape(), (ov::PartialShape{1, 4}));
 }
 
 // Partition boundaries as an order-independent set of layer sets, so the assertions
@@ -529,6 +621,14 @@ TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {
     EXPECT_EQ(partitioning.subgraphs.size(), online_ens.groups.size());
 
     std::filesystem::remove(plan_path);
+}
+
+TEST(PartitioningOptionsTest, InGroupConvertInputLayerKeepsCrossSubgraphLink) {
+    check_in_group_input_op_keeps_link(/*use_slice=*/false);
+}
+
+TEST(PartitioningOptionsTest, InGroupSliceInputLayerKeepsCrossSubgraphLink) {
+    check_in_group_input_op_keeps_link(/*use_slice=*/true);
 }
 
 // Isolate three op families with distinct tags so that mergeTriangles cannot
