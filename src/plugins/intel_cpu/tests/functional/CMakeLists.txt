@@ -65,6 +65,15 @@ ov_add_test_target(
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
+# compiled models stored for GoldenBlobsCPU (custom/behavior/compatibility_string.cpp), placed next to the test binary
+set(CPU_GOLDEN_BLOBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/custom/behavior/data/blobs)
+add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CPU_GOLDEN_BLOBS_DIR} $<TARGET_FILE_DIR:${TARGET_NAME}>/cpu_golden_blobs)
+install(DIRECTORY ${CPU_GOLDEN_BLOBS_DIR}/
+        DESTINATION tests/cpu_golden_blobs
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 ov_build_target_faster(${TARGET_NAME} PCH)
 
 include(cmake/specific_tests.cmake)

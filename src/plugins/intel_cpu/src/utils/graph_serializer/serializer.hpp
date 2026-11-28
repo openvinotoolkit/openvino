@@ -53,10 +53,4 @@ void serialize_model(std::shared_ptr<ov::Model> model,
                      const ModelSerializer::CacheEncrypt& encrypt_fn,
                      bool weightless_mode);
 
-static constexpr uint64_t runtime_requirements_magic = 0x4F564350555F5252ULL;  // "OVCPU_RR" in ASCII
-static constexpr uint32_t runtime_requirements_version = 1;
-static constexpr uint64_t runtime_requirements_max_size = 4096;
-std::string build_runtime_requirements();
-bool is_runtime_requirements_compatible(const std::string& requirements);
-
 }  // namespace ov::intel_cpu
