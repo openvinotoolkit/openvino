@@ -34,7 +34,7 @@ bool matchEagle3TreeMaskString(const std::string& input);
 // Model roles for Eagle3 speculative decoding
 enum class Eagle3ModelRole {
     None,    ///< Not an Eagle3 model
-    Target,  ///< Target model: only outputs last_hidden_state
+    Target,  ///< Target model: verifies drafts (eagle_tree_mask input and/or last_hidden_state output)
     Draft    ///< Draft model: has hidden_states as input, and outputs last_hidden_state
 };
 
