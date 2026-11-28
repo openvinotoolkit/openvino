@@ -1214,6 +1214,33 @@ def create_pt_model_with_custom_op():
     return MyModel()
 
 
+class ConvertDynamoNestedDictExampleInput(unittest.TestCase):
+    def test_dynamo_nested_dict_example_input(self):
+        # The leaves of a dict inside an argument are not named by key in an FX graph,
+        # so they must not be looked up as model inputs named "a" and "b".
+        from openvino.tools.ovc import convert_model
+
+        class PTModel(torch.nn.Module):
+            def forward(self, d, x):
+                return d["a"] * 2 + d["b"] * 3 + x
+
+        a = torch.tensor([1.0, 2.0])
+        b = torch.tensor([3.0, 4.0])
+        x = torch.tensor([5.0, 6.0])
+        expected = PTModel()({"a": a, "b": b}, x).numpy()
+        examples = {
+            "tuple": ({"a": a, "b": b}, x),
+            "dict": {"d": {"a": a, "b": b}, "x": x},
+        }
+        for case, example_input in examples.items():
+            with self.subTest(case):
+                ov_model = convert_model(PTModel(), example_input=example_input, dynamo=True)
+                self.assertEqual([port.get_any_name() for port in ov_model.inputs], ["d_a", "d_b", "x"])
+                compiled = ov.Core().compile_model(ov_model, "CPU")
+                result = compiled([a.numpy(), b.numpy(), x.numpy()])[0]
+                np.testing.assert_allclose(result, expected)
+
+
 class ConvertRaises(unittest.TestCase):
     def test_example_inputs(self):
         from openvino.tools.ovc import convert_model
