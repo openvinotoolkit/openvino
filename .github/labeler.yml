@@ -42,6 +42,30 @@
 - 'src/plugins/intel_cpu/**/*'
 - 'thirdparty/xbyak/**/*'
 
+'platform: arm':
+- 'src/plugins/intel_cpu/**/aarch64/**/*'
+- 'src/plugins/intel_cpu/**/arm/**/*'
+- 'src/plugins/intel_cpu/**/acl/**/*'
+- 'src/plugins/intel_cpu/**/kleidiai/**/*'
+- 'src/plugins/intel_cpu/**/kai/**/*'
+- 'src/plugins/intel_cpu/src/utils/arm_isa_support.*'
+- 'src/plugins/intel_cpu/thirdparty/ComputeLibrary/**/*'
+- 'src/plugins/intel_cpu/thirdparty/ComputeLibrary'
+- 'src/plugins/intel_cpu/thirdparty/kleidiai'
+- 'src/plugins/intel_cpu/thirdparty/ACLConfig.cmake'
+- 'src/plugins/intel_cpu/thirdparty/FindACL.cmake'
+- 'cmake/arm*.toolchain.cmake'
+- 'cmake/rpi*'
+- 'cmake/rpi_cross/**/*'
+- '.github/dockerfiles/**/*arm64*/**/*'
+
+'platform: risc-v':
+- 'src/plugins/intel_cpu/**/riscv64/**/*'
+- 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**/*'
+- 'src/plugins/intel_cpu/thirdparty/xbyak_riscv'
+- 'cmake/toolchains/riscv*'
+- '.github/dockerfiles/**/*riscv*/**/*'
+
 'category: snippets':
 - 'src/common/snippets/**/*'
 - 'src/plugins/intel_cpu/src/emitters/snippets/**/*'

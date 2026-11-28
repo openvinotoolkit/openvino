@@ -32,6 +32,14 @@ ALWAYS_SKIPPABLE_FILE_PATTERNS = (
 )
 
 
+# Labels that only mark a PR (e.g. 'platform: arm') and must not influence validation scope.
+MARKER_LABEL_PREFIXES = ('platform: ',)
+
+
+def is_marker_label(label: str) -> bool:
+    return label.startswith(MARKER_LABEL_PREFIXES)
+
+
 class ComponentConfig:
     FullScope = {'build', 'test'}
     ScopeKeys = {'build', 'revalidate'}
@@ -120,6 +128,8 @@ def get_changed_component_names(pr, all_possible_components: set, component_patt
     """Returns component names changed in a given PR"""
     components = set()
     for label in pr.labels:
+        if is_marker_label(label.name):
+            continue
         component = component_name_from_label(label.name, component_pattern)
         if component:
             components.add(component)
@@ -215,6 +225,8 @@ def main():
 
     all_possible_components = set()
     for label in labeler_config.keys():
+        if is_marker_label(label):
+            continue
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 

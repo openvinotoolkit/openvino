@@ -245,7 +245,7 @@ class TestAutomationOnlyChanges(unittest.TestCase):
     ]
 
     def run_smart_ci(self, files, event='pull_request', labels=('category: CI', 'github_actions', 'category: docs'),
-                     skip_patterns='*.md,*.rst,*.png,*.jpg,*.svg'):
+                     skip_patterns='*.md,*.rst,*.png,*.jpg,*.svg', outputs=None):
         root = Path(__file__).resolve().parents[3]
         argv = [
             'smart_ci.py', '-r', 'openvinotoolkit/openvino', '-p', 'category: (.*)',
@@ -257,7 +257,7 @@ class TestAutomationOnlyChanges(unittest.TestCase):
         ]
         if event == 'pull_request':
             argv.extend(['--pr', '39282'])
-        outputs = {}
+        outputs = {} if outputs is None else outputs
         pr = SimpleNamespace(labels=[SimpleNamespace(name=name) for name in labels])
         changed_files = [SimpleNamespace(filename=name) for name in files]
         with patch.object(sys, 'argv', argv), \
@@ -293,6 +293,15 @@ class TestAutomationOnlyChanges(unittest.TestCase):
             for event in ('pull_request', 'merge_group'):
                 with self.subTest(path=path, event=event):
                     self.assertFalse(self.run_smart_ci(self.automation_files + [path], event))
+
+    def test_platform_marker_labels_do_not_change_scope(self):
+        files = ['src/plugins/intel_cpu/src/nodes/executors/acl/acl_eltwise.cpp']
+        baseline, marked = {}, {}
+        self.run_smart_ci(files, labels=('category: CPU',), outputs=baseline)
+        self.run_smart_ci(files, labels=('category: CPU', 'platform: arm', 'platform: risc-v'), outputs=marked)
+        self.assertEqual(baseline, marked)
+        for key in ('affected_components', 'changed_components'):
+            self.assertNotIn('platform', marked[key])
 
     def test_empty_changeset_does_not_skip(self):
         self.assertFalse(self.run_smart_ci([]))
