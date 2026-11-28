@@ -156,6 +156,9 @@ def swish(
     """Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
 
     :param data: Tensor with input data floating point type.
+    :param beta: Optional non-negative scalar multiplication parameter for the sigmoid.
+                 Default value is 1.0.
+    :param name: Optional new name for output node.
     :return: The new node which performs Swish
     """
     if beta is None:
