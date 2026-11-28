@@ -32,6 +32,13 @@ void intel_npu::registerNPUWKokoroOptions(OptionsDesc& desc) {
     });
 }
 
+void intel_npu::registerNPUWBagelOptions(OptionsDesc& desc) {
+    for_each_npuw_option<NPUWOptionGroup::BAGEL>([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        desc.add<Opt>();
+    });
+}
+
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {
 #define HNDL(anyt, t)                                                \
     auto type = static_cast<int>(AnyType::anyt);                     \

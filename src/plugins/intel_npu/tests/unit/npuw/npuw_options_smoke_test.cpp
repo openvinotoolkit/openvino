@@ -28,6 +28,7 @@ std::shared_ptr<const ::intel_npu::OptionsDesc> make_options_desc() {
     ::intel_npu::registerNPUWOptions(*desc);
     ::intel_npu::registerNPUWLLMOptions(*desc);
     ::intel_npu::registerNPUWKokoroOptions(*desc);
+    ::intel_npu::registerNPUWBagelOptions(*desc);
     return desc;
 }
 
@@ -176,6 +177,10 @@ std::vector<Case> make_cases() {
         bool_case<::intel_npu::NPUW_KOKORO>("NPUW_KOKORO", "YES", true),
         numeric_case<::intel_npu::NPUW_KOKORO_BLOCK_SIZE>("NPUW_KOKORO_BLOCK_SIZE", "256", uint64_t{256}),
         numeric_case<::intel_npu::NPUW_KOKORO_OVERLAP_SIZE>("NPUW_KOKORO_OVERLAP_SIZE", "32", uint64_t{32}),
+        bool_case<::intel_npu::NPUW_BAGEL>("NPUW_BAGEL", "YES", true),
+        string_case<::intel_npu::NPUW_BAGEL_SEQ_BUCKETS>("NPUW_BAGEL_SEQ_BUCKETS", "2,512", "2,512"),
+        string_case<::intel_npu::NPUW_BAGEL_KV_BUCKETS>("NPUW_BAGEL_KV_BUCKETS", "1024,4096", "1024,4096"),
+        bool_case<::intel_npu::NPUW_BAGEL_FOLD_MASK>("NPUW_BAGEL_FOLD_MASK", "NO", false),
         {"NPUW_WEIGHTS_HANDLE_PROVIDER",
          {},
          [](const ::intel_npu::Config&) {

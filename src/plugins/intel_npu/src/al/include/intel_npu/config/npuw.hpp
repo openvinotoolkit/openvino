@@ -43,6 +43,7 @@ namespace intel_npu {
 void registerNPUWOptions(OptionsDesc& desc);
 void registerNPUWLLMOptions(OptionsDesc& desc);
 void registerNPUWKokoroOptions(OptionsDesc& desc);
+void registerNPUWBagelOptions(OptionsDesc& desc);
 
 #define DEFINE_NPUW_SIMPLE_OPT(Name, Type, DefaultValue, KeyLiteral) \
     struct Name final : OptionBase<Name, Type> {                     \
@@ -95,7 +96,7 @@ enum class MoEHint { DENSE, HOST_ROUTED, DEVICE_ROUTED };
 }  // namespace llm
 }  // namespace npuw
 
-enum class NPUWOptionGroup { ROOT, LLM, KOKORO };
+enum class NPUWOptionGroup { ROOT, LLM, KOKORO, BAGEL };
 enum class NPUWOptionSurface { EXPOSED, HIDDEN };
 enum class NPUWOptionCaching { CACHED, UNCACHED };
 enum class NPUWOptionBuild { ALL, DEV };
