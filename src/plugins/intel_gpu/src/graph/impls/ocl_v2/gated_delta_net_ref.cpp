@@ -4,6 +4,7 @@
 
 #include "gated_delta_net_ref.hpp"
 
+#include "gated_delta_net_opt.hpp"
 #include "intel_gpu/primitives/gated_delta_net.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
@@ -28,9 +29,53 @@ size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
+// Kernel scalars shared by the ref and opt kernels: seq_len, q/k/v head offsets (lower padding of the head axis, e.g.
+// VariadicSplit crops) and q/k/v token strides.
+void set_scalars(const RuntimeParams& params, KernelData& kd) {
+    const auto& q_shape = params.get_input_layout(0).get_partial_shape();
+    const auto& v_shape = params.get_input_layout(2).get_partial_shape();
+    const size_t seq_len = q_shape[1].get_length();
+
+    auto get_head_offset = [](const cldnn::layout& layout) {
+        const auto& lower_pads = layout.data_padding._lower_size;
+        return lower_pads.size() > 2 ? lower_pads[2] : 0;
+    };
+
+    const auto& q_pitches = params.input_layouts[0].get_pitches();
+    const auto& k_pitches = params.input_layouts[1].get_pitches();
+    const auto& v_pitches = params.input_layouts[2].get_pitches();
+
+    size_t query_offset = get_head_offset(params.input_layouts[0]);
+    size_t key_offset = get_head_offset(params.input_layouts[1]);
+    size_t value_offset = get_head_offset(params.input_layouts[2]);
+
+    const int32_t q_t_stride =
+        q_pitches.size() > 1 ? static_cast<int32_t>(q_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+    const int32_t k_t_stride =
+        k_pitches.size() > 1 ? static_cast<int32_t>(k_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+    const int32_t v_t_stride =
+        v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
+
+    kd.params.scalars.clear();
+    std::vector<int32_t> scalars{static_cast<int32_t>(seq_len),
+                                 static_cast<int32_t>(query_offset),
+                                 static_cast<int32_t>(key_offset),
+                                 static_cast<int32_t>(value_offset),
+                                 q_t_stride,
+                                 k_t_stride,
+                                 v_t_stride};
+    for (auto i : scalars) {
+        scalar_desc desc;
+        desc.t = scalar_desc::Types::INT32;
+        desc.v.s32 = static_cast<int32_t>(i);
+        kd.params.scalars.push_back(desc);
+    }
+}
+
 class GatedDeltaNetRefGenerator : public KernelGenerator {
 public:
     GatedDeltaNetRefGenerator() : KernelGenerator("gated_delta_net_ref") {}
+    explicit GatedDeltaNetRefGenerator(std::string_view name) : KernelGenerator(name) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -89,49 +134,15 @@ protected:
             const auto& q_shape = params.get_input_layout(0).get_partial_shape();
             const auto& v_shape = params.get_input_layout(2).get_partial_shape();
             const size_t batch = q_shape[0].get_length();
-            const size_t seq_len = q_shape[1].get_length();
             const size_t head_nums = v_shape[2].get_length();
             const size_t v_head_dims = v_shape[3].get_length();
             const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
             const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
 
-            auto get_head_offset = [](const cldnn::layout& layout) {
-                const auto& lower_pads = layout.data_padding._lower_size;
-                return lower_pads.size() > 2 ? lower_pads[2] : 0;
-            };
-
-            const auto& q_pitches = params.input_layouts[0].get_pitches();
-            const auto& k_pitches = params.input_layouts[1].get_pitches();
-            const auto& v_pitches = params.input_layouts[2].get_pitches();
-
-            size_t query_offset = get_head_offset(params.input_layouts[0]);
-            size_t key_offset = get_head_offset(params.input_layouts[1]);
-            size_t value_offset = get_head_offset(params.input_layouts[2]);
-
-            const int32_t q_t_stride =
-                q_pitches.size() > 1 ? static_cast<int32_t>(q_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
-            const int32_t k_t_stride =
-                k_pitches.size() > 1 ? static_cast<int32_t>(k_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
-            const int32_t v_t_stride =
-                v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
-
             wgs.global = {batch, head_nums, v_blocks * subgroup_size};
             wgs.local = {1, 1, subgroup_size};
 
-            kd.params.scalars.clear();
-            std::vector<int32_t> scalars{static_cast<int32_t>(seq_len),
-                                         static_cast<int32_t>(query_offset),
-                                         static_cast<int32_t>(key_offset),
-                                         static_cast<int32_t>(value_offset),
-                                         q_t_stride,
-                                         k_t_stride,
-                                         v_t_stride};
-            for (auto i : scalars) {
-                scalar_desc desc;
-                desc.t = scalar_desc::Types::INT32;
-                desc.v.s32 = static_cast<int32_t>(i);
-                kd.params.scalars.push_back(desc);
-            }
+            set_scalars(params, kd);
         }};
     }
 };
@@ -152,6 +163,63 @@ public:
     }
 };
 
+// Decode-stage generator (gated_delta_net_opt.cl): same JIT constants and arguments as the ref kernel, one sub-group
+// of 16 lanes per (batch, v-head, 16 V-columns).
+class GatedDeltaNetOptGenerator : public GatedDeltaNetRefGenerator {
+public:
+    GatedDeltaNetOptGenerator() : GatedDeltaNetRefGenerator("gated_delta_net_opt") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = GatedDeltaNetRefGenerator::get_jit_constants(params);
+        jit.remove("SUBGROUP_SIZE");
+        jit.make("SUBGROUP_SIZE", GatedDeltaNetOpt::subgroup_size);
+        return jit;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+            const auto& q_shape = params.get_input_layout(0).get_partial_shape();
+            const auto& v_shape = params.get_input_layout(2).get_partial_shape();
+            const size_t batch = q_shape[0].get_length();
+            const size_t head_nums = v_shape[2].get_length();
+            const size_t v_head_dims = v_shape[3].get_length();
+            const size_t sg = GatedDeltaNetOpt::subgroup_size;
+            wgs.global = {batch * head_nums, v_head_dims / sg, sg};
+            wgs.local = {1, 1, sg};
+            set_scalars(params, kd);
+        }};
+    }
+};
+
+class GatedDeltaNetOptImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GatedDeltaNetOptImpl)
+
+    Stage::Ptr decode_stage = make_stage<GatedDeltaNetOptGenerator>();
+    Stage::Ptr prefill_stage = make_stage<GatedDeltaNetRefGenerator>();
+
+    GatedDeltaNetOptImpl() : PrimitiveImplOCL(GatedDeltaNetOpt::get_type_info_static()) {}
+    GatedDeltaNetOptImpl(const program_node& node, const RuntimeParams& params) : GatedDeltaNetOptImpl() {
+        add_stage(decode_stage, params);
+        add_stage(prefill_stage, params);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<GatedDeltaNetOptImpl>(this);
+    }
+
+    // Stage 0 (streaming opt kernel) for single-token decode, stage 1 (ref kernel) for longer sequences.
+    [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
+        const auto& q_shape = params.get_input_layout(0).get_partial_shape();
+        if (q_shape.rank().is_static() && q_shape[1].is_static() && q_shape[1].get_length() <= GatedDeltaNetOpt::max_decode_seq_len)
+            return {0};
+        return {1};
+    }
+};
+
 }  // namespace
 
 std::unique_ptr<primitive_impl> GatedDeltaNetRef::create_impl(const program_node& node, const RuntimeParams& params) const {
@@ -159,7 +227,13 @@ std::unique_ptr<primitive_impl> GatedDeltaNetRef::create_impl(const program_node
     return std::make_unique<GatedDeltaNetRefImpl>(node, params);
 }
 
+std::unique_ptr<primitive_impl> GatedDeltaNetOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<gated_delta_net>());
+    return std::make_unique<GatedDeltaNetOptImpl>(node, params);
+}
+
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gated_delta_net)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::GatedDeltaNetRefImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::GatedDeltaNetOptImpl)

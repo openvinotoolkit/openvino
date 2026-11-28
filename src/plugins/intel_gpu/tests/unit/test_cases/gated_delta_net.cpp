@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <intel_gpu/primitives/gated_delta_net.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
+#include <iomanip>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -262,6 +265,10 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         load_input(beta_mem, 5, input_beta);
         // execute networks
         auto [mem_opt_ptr, net_opt_ptr] = run_network(opt_topo, q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem, is_caching_test);
+        if (!expected_impl.empty()) {
+            const auto impl_name = net_opt_ptr->get_primitive("gated_delta_net")->get_implementation_name();
+            ASSERT_NE(impl_name.find(expected_impl), std::string::npos) << "selected implementation: " << impl_name;
+        }
         std::vector<T> ref_output(batch * t * v_num_heads * head_size);
         run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1 / sqrt(this->K), input_state, ref_output);
         // validate results
@@ -282,6 +289,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
             }
         }
     }
+
+    // Substring of the implementation name expected for the gated_delta_net node (empty = not checked).
+    std::string expected_impl;
 
     void execute(gated_delta_net_test_params& p, const bool is_caching_test = false) {
         auto cldnn_precision = cldnn::element_type_to_data_type(p.precision);
@@ -344,5 +354,117 @@ INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
                              gated_delta_net_test_params{1, 8, 4, 4, 128, ov::element::f32},
                              gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16, true}),
                          gated_delta_net_gpu_test::PrintToStringParamName);
+
+// ocl::gated_delta_net::opt runs gated_delta_net_opt.cl for seq_len == 1 and the reference kernel stage for longer
+// sequences. Covers GQA (more value heads than key heads), K = V in {32, 64, 128} and the Qwen3-Next / Qwen3.5
+// linear-attention head layout (16 key heads, 48 value heads, head size 128).
+struct gated_delta_net_opt_gpu_test : public gated_delta_net_gpu_test {};
+
+TEST_P(gated_delta_net_opt_gpu_test, basic) {
+    auto p = GetParam();
+    expected_impl = "gated_delta_net::opt";
+    execute(p, p.is_caching_test);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_opt_gpu_test,
+                         gated_delta_net_opt_gpu_test,
+                         ::testing::Values(
+                             // B, T, H_QK, H, K, precision
+                             gated_delta_net_test_params{1, 1, 2, 2, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 2, 2, 2, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 3, 2, 4, 64, ov::element::f16},
+                             gated_delta_net_test_params{1, 4, 2, 4, 128, ov::element::f16},
+                             gated_delta_net_test_params{2, 1, 2, 6, 32, ov::element::f16},
+                             gated_delta_net_test_params{1, 1, 16, 48, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 4, 16, 48, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 5, 2, 4, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 4, 8, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 1, 2, 2, 128, ov::element::f32},
+                             gated_delta_net_test_params{1, 3, 2, 4, 64, ov::element::f32},
+                             gated_delta_net_test_params{2, 4, 2, 6, 32, ov::element::f32},
+                             gated_delta_net_test_params{1, 1, 16, 48, 128, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 4, 8, 128, ov::element::f32},
+                             gated_delta_net_test_params{1, 1, 16, 48, 128, ov::element::f16, true}),
+                         gated_delta_net_gpu_test::PrintToStringParamName);
+
+// Kernel time of gated_delta_net for the Qwen3-Next / Qwen3.5-style linear-attention layer: B = 1, 16 key heads,
+// 48 value heads, K = V = 128, f16. Like in the model, 48 layers run one after the other, each with its own recurrent
+// state (48 x 1.5 MB), so the states are not served from the GPU cache. Reports the median and best per-call kernel
+// time (profiling events, 100 runs after 10 warm-up runs) for T = 1 (decode), 2 and 4 (speculative-decoding verify
+// passes) and 512 (prefill chunk). Run with
+//   --gtest_also_run_disabled_tests --gtest_filter=*gated_delta_net_perf*
+TEST(gated_delta_net_perf, DISABLED_qwen_linear_attention_shapes) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg("gated_delta_net_perf");
+    const int64_t B = 1, HK = 16, H = 48, K = 128, V = 128, layers = 48;
+    const auto dt = data_types::f16;
+    std::cout << "\n     T  impl                               median ms   best ms  (per call, " << layers << " layers)\n";
+    for (const int64_t T : {1, 2, 4, 512}) {
+        auto alloc = [&](const ov::PartialShape& shape, float lo, float hi) {
+            auto mem = engine.allocate_memory(layout{shape, dt, format::bfyx});
+            set_values(mem, rg.generate_random_1d<ov::float16>(ov::shape_size(shape.to_shape()), lo, hi, 256));
+            return mem;
+        };
+        auto q = alloc({B, T, HK, K}, -1, 1);
+        auto k = alloc({B, T, HK, K}, -1, 1);
+        auto v = alloc({B, T, H, V}, -1, 1);
+        auto g = alloc({B, T, H}, -1, 0);  // log decay <= 0 keeps the in-place states bounded over the runs
+        auto beta = alloc({B, T, H}, 0, 1);
+        std::vector<memory::ptr> states;
+
+        topology topo;
+        topo.add(input_layout("q", q->get_layout()));
+        topo.add(input_layout("k", k->get_layout()));
+        topo.add(input_layout("v", v->get_layout()));
+        topo.add(input_layout("g", g->get_layout()));
+        topo.add(input_layout("beta", beta->get_layout()));
+        for (int64_t l = 0; l < layers; l++) {
+            states.push_back(alloc({B, H, K, V}, -1, 1));
+            const auto id = std::to_string(l);
+            topo.add(input_layout("state" + id, states.back()->get_layout()));
+            topo.add(gated_delta_net("gdn" + id,
+                                     {input_info("q"), input_info("k"), input_info("v"), input_info("state" + id), input_info("g"), input_info("beta")},
+                                     true,
+                                     1e-6F,
+                                     1e-6F));
+        }
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::enable_profiling(true));
+        network net(engine, topo, config);
+        net.set_input_data("q", q);
+        net.set_input_data("k", k);
+        net.set_input_data("v", v);
+        net.set_input_data("g", g);
+        net.set_input_data("beta", beta);
+        for (int64_t l = 0; l < layers; l++) {
+            net.set_input_data("state" + std::to_string(l), states[l]);
+        }
+
+        const int warmup = 10;
+        const int iters = 100;
+        std::vector<double> ms;
+        for (int i = 0; i < warmup + iters; i++) {
+            auto outputs = net.execute();
+            for (auto& output : outputs) {
+                output.second.get_memory();  // waits for completion
+            }
+            if (i < warmup) {
+                continue;
+            }
+            for (int64_t l = 0; l < layers; l++) {
+                for (const auto& interval : net.get_executed_primitives().at("gdn" + std::to_string(l))->get_profiling_info()) {
+                    if (interval.stage == instrumentation::profiling_stage::executing) {
+                        ms.push_back(static_cast<double>(interval.value->value().count()) * 1e-6);
+                    }
+                }
+            }
+        }
+        ASSERT_FALSE(ms.empty());
+        std::sort(ms.begin(), ms.end());
+        std::cout << std::setw(6) << T << "  " << std::left << std::setw(33) << net.get_primitive("gdn0")->get_implementation_name() << std::right << std::fixed
+                  << std::setprecision(4) << std::setw(10) << ms[ms.size() / 2] << std::setw(10) << ms.front() << "\n";
+    }
+}
 
 }  // namespace

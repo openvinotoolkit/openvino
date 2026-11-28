@@ -7,6 +7,7 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
+    #include "impls/ocl_v2/gated_delta_net_opt.hpp"
     #include "impls/ocl_v2/gated_delta_net_ref.hpp"
 #endif
 
@@ -17,6 +18,8 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<gated_delta_net>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_OCL
+    // opt first: single-token calls run the opt kernel, longer ones its reference-kernel stage
+    OV_GPU_CREATE_INSTANCE_OCL(ocl::GatedDeltaNetOpt, shape_types::any)
     OV_GPU_CREATE_INSTANCE_OCL(ocl::GatedDeltaNetRef, shape_types::any)
 #endif
     };
