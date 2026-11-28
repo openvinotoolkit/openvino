@@ -133,10 +133,12 @@ std::optional<stateless_kv_runtime_state> stateless_kv_inst::compute_runtime_sta
 
     if (desc.window_size > 0) {
         OPENVINO_ASSERT(!desc.has_pos_idx, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
-        const auto cache_capacity = past_dim.get_length();
-        state.past_front_idx = past_seq_len - get_swa_sequence_length(past_seq_len, cache_capacity, desc.window_size);
-        state.present_front_idx = present_seq_len - get_swa_sequence_length(present_seq_len, cache_capacity, desc.window_size);
-        state.padded_front_idx = state.padded_seq_len - get_swa_sequence_length(state.padded_seq_len, cache_capacity, desc.window_size);
+        if (desc.sliding_window_cache) {
+            const auto cache_capacity = past_dim.get_length();
+            state.past_front_idx = past_seq_len - get_swa_sequence_length(past_seq_len, cache_capacity, desc.window_size);
+            state.present_front_idx = present_seq_len - get_swa_sequence_length(present_seq_len, cache_capacity, desc.window_size);
+            state.padded_front_idx = state.padded_seq_len - get_swa_sequence_length(state.padded_seq_len, cache_capacity, desc.window_size);
+        }
         state.sdpa_front_idx = std::max<int64_t>(0, past_seq_len - desc.window_size + 1);
     }
 
@@ -175,7 +177,7 @@ void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& param
         }
     }
 
-    if (desc->window_size > 0) {
+    if (desc->sliding_window_cache) {
         OPENVINO_ASSERT(m_runtime_state.has_value(), "[GPU] stateless_kv SWA runtime state wasn't initialized during shape update");
         OPENVINO_ASSERT(!desc->has_pos_idx);
         const auto sdpa_past_idx = desc->input.size();
@@ -218,6 +220,7 @@ std::vector<layout> stateless_kv_inst::calc_output_layouts(const stateless_kv_no
     op.set_concat_axis(concat_axis);
     op.set_is_seq_len_present_len(desc->is_seq_len_present_len);
     op.set_window_size(desc->window_size);
+    op.set_sliding_window_cache(desc->sliding_window_cache);
     const auto runtime_state = stateless_kv_inst::compute_runtime_state(impl_param, *desc);
     if (runtime_state) {
         op.set_update_offset(runtime_state->get_new_in_present_offset());
@@ -257,6 +260,7 @@ std::string stateless_kv_inst::to_string(const stateless_kv_node& node) {
     stateless_kv_info.add("concat axis", node.get_primitive()->concat_axis);
     stateless_kv_info.add("is present len", node.get_primitive()->is_seq_len_present_len);
     stateless_kv_info.add("window size", node.get_primitive()->window_size);
+    stateless_kv_info.add("sliding window cache", node.get_primitive()->sliding_window_cache);
     node_info->add("stateless_kv info", stateless_kv_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);

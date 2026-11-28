@@ -428,6 +428,8 @@ public:
         const auto desc = params.typed_desc<paged_qsa_indexer>();
 
         const auto& q_layout = params.get_input_layout(QSAIn::INDEX_QUERY);
+        OPENVINO_ASSERT(!q_layout.data_padding && !params.get_input_layout(QSAIn::RAW_INDEX_KEYS).data_padding,
+                        "[GPU][OCL] paged_qsa_indexer: padded index_query / raw_index_keys are not supported");
         const size_t num_seqs = params.get_input_layout(QSAIn::PAST_LENS).get_shape()[0];
         rtp->num_seqs = num_seqs;
         rtp->num_tokens = q_layout.get_shape()[0];

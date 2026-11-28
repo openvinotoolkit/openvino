@@ -76,6 +76,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ocl_v2_impl_base_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/command_list_and_recorder_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/remote_tensor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_test_context.hpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/test_uqr_distribution.cpp
@@ -323,6 +324,9 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_convolution_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_fc_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_to_fc_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_paged_qsa_indexer_inputs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_paged_sparse_attn_inputs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_sparse_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_pooling_to_reduce_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_stridedslices_to_variadicsplit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_one_hot_non_const_values_test.cpp
@@ -353,9 +357,11 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/increase_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/indirect_kv_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/keep_gqa_kv_scale_precision_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/keep_moe_3gemm_const_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/keep_xattention_threshold_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/kv_cache_compression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/kv_cache_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/qsa_indexer_block_cache_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/l2_norm_to_rms_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/lora_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
@@ -395,6 +401,12 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_fc_to_compressed.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_matmul_to_fc.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_paged_qsa_indexer_inputs.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_paged_qsa_indexer_inputs.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_paged_sparse_attn_inputs.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_paged_sparse_attn_inputs.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_sparse_attention.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_sparse_attention.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_pooling_to_reduce.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_shapeof.cpp
@@ -525,7 +537,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sdpa.cpp
-    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_pa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_pa_config.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/qsa_indexer_in_place.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_sdpa.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/stateless_kv.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swoosh.cpp

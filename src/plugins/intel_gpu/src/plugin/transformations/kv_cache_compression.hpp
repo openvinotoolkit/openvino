@@ -9,8 +9,7 @@
 namespace ov::intel_gpu {
 
 
-/// Add dynamic quantization node and fuse it with KV cache operation. Applies to the caches of IndirectSDPA (diagram below)
-/// and, as a separate matcher, to the dense caches of SparseSDPA (per-token asymmetric, planar layout, immad only).
+/// Add dynamic quantization node and fuse it with KV cache operation
 ///
 ///                  ┌───────────┐         ┌─────────────┐                               ┌───────────┐            ┌─────────────┐
 ///                  │  New Key  │         │  New Value  │                               │  New Key  │            │  New Value  │

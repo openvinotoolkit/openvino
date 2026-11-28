@@ -17,8 +17,8 @@
 namespace ov::test {
 
 // RAII helper for MLIR op tests. Sets 'OV_GPU_MLIR_PATTERNS' to "*" (match-all to mlir) for the
-// lifetime of the test-class object. This is the env form of ov::intel_gpu::mlir_patterns; the
-// environment is the only way to set it, DEBUG_GLOBAL options are not accepted from a config map.
+// lifetime of the test-class object. 'mlir_patterns' is a RELEASE_INTERNAL option, so it cannot be set
+// via the public config map (test 'configuration'), so the env variable is used instead.
 struct MlirMatchAllEnv {
     MlirMatchAllEnv() {
         // Respect an explicitly provided value: only inject "match all" when the

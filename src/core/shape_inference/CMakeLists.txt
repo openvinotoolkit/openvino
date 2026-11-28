@@ -66,6 +66,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/fft_base_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/fft_common_validation.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gated_delta_net_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/gated_residual_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_elements_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_nd_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_shape_inference.hpp
@@ -100,6 +101,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/pa_kv_reorder_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/pad_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_attention_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_causal_conv1d_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_gated_delta_net_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_selective_ssm_shape_inference.hpp

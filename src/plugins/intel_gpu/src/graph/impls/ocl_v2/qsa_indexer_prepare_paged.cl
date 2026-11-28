@@ -145,15 +145,20 @@ KERNEL(qsa_indexer_prepare_paged)(const __global half* q_idx,                  /
     }
     FUNC_CALL(qsa_rms_norm)(acc, k_norm_weight);
     const uint page = (uint)block_indices[page_begin + qsa_block / SPP];
+    __global half* summary_row = summary_cache + (page * SPP + qsa_block % SPP) * DI;
 #if QSA_IDX_ROTARY_DIM > 0
-    // Coefficients of the block's first token: this call's input row, else the row persisted earlier.
+    // Coefficients of the block's first token: this call's input row, else the row persisted earlier. Each branch stores
+    // its own result: a store after the join miscompiles with IGC 2.41.5 (see qsa_rope in qsa_common.cl).
     if (block_start >= past_len) {
         const uint first_token = seq_begin + (block_start - past_len);
         FUNC_CALL(qsa_rope)(acc, rope_cos + first_token * ROT, rope_sin + first_token * ROT, 1);
+        FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
     } else {
         const uint row = (page * SPP + qsa_block % SPP) * 2 * ROT;
         FUNC_CALL(qsa_rope)(acc, rope_cache + row, rope_cache + row + 1, 2);
+        FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
     }
+#else
+    FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
 #endif
-    FUNC_CALL(qsa_wr_f32_lanes)(summary_cache + (page * SPP + qsa_block % SPP) * DI, acc, QSA_NE);
 }

@@ -117,13 +117,19 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
         acc[j] = convert_float(convert_half_rte(acc[j] * (1.0f / (float)R)));
     }
     FUNC_CALL(qsa_rms_norm)(acc, k_norm_weight);
+    __global half* summary_row = summary_cache + (batch * summary_stride + qsa_block) * DI;
 #if QSA_IDX_ROTARY_DIM > 0
+    // Each branch stores its own result: a store after the join miscompiles with IGC 2.41.5 (see qsa_rope in
+    // qsa_common.cl).
     if (block_start >= past_len) {
         const uint first_token = seq_begin + (block_start - past_len);
         FUNC_CALL(qsa_rope)(acc, rope_cos + first_token * ROT, rope_sin + first_token * ROT, 1);
+        FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
     } else {
         FUNC_CALL(qsa_rope)(acc, rope_in + batch * 2 * ROT, rope_in + batch * 2 * ROT + 1, 2);
+        FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
     }
+#else
+    FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
 #endif
-    FUNC_CALL(qsa_wr_f32_lanes)(summary_cache + (batch * summary_stride + qsa_block) * DI, acc, QSA_NE);
 }

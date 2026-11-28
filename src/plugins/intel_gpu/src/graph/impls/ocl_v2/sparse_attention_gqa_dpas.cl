@@ -20,8 +20,13 @@
 // read one by one.
 // p stays below 2^8 in half thanks to a lazy rescale of the running max (scores are in log2 units).
 //
-// Quantized K/V (paged u8 pages or dense i8 tensors with separate scales / zero points, see qsa_common.cl) are read row by row and
-// dequantized to half in registers, so the dpas operands are identical to the f16 ones; the 2D block path is f16 only.
+// Quantized K/V (paged u8 pages or dense i8 tensors with separate scales / zero points, see qsa_common.cl) are
+// dequantized to half in registers, so the dpas operands are identical to the f16 ones. With 2D block IO and 64-byte
+// rows (GQA_KQ2D / GQA_VQ2D) the codes of a step are read with one 8-bit 2D message per block and pair of 32-byte
+// chunks: a lane then holds 2 bytes of a chunk, i.e. E = 2 (8-bit) or 4 (4-bit) adjacent channels, and tile q of
+// chunk c is channel c * 16 E + E * lane + q. K uses this channel order for the QK reduction (Q is loaded permuted),
+// V gives permuted output columns that the final stores put back in order. Otherwise quantized rows are read one by
+// one.
 //
 // JIT: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE,
 //      QSA_IS_CAUSAL, QSA_GQA_WORKERS, QSA_ADDRESS_MODE, SUBGROUP_SIZE, (split) QSA_GQA_SPLIT, QSA_SPLIT_PARTITIONS, (paged) QSA_PAGE_SIZE,
@@ -32,6 +37,10 @@
 #define QSA_XMX_WORKERS QSA_GQA_WORKERS
 #define QSA_ATTENTION_HELPERS
 #include "qsa_common.cl"
+
+#ifdef cl_intel_subgroups_long
+#    pragma OPENCL EXTENSION cl_intel_subgroups_long : enable
+#endif
 
 #if SUBGROUP_SIZE != 16
 #    error "the systolic attention needs a 16-wide subgroup"
@@ -70,6 +79,233 @@
 #    endif
 #else
 #    define GQA_2D 0
+#endif
+
+// Quantized caches read with 8-bit 2D messages: needs 64-byte aligned rows and a worker slice of whole 32-byte chunks.
+#if GQA_2D && QSA_K_QUANT && (QSA_K_ROW_BYTES % 64) == 0 && ((QSA_XDH * QSA_K_BITS) % 256) == 0
+#    define GQA_KQ2D 1
+#    define GQA_KE (16 / QSA_K_BITS)  // channels per lane of a 32-byte chunk
+#else
+#    define GQA_KQ2D 0
+#    define GQA_KE 1
+#endif
+#if GQA_2D && QSA_V_QUANT && (QSA_V_ROW_BYTES % 64) == 0 && ((QSA_XDV * QSA_V_BITS) % 256) == 0
+#    define GQA_VQ2D 1
+#    define GQA_VE (16 / QSA_V_BITS)
+#else
+#    define GQA_VQ2D 0
+#    define GQA_VE 1
+#endif
+#if QSA_DENSE_QUANT && defined(QSA_K_SIGNED) && QSA_K_SIGNED
+#    define GQA_K_SGN 1
+#else
+#    define GQA_K_SGN 0
+#endif
+#if QSA_DENSE_QUANT && defined(QSA_V_SIGNED) && QSA_V_SIGNED
+#    define GQA_V_SGN 1
+#else
+#    define GQA_V_SGN 0
+#endif
+
+#if GQA_KQ2D || GQA_VQ2D
+#    define GQA_KNC (QSA_XKT / GQA_KE)  // 32-byte chunks of a worker slice
+#    define GQA_VNC (GQA_VT / GQA_VE)
+#    define GQA_QNC (GQA_KNC > GQA_VNC ? GQA_KNC : GQA_VNC)
+#    define GQA_QNP ((GQA_QNC + 1) / 2)  // chunk pairs (one 2-chunk message each)
+#    if QSA_COMPRESS_RATIO == 2
+#        define GQA_READ8_1C intel_sub_group_2d_block_read_8b_2r32x1c
+#        define GQA_READ8_2C intel_sub_group_2d_block_read_8b_2r32x2c
+#    elif QSA_COMPRESS_RATIO == 4
+#        define GQA_READ8_1C intel_sub_group_2d_block_read_8b_4r32x1c
+#        define GQA_READ8_2C intel_sub_group_2d_block_read_8b_4r32x2c
+#    elif QSA_COMPRESS_RATIO == 8
+#        define GQA_READ8_1C intel_sub_group_2d_block_read_8b_8r32x1c
+#        define GQA_READ8_2C intel_sub_group_2d_block_read_8b_8r32x2c
+#    else
+#        define GQA_READ8_1C intel_sub_group_2d_block_read_8b_16r32x1c
+#        define GQA_READ8_2C intel_sub_group_2d_block_read_8b_16r32x2c
+#    endif
+
+// One f16 row of a by-channel group record (scales or zero points) for the worker slice at `p`, with one subgroup block
+// read (uniform address): out[c] (.s01 for E = 2) holds the E halves of channels c * 16 E + E lane .. + E - 1.
+inline void FUNC(gqa_rec_row)(const __global uchar* p, const uint nc, const uint E, __private half4* out) {
+    if (E == 2) {
+        if (nc == 1) {
+            out[0] = (half4)(as_half2(intel_sub_group_block_read((const __global uint*)p)), 0.0h, 0.0h);
+        } else if (nc == 2) {
+            const uint2 d = intel_sub_group_block_read2((const __global uint*)p);
+            out[0] = (half4)(as_half2(d.s0), 0.0h, 0.0h);
+            out[1] = (half4)(as_half2(d.s1), 0.0h, 0.0h);
+        } else {
+            unroll_for (uint c = 0; c < nc; c += 4) {
+                const uint4 d = intel_sub_group_block_read4((const __global uint*)p + c * 16);
+                out[c + 0] = (half4)(as_half2(d.s0), 0.0h, 0.0h);
+                out[c + 1] = (half4)(as_half2(d.s1), 0.0h, 0.0h);
+                out[c + 2] = (half4)(as_half2(d.s2), 0.0h, 0.0h);
+                out[c + 3] = (half4)(as_half2(d.s3), 0.0h, 0.0h);
+            }
+        }
+    } else {
+#    ifdef cl_intel_subgroups_long
+        if (nc == 1) {
+            out[0] = as_half4(intel_sub_group_block_read_ul((const __global ulong*)p));
+        } else {
+            unroll_for (uint c = 0; c < nc; c += 2) {
+                const ulong2 d = intel_sub_group_block_read_ul2((const __global ulong*)p + c * 16);
+                out[c + 0] = as_half4(d.s0);
+                out[c + 1] = as_half4(d.s1);
+            }
+        }
+#    else
+        unroll_for (uint c = 0; c < nc; c++) {
+            out[c] = vload4(c * 16 + get_sub_group_local_id(), (const __global half*)p);
+        }
+#    endif
+    }
+}
+
+// Issues the reads of a quantized step (worker slice from channel x0, nc chunks of E channels per lane): one message per
+// block and chunk pair, code[j][p][h * R + r] = bytes (2 lane, 2 lane + 1) of chunk 2 p + h of row r of block j (rows
+// past a short block read as zero, an empty block reads a valid row). By-channel caches (`by_channel`, paged keys) also
+// get the f16 scales / zero points of the lane's channels per block, from the group record at `par` (zero for empty
+// blocks); per-row caches take this lane's row parameters from the caller.
+inline void FUNC(gqa_q2d_read)(const __global uchar* cache,
+                               const uint off,
+                               const uint par,
+                               const uint valid_kv,
+                               const uint x0,
+                               const uint nc,
+                               const uint E,
+                               const int row_bytes,
+                               const bool by_channel,
+                               const uint head,
+                               const uint sym,
+                               const uint bits,
+                               __private ushort (*code)[GQA_QNP][2 * GQA_R],
+                               __private half4 (*cs)[GQA_QNC],
+                               __private half4 (*cz)[GQA_QNC]) {
+    const int xb = (int)(x0 * 2 / E);  // byte column of the slice
+    unroll_for (uint j = 0; j < GQA_BLOCKS; j++) {
+        const uint rows = valid_kv > j * GQA_R ? min(valid_kv - j * GQA_R, (uint)GQA_R) : 0u;
+        const __global uchar* base = cache + sub_group_broadcast(off, j * GQA_R);
+        unroll_for (uint p = 0; p < (nc + 1) / 2; p++) {
+            if (2 * p + 1 < nc) {
+                GQA_READ8_2C(base, row_bytes, (int)max(rows, 1u), row_bytes, (int2)(xb + (int)p * 64, 0), code[j][p]);
+            } else {
+                GQA_READ8_1C(base, row_bytes, (int)max(rows, 1u), row_bytes, (int2)(xb + (int)p * 64, 0), code[j][p]);
+            }
+        }
+    }
+    if (by_channel) {
+        // A record (one group of a page) is as large as the codes of a block, so blocks of the same group as the
+        // previous block reuse its parameters; empty blocks load nothing.
+        const half zs = convert_half(FUNC_CALL(qsa_q_zero_sym)(bits));
+        unroll_for (uint j = 0; j < GQA_BLOCKS; j++) {
+            const uint pj = sub_group_broadcast(par, j * GQA_R);
+            if (valid_kv <= j * GQA_R) {
+                unroll_for (uint c = 0; c < nc; c++) {
+                    cs[j][c] = (half4)((half)0.0f);
+                    cz[j][c] = (half4)((half)0.0f);
+                }
+            } else if (j > 0 && pj == sub_group_broadcast(par, (j - 1) * GQA_R)) {
+                unroll_for (uint c = 0; c < nc; c++) {
+                    cs[j][c] = cs[j - 1][c];
+                    cz[j][c] = cz[j - 1][c];
+                }
+            } else {
+                const __global uchar* rec = cache + pj + x0 * 2;
+                FUNC_CALL(gqa_rec_row)(rec, nc, E, cs[j]);
+                if (sym) {
+                    unroll_for (uint c = 0; c < nc; c++) {
+                        cz[j][c] = (half4)zs;
+                    }
+                } else {
+                    FUNC_CALL(gqa_rec_row)(rec + head * 2, nc, E, cz[j]);
+                }
+            }
+        }
+    }
+}
+
+// Dequantized tiles of a step read by gqa_q2d_read: x[c * E + q][r] = channel x0 + c * 16 E + E * lane + q of row r, in
+// the f16 arithmetic of qsa_q_dq ((code - zp) * scale, each step rounded to half). Per-row caches use this lane's
+// row parameters rs / rz (zero for rows past valid_kv, which zeroes them).
+inline void FUNC(gqa_q2d_dequant)(__private const ushort (*code)[GQA_QNP][2 * GQA_R],
+                                  __private const half4 (*cs)[GQA_QNC],
+                                  __private const half4 (*cz)[GQA_QNC],
+                                  const float rs,
+                                  const float rz,
+                                  const uint nc,
+                                  const uint E,
+                                  const bool by_channel,
+                                  const bool sgn,
+                                  __private half (*x)[16]) {
+    unroll_for (uint r = 0; r < 16; r++) {
+        const half s_row = convert_half(sub_group_broadcast(rs, r));
+        const half z_row = convert_half(sub_group_broadcast(rz, r));
+        const uint j = r / GQA_R;
+        unroll_for (uint c = 0; c < nc; c++) {
+            const ushort raw = code[j][c / 2][(c % 2) * GQA_R + r % GQA_R];
+            unroll_for (uint q = 0; q < E; q++) {
+                // The code as half without an int -> half conversion: 0x6400 | u is 1024 + u (u < 1024) exactly, and
+                // subtracting 1024 (1152 for signed codes biased by 128) is exact too.
+                ushort u;
+                if (E == 2) {
+                    u = q ? (ushort)(raw >> 8) : (ushort)(raw & 0xFF);
+                    u = sgn ? (ushort)(u ^ 0x80) : u;
+                } else {
+                    u = (ushort)((raw >> (4 * q)) & 0xF);
+                }
+                const half v = as_half((ushort)(u | 0x6400)) - (sgn ? (half)1152.0f : (half)1024.0f);
+                const half s = by_channel ? cs[j][c][q] : s_row;
+                const half z = by_channel ? cz[j][c][q] : z_row;
+                x[c * E + q][r] = (v - z) * s;
+            }
+        }
+    }
+}
+
+// This lane's row parameters (lane = KV row) of a per-row quantized cache: paged by-token dword at byte offset `par`,
+// or dense scale / zero point tensors at token index `par`. Zero for rows past valid_kv and for by-channel caches.
+inline void FUNC(gqa_row_params)(const __global uchar* cache,
+                                 const __global half* scale,
+                                 const __global uchar* zp,
+                                 const uint par,
+                                 const uint valid_kv,
+                                 const bool dense,
+                                 const uint mode,
+                                 const uint bits,
+                                 const uint sym,
+                                 const uint is_signed,
+                                 const uint zp_f16,
+                                 __private float* rs,
+                                 __private float* rz) {
+    float s = 0.0f, z = 0.0f;
+    if (dense) {
+        s = convert_float(scale[par]);
+        const float zs = is_signed ? 0.0f : FUNC_CALL(qsa_q_zero_sym)(bits);
+        z = sym ? zs : (zp_f16 ? convert_float(((const __global half*)zp)[par]) : convert_float(((const __global char*)zp)[par]));
+    } else if (mode == 1) {
+        const uint pd = *(const __global uint*)(cache + par);
+        s = convert_float(as_half((ushort)(pd & 0xFFFFu)));
+        z = sym ? FUNC_CALL(qsa_q_zero_sym)(bits) : convert_float(as_half((ushort)(pd >> 16)));
+    }
+    const bool valid = get_sub_group_local_id() < valid_kv;
+    *rs = valid ? s : 0.0f;
+    *rz = valid ? z : 0.0f;
+}
+
+#    if QSA_DENSE_QUANT
+#        define GQA_K_PARAM_PTRS key_scale, QSA_KZP_PTR
+#        define GQA_V_PARAM_PTRS value_scale, QSA_VZP_PTR
+#        define GQA_K_ZPF16 QSA_K_ZP_F16
+#        define GQA_V_ZPF16 QSA_V_ZP_F16
+#    else
+#        define GQA_K_PARAM_PTRS (const __global half*)key_cache, (const __global uchar*)key_cache
+#        define GQA_V_PARAM_PTRS (const __global half*)value_cache, (const __global uchar*)value_cache
+#        define GQA_K_ZPF16 0
+#        define GQA_V_ZPF16 0
+#    endif
 #endif
 
 #define GQA_S8(t, o) as_short8((ushort8)((t)[(o) + 0], (t)[(o) + 1], (t)[(o) + 2], (t)[(o) + 3], (t)[(o) + 4], (t)[(o) + 5], (t)[(o) + 6], (t)[(o) + 7]))
@@ -264,10 +500,41 @@ inline void FUNC(gqa_step)(QSA_QP_DECL const __global QSA_KC_T* key_cache,
                            __private float8 (*ro)[GQA_VT]) {
     const uint lane = get_sub_group_local_id();
     short8 ka[QSA_XKT][2];
+#if GQA_KQ2D
+    ushort kcode[GQA_BLOCKS][GQA_QNP][2 * GQA_R];
+    half4 kcs[GQA_BLOCKS][GQA_QNC], kcz[GQA_BLOCKS][GQA_QNC];
+    float krs, krz;
+    FUNC_CALL(gqa_row_params)((const __global uchar*)key_cache, GQA_K_PARAM_PTRS, kpar, valid_kv, QSA_DENSE_QUANT, QSA_K_MODE, QSA_K_BITS, QSA_K_SYM, GQA_K_SGN,
+                              GQA_K_ZPF16, &krs, &krz);
+    FUNC_CALL(gqa_q2d_read)((const __global uchar*)key_cache, koff, kpar, valid_kv, worker * QSA_XDH, GQA_KNC, GQA_KE, QSA_K_ROW_BYTES, QSA_K_MODE == 2,
+                            QSA_K_HEAD_SIZE, QSA_K_SYM, QSA_K_BITS, kcode, kcs, kcz);
+#else
     FUNC_CALL(gqa_load_k)(QSA_QP_ARGS key_cache, koff, kpar, valid_kv, kcont, worker, ka);
+#endif
     // V is in flight during QK and the softmax.
     int8 vb[GQA_VT];
+#if GQA_VQ2D
+    ushort vcode[GQA_BLOCKS][GQA_QNP][2 * GQA_R];
+    half4 vcs[GQA_BLOCKS][GQA_QNC], vcz[GQA_BLOCKS][GQA_QNC];
+    float vrs, vrz;
+    FUNC_CALL(gqa_row_params)((const __global uchar*)value_cache, GQA_V_PARAM_PTRS, vpar, valid_kv, QSA_DENSE_QUANT, QSA_V_MODE, QSA_V_BITS, QSA_V_SYM, GQA_V_SGN,
+                              GQA_V_ZPF16, &vrs, &vrz);
+    FUNC_CALL(gqa_q2d_read)((const __global uchar*)value_cache, voff, vpar, valid_kv, worker * QSA_XDV, GQA_VNC, GQA_VE, QSA_V_ROW_BYTES, false,
+                            QSA_V_HEAD_SIZE, QSA_V_SYM, QSA_V_BITS, vcode, vcs, vcz);
+#else
     FUNC_CALL(gqa_load_v)(QSA_QP_ARGS value_cache, voff, vpar, valid_kv, vcont, worker, vb);
+#endif
+#if GQA_KQ2D
+    {
+        half x[QSA_XKT][16];
+        FUNC_CALL(gqa_q2d_dequant)(kcode, kcs, kcz, krs, krz, GQA_KNC, GQA_KE, QSA_K_MODE == 2, GQA_K_SGN, x);
+        unroll_for (uint k = 0; k < QSA_XKT; k++) {
+            unroll_for (uint i = 0; i < 16; i++) {
+                ka[k][i / 8][i % 8] = as_short(x[k][i]);
+            }
+        }
+    }
+#endif
 
     // QK partial of this worker, summed over the workers in the fixed order 0..W-1 (bit-identical everywhere).
     float8 st0 = (float8)(0.0f);
@@ -331,6 +598,17 @@ inline void FUNC(gqa_step)(QSA_QP_DECL const __global QSA_KC_T* key_cache,
                           as_uint(convert_half2_rte((float2)(p[8], p[9]))), as_uint(convert_half2_rte((float2)(p[10], p[11]))),
                           as_uint(convert_half2_rte((float2)(p[12], p[13]))), as_uint(convert_half2_rte((float2)(p[14], p[15]))));
     sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+#if GQA_VQ2D
+    {
+        half x[GQA_VT][16];
+        FUNC_CALL(gqa_q2d_dequant)(vcode, vcs, vcz, vrs, vrz, GQA_VNC, GQA_VE, false, GQA_V_SGN, x);
+        unroll_for (uint t = 0; t < GQA_VT; t++) {
+            unroll_for (uint j = 0; j < 8; j++) {
+                vb[t][j] = (int)((uint)as_ushort(x[t][2 * j]) | ((uint)as_ushort(x[t][2 * j + 1]) << 16));
+            }
+        }
+    }
+#endif
     unroll_for (uint hh = 0; hh < GQA_HH; hh++) {
         const __local ushort* pt = (const __local ushort*)slm_p + hh * 128;
         const short8 pa = BLOCK_READN_SLM(short, 8, pt, 0);
@@ -419,14 +697,27 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
 #endif
 
     // Q as the B operand: this lane's own head row slice, pre-scaled by scale * log2(e) in the half domain.
+    // Tile k = c E + q holds channels c * 16 E + E i + q (i = element), the K channel order of the step tiles.
     int8 rq[QSA_XKT];
-    unroll_for (uint k = 0; k < QSA_XKT; k++) {
-        half16 qh = (half16)((half)0.0f);
-        if (lane < HEADS) {
-            qh = vload16(0, query + GQA_Q_HEAD(lane) + worker * QSA_XDH + k * 16);
+    unroll_for (uint c = 0; c < QSA_XKT / GQA_KE; c++) {
+        half qc[16 * GQA_KE];
+        unroll_for (uint u = 0; u < GQA_KE; u++) {
+            half16 v = (half16)((half)0.0f);
+            if (lane < HEADS) {
+                v = vload16(0, query + GQA_Q_HEAD(lane) + worker * QSA_XDH + (c * GQA_KE + u) * 16);
+            }
+            unroll_for (uint i = 0; i < 16; i++) {
+                qc[16 * u + i] = v[i];
+            }
         }
-        qh = qh * (half)((float)QSA_SCALE * QSA_LOG2E);
-        rq[k] = as_int8(qh);
+        unroll_for (uint q = 0; q < GQA_KE; q++) {
+            half16 qh;
+            unroll_for (uint i = 0; i < 16; i++) {
+                qh[i] = qc[GQA_KE * i + q];
+            }
+            qh = qh * (half)((float)QSA_SCALE * QSA_LOG2E);
+            rq[c * GQA_KE + q] = as_int8(qh);
+        }
     }
 
     float running_max = QSA_NEG_INF;  // of head `lane`
@@ -538,19 +829,46 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
         partial_ml[prow * 2 + 1] = running_sum;
     }
     unroll_for (uint h = 0; h < GQA_HEADS; h++) {
+#    if GQA_VE == 1
         __global uint* dst = (__global uint*)(partial_acc + (GQA_OUT_ROW(h) * P + part) * DV + worker * QSA_XDV);
         unroll_for (uint t = 0; t < GQA_VT; t++) {
             BLOCK_WRITEN(float, 1, dst, t * 16, ro[h / 8][t][h % 8]);
         }
+#    else
+        // Tile c E + q holds column c * 16 E + E lane + q: each lane stores its E adjacent columns.
+        __global float* dst = partial_acc + (GQA_OUT_ROW(h) * P + part) * DV + worker * QSA_XDV;
+        unroll_for (uint c = 0; c < GQA_VNC; c++) {
+#        if GQA_VE == 2
+            vstore2((float2)(ro[h / 8][2 * c][h % 8], ro[h / 8][2 * c + 1][h % 8]), c * 16 + lane, dst);
+#        else
+            vstore4((float4)(ro[h / 8][4 * c][h % 8], ro[h / 8][4 * c + 1][h % 8], ro[h / 8][4 * c + 2][h % 8], ro[h / 8][4 * c + 3][h % 8]),
+                    c * 16 + lane,
+                    dst);
+#        endif
+        }
+#    endif
     }
 #else
     const float inv = running_sum > 0.0f ? 1.0f / running_sum : 0.0f;
     unroll_for (uint h = 0; h < GQA_HEADS; h++) {
         const float ih = sub_group_broadcast(inv, h);
+#    if GQA_VE == 1
         __global ushort* dst = (__global ushort*)(output + GQA_OUT_ROW(h) * DV + worker * QSA_XDV);
         unroll_for (uint t = 0; t < GQA_VT; t++) {
             BLOCK_WRITEN(half, 1, dst, t * 16, convert_half_rte(ro[h / 8][t][h % 8] * ih));
         }
+#    else
+        __global half* dst = output + GQA_OUT_ROW(h) * DV + worker * QSA_XDV;
+        unroll_for (uint c = 0; c < GQA_VNC; c++) {
+#        if GQA_VE == 2
+            vstore2(convert_half2_rte((float2)(ro[h / 8][2 * c][h % 8], ro[h / 8][2 * c + 1][h % 8]) * ih), c * 16 + lane, dst);
+#        else
+            vstore4(convert_half4_rte((float4)(ro[h / 8][4 * c][h % 8], ro[h / 8][4 * c + 1][h % 8], ro[h / 8][4 * c + 2][h % 8], ro[h / 8][4 * c + 3][h % 8]) * ih),
+                    c * 16 + lane,
+                    dst);
+#        endif
+        }
+#    endif
     }
 #endif
 }

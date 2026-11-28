@@ -437,20 +437,31 @@ inline void FUNC(qsa_rms_norm)(__private float* v, const __global half* weight) 
 
 #    if QSA_IDX_ROTARY_DIM > 0
 // Partial NEOX rope: channel d < H pairs with d + H (H = rotary_dim / 2). `cp[d * cs]` / `sp[d * cs]` are the coefficients.
+//
+// (SG 16, head_dim 128, rotary_dim 64): when the values that qsa_wr_f32 converts to
+// f16 reach it through phi nodes, IGC's vectorizer (IGC_EnableVectorizer) puts the merged <N x float> fptrunc right
+// after the phis, before the insertelement chain that builds its operand (use before def), and the store writes stale
+// registers. So the fast path below must stay branch-free (no lane-dependent `d < H` / `d < rotary_dim` tests, which
+// IGC turns into `lane < 16` branches since it only assumes lane < 32), and callers that pick the coefficients in an
+// if / else must store the result inside each branch instead of after the join.
 inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __global half* sp, const uint cs) {
     const uint lane = get_sub_group_local_id();
     const uint H = QSA_IDX_ROTARY_DIM / 2;
+#        if ((QSA_IDX_ROTARY_DIM / 2) % SUBGROUP_SIZE) == 0
+    // Channel d < H and its partner d + H live in the same lane, in slots j and j + H / SG: rotate the pairs in place.
+    const uint hs = H / QSA_SG;
+    unroll_for (uint j = 0; j < hs; j++) {
+        const uint d = lane + QSA_SG * j;
+        const float x = v[j];
+        const float y = v[j + hs];
+        v[j] = x * convert_float(cp[d * cs]) - y * convert_float(sp[d * cs]);
+        v[j + hs] = y * convert_float(cp[(d + H) * cs]) + x * convert_float(sp[(d + H) * cs]);
+    }
+#        else
     float o[QSA_NE];
     unroll_for (uint j = 0; j < QSA_NE; j++) {
         const uint d = lane + QSA_SG * j;
         float res = v[j];
-#        if ((QSA_IDX_ROTARY_DIM / 2) % SUBGROUP_SIZE) == 0
-        const uint hs = H / QSA_SG;
-        float pv = 0.0f;
-        if (QSA_SG * j < QSA_IDX_ROTARY_DIM) {
-            pv = (QSA_SG * j < H) ? v[min(j + hs, (uint)(QSA_NE - 1))] : v[j >= hs ? j - hs : 0];
-        }
-#        else
         const uint dp = d < H ? d + H : (d < QSA_IDX_ROTARY_DIM ? d - H : d);
         const uint lp = dp % QSA_SG;
         const uint jp = dp / QSA_SG;
@@ -459,7 +470,6 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
             const float t = intel_sub_group_shuffle(v[jj], lp);
             pv = jp == jj ? t : pv;
         }
-#        endif
         if (d < QSA_IDX_ROTARY_DIM) {
             const float c = convert_float(cp[d * cs]);
             const float s = convert_float(sp[d * cs]);
@@ -470,6 +480,7 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
     unroll_for (uint j = 0; j < QSA_NE; j++) {
         v[j] = o[j];
     }
+#        endif
 }
 #    endif
 #endif  // QSA_INDEXER_HELPERS

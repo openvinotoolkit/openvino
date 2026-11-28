@@ -21,12 +21,6 @@ namespace ov::intel_gpu::op {
 /// position `q_abs = key_length[b] - L + l`, and performs sparse attention over the union.
 /// `key_length` describes left padding: logical key `j` of batch `b` is stored at index
 /// `S - key_length[b] + j`.
-///
-/// Beam search is not supported: there is no beam-table input, so batch row `b` always attends to the K/V history stored
-/// in row `b` (the history is never reordered by beam index). A producer that compresses the cache feeding this op (see
-/// SparseSDPAKVCacheCompressionMatcher) must therefore only drop a `Gather(past, beam_idx)` that is the identity, i.e. a
-/// static batch of 1; a non-identity beam_idx would silently attend to the wrong history. Supporting beam search needs a
-/// beam-table input here and on the QSA indexer.
 class SparseSDPA : public ov::op::Op {
 public:
     OPENVINO_OP("SparseSDPA", "gpu_opset");

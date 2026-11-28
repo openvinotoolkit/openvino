@@ -27,6 +27,10 @@
 #include "border_inst.h"
 #include "lora_inst.h"
 #include "mvn_inst.h"
+#include "paged_qsa_indexer_inst.h"
+#include "qsa_indexer_inst.h"
+#include "sparse_pa_inst.h"
+#include "sparse_sdpa_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 
 #include "pass_manager.h"
@@ -558,6 +562,12 @@ bool crop_in_place_optimization::match(const program_node& node,
                            (!is_runtime && !node.get_dependencies().empty() &&
                             node.get_dependency(0).is_dynamic());
 
+    // Loop and If do not run do_runtime_in_place_crop(), so a dynamic crop offset stays 0.
+    if (dyn_aware && !node.get_dependencies().empty() &&
+        (node.get_dependency(0).is_type<loop>() || node.get_dependency(0).is_type<condition>())) {
+        return false;
+    }
+
     const auto& crop_layout = crop_params.get_output_layout();
     for (const auto* user : node.get_users()) {
         // If the user node's output shape is already static, the padding
@@ -569,7 +579,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (user->is_type<concatenation>() && !user->is_output()) {
             return false;
         }
-        if (user->is_type<loop>() || user->is_type<non_max_suppression>()) {
+        if (user->is_type<loop>() || user->is_type<condition>() || user->is_type<non_max_suppression>()) {
             return false;
         }
         // Read_value and assign don't handle data paddings internally, thus disable
@@ -601,6 +611,10 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         }
         if (user->is_type<lora>()) {
+            return false;
+        }
+        // The QSA kernels address their activations as dense arrays.
+        if (user->is_type<qsa_indexer>() || user->is_type<paged_qsa_indexer>() || user->is_type<sparse_pa>() || user->is_type<sparse_sdpa>()) {
             return false;
         }
         // MVN canonicalizes the input shape and reads with contiguous pitches; a strided

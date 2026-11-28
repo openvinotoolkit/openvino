@@ -47,7 +47,29 @@ runs:
         DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
         TZ: "Europe/London" # to prevent tzdata from waiting user input
 
-    - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && steps.check_python.outputs.installed == 'false') }}
+    - name: Install Python from NuGet (Windows)
+      if: ${{ runner.os == 'Windows' && runner.arch == 'X64' && (inputs.version == '3.15' || inputs.version == '3.15t') }}
+      shell: pwsh
+      env:
+        PYTHON_VERSION: ${{ inputs.version }}
+        NUGET_PYTHON_VERSION: '3.15.2'
+      run: |
+        $package = if ($env:PYTHON_VERSION.EndsWith('t')) { 'python-freethreaded' } else { 'python' }
+        $installDir = Join-Path $env:RUNNER_TEMP "nuget-python-$env:PYTHON_VERSION"
+        $archive = "$installDir.zip"
+        Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/$package/$env:NUGET_PYTHON_VERSION/$package.$env:NUGET_PYTHON_VERSION.nupkg" -OutFile $archive
+        Expand-Archive -LiteralPath $archive -DestinationPath $installDir -Force
+        $pythonDir = Join-Path $installDir 'tools'
+        $python = Join-Path $pythonDir 'python.exe'
+        & $python -m ensurepip --upgrade
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Copy-Item -LiteralPath $python -Destination (Join-Path $pythonDir 'python3.exe') -Force
+        $pythonDir >> $env:GITHUB_PATH
+        (Join-Path $pythonDir 'Scripts') >> $env:GITHUB_PATH
+        $variable = if ($env:PYTHON_VERSION.EndsWith('t')) { 'PYTHON315T_EXECUTABLE' } else { 'PYTHON315_EXECUTABLE' }
+        "$variable=$python" >> $env:GITHUB_ENV
+
+    - if: ${{ runner.os == 'macOS' || (runner.os == 'Windows' && !(runner.arch == 'X64' && (inputs.version == '3.15' || inputs.version == '3.15t'))) || (runner.os == 'Linux' && steps.check_python.outputs.installed == 'false') }}
       name: Setup Python ${{ inputs.version }}
       uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
       with:
