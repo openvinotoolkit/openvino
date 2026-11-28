@@ -74,7 +74,7 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
     if (num_segments) {
         output_shape[0] = TDim((*num_segments)[0]);
     } else if (segment_ids && !num_segments_available) {
-        output_shape[0] = TDim(segment_ids->back() + 1);
+        output_shape[0] = segment_ids->empty() ? TDim(0) : TDim(segment_ids->back() + 1);
     } else {
         // if num_segments input is provided but the value is unknown, the first dimension should be dynamic
         output_shape[0] = Dimension::dynamic();
