@@ -1,0 +1,115 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "hsm_format/batch_size_section.hpp"
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "hsm_format/section_type.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
+#include "utils.hpp"
+
+using namespace intel_npu;
+
+class BatchSizeSectionTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        batch_size = 0xDEADBEEF;
+        section = std::make_shared<BatchSizeSection>(batch_size);
+    }
+
+    int64_t batch_size;
+    std::shared_ptr<BatchSizeSection> section;
+};
+
+TEST_F(BatchSizeSectionTest, CtorSetsTheRightValue) {
+    ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::BATCH_SIZE));
+    ASSERT_EQ(section->get_batch_size(), batch_size);
+}
+
+/**
+ * @brief The section should return its section type as CRE token.
+ */
+TEST_F(BatchSizeSectionTest, CompatibilityReqsSubexpression) {
+    const std::vector<std::shared_ptr<CREToken>> requirements = section->get_cre_tokens({});
+    ASSERT_EQ(requirements.size(), 1);
+    ASSERT_TRUE(is_section_type(requirements.at(0)));
+    ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
+              SectionType(SectionTypeCode::BATCH_SIZE));
+}
+
+/**
+ * @brief The batch size section has no alignment requirements.
+ */
+TEST_F(BatchSizeSectionTest, Alignment) {
+    const ov::runtime::hsm::SectionAlignment reference({});
+    ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(BatchSizeSectionTest, IsInline) {
+    ASSERT_TRUE(section->is_inline());
+}
+
+TEST_F(BatchSizeSectionTest, NullIndividualReqs) {
+    ASSERT_FALSE(section->get_individual_runtime_requirements().has_value());
+}
+
+/**
+ * @brief The encoder of the section writes only the raw batch size value.
+ */
+TEST_F(BatchSizeSectionTest, Write) {
+    const ov::util::MemoryView encoded_batch_size = section->encode();
+    ASSERT_EQ(encoded_batch_size.size(), sizeof(batch_size));
+
+    int64_t parsed_batch_size;
+    std::memcpy(&parsed_batch_size, encoded_batch_size.data(), encoded_batch_size.size());
+    EXPECT_EQ(parsed_batch_size, batch_size);
+}
+
+TEST_F(BatchSizeSectionTest, Read) {
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
+
+    auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section.has_value());
+    auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section.value());
+    ASSERT_TRUE(casted_section);
+    EXPECT_EQ(casted_section->get_batch_size(), batch_size);
+}
+
+TEST_F(BatchSizeSectionTest, WriteRead) {
+    const ov::util::MemoryView encoded_batch_size = section->encode();
+    ASSERT_EQ(encoded_batch_size.size(), sizeof(batch_size));
+
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    std::memcpy(&manifest_entry.inline_bytes, encoded_batch_size.data(), encoded_batch_size.size());
+
+    auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section.has_value());
+    auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section.value());
+    ASSERT_TRUE(casted_section);
+    EXPECT_EQ(casted_section->get_batch_size(), batch_size);
+}
+
+TEST_F(BatchSizeSectionTest, WrongTagToDecoder) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+    std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
+
+    OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
+}
+
+/**
+ * @brief The batch size section is an inline one. If the decoder receives a pointer type of section, then the decoder
+ * should throw.
+ */
+TEST_F(BatchSizeSectionTest, NotInline) {
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, false);
+    std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
+
+    OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
+}

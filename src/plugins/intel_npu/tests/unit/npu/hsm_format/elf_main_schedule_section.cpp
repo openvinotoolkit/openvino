@@ -1,0 +1,230 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "hsm_format/blob_sections_registry.hpp"
+#include "hsm_format/compiler_schedules_sections.hpp"
+#include "hsm_format/section_type.hpp"
+#include "intel_npu/utils/utils.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
+#include "openvino/util/codec_xor.hpp"
+#include "utils.hpp"
+
+using namespace intel_npu;
+
+namespace {
+
+constexpr std::string_view COMPILER_SCHEDULE_CONTENT = "dummy";
+constexpr size_t FIRST_REGISTERED_SECTION_ID = 0;
+constexpr size_t SECOND_REGISTERED_SECTION_ID = 1;
+
+std::shared_ptr<ELFMainScheduleSection> create_section_using_dummy_content() {
+    return std::make_shared<ELFMainScheduleSection>(
+        ov::Tensor(ov::element::Type_t::u8, {COMPILER_SCHEDULE_CONTENT.size()}, COMPILER_SCHEDULE_CONTENT.data()));
+}
+
+}  // namespace
+
+using testing::_;
+
+using ELFMainScheduleSectionTest = ::testing::Test;
+
+TEST_F(ELFMainScheduleSectionTest, NullGraphCtor) {
+    OV_EXPECT_THROW(ELFMainScheduleSection(nullptr), ov::Exception, _);
+}
+
+TEST_F(ELFMainScheduleSectionTest, NullSetGraph) {
+    std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    OV_EXPECT_THROW(section->set_graph(nullptr), ov::Exception, _);
+}
+
+/**
+ * @brief The starting position should be aligned to 4096.
+ */
+TEST_F(ELFMainScheduleSectionTest, Alignment) {
+    std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    const ov::runtime::hsm::SectionAlignment reference({ov::util::min_page_alignment, 1});
+    ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(ELFMainScheduleSectionTest, IsInline) {
+    std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    ASSERT_FALSE(section->is_inline());
+}
+
+TEST_F(ELFMainScheduleSectionTest, CtorSetsTheRightValue) {
+    std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_EQ(section->get_schedule().get_element_type(), ov::element::Type_t::u8);
+    ASSERT_EQ(section->get_schedule().get_shape(), ov::Shape({COMPILER_SCHEDULE_CONTENT.size()}));
+    ASSERT_EQ(std::memcmp(static_cast<const ov::Tensor&>(section->get_schedule()).data(),
+                          COMPILER_SCHEDULE_CONTENT.data(),
+                          COMPILER_SCHEDULE_CONTENT.size()),
+              0);
+
+    // Test using an empty schedule too
+    section =
+        std::make_shared<ELFMainScheduleSection>(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr));
+    ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_EQ(section->get_schedule().get_element_type(), ov::element::Type_t::u8);
+    ASSERT_EQ(section->get_schedule().get_shape(), ov::Shape({0}));
+    ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
+}
+
+/**
+ * @brief As CRE tokens, the section should return its own type and ID. There's no ID before the sections is added to
+ * the registry, so, in that case, the program should halt.
+ */
+TEST_F(ELFMainScheduleSectionTest, CompatibilityReqsSubexpression) {
+    std::shared_ptr<ELFMainScheduleSection> section1 = create_section_using_dummy_content();
+    OV_EXPECT_THROW(section1->get_cre_tokens({}), ov::Exception, _);
+
+    BlobSectionsRegistry registry;
+    registry.register_section(section1);
+    std::vector<std::shared_ptr<CREToken>> requirements = section1->get_cre_tokens({});
+    ASSERT_EQ(requirements.size(), 2);
+    ASSERT_TRUE(is_section_type(requirements.at(0)));
+    ASSERT_TRUE(is_section_id(requirements.at(1)));
+    ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
+              SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_EQ(*std::dynamic_pointer_cast<SectionID>(requirements.at(1)).get(), FIRST_REGISTERED_SECTION_ID);
+
+    std::shared_ptr<ELFMainScheduleSection> section2 = create_section_using_dummy_content();
+    registry.register_section(section2);
+    requirements = section2->get_cre_tokens({});
+    ASSERT_EQ(requirements.size(), 2);
+    ASSERT_TRUE(is_section_type(requirements.at(0)));
+    ASSERT_TRUE(is_section_id(requirements.at(1)));
+    ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
+              SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_EQ(*std::dynamic_pointer_cast<SectionID>(requirements.at(1)).get(), SECOND_REGISTERED_SECTION_ID);
+}
+
+/**
+ * @brief The "encode" function should throw if it holds a tensor. This is an invalid state. "encode" can only be called
+ * when the object holds a "graph".
+ */
+TEST_F(ELFMainScheduleSectionTest, InvalidStateWrite) {
+    const std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    std::ostringstream stream;
+
+    OV_EXPECT_THROW(section->encode(create_generic_section_sink(stream)), ov::Exception, _);
+}
+
+TEST_F(ELFMainScheduleSectionTest, DecryptThrowsIfMissingCallback) {
+    const std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    OV_EXPECT_THROW(section->decrypt(nullptr), ov::Exception, _);
+}
+
+TEST_F(ELFMainScheduleSectionTest, WorkingDecryption) {
+    const std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
+    section->decrypt(ov::util::codec_xor);
+
+    const std::string decrypted_schedule =
+        std::string(section->get_schedule().data<char>(), section->get_schedule().get_byte_size());
+    const std::string reference = ov::util::codec_xor(std::string(COMPILER_SCHEDULE_CONTENT));
+
+    // Take into account page alignment
+    if (reference.size() % ov::util::min_page_alignment == 0) {
+        ASSERT_EQ(decrypted_schedule, reference);
+    } else {
+        ASSERT_EQ(decrypted_schedule.size(), utils::align_size_to_standard_page_size(reference.size()));
+
+        const std::string padding(decrypted_schedule.size() - reference.size(), 0);
+        ASSERT_EQ(decrypted_schedule, reference + padding);
+    }
+}
+
+TEST_F(ELFMainScheduleSectionTest, WrongTagToDecoder) {
+    std::vector<uint8_t> payload(1, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    manifest_entry.size = payload.size();
+
+    OV_EXPECT_THROW(ELFMainScheduleSection::decode(ov::runtime::hsm::Section(
+                        manifest_entry,
+                        ov::util::MemoryView(reinterpret_cast<const std::byte*>(payload.data()), payload.size()))),
+                    ov::Exception,
+                    testing::_);
+}
+
+TEST_F(ELFMainScheduleSectionTest, InlineTagToDecoder) {
+    std::vector<uint8_t> payload(1, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE, true);
+    std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
+
+    OV_EXPECT_THROW(ELFMainScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry)),
+                    ov::Exception,
+                    testing::_);
+}
+
+class ELFMainScheduleSectionReadTest : public testing::TestWithParam<std::tuple<bool, bool>> {
+public:
+    ELFMainScheduleSectionReadTest() : section({}) {}
+
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<bool, bool>>& obj) {
+        bool tensor_source;
+        bool empty_schedule;
+        std::tie(tensor_source, empty_schedule) = obj.param;
+
+        return std::string(tensor_source ? "tensor" : "stream") + "_" + (empty_schedule ? "empty" : "not_empty");
+    }
+
+protected:
+    void SetUp() override {
+        bool empty_schedule;
+        std::tie(is_tensor_source, empty_schedule) = GetParam();
+        section_content = empty_schedule ? "" : "dummy";
+
+        ov::runtime::hsm::ManifestEntry manifest_entry =
+            create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+        manifest_entry.size = section_content.size();
+
+        if (is_tensor_source) {
+            section = ov::runtime::hsm::Section(
+                manifest_entry,
+                ov::util::MemoryView(reinterpret_cast<std::byte*>(section_content.data()), section_content.size()));
+        } else {
+            stream = std::istringstream(section_content);
+            section = ov::runtime::hsm::Section(manifest_entry, stream, 0);
+        }
+    }
+
+    bool is_tensor_source;
+    std::string section_content;
+    std::istringstream stream;
+    ov::runtime::hsm::Section section;
+};
+
+TEST_P(ELFMainScheduleSectionReadTest, SuccessfulRead) {
+    auto read_section = ELFMainScheduleSection::decode(section);
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(read_section.value());
+    ASSERT_TRUE(casted_section);
+
+    const ov::Tensor tensor = casted_section->get_schedule();
+    const std::string parsed_content(tensor.data<char>(), tensor.get_byte_size());
+    ASSERT_EQ(parsed_content, section_content);
+
+    if (is_tensor_source) {
+        if (!section_content.empty()) {
+            // The parsed content should point towards the original buffer. This implies no copies
+            // have been performed, and page aligment has been preserved.
+            ASSERT_EQ(tensor.data(), section_content.data());
+        }
+    } else {
+        // Stream case: a page aligned buffer should have been allocated for the parsed content
+        ASSERT_EQ(reinterpret_cast<size_t>(tensor.data()) % ov::util::min_page_alignment, 0);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(UnitTests,
+                         ELFMainScheduleSectionReadTest,
+                         testing::Combine(testing::ValuesIn(std::vector<bool>{true, false}),
+                                          testing::ValuesIn(std::vector<bool>{true, false})),
+                         ELFMainScheduleSectionReadTest::getTestCaseName);

@@ -1,0 +1,576 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "hsm_format/runtime_requirements.hpp"
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
+#include "utils.hpp"
+
+using namespace intel_npu;
+using testing::_;
+
+using ReadParams = std::
+    tuple<bool, bool, std::string, CRE, std::map<SectionID, std::string>, std::unordered_map<SectionID, SectionType>>;
+
+namespace {
+
+const auto MOCK_INSTANCE_EVALUATOR = std::make_shared<MockInstanceEvaluator>();
+const auto MOCK_TYPE_EVALUATOR_TRUE = std::make_shared<MockTypeEvaluator>(true);
+const auto MOCK_TYPE_EVALUATOR_FALSE = std::make_shared<MockTypeEvaluator>(false);
+
+const auto ELF_MAIN_SCHEDULE_PTR = std::make_shared<SectionType>(SectionTypeCode::ELF_MAIN_SCHEDULE);
+const auto BATCH_SIZE_PTR = std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE);
+const auto COMPILER_VERSION_PTR = std::make_shared<SectionType>(SectionTypeCode::COMPILER_VERSION);
+const auto ID_0_PTR = std::make_shared<SectionID>(0);
+const auto ID_2_PTR = std::make_shared<SectionID>(2);
+
+ReadParams make_test_params(bool expect_failure,
+                            const std::string& serialized_requirements,
+                            const CRE& expected_cre = {},
+                            const std::map<SectionID, std::string>& expected_sections_requirements = {},
+                            const std::unordered_map<SectionID, SectionType>& expected_id_to_type = {}) {
+    return ReadParams(expect_failure,
+                      true,
+                      serialized_requirements,
+                      expected_cre,
+                      expected_sections_requirements,
+                      expected_id_to_type);
+}
+
+std::vector<ReadParams> augment_cases_using_stream_type(const std::vector<ReadParams>& test_cases) {
+    std::vector<ReadParams> result = test_cases;
+    for (const auto& [expect_failure,
+                      is_tensor_source,
+                      serialized_requirements,
+                      expected_cre,
+                      expected_sections_requirements,
+                      expected_id_to_type] : test_cases) {
+        result.push_back(ReadParams(expect_failure,
+                                    false,
+                                    serialized_requirements,
+                                    expected_cre,
+                                    expected_sections_requirements,
+                                    expected_id_to_type));
+    }
+    return result;
+}
+
+}  // namespace
+
+using RuntimeRequirementsTest = testing::Test;
+
+TEST_F(RuntimeRequirementsTest, CtorAndBasicGetters) {
+    RuntimeRequirements runtime_requirements({}, CRE(), {});
+    ASSERT_TRUE(runtime_requirements.get_sections_requirements().empty());
+    ASSERT_TRUE(runtime_requirements.get_cre().empty());
+    ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping().empty());
+
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "reqs"}};
+    const CRE cre({BATCH_SIZE_PTR});
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{
+        {SectionID(0), SectionType(SectionTypeCode::BATCH_SIZE)}};
+
+    runtime_requirements = RuntimeRequirements(sections_requirements, cre, section_id_to_type);
+    ASSERT_EQ(runtime_requirements.get_sections_requirements(), sections_requirements);
+    ASSERT_EQ(runtime_requirements.get_cre(), cre);
+    ASSERT_EQ(runtime_requirements.get_section_id_to_type_mapping(), section_id_to_type);
+}
+
+/**
+ * @brief No evaluators should be accepted for the "unknown" type. This type always evaluates to "unsupported".
+ */
+TEST_F(RuntimeRequirementsTest, UnknownTypeInEvaluators) {
+    RuntimeRequirements runtime_requirements({}, CRE(), {});
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
+        {SectionType(SectionTypeCode::UNKNOWN), MOCK_TYPE_EVALUATOR_FALSE}};
+    OV_EXPECT_THROW(runtime_requirements.check_compatibility(type_evaluators, {}), ov::Exception, _);
+
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
+        {SectionType(SectionTypeCode::UNKNOWN), MOCK_INSTANCE_EVALUATOR}};
+    OV_EXPECT_THROW(runtime_requirements.check_compatibility({}, instance_evaluators), ov::Exception, _);
+}
+
+/**
+ * @brief The runtime requirements object requires a section type to be provided for all sections that have individual
+ * requirements.
+ */
+TEST_F(RuntimeRequirementsTest, MissingSectionID) {
+    RuntimeRequirements runtime_requirements({{SectionID(0), "reqs"}},
+                                             CRE(),
+                                             {{SectionID(1), SectionType(SectionTypeCode::BATCH_SIZE)}});
+    OV_EXPECT_THROW(runtime_requirements.check_compatibility({}, {}), ov::Exception, _);
+}
+
+/**
+ * @brief Checks the evaluation results in multiple scenarios. Evaluators for all types are provided.
+ */
+TEST_F(RuntimeRequirementsTest, EvaluationResultWithEvaluators) {
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{
+        {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
+    const CRE cre({ELF_MAIN_SCHEDULE_PTR, ID_0_PTR});
+    RuntimeRequirements runtime_requirements({{SectionID(0), STRING_THAT_EVALUATES_TO_SUPPORTED.data()}},
+                                             cre,
+                                             section_id_to_type);
+
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_TYPE_EVALUATOR_FALSE}};
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
+    RuntimeRequirementsEvaluationResult evaluation_result =
+        runtime_requirements.check_compatibility(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
+
+    type_evaluators[SectionTypeCode::ELF_MAIN_SCHEDULE] = MOCK_TYPE_EVALUATOR_TRUE;
+    evaluation_result = runtime_requirements.check_compatibility(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
+
+    runtime_requirements =
+        RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNSUPPORTED.data()}}, cre, section_id_to_type);
+    evaluation_result = runtime_requirements.check_compatibility(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::UNSUPPORTED);
+
+    runtime_requirements =
+        RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN.data()}}, cre, section_id_to_type);
+    evaluation_result = runtime_requirements.check_compatibility(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::NOT_APPLICABLE);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::NOT_APPLICABLE);
+}
+
+/**
+ * @brief Checks that missing evalutors leads to "supported" evaluation results.
+ */
+TEST_F(RuntimeRequirementsTest, EvaluationResultWithMissingEvaluators) {
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{
+        {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
+    const CRE cre({ELF_MAIN_SCHEDULE_PTR, ID_0_PTR});
+    RuntimeRequirements runtime_requirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN.data()}},
+                                             cre,
+                                             section_id_to_type);
+
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_TYPE_EVALUATOR_FALSE}};
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
+
+    RuntimeRequirementsEvaluationResult evaluation_result =
+        runtime_requirements.check_compatibility(type_evaluators, {});
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
+
+    evaluation_result = runtime_requirements.check_compatibility({}, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::NOT_APPLICABLE);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::NOT_APPLICABLE);
+
+    evaluation_result = runtime_requirements.check_compatibility({}, {});
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
+}
+
+TEST_F(RuntimeRequirementsTest, MoreComplexEvaluation) {
+    const std::map<SectionID, std::string> sections_requirements{
+        {SectionID(0), STRING_THAT_EVALUATES_TO_SUPPORTED.data()},
+        {SectionID(2), STRING_THAT_EVALUATES_TO_SUPPORTED.data()}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{
+        {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)},
+        {SectionID(2), SectionType(SectionTypeCode::BATCH_SIZE)}};
+    const CRE cre(
+        {BATCH_SIZE_PTR, ID_2_PTR, CRE::OR_PTR, COMPILER_VERSION_PTR, CRE::AND_PTR, ELF_MAIN_SCHEDULE_PTR, ID_0_PTR});
+    RuntimeRequirements runtime_requirements(sections_requirements, cre, section_id_to_type);
+
+    // Need different instances of "false mock evaluators" to check which one has evaluated
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
+        {SectionType(SectionTypeCode::BATCH_SIZE), std::make_shared<MockTypeEvaluator>(true)},
+        {SectionType(SectionTypeCode::COMPILER_VERSION), std::make_shared<MockTypeEvaluator>(false)},
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), std::make_shared<MockTypeEvaluator>(false)}};
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
+        {SectionType(SectionTypeCode::BATCH_SIZE), MOCK_INSTANCE_EVALUATOR},
+        {SectionType(SectionTypeCode::COMPILER_VERSION), MOCK_INSTANCE_EVALUATOR},
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
+
+    const RuntimeRequirementsEvaluationResult evaluation_result =
+        runtime_requirements.check_compatibility(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::BATCH_SIZE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::BATCH_SIZE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.count(SectionTypeCode::COMPILER_VERSION));
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(1));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(2));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(2), ov::CompatibilityCheck::SUPPORTED);
+}
+
+using RuntimeRequirementsSectionTest = testing::Test;
+
+/**
+ * @brief Tests @ref is_runtime_requirements_format_v2 using valid strings.
+ */
+TEST_F(RuntimeRequirementsSectionTest, IsFormatV2ValidStrings) {
+    const auto max_value_string = std::to_string(std::numeric_limits<uint16_t>::max());
+    const auto over_max_value_string = std::to_string(std::numeric_limits<uint16_t>::max() + 1);
+
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=2.0"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=2.1"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=2.0;custom_content=PAYLOAD"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("custom_content=PAYLOAD;version=2.0"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=1.0;custom_content=PAYLOAD"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=1.0"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=3.0"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=0.2"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=" + max_value_string + ".0"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=0." + max_value_string));
+
+    ASSERT_FALSE(is_runtime_requirements_format_v2("meta=2.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2.0.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2..0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2."));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("versio=2.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2.O"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=" + over_max_value_string + ".0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=0." + over_max_value_string));
+}
+
+/**
+ * @brief Tests @ref is_runtime_requirements_format_v2 using invalid strings.
+ */
+TEST_F(RuntimeRequirementsSectionTest, IsFormatV2InvalidStrings) {
+    // We do not need to enumerate all invalid cases. These generic errors should be caught by parser's unit tests
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("VERSION=2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("vErsion=2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.0;"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.0;custom_content"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=.2"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.-1"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.o"), ov::Exception, _);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, CtorSetsTheRightValues) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    const CRE cre({BATCH_SIZE_PTR});
+
+    RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+    ASSERT_EQ(section.get_type(), SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
+
+    const RuntimeRequirements extracted_requirements = section.get_runtime_requirements();
+    ASSERT_EQ(extracted_requirements.get_sections_requirements(), sections_requirements);
+    ASSERT_EQ(extracted_requirements.get_cre(), cre);
+    ASSERT_EQ(extracted_requirements.get_section_id_to_type_mapping(), section_id_to_type);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, Alignment) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    const ov::runtime::hsm::SectionAlignment reference({});
+    ASSERT_EQ(section.get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section.get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, IsInline) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    ASSERT_FALSE(section.is_inline());
+}
+
+TEST_F(RuntimeRequirementsSectionTest, EmptyCompatibilityReqsSubexpression) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    ASSERT_TRUE(section.get_cre_tokens({}).empty());
+}
+
+TEST_F(RuntimeRequirementsSectionTest, NullIndividualReqs) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    ASSERT_FALSE(section.get_individual_runtime_requirements().has_value());
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteEmpty) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteNonEmptyCRE) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE({BATCH_SIZE_PTR, ID_0_PTR}), {}));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0;cre=BATCH_SIZE_0");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteNonEmptySectionsRequirements) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, CRE(), section_id_to_type));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0;batch_size_0=CONTENT");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, NormalWrite) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    RuntimeRequirementsSection section(
+        RuntimeRequirements(sections_requirements, CRE({BATCH_SIZE_PTR, ID_0_PTR}), section_id_to_type));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0;cre=BATCH_SIZE_0;batch_size_0=CONTENT");
+}
+
+/**
+ * @brief The runtime requirements object requires a section type to be provided for all sections that have individual
+ * requirements.
+ */
+TEST_F(RuntimeRequirementsSectionTest, MissingSectionIdMappingWhileWriting) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, CRE({BATCH_SIZE_PTR, ID_0_PTR}), {}));
+    std::ostringstream stream;
+
+    OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
+}
+
+/**
+ * @brief The "unknown" section type is meant to be used only internally. Attempting to write it into the blob should
+ * lead to failure.
+ */
+TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
+    RuntimeRequirementsSection section(
+        RuntimeRequirements({}, CRE({std::make_shared<SectionType>(SectionTypeCode::UNKNOWN)}), {}));
+    std::ostringstream stream;
+
+    OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteRead) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    const CRE cre({BATCH_SIZE_PTR, ID_0_PTR});
+    RuntimeRequirementsSection initial_section(RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+    std::stringstream stream;
+
+    OV_ASSERT_NO_THROW(initial_section.encode(create_generic_section_sink(stream)));
+
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        create_manifest_entry_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS);
+    manifest_entry.size = stream.str().size();
+
+    ov::runtime::hsm::Section section(manifest_entry, stream, 0);
+    auto read_section = RuntimeRequirementsSection::decode(section);
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(read_section.value());
+    ASSERT_TRUE(casted_section);
+
+    const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
+    ASSERT_TRUE(runtime_requirements.get_cre() == cre);
+    ASSERT_TRUE(runtime_requirements.get_sections_requirements() == sections_requirements);
+    ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping() == section_id_to_type);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WrongTagToDecoder) {
+    const std::string payload("version=3.0");
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    manifest_entry.size = payload.size();
+
+    OV_EXPECT_THROW(RuntimeRequirementsSection::decode(ov::runtime::hsm::Section(
+                        manifest_entry,
+                        ov::util::MemoryView(reinterpret_cast<const std::byte*>(payload.data()), payload.size()))),
+                    ov::Exception,
+                    _);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, InlineTagToDecoder) {
+    const std::string payload("version=3.0");
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        create_manifest_entry_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS, true);
+    std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
+
+    OV_EXPECT_THROW(RuntimeRequirementsSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, _);
+}
+
+class RuntimeRequirementsSectionReadTest : public testing::TestWithParam<ReadParams> {
+public:
+    RuntimeRequirementsSectionReadTest() : section({}) {}
+
+    static std::string getTestCaseName(const testing::TestParamInfo<ReadParams>& obj) {
+        bool expect_failure, is_tensor_source;
+        std::string serialized_requirements;
+        CRE expected_cre;
+        std::map<SectionID, std::string> expected_sections_requirements;
+        std::unordered_map<SectionID, SectionType> expected_id_to_type_mapping;
+        std::tie(expect_failure,
+                 is_tensor_source,
+                 serialized_requirements,
+                 expected_cre,
+                 expected_sections_requirements,
+                 expected_id_to_type_mapping) = obj.param;
+
+        std::string test_name("serializedRequirements=");
+        test_name += serialized_requirements;
+        test_name += "_";
+        test_name += "expectFailure=";
+        test_name += expect_failure ? "True" : "False";
+        test_name += "_";
+        test_name += "source=";
+        test_name += is_tensor_source ? "tensor" : "stream";
+        test_name += "_";
+        test_name += "cre=";
+        test_name += expected_cre.to_string();
+        test_name += "_";
+        test_name += "sectionsRequirements=[";
+
+        bool first_iteration = true;
+        for (const auto& [id, requirements] : expected_sections_requirements) {
+            if (!first_iteration) {
+                test_name += "_";
+            }
+            first_iteration = false;
+            test_name += id.to_string();
+            test_name += "=";
+            test_name += requirements;
+        }
+
+        test_name += "]_";
+        test_name += "mapping=[";
+
+        first_iteration = true;
+        for (const auto& [id, type] : expected_id_to_type_mapping) {
+            if (!first_iteration) {
+                test_name += "_";
+            }
+            first_iteration = false;
+            test_name += id.to_string();
+            test_name += "=";
+            test_name += type.to_string();
+        }
+
+        test_name += "]";
+        return test_name;
+    }
+
+protected:
+    void SetUp() override {
+        bool is_tensor_source;
+        std::tie(expect_failure,
+                 is_tensor_source,
+                 serialized_requirements,
+                 expected_cre,
+                 expected_sections_requirements,
+                 expected_id_to_type_mapping) = GetParam();
+
+        ov::runtime::hsm::ManifestEntry manifest_entry =
+            create_manifest_entry_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS);
+        manifest_entry.size = serialized_requirements.size();
+
+        if (is_tensor_source) {
+            section = ov::runtime::hsm::Section(
+                manifest_entry,
+                ov::util::MemoryView(reinterpret_cast<std::byte*>(serialized_requirements.data()),
+                                     serialized_requirements.size()));
+        } else {
+            stream = std::istringstream(serialized_requirements);
+            section = ov::runtime::hsm::Section(manifest_entry, stream, 0);
+        }
+    }
+
+    ov::runtime::hsm::Section section;
+    std::istringstream stream;
+    bool expect_failure;
+    std::string serialized_requirements;
+    CRE expected_cre;
+    std::map<SectionID, std::string> expected_sections_requirements;
+    std::unordered_map<SectionID, SectionType> expected_id_to_type_mapping;
+};
+
+TEST_P(RuntimeRequirementsSectionReadTest, Read) {
+    auto read_section = RuntimeRequirementsSection::decode(section);
+
+    if (!expect_failure) {
+        ASSERT_TRUE(read_section);
+        auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(read_section.value());
+        ASSERT_TRUE(casted_section);
+        const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
+        ASSERT_TRUE(runtime_requirements.get_cre() == expected_cre);
+        ASSERT_TRUE(runtime_requirements.get_sections_requirements() == expected_sections_requirements);
+        ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping() == expected_id_to_type_mapping);
+    } else {
+        ASSERT_FALSE(read_section);
+    }
+}
+
+std::vector<ReadParams> test_cases{
+    make_test_params(true, ""),
+    make_test_params(true, "version=3.1"),
+    make_test_params(true, "version=2.0"),
+    make_test_params(true, "version=4.0"),
+    make_test_params(true, "VERSION=3.0"),
+    make_test_params(true, "versio=3.0"),
+    make_test_params(true, "version=3.0;"),
+    make_test_params(true, "version="),
+    make_test_params(true, "version=3.0;cre="),
+    make_test_params(true, "custom=CONTENT"),
+    make_test_params(true, "version=3.0;cre=(.BATCH_SIZE"),
+    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size=CUSTOM"),  // Missing section ID
+    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size_1=CUSTOM;io_layouts_1=CUSTOM"),
+    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size1=CUSTOM"),
+    make_test_params(false, "version=3.0;cre=BATCH_SIZE", CRE({BATCH_SIZE_PTR})),
+    make_test_params(false,
+                     "version=3.0;batch_size_0=CUSTOM",
+                     CRE(),
+                     {{0, "CUSTOM"}},
+                     {{0, SectionTypeCode::BATCH_SIZE}}),
+    make_test_params(false,
+                     "version=3.0;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_1=CUSTOM",
+                     CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
+                     {{1, "CUSTOM"}},
+                     {{1, SectionTypeCode::BATCH_SIZE}}),
+    make_test_params(
+        false,
+        "version=3.0;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_2=CUSTOM1;compiler_version_0=CUSTOM2",
+        CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
+        {{2, "CUSTOM1"}, {0, "CUSTOM2"}},
+        {{2, SectionTypeCode::BATCH_SIZE}, {0, SectionTypeCode::COMPILER_VERSION}}),
+    make_test_params(
+        false,
+        "version=3.0;compiler_version_0=CUSTOM2;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_2=CUSTOM1",
+        CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
+        {{2, "CUSTOM1"}, {0, "CUSTOM2"}},
+        {{2, SectionTypeCode::BATCH_SIZE}, {0, SectionTypeCode::COMPILER_VERSION}}),
+};
+
+INSTANTIATE_TEST_SUITE_P(UnitTests,
+                         RuntimeRequirementsSectionReadTest,
+                         testing::ValuesIn(augment_cases_using_stream_type(test_cases)),
+                         RuntimeRequirementsSectionReadTest::getTestCaseName);

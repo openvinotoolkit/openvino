@@ -1,0 +1,130 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "hsm_format/blob_sections_registry.hpp"
+
+namespace {
+
+constexpr uint16_t FIRST_AVAILABLE_SECTION_ID = 0;
+
+}  // namespace
+
+namespace intel_npu {
+
+BlobSectionsRegistry::BlobSectionsRegistry()
+    : m_next_section_id(FIRST_AVAILABLE_SECTION_ID),
+      m_logger("BlobSectionsRegistry", Logger::global().level()) {}
+
+SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>& section,
+                                                 const std::optional<SectionID>& parsed_id) {
+    OPENVINO_ASSERT(section);
+    OPENVINO_ASSERT(!section->get_id().has_value(),
+                    "The given section has already been registered in a sections registry");
+    const SectionType section_type = section->get_type();
+    OPENVINO_ASSERT(section_type != SectionTypeCode::RUNTIME_REQUIREMENTS,
+                    "The runtime requirements section should not be added to the registry since its content is "
+                    "volatile and depends on all other registered sections");
+
+    const SectionID section_id = parsed_id.has_value() ? parsed_id.value() : SectionID(m_next_section_id++);
+    OPENVINO_ASSERT(!m_ids_to_sections.count(section_id),
+                    "The same section ID has been attributed to two distinct sections");
+
+    if (parsed_id.has_value()) {
+        // Assume that the gap between m_next_section_id and parsed_id (if applicable) was already used within the
+        // parsed blob. Therefore, the next section ID should be updated accordingly.
+        const uint16_t candidate = parsed_id.value().get_value() + 1;
+        OPENVINO_ASSERT(candidate != 0, "Integer overflow");
+        m_next_section_id = candidate > m_next_section_id ? candidate : m_next_section_id;
+    } else {
+        OPENVINO_ASSERT(m_next_section_id != 0, "Integer overflow");
+    }
+
+    section->set_id(section_id);
+    m_write_queue.push(section);
+    m_ids_to_sections[section_id] = section;
+    m_types_to_sections[section_type].push_back(section);
+
+    m_logger.debug("Registered section %s", section_type_and_id_to_string(section_type, section_id).data());
+
+    return section_id;
+}
+
+std::shared_ptr<ISection> BlobSectionsRegistry::retrieve_section(const SectionID& id) const {
+    auto search_result = m_ids_to_sections.find(id);
+    if (search_result != m_ids_to_sections.end()) {
+        return search_result->second;
+    }
+    return nullptr;
+}
+
+std::shared_ptr<ISection> BlobSectionsRegistry::retrieve_unique_section_of_type(const SectionType section_type) const {
+    switch (count_sections_of_type(section_type)) {
+    case 0: {
+        return nullptr;
+    }
+    case 1: {
+        return *m_types_to_sections.at(section_type).begin();
+    }
+    default: {
+        OPENVINO_THROW("Requested to retrieve a unique section of type ",
+                       section_type.to_string(),
+                       ", but multiple sections of that type have been found within the registry");
+    }
+    }
+}
+
+std::vector<std::shared_ptr<ISection>> BlobSectionsRegistry::retrieve_sections(const SectionType type) const {
+    auto search_result = m_types_to_sections.find(type);
+    if (search_result != m_types_to_sections.end()) {
+        return search_result->second;
+    }
+    return {};
+}
+
+std::queue<std::shared_ptr<ISection>> BlobSectionsRegistry::get_write_queue() const {
+    return m_write_queue;
+}
+
+bool BlobSectionsRegistry::has_section_of_type(const SectionType section_type) const {
+    return m_types_to_sections.count(section_type) ? m_types_to_sections.at(section_type).size() > 0 : false;
+}
+
+size_t BlobSectionsRegistry::count_sections_of_type(const SectionType section_type) const {
+    return m_types_to_sections.count(section_type) ? m_types_to_sections.at(section_type).size() : 0;
+}
+
+std::unordered_map<SectionType, size_t> BlobSectionsRegistry::get_content_summary() const {
+    std::unordered_map<SectionType, size_t> summary;
+    for (const auto& [section_type, section_instances] : m_types_to_sections) {
+        summary[section_type] = section_instances.size();
+    }
+
+    return summary;
+}
+
+std::shared_ptr<ISection> BlobSectionsRegistry::build_runtime_requirements_section() const {
+    m_logger.debug("Building the runtime requirements");
+    std::map<SectionID, std::string> sections_requirements;
+    CRE cre;
+    std::unordered_map<SectionID, SectionType> section_id_to_type;
+
+    // Each section can register a compatibility substring, as well as a compatiblity subexpression (between sections)
+    for (const auto& [section_id, section] : m_ids_to_sections) {
+        const std::optional<std::string> individual_requirements = section->get_individual_runtime_requirements();
+        if (individual_requirements.has_value()) {
+            sections_requirements.emplace(section_id, individual_requirements.value());
+        }
+
+        cre.append_to_expression(section->get_cre_tokens(m_ids_to_sections));
+        section_id_to_type.emplace(section_id, section->get_type());
+    }
+
+    const auto section = std::make_shared<RuntimeRequirementsSection>(
+        RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+
+    section->set_id(m_next_section_id);
+    return section;
+}
+
+}  // namespace intel_npu

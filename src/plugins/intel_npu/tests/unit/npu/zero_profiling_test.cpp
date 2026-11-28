@@ -42,6 +42,10 @@ public:
         return graphStatistics;
     }
 
+    uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     bool decoderAvailable = true;
     bool throwOnDecode = false;
     mutable std::vector<uint8_t> receivedData;

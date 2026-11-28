@@ -194,8 +194,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     const std::string serializedIOInfo = compiler_utils::serializeIOInfo(model, useIndices);
 
-    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
-    // the current call iteration.
+    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the
+    // index of the current call iteration.
     std::vector<NetworkMetadata> initNetworkMetadata;
     NetworkMetadata mainNetworkMetadata;
     std::vector<GraphDescriptor> initGraphDescriptors;

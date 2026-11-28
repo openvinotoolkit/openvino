@@ -1,0 +1,41 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "hsm_format/compiler_version_section.hpp"
+
+namespace intel_npu {
+
+CompilerVersionSection::CompilerVersionSection(const int32_t version)
+    : ISection(SectionTypeCode::COMPILER_VERSION, {}, true),
+      m_compiler_version(version),
+      m_logger("CompilerVersionSection", Logger::global().level()) {
+    m_logger.trace("Section created");
+}
+
+ov::util::MemoryView CompilerVersionSection::encode() const {
+    m_logger.debug("Encoding compiler version %lu", m_compiler_version);
+
+    return ov::util::MemoryView(reinterpret_cast<const std::byte*>(&m_compiler_version), sizeof(m_compiler_version));
+}
+
+int32_t CompilerVersionSection::get_compiler_version() const {
+    return m_compiler_version;
+}
+
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    const Logger logger("CompilerVersionSection", Logger::global().level());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::COMPILER_VERSION),
+                    "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_inline() && section.size() >= sizeof(int32_t),
+                    "Logic error: the payload is not inline or the size is not sufficiently large");
+
+    int32_t compiler_version;
+    section.read(0, sizeof(compiler_version), &compiler_version);
+    logger.debug("Read compiler version %lu", compiler_version);
+
+    return std::make_shared<CompilerVersionSection>(compiler_version);
+};
+
+}  // namespace intel_npu

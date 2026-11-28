@@ -9,6 +9,8 @@
 
 #include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
+#include "hsm_format/batch_size_section.hpp"
+#include "hsm_format/compiler_version_section.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -36,12 +38,12 @@ using namespace intel_npu;
 constexpr std::string_view NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view NO_BACKEND_MESSAGE = "No backend registered during model import";
 constexpr std::string_view NPUW_MODEL_IMPORTED_MESSAGE = "Finished importing the NPUW compiled model";
-constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model:";
+constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model: ";
 constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
 
 /**
- * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
- * thrown. The weights separation flow in its current state cannot work without this attribuite.
+ * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an
+ * error is thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
 void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
     if (!model) {
@@ -492,6 +494,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
     }
 
+    BlobSectionsRegistry blobSectionsRegistry;
     std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value() && successfullyDebatched) {
         batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : utils::DYNAMIC_BATCH_SIZE;
@@ -499,6 +502,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
+
+        blobSectionsRegistry.register_section(std::make_shared<BatchSizeSection>(batch.value()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -508,15 +513,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                         "will be disabled.");
     }
 
+    blobSectionsRegistry.register_section(
+        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>()));
+
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
                                                         graph,
+                                                        std::move(blobSectionsRegistry),
                                                         localConfig,
-                                                        unknownProperties,
-                                                        batch);
+                                                        unknownProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -618,6 +626,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
         blobSource,
         runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
         runtimeConfig.has<MODEL_PTR>() ? runtimeConfig.get<MODEL_PTR>().lock() : nullptr,
+        _backend,
+        _compilerOptionSupportHelper,
         runtimeConfig);
 
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
@@ -628,8 +638,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     }
 
     const std::shared_ptr<IGraph> graph =
-        blobFormatImporter->create_graph(_backend,
-                                         "net" + std::to_string(_compiledModelLoadCounter++),
+        blobFormatImporter->create_graph("net" + std::to_string(_compiledModelLoadCounter++),
                                          get_core(),
                                          vcl_functions_provider());
 
@@ -637,9 +646,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            shared_from_this(),
                                            device,
                                            graph,
+                                           blobFormatImporter->get_blob_sections_registry(),
                                            blobFormatImporter->get_config(),
-                                           unknownProperties,
-                                           graph->get_batch_size());
+                                           unknownProperties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

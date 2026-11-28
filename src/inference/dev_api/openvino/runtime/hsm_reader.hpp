@@ -234,6 +234,10 @@ public:
         return section_by_id(any_device_id, static_cast<uint32_t>(tag));
     }
 
+    std::optional<Section> section(DeviceId device, SectionTagReserved tag) const {
+        return section_by_id(device, tag);
+    }
+
     /**
      * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
      * manifest order.
@@ -276,6 +280,12 @@ public:
     template <typename T, typename Tag>
     std::optional<T> decode(Tag tag, const SectionDecoder<T>& decoder) const {
         return decode(any_device_id, tag, decoder);
+    }
+
+    template <typename T>
+    std::optional<T> decode(DeviceId device, SectionTagReserved tag, const SectionDecoder<T>& decoder) const {
+        const auto found = section(device, tag);
+        return found ? decoder(*found) : std::nullopt;
     }
 
     /**
@@ -330,6 +340,7 @@ private:
     Section make_section(const ManifestEntry& entry) const;
 
     std::optional<Section> section_by_id(DeviceId device, uint32_t tag_id) const;
+    std::optional<Section> section_by_id(DeviceId device, SectionTagReserved tag_id) const;
     std::vector<Section> sections_by_id(DeviceId device, uint32_t tag_id) const;
     size_t count_by_id(DeviceId device, uint32_t tag_id) const noexcept;
 

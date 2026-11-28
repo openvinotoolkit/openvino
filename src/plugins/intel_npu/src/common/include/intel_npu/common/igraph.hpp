@@ -13,11 +13,15 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
 
-enum class BlobType : uint8_t { ELF, BYTECODE };
+/**
+ * @warning Do not change these values, otherwise blob compatibility may be affected. New values can be added however.
+ */
+enum class BlobType : uint8_t { ELF = 0, BYTECODE = 1 };
 
 enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
 
@@ -38,14 +42,20 @@ public:
     IGraph() = default;
 
     /**
-     * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
-     * later be used for importing the model.
+     * @brief Writes the compiler main schedule inside the provided sink.
      *
-     * @param stream Where the content is placed
-     * @return A pair made of the size of the main binary object and an optional variable. The optional variable
-     * constitues the size of each init binary object if weights separation is enabled.
+     * @param sink Object that is meant to consume the data and append it to some buffer. Controlling the write cursor
+     * is not possible.
+     * @return The total size written into the stream
      */
-    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
+    virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const;
+
+    /**
+     * @brief Can be overriden to export the weights initialization schedules into the given sink.
+     */
+    virtual std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const;
+
+    virtual size_t get_number_of_inits() const;
 
     /**
      * @brief Turns raw, driver-queried profiling bytes into per-layer records.

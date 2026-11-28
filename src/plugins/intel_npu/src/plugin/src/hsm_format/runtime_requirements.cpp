@@ -1,0 +1,271 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "hsm_format/runtime_requirements.hpp"
+
+#include <algorithm>
+
+#include "intel_npu/compat_string_parser.hpp"
+#include "major_minor_version.hpp"
+
+namespace {
+
+using namespace intel_npu;
+
+constexpr std::string_view VERSION_KEY = "version";
+constexpr std::string_view CRE_KEY = "cre";
+constexpr char REQUIREMENTS_SEPARATOR = ';';
+constexpr char KEY_VALUE_SEPARATOR = '=';
+
+constexpr size_t MINIMUM_VERSION_STRING_SIZE = 3;  // x.y
+constexpr size_t MINIMUM_RUNTIME_REQUIREMENTS_SIZE =
+    VERSION_KEY.size() + sizeof(KEY_VALUE_SEPARATOR) + MINIMUM_VERSION_STRING_SIZE;  // x.y
+
+void string_to_lower(std::string& target) {
+    std::transform(target.begin(), target.end(), target.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+}
+
+void write_requirements_entry(const ov::runtime::hsm::SectionSink& sink,
+                              std::string_view key,
+                              std::string_view value,
+                              const bool is_first_entry = false) {
+    if (!is_first_entry) {
+        sink({reinterpret_cast<const std::byte*>(&REQUIREMENTS_SEPARATOR), sizeof(REQUIREMENTS_SEPARATOR)});
+    }
+    sink({reinterpret_cast<const std::byte*>(key.data()), key.size()});
+    sink({reinterpret_cast<const std::byte*>(&KEY_VALUE_SEPARATOR), sizeof(KEY_VALUE_SEPARATOR)});
+    sink({reinterpret_cast<const std::byte*>(value.data()), value.size()});
+}
+
+bool unknown_token_in_cre(const CRE& cre) {
+    for (const std::shared_ptr<CREToken>& token : cre.get_expression()) {
+        if (is_section_type(token) &&
+            std::dynamic_pointer_cast<SectionType>(token)->get_code() == SectionTypeCode::UNKNOWN) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+}  // namespace
+
+namespace intel_npu {
+
+RuntimeRequirements::RuntimeRequirements(const std::map<SectionID, std::string>& sections_requirements,
+                                         const CRE& cre,
+                                         const std::unordered_map<SectionID, SectionType>& section_id_to_type)
+    : m_sections_requirements(sections_requirements),
+      m_cre(cre),
+      m_section_id_to_type(section_id_to_type),
+      m_logger("RuntimeRequirements", Logger::global().level()) {
+    m_logger.debug("Initialized");
+}
+
+std::map<SectionID, std::string> RuntimeRequirements::get_sections_requirements() const {
+    return m_sections_requirements;
+}
+
+CRE RuntimeRequirements::get_cre() const {
+    return m_cre;
+}
+
+std::unordered_map<SectionID, SectionType> RuntimeRequirements::get_section_id_to_type_mapping() const {
+    return m_section_id_to_type;
+}
+
+std::unordered_map<SectionID, SingleSectionInstanceEvaluator>
+RuntimeRequirements::build_single_section_instance_evaluators(
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
+    m_logger.debug("Building the instance evaluators");
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> single_instance_evaluators;
+
+    for (const auto& [section_id, section_runtime_requirements] : m_sections_requirements) {
+        OPENVINO_ASSERT(!single_instance_evaluators.count(section_id),
+                        "Found a section that has at least two entries within the runtime requirements");
+        OPENVINO_ASSERT(m_section_id_to_type.count(section_id));
+        const SectionType section_type = m_section_id_to_type.at(section_id);
+
+        if (instance_evaluators.count(section_type)) {
+            m_logger.trace("Building an instance evaluator for section %s",
+                           section_type_and_id_to_string(section_type, section_id).data());
+
+            single_instance_evaluators.emplace(
+                section_id,
+                SingleSectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements));
+        }
+    }
+
+    return single_instance_evaluators;
+}
+
+RuntimeRequirementsEvaluationResult RuntimeRequirements::check_compatibility(
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
+    m_logger.debug("Evaluating the runtime requirements");
+    // "Unknown" should implicitly evaluate to unsupported. Therefore, no evalutors need to be registered for this type.
+    OPENVINO_ASSERT(!type_evaluators.count(SectionTypeCode::UNKNOWN) &&
+                    !instance_evaluators.count(SectionTypeCode::UNKNOWN));
+
+    return m_cre.check_compatibility(type_evaluators, build_single_section_instance_evaluators(instance_evaluators));
+}
+
+RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements)
+    : ISection(SectionTypeCode::RUNTIME_REQUIREMENTS),
+      m_runtime_requirements(runtime_requirements),
+      m_logger("RuntimeRequirementsSection", Logger::global().level()) {
+    m_logger.debug("Initialized");
+}
+
+void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
+    const CRE cre = m_runtime_requirements.get_cre();
+    OPENVINO_ASSERT(!unknown_token_in_cre(cre), "Unknown CRE tokens should not be serialized inside the blob");
+
+    // Version
+    m_logger.debug("Writing the version %s", CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string().data());
+    write_requirements_entry(sink, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string(), true);
+
+    // CRE
+    m_logger.debug("Writing the CRE");
+    if (!cre.empty()) {
+        write_requirements_entry(sink, CRE_KEY, cre.to_string());
+    }
+
+    // All section requirements, following the format "<section type name>_<id>=<value>"
+    const std::map<SectionID, std::string> sections_requirements = m_runtime_requirements.get_sections_requirements();
+    const std::unordered_map<SectionID, SectionType> section_id_to_type =
+        m_runtime_requirements.get_section_id_to_type_mapping();
+
+    for (const auto& [section_id, section_requirements] : sections_requirements) {
+        OPENVINO_ASSERT(section_id_to_type.count(section_id));
+        const SectionType section_type = section_id_to_type.at(section_id);
+        std::string key = section_type_and_id_to_string(section_type, section_id);
+        string_to_lower(key);
+        write_requirements_entry(sink, key, section_requirements);
+
+        m_logger.debug("Written the individual requirements of section %s: %s",
+                       key.data(),
+                       section_requirements.data());
+    }
+}
+
+RuntimeRequirements RuntimeRequirementsSection::get_runtime_requirements() const {
+    return m_runtime_requirements;
+}
+
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    Logger logger("RuntimeRequirementsSection", Logger::global().level());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                    "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
+
+    const size_t section_length = section.size();
+    if (section_length < MINIMUM_RUNTIME_REQUIREMENTS_SIZE) {
+        logger.warning("The runtime requirements section is too small");
+        return std::nullopt;
+    }
+
+    // Use the parser
+    std::string full_payload(section_length, 0);
+    section.read(full_payload.data());
+
+    compat::Parser::attr_map_type parsed_content;
+    try {
+        compat::Parser parser(full_payload, std::vector<std::string>());
+        parsed_content = parser.getAttributes();
+    } catch (const std::exception& ex) {
+        logger.warning("The content of the runtime requirements section is malformed: %s", ex.what());
+        return std::nullopt;
+    }
+
+    if (!parsed_content.count(VERSION_KEY.data())) {
+        logger.warning("Missing runtime requirements version");
+        return std::nullopt;
+    }
+
+    // Check the format version
+    const std::string& serialized_version = parsed_content.at(VERSION_KEY.data());
+    logger.debug("Parsing the version %s", serialized_version.data());
+
+    const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(serialized_version);
+    if (parsed_version != CURRENT_RUNTIME_REQUIREMENTS_VERSION) {
+        logger.warning("Unsupported runtime requirements version: %s", parsed_version.to_string().data());
+        return std::nullopt;
+    }
+    parsed_content.erase(VERSION_KEY.data());
+
+    // Parse the CRE if available
+    CRE cre;
+    if (parsed_content.count(CRE_KEY.data())) {
+        const std::string& serialized_cre = parsed_content.at(CRE_KEY.data());
+        logger.debug("Parsing the CRE %s", serialized_cre.data());
+
+        try {
+            cre = CRE::from_string(serialized_cre);
+        } catch (const std::exception& ex) {
+            logger.warning("Failed to parse the CRE. Exception: %s", ex.what());
+            return std::nullopt;
+        }
+
+        parsed_content.erase(CRE_KEY.data());
+    } else {
+        logger.warning(
+            "No compatibility requirements expression found within the runtime requirements. The compiled model "
+            "is considered supported in this case.");
+    }
+
+    // All other entries should have the key format "<section type name>_<id>"
+    logger.debug("Parsing the sections requirements");
+    std::map<SectionID, std::string> sections_requirements;
+    std::unordered_map<SectionID, SectionType> section_id_to_type;
+
+    for (const auto& [section_type_and_id_string, value] : parsed_content) {
+        logger.trace("Parsing the key %s and value %s", section_type_and_id_string.data(), value.data());
+
+        const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
+        if (!section_id.has_value()) {
+            logger.warning(
+                "Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
+                "section type and ID");
+            return std::nullopt;
+        }
+        if (sections_requirements.count(section_id.value()) || section_id_to_type.count(section_id.value())) {
+            logger.warning("Found the same section ID more than once within the runtime requirements");
+            return std::nullopt;
+        }
+
+        sections_requirements.emplace(section_id.value(), value);
+        section_id_to_type.emplace(section_id.value(), section_type);
+    }
+
+    return std::make_shared<RuntimeRequirementsSection>(
+        RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+};
+
+bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {
+    std::string serialized_version;
+    try {
+        compat::Parser parser(runtime_requirements, std::vector<std::string>());
+        if (!parser.getAttributes().count(VERSION_KEY.data())) {
+            return false;
+        }
+        serialized_version = parser.getAttribute(VERSION_KEY.data());
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
+    }
+
+    try {
+        MajorMinorVersion::from_string(serialized_version);
+    } catch (const std::exception&) {
+        // The serialized version doesn't follow the known dotted format
+        return false;
+    }
+
+    return true;
+}
+
+}  // namespace intel_npu

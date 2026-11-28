@@ -5,9 +5,9 @@
 #pragma once
 
 #include <mutex>
-#include <optional>
 
 #include "compiled_model_property_manager.hpp"
+#include "hsm_format/blob_sections_registry.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -27,16 +27,17 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
+     * @param blobSectionsRegistry Contains the information required to export the compiled model and provides the API
+     * to do so
      * @param config Custom configuration object
-     * @param batchSize Optional batch size value.
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
+                  BlobSectionsRegistry&& blobSectionsRegistry,
                   const Config& config,
-                  const ov::AnyMap& properties,
-                  const std::optional<int64_t>& batchSize);
+                  const ov::AnyMap& properties);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -71,7 +72,10 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
-    std::optional<int64_t> _batchSize;
+    /**
+     * @brief Contains the information required to export the compiled model and provides the API to do so
+     */
+    mutable BlobSectionsRegistry _blobSectionsRegistry;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 

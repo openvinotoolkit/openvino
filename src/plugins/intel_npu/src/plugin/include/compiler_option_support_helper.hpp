@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/option_support_cache.hpp"

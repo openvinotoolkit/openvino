@@ -3,8 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <map>
-#include <string>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -14,7 +12,7 @@ namespace {
 
 const char* const BLOB_PREFIX = "blob_compat_";
 const char* const OV_VERSION_PREFIX = "ov";
-const char* const DRIVER_PREFIX = "driver";
+const char* const CIP_PREFIX = "cip";
 const char* const BLOB_SUFFIX = ".blob";
 const char* const BIN_SUFFIX = ".bin";
 
@@ -30,13 +28,15 @@ enum class E_PLATFORMS { MTL, LNL };
 const std::map<E_PLATFORMS, std::string> PLATFORMS{{E_PLATFORMS::MTL, "MTL"}, {E_PLATFORMS::LNL, "LNL"}};
 const std::map<std::string, E_PLATFORMS> PARSED_PLATFORMS{{"3720", E_PLATFORMS::MTL}, {"4000", E_PLATFORMS::LNL}};
 
-enum class E_OV_VERSIONS { OV_2025_4_0 };
+enum class E_OV_VERSIONS { OV_2025_4_0, OV_2026_0_0 };
 
-const std::map<E_OV_VERSIONS, std::string> OV_VERSIONS{{E_OV_VERSIONS::OV_2025_4_0, "2025_4_0"}};
+const std::map<E_OV_VERSIONS, std::string> OV_VERSIONS{{E_OV_VERSIONS::OV_2025_4_0, "2025_4_0"},
+                                                       {E_OV_VERSIONS::OV_2026_0_0, "2026_0_0"}};
 
 enum class E_DRIVERS { DRIVER_1688, DRIVER_4511 };
 
-const std::map<E_DRIVERS, std::string> DRIVERS{{E_DRIVERS::DRIVER_1688, "1688"}, {E_DRIVERS::DRIVER_4511, "2020509"}};
+const std::map<E_DRIVERS, std::string> DRIVERS{{E_DRIVERS::DRIVER_1688, "driver_1688"},
+                                               {E_DRIVERS::DRIVER_4511, "driver_2020509"}};
 
 }  // namespace
 
@@ -59,10 +59,11 @@ public:
         std::string model_name, platform, ov_release, driver;
         std::tie(target_device, model_name, platform, ov_release, driver, config) = this->GetParam();
         const auto& blobName = BLOB_PREFIX + model_name + "_" + platform + "_" + OV_VERSION_PREFIX + "_" + ov_release +
-                               "_" + DRIVER_PREFIX + "_" + driver + BLOB_SUFFIX;
+                               "_" + driver + BLOB_SUFFIX;
         blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName;
         weightsPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_PREFIX +
                       model_name + BIN_SUFFIX;
+        config.emplace(ov::weights_path(weightsPath));
         APIBaseTest::SetUp();
     }
 
@@ -72,8 +73,7 @@ public:
         std::tie(target_device, model_name, platform, ov_release, driver, config) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << target_device << "_blobName=\"" << BLOB_PREFIX << model_name << "_" << platform
-               << "_" << OV_VERSION_PREFIX << "_" << ov_release << "_" << DRIVER_PREFIX << "_" << driver << BLOB_SUFFIX
-               << "\"" << "_";
+               << "_" << OV_VERSION_PREFIX << "_" << ov_release << "_" << driver << BLOB_SUFFIX << "\"" << "_";
 
         if (!config.empty()) {
             for (auto& configItem : config) {
@@ -85,6 +85,22 @@ public:
     }
 
 protected:
+    void importAndExportModel() {
+        std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+        ASSERT_TRUE(blobStream.is_open()) << "Failed to open blob file: " << blobPath;
+        OV_ASSERT_NO_THROW(core.import_model(blobStream, target_device, config));
+
+        std::shared_ptr<ov::Model> nullModel(nullptr);
+        ov::CompiledModel compiledModel;
+        config.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blobPath)));
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(nullModel, target_device, config));
+        config.erase(ov::hint::compiled_blob.name());
+
+        std::ostringstream outBlobStream;
+        OV_ASSERT_NO_THROW(compiledModel.export_model(outBlobStream));
+        EXPECT_TRUE(outBlobStream.tellp() > 0);
+    }
+
     ov::Core core;
     std::string blobPath;
     std::string weightsPath;
@@ -93,57 +109,35 @@ protected:
 
 using compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityNPU_Metadata_No_Throw = OVBlobCompatibilityNPU;
-
-#define NO_APPEND_EXPORT(ASSERT_TYPE, ...)
-#define APPEND_EXPORT(ASSERT_TYPE)                                                     \
-    std::shared_ptr<ov::Model> nullModel(nullptr);                                     \
-    ov::CompiledModel compiledModel;                                                   \
-    config.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blobPath)));           \
-    ASSERT_TYPE(compiledModel = core.compile_model(nullModel, target_device, config)); \
-    config.erase(ov::hint::compiled_blob.name());                                      \
-    std::ostringstream outBlobStream;                                                  \
-    ASSERT_TYPE(compiledModel.export_model(outBlobStream));                            \
-    EXPECT_TRUE(outBlobStream.tellp() > 0);
-
-#define APPEND_EXPORT_HELPER_(arg1, arg2, arg3, ...) arg3
-#define APPEND_EXPORT_HELPER(...)                    APPEND_EXPORT_HELPER_(__VA_ARGS__, NO_APPEND_EXPORT, APPEND_EXPORT)(__VA_ARGS__)
-
-#define DEFAULT_TEST_BODY(ASSERT_TYPE, ...)                                           \
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);              \
-    config.emplace(ov::weights_path(weightsPath));                                    \
-    ASSERT_TYPE(core.import_model(blobStream, target_device, config), ##__VA_ARGS__); \
-    APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
+using OVBlobCompatibilityCiPNPU = OVBlobCompatibilityNPU;
 
 TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
-    DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
+    importAndExportModel();
 }
 
 TEST_P(compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDriverAndAllOVVersions) {
-    size_t mtlPlatformPos = std::string::npos;
     const char slashDelimiter = '/';
     const char backSlashDelimiter = '\\';
-    size_t lastSlashDelim = blobPath.find_last_of(slashDelimiter);
-    size_t lastBackSlashDelim = blobPath.find_last_of(backSlashDelimiter);
+    const size_t lastSlashDelim = blobPath.find_last_of(slashDelimiter);
+    const size_t lastBackSlashDelim = blobPath.find_last_of(backSlashDelimiter);
+
+    size_t mtlPlatformPos = std::string::npos;
     if (lastSlashDelim != std::string::npos && lastBackSlashDelim != std::string::npos) {
         mtlPlatformPos = blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), std::max(lastSlashDelim, lastBackSlashDelim));
+    } else if (lastSlashDelim != std::string::npos) {
+        mtlPlatformPos = blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), lastSlashDelim);
+    } else if (lastBackSlashDelim != std::string::npos) {
+        mtlPlatformPos = blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), lastBackSlashDelim);
     } else {
-        mtlPlatformPos = blobPath.find(slashDelimiter) != std::string::npos
-                             ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(slashDelimiter))
-                         : blobPath.find(backSlashDelimiter) != std::string::npos
-                             ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(backSlashDelimiter))
-                             : blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL));
+        mtlPlatformPos = blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL));
     }
+
     if (mtlPlatformPos == std::string::npos) {
         GTEST_SKIP() << "PV driver blob tests designed for NPU3720";
     }
-    DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
-}
 
-#undef NO_APPEND_EXPORT
-#undef APPEND_EXPORT
-#undef APPEND_EXPORT_HELPER_
-#undef APPEND_EXPORT_HELPER
-#undef DEFAULT_TEST_BODY
+    importAndExportModel();
+}
 
 }  // namespace behavior
 
@@ -153,68 +147,56 @@ TEST_P(compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpecte
 
 using namespace ov::test::behavior;
 
-const auto all_models = []() -> std::vector<std::string> {
-    std::vector<std::string> models(DUMMY_MODELS.size());
-    std::transform(DUMMY_MODELS.begin(),
-                   DUMMY_MODELS.end(),
-                   models.begin(),
-                   [](const decltype(DUMMY_MODELS)::value_type& pair) {
-                       return pair.second;
-                   });
-    return models;
+const auto all_models = []() {
+    std::vector<std::string> result;
+    for (const auto& [key, value] : DUMMY_MODELS)
+        result.push_back(value);
+    return result;
 }();
 
-const auto match_platform =
-    !ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty()
-        ? (PARSED_PLATFORMS.find(ov::intel_npu::Platform::standardize(
-               ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM)) != PARSED_PLATFORMS.end()
-               ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::intel_npu::Platform::standardize(
-                     ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM)))
-               : "")
-        : "";
-
-const auto all_ov_releases = []() -> std::vector<std::string> {
-    std::vector<std::string> ov_releases(OV_VERSIONS.size());
-    std::transform(OV_VERSIONS.begin(),
-                   OV_VERSIONS.end(),
-                   ov_releases.begin(),
-                   [](const decltype(OV_VERSIONS)::value_type& pair) {
-                       return pair.second;
-                   });
-    return ov_releases;
+const auto match_platforms = []() -> std::vector<std::string> {
+    const auto& platformEnv = ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM;
+    if (platformEnv.empty())
+        return {};
+    const auto it = PARSED_PLATFORMS.find(ov::intel_npu::Platform::standardize(platformEnv));
+    if (it == PARSED_PLATFORMS.end())
+        return {};
+    return {PLATFORMS.at(it->second)};
 }();
 
-const auto all_drivers = []() -> std::vector<std::string> {
-    std::vector<std::string> drivers(DRIVERS.size());
-    std::transform(DRIVERS.begin(), DRIVERS.end(), drivers.begin(), [](const decltype(DRIVERS)::value_type& pair) {
-        return pair.second;
-    });
-    return drivers;
+const auto all_ov_releases = []() {
+    std::vector<std::string> result;
+    for (const auto& [key, value] : OV_VERSIONS)
+        result.push_back(value);
+    return result;
 }();
 
-const auto pv_compatible_models = []() -> std::vector<std::string> {
-    std::vector<std::string> models(all_models.size() - 1);
-    std::copy_if(all_models.begin(), all_models.end(), models.begin(), [](const std::string& model) {
-        return DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES) != model;
-    });
-    return models;
+const auto pv_compatible_models = []() {
+    std::vector<std::string> result;
+    for (const auto& [key, value] : DUMMY_MODELS)
+        if (value != DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES))
+            result.push_back(value);
+    return result;
 }();
 
-const auto all_drivers_except_pv = []() -> std::vector<std::string> {
-    std::vector<std::string> drivers(all_drivers.size() - 1);
-    std::copy_if(all_drivers.begin(), all_drivers.end(), drivers.begin(), [](const std::string& driver) {
-        return DRIVERS.at(E_DRIVERS::DRIVER_1688) != driver;
-    });
-    return drivers;
+const auto all_drivers_except_pv = []() {
+    std::vector<std::string> result;
+    for (const auto& [key, value] : DRIVERS)
+        if (value != DRIVERS.at(E_DRIVERS::DRIVER_1688))
+            result.push_back(value);
+    return result;
 }();
 
 const std::vector<ov::AnyMap> config = {{}};
+const std::vector<ov::AnyMap> cipConfig = {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}};
+
+const std::vector<std::string> cip_ov_releases = {OV_VERSIONS.at(E_OV_VERSIONS::OV_2026_0_0)};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                          OVBlobCompatibilityNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(all_models),
-                                            ::testing::Values(match_platform),
+                                            ::testing::ValuesIn(match_platforms),
                                             ::testing::ValuesIn(all_ov_releases),
                                             ::testing::ValuesIn(all_drivers_except_pv),
                                             ::testing::ValuesIn(config)),
@@ -226,7 +208,7 @@ INSTANTIATE_TEST_SUITE_P(
     compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(pv_compatible_models),
-                       ::testing::Values(match_platform),
+                       ::testing::ValuesIn(match_platforms),
                        ::testing::ValuesIn(all_ov_releases),
                        ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688)),
                        ::testing::ValuesIn(config)),

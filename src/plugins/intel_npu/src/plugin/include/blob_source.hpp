@@ -90,6 +90,9 @@ public:
      */
     bool is_contiguous() const;
 
+    std::variant<std::reference_wrapper<std::istream>, std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>
+    get_source() const;
+
 private:
     /**
      * @brief A union that captures all possible data types of the blob. The tensor type also has a separate data cursor
