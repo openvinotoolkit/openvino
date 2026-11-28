@@ -9,6 +9,7 @@
 
 #include "../logging.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -26,6 +27,33 @@ void MoEResources::initialize_expert_iterative_mode(
                        config.input_token_count,
                        ", expected > 1. Use initialize_expert_batch_mode instead.");
     }
+
+    OPENVINO_ASSERT(config.is_valid(), "MoE: Invalid iterative configuration");
+    const auto& first_entry = *config.compiled_models.begin();
+    OPENVINO_ASSERT(first_entry.first > 0 && first_entry.second && !first_entry.second->outputs().empty(),
+                    "MoE: Invalid first chunk model");
+    const auto output_shape = first_entry.second->outputs()[0].get_shape();
+    OPENVINO_ASSERT((output_shape.size() == 3 || output_shape.size() == 4) && output_shape[0] == 1 &&
+                        output_shape.back() == config.expert_hidden_dim,
+                    "MoE: Unsupported chunk output layout");
+    size_t token_axis = 0;
+    for (size_t axis = 1; axis + 1 < output_shape.size(); ++axis) {
+        OPENVINO_ASSERT(output_shape[axis] == 1 || output_shape[axis] == first_entry.first,
+                        "MoE: Unsupported chunk output layout");
+        if (output_shape[axis] == first_entry.first) {
+            OPENVINO_ASSERT(token_axis == 0, "MoE: Ambiguous chunk output layout");
+            token_axis = axis;
+        }
+    }
+    OPENVINO_ASSERT(token_axis != 0, "MoE: Chunk output has no token axis");
+    auto buffer_shape = output_shape;
+    buffer_shape[0] = config.num_active_experts;
+    buffer_shape[token_axis] = config.input_token_count;
+    const auto output_element_type = first_entry.second->outputs()[0].get_element_type();
+    OPENVINO_ASSERT(output_element_type == ov::element::f32 || output_element_type == ov::element::f16,
+                    "MoE: Unsupported chunk output element type");
+    const auto buffer_bytes = ov::util::get_memory_size_safe(output_element_type, buffer_shape);
+    OPENVINO_ASSERT(buffer_bytes.has_value(), "MoE: Accumulator size overflows");
 
     // Step 1: Create chunk infer requests and collect chunk sizes
     LOG_DEBUG("Creating chunk infer requests for expert iterative mode...");
@@ -59,38 +87,12 @@ void MoEResources::initialize_expert_iterative_mode(
     LOG_DEBUG("Created " << chunk_infer_requests.size() << " chunk infer requests with sorted sizes");
 
     // Step 3: Allocate output accumulator buffer
-    const size_t active_experts = config.num_active_experts;
-    const size_t num_tokens = config.input_token_count;
-    const size_t embed_dim = config.expert_hidden_dim;
-
-    // Derive accumulator shape from the expert model's output shape template.
-    // Two layout variants exist depending on the opset version used during model export:
-    //   Layout A: [1, 1, chunk_size, embed_dim]  → accumulator [active_experts, 1, num_tokens, embed_dim]
-    //   Layout B: [1, chunk_size, 1, embed_dim]  → accumulator [active_experts, num_tokens, 1, embed_dim]
-    //
-    // We use the first chunk size's compiled model output shape as the template:
-    // replace dim[0] with active_experts, replace any middle dim (1..n-2) equal to
-    // chunk_size with num_tokens, and always preserve the last dim (embed_dim) unchanged.
-    const size_t first_chunk_size = config.compiled_models.begin()->first;
-    auto first_model = config.compiled_models.begin()->second;
-    const auto output_shape = first_model->outputs()[0].get_shape();
-
-    ov::Shape buffer_shape(output_shape.size());
-    buffer_shape[0] = active_experts;
-    for (size_t i = 1; i < output_shape.size() - 1; ++i) {
-        if (output_shape[i] == first_chunk_size) {
-            buffer_shape[i] = num_tokens;
-        } else {
-            buffer_shape[i] = output_shape[i];  // copy singleton (1) as-is
-        }
-    }
-    buffer_shape.back() = output_shape.back();  // always preserve embed_dim (last dim)
-    NPUW_ASSERT(buffer_shape.back() == embed_dim && "Accumulator last dim must equal expert_hidden_dim");
-
-    // Infer element type from first compiled model output
-    auto output_element_type = first_model->outputs()[0].get_element_type();
-
     expert_output_accumulator = allocator(output_element_type, buffer_shape, device);
+    OPENVINO_ASSERT(expert_output_accumulator && expert_output_accumulator->is_continuous() &&
+                        expert_output_accumulator->get_element_type() == output_element_type &&
+                        expert_output_accumulator->get_shape() == buffer_shape &&
+                        expert_output_accumulator->get_byte_size() >= *buffer_bytes,
+                    "MoE: Invalid accumulator allocation");
     std::memset(expert_output_accumulator->data(), 0, expert_output_accumulator->get_byte_size());
 
     LOG_DEBUG("Allocated iterative mode output buffer: shape=" << buffer_shape << ", type=" << output_element_type

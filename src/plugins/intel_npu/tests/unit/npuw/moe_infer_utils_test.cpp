@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
+#include <limits>
 
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -35,6 +36,59 @@ ov::SoPtr<ov::ITensor> make_accumulator(float fill_value) {
 }
 
 }  // namespace
+
+TEST(MoEInferUtilsTest, RejectsUndersizedRank2Accumulator) {
+    ov::Tensor expert(ov::element::f32, {1, 4});
+    std::fill_n(expert.data<float>(), expert.get_size(), 1.0f);
+    std::vector<float> storage(8, 0.0f);
+    ov::Tensor accumulator(ov::element::f32, {1, 4}, storage.data());
+
+    EXPECT_THROW(
+        scatter_expert_outputs(ov::get_tensor_impl(expert), ov::get_tensor_impl(accumulator), {1}, 0, 1, 4, 2, {0}),
+        ov::Exception);
+    EXPECT_FLOAT_EQ(storage[4], 0.0f);
+}
+
+TEST(MoEInferUtilsTest, ValidatesScatterInputsBeforeWriting) {
+    ov::Tensor expert(ov::element::f32, {2, 4});
+    ov::Tensor small_expert(ov::element::f32, {1, 4});
+    ov::Tensor half_expert(ov::element::f16, {2, 4});
+    ov::Tensor accumulator(ov::element::f32, {2, 2, 4});
+    std::fill_n(accumulator.data<float>(), accumulator.get_size(), 0.0f);
+    auto scatter = [&](const ov::Tensor& source,
+                       const std::vector<size_t>& tokens,
+                       const std::vector<size_t>& slots,
+                       size_t start,
+                       size_t count,
+                       size_t width,
+                       size_t token_count) {
+        scatter_expert_outputs(ov::get_tensor_impl(source),
+                               ov::get_tensor_impl(accumulator),
+                               tokens,
+                               start,
+                               count,
+                               width,
+                               token_count,
+                               slots);
+    };
+    EXPECT_THROW(scatter(small_expert, {0, 1}, {0, 0}, 0, 2, 4, 2), ov::Exception);
+    EXPECT_THROW(scatter(half_expert, {0}, {0}, 0, 1, 4, 2), ov::Exception);
+    EXPECT_THROW(scatter(expert, {0}, {0}, 1, 1, 4, 2), ov::Exception);
+    EXPECT_THROW(scatter(expert, {0}, {}, 0, 1, 4, 2), ov::Exception);
+    EXPECT_THROW(scatter(expert, {0, 2}, {0, 0}, 0, 2, 4, 2), ov::Exception);
+    EXPECT_THROW(scatter(expert, {0, 1}, {0, 2}, 0, 2, 4, 2), ov::Exception);
+    EXPECT_THROW(scatter(expert, {0}, {0}, 0, 1, std::numeric_limits<size_t>::max(), 2), ov::Exception);
+    EXPECT_THROW(scatter(expert, {0}, {0}, 0, 1, 4, std::numeric_limits<size_t>::max()), ov::Exception);
+    for (size_t i = 0; i < accumulator.get_size(); ++i)
+        EXPECT_FLOAT_EQ(accumulator.data<float>()[i], 0.0f);
+}
+
+TEST(MoEInferUtilsTest, RejectsUndersizedAccumulatorBeforeClearing) {
+    std::vector<float> storage(8, 1.0f);
+    ov::Tensor accumulator(ov::element::f32, {1, 4}, storage.data());
+    EXPECT_THROW(clear_unfilled_accumulator_slots(ov::get_tensor_impl(accumulator), {0, 0}, 1, 4, 2), ov::Exception);
+    EXPECT_FLOAT_EQ(storage[4], 1.0f);
+}
 
 TEST(ClearUnfilledAccumulatorSlotsTest, ZeroesOnlySlotsBeyondPerTokenCount) {
     // Sentinel value simulates stale data left over from a previous call, so any cell that
