@@ -32,9 +32,18 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     set_property(TARGET IntelSYCL::SYCL_CXX APPEND PROPERTY
         INTERFACE_LINK_OPTIONS ${SYCL_EXTRA_FLAGS}
     )
+    if(WIN32)
+        # SYCL headers from recent oneAPI emit deprecation warnings from system locations.
+        # Scope the suppression to the targets that actually consume the SYCL interface
+        # instead of the whole GPU subtree, so deprecated-API use in GPU code itself
+        # still surfaces.
+        set_property(TARGET IntelSYCL::SYCL_CXX APPEND PROPERTY
+            INTERFACE_COMPILE_OPTIONS -Wno-deprecated-declarations
+        )
+    endif()
 
     if (WIN32)
-        ov_add_compiler_flags(/WX)
+        # /WX comes from CMake's COMPILE_WARNING_AS_ERROR (automatic since CMake 3.24).
         ov_add_compiler_flags(/Wno-ignored-attributes)
     endif()
 endif()
