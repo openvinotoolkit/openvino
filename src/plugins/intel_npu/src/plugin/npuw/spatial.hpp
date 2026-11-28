@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -75,6 +76,17 @@ public:
     virtual void prepare() = 0;
     virtual bool need_submit(std::size_t offset, std::size_t len) const = 0;
 };
+
+struct Range {
+    std::size_t nway;
+    std::size_t iters;
+    std::size_t tail;
+
+    Range(std::size_t range, std::size_t slice);
+};
+
+using Slice = std::function<void(std::size_t offset, std::size_t len, bool is_tail, std::size_t index)>;
+void for_each_slice(const Range& range, const Slice& slice, const Selector* selector = nullptr);
 
 // No dynamic dispatch - just run over the whole range
 class All final : public Selector {
