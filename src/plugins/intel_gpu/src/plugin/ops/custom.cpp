@@ -87,6 +87,12 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         // the tensor ctor stores an `any` layout's sizes in raw internal order at full
         // internal rank, transposing the WorkSizes resolution and the downstream shape.
         if (dims.is_dynamic() || outputFormats[i] == cldnn::format::any) {
+            // Legacy shape infer stores rank < 4 tensors as 4D (see tensor_from_dims); keep ANY outputs consistent.
+            if (!p.use_new_shape_infer() && dims.is_static() && dims.size() < 4) {
+                auto storage_shape = dims.to_shape();
+                storage_shape.resize(4, 1);
+                dims = ov::PartialShape(storage_shape);
+            }
             outputLayouts[i] = cldnn::layout(dims, cldnn::element_type_to_data_type(op->get_output_element_type(i)), outputFormats[i]);
         } else {
             size_t N = (dims.size() > 0) ? dims[0].get_length() : 1;
