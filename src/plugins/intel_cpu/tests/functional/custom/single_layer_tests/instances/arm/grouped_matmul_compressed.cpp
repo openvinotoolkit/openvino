@@ -13,8 +13,7 @@ namespace {
 using namespace ov::test;
 using ov::test::utils::DecompressionType;
 
-// KleidiAI supports only signed weight types (i8, i4) for the compressed path.
-// Asymmetric quantization (zero-points) is not supported.
+// KleidiAI supports symmetric i8/i4 weights and asymmetric group-wise u4 weights with u4 zero-points.
 // Dynamic activation quantization (fcDynamicQuantizationGroupSize) must be
 // disabled (set to UINT64_MAX) to enable the static-weight-compression path,
 // following the same convention as smoke_MatMulCompressedWeights_Kleidiai.
@@ -64,10 +63,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(DecompressionType::full),
-                                            // Symmetric quantization only: KleidiAI does not support zero-points
+                                            // Symmetric i8/i4 with channel-wise scales; asymmetric u4 is covered below
                                             ::testing::Values(DecompressionType::empty),
                                             ::testing::Values(false),
-                                            // No weight grouping: KleidiAI GatherMatmul does not support GrpSz != -1
                                             ::testing::Values(-1),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values("GatherMatmulCompressed"),
@@ -116,6 +114,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_KernelSwitch,
                                             ::testing::Values(-1),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values("GatherMatmulCompressed"),
+                                            ::testing::Values(kleidiai_compressed_config)),
+                         GroupedMatMulCompressedLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_Asym,
+                         GroupedMatMulCompressedLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmulCompressed"),
+                                            ::testing::Values(kleidiai_compressed_config)),
+                         GroupedMatMulCompressedLayerTest::getTestCaseName);
+
+const std::vector<GroupedMatMulShapeParams> shapes_asym_fallback = {
+    {{ov::PartialShape{4, -1, 384}, {{4, 8, 384}, {4, 1, 384}}}, {4, 123, 384}, {}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_Asym_Fallback,
+                         GroupedMatMulCompressedLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_asym_fallback),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(16, 128),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmul"),
                                             ::testing::Values(kleidiai_compressed_config)),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 

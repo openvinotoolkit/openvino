@@ -116,7 +116,7 @@ const std::vector<ExecutorImplementation<GatherMatmulAttrs>>& getImplementations
             // supports
             [](const GatherMatmulConfig& config) -> bool {
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(any_of(weiType(config), i8, i4, f32), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(any_of(weiType(config), i8, i4, u4, f32), UNSUPPORTED_WEI_PRECISIONS);
                 VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(GatherMatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);

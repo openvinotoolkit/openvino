@@ -84,5 +84,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_GroupWise,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::i4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(32),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_Asym,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(32),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
