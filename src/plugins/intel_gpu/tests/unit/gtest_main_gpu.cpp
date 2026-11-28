@@ -36,6 +36,69 @@
 #include "test_utils/test_utils.h"
 #include "gflags/gflags.h"
 
+#ifdef __linux__
+#    include <atomic>
+#    include <cerrno>
+#    include <cstring>
+#    include <dlfcn.h>
+#    include <string_view>
+
+namespace {
+struct NeoCacheCounts {
+    std::atomic<unsigned long long> hits{0};
+    std::atomic<unsigned long long> misses{0};
+    std::atomic<unsigned long long> errors{0};
+};
+
+NeoCacheCounts neo_cache_counts;
+
+class NeoCacheStatsListener : public testing::EmptyTestEventListener {
+    void OnTestStart(const testing::TestInfo&) override {
+        hits = neo_cache_counts.hits.load(std::memory_order_relaxed);
+        misses = neo_cache_counts.misses.load(std::memory_order_relaxed);
+        errors = neo_cache_counts.errors.load(std::memory_order_relaxed);
+    }
+
+    void OnTestEnd(const testing::TestInfo& info) override {
+        std::printf("[ NEO_CL_CACHE ] test=%s.%s hits=%llu misses=%llu errors=%llu\n",
+                    info.test_suite_name(),
+                    info.name(),
+                    neo_cache_counts.hits.load(std::memory_order_relaxed) - hits,
+                    neo_cache_counts.misses.load(std::memory_order_relaxed) - misses,
+                    neo_cache_counts.errors.load(std::memory_order_relaxed) - errors);
+        std::fflush(stdout);
+    }
+
+    unsigned long long hits = 0;
+    unsigned long long misses = 0;
+    unsigned long long errors = 0;
+};
+}  // namespace
+
+extern "C" __attribute__((visibility("default"))) FILE* fopen(const char* path, const char* mode) {
+    const int incoming_errno = errno;
+    static const auto libc_fopen = reinterpret_cast<decltype(&fopen)>(dlsym(RTLD_NEXT, "fopen"));
+    if (!libc_fopen) {
+        errno = ENOSYS;
+        return nullptr;
+    }
+    errno = incoming_errno;
+    FILE* file = libc_fopen(path, mode);
+    const int open_errno = errno;
+    constexpr std::string_view suffix = ".cl_cache";
+    if (std::strcmp(mode, "rb") == 0) {
+        const std::string_view name(path);
+        if (name.size() >= suffix.size() && name.substr(name.size() - suffix.size()) == suffix) {
+            auto& count = file ? neo_cache_counts.hits :
+                                 (open_errno == ENOENT ? neo_cache_counts.misses : neo_cache_counts.errors);
+            count.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+    errno = open_errno;
+    return file;
+}
+#endif
+
 DEFINE_int32(device_suffix, -1, "GPU Device ID (a number starts from 0)");
 
 GTEST_API_ int main(int argc, char** argv) {
@@ -60,6 +123,9 @@ GTEST_API_ int main(int argc, char** argv) {
 
     //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
+#ifdef __linux__
+    testing::UnitTest::GetInstance()->listeners().Append(new NeoCacheStatsListener);
+#endif
     auto retcode = RUN_ALL_TESTS();
     delete[] new_argv;
     return retcode;

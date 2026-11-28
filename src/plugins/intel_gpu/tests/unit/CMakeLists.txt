@@ -86,6 +86,11 @@ ov_add_test_target(
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_TESTS_RT})
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
+    target_link_options(${TARGET_NAME} PRIVATE "LINKER:--export-dynamic-symbol=fopen")
+endif()
+
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
