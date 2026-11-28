@@ -104,9 +104,43 @@ ov::Tensor tensor(const ov::element::Type& type, const ov::Shape& shape, const s
     return result;
 }
 
+// One query token attending to keys [first, n), with its relative-bias row and a per-head sink logit.
+std::vector<float> expected_attention(const float* q,
+                                      const std::vector<float>& keys,
+                                      const std::vector<float>& values,
+                                      size_t first,
+                                      size_t n,
+                                      const ov::float16* bias,
+                                      float sink) {
+    std::vector<float> result(heads * width);
+    for (size_t h = 0; h < heads; ++h) {
+        std::vector<float> scores(n);
+        float max_score = sink;
+        for (size_t key = first; key < n; ++key) {
+            float score = 0.f;
+            for (size_t d = 0; d < width; ++d)
+                score += q[h * width + d] * keys[key * width + d];
+            scores[key] = score * 0.5f + static_cast<float>(bias[h * (span + 1) + std::min(n - 1 - key, span)]);
+            max_score = std::max(max_score, scores[key]);
+        }
+        float denominator = std::exp(sink - max_score);
+        for (size_t key = first; key < n; ++key) {
+            scores[key] = std::exp(scores[key] - max_score);
+            denominator += scores[key];
+        }
+        for (size_t d = 0; d < width; ++d) {
+            float sum = 0.f;
+            for (size_t key = first; key < n; ++key)
+                sum += scores[key] * values[key * width + d];
+            result[h * width + d] = sum / denominator;
+        }
+    }
+    return result;
+}
+
 struct History {
-    std::vector<std::vector<float>> keys;
-    std::vector<std::vector<float>> values;
+    std::vector<float> keys;
+    std::vector<float> values;
 };
 
 using PackedParams = std::tuple<int32_t, ov::element::Type, ov::element::Type>;
@@ -155,7 +189,7 @@ TEST_P(PagedAttnRelativeBiasCustomTest, PackedPrefillDecodeAndReuse) {
         std::vector<int32_t> past(2);
         std::vector<int32_t> begins{0, lengths[0], lengths[0] + lengths[1]};
         for (size_t seq = 0; seq < 2; ++seq) {
-            past[seq] = static_cast<int32_t>(history[seq].keys.size());
+            past[seq] = static_cast<int32_t>(history[seq].keys.size() / width);
             for (int32_t local = 0; local < lengths[seq]; ++local) {
                 const auto token = static_cast<size_t>(begins[seq] + local);
                 const auto position = static_cast<size_t>(past[seq] + local);
@@ -183,30 +217,24 @@ TEST_P(PagedAttnRelativeBiasCustomTest, PackedPrefillDecodeAndReuse) {
         for (size_t seq = 0; seq < 2; ++seq) {
             for (int32_t local = 0; local < lengths[seq]; ++local) {
                 const auto token = static_cast<size_t>(begins[seq] + local);
-                history[seq].keys.emplace_back(k.begin() + token * width, k.begin() + (token + 1) * width);
-                history[seq].values.emplace_back(v.begin() + token * width, v.begin() + (token + 1) * width);
-                const auto n = history[seq].keys.size();
+                history[seq].keys.insert(history[seq].keys.end(),
+                                         k.begin() + token * width,
+                                         k.begin() + (token + 1) * width);
+                history[seq].values.insert(history[seq].values.end(),
+                                           v.begin() + token * width,
+                                           v.begin() + (token + 1) * width);
+                const auto n = history[seq].keys.size() / width;
                 const auto first = window > 0 && n > static_cast<size_t>(window) ? n - window : 0;
-                for (size_t h = 0; h < heads; ++h) {
-                    std::vector<float> weights(n);
-                    float denominator = std::exp(sink);
-                    for (size_t key = first; key < n; ++key) {
-                        float score = 0.f;
-                        for (size_t d = 0; d < width; ++d)
-                            score += q[(token * heads + h) * width + d] * history[seq].keys[key][d];
-                        const auto distance = std::min(n - 1 - key, span);
-                        score = score * 0.5f + static_cast<float>(bias[(token * heads + h) * (span + 1) + distance]);
-                        weights[key] = std::exp(score);
-                        denominator += weights[key];
-                    }
-                    for (size_t d = 0; d < width; ++d) {
-                        float expected = 0.f;
-                        for (size_t key = first; key < n; ++key)
-                            expected += weights[key] * history[seq].values[key][d] / denominator;
-                        EXPECT_NEAR(actual.data<float>()[(token * heads + h) * width + d], expected, tolerance)
-                            << "sequence=" << seq << " token=" << local << " head=" << h << " dim=" << d;
-                    }
-                }
+                const auto expected = expected_attention(&q[token * heads * width],
+                                                         history[seq].keys,
+                                                         history[seq].values,
+                                                         first,
+                                                         n,
+                                                         &bias[token * heads * (span + 1)],
+                                                         sink);
+                for (size_t i = 0; i < heads * width; ++i)
+                    EXPECT_NEAR(actual.data<float>()[token * heads * width + i], expected[i], tolerance)
+                        << "sequence=" << seq << " token=" << local << " index=" << i;
             }
         }
     };
@@ -273,29 +301,9 @@ void run_long_cached_context(int32_t window, const ov::element::Type& cache_type
     const auto actual = request.get_output_tensor(0);
     ASSERT_EQ(actual.get_size(), heads * width);
     const size_t first = window ? past + 1 - window : 0;
-    for (size_t h = 0; h < heads; ++h) {
-        std::vector<float> weights(past + 1);
-        float max_score = 0.f;
-        for (size_t token = first; token <= past; ++token) {
-            float score = 0.f;
-            for (size_t d = 0; d < width; ++d)
-                score += q[h * width + d] * keys[token * width + d];
-            score = score * 0.5f + static_cast<float>(bias[h * (span + 1) + std::min(past - token, span)]);
-            weights[token] = score;
-            max_score = std::max(max_score, score);
-        }
-        float denominator = std::exp(-max_score);
-        for (size_t token = first; token <= past; ++token) {
-            weights[token] = std::exp(weights[token] - max_score);
-            denominator += weights[token];
-        }
-        for (size_t d = 0; d < width; ++d) {
-            float expected = 0.f;
-            for (size_t token = first; token <= past; ++token)
-                expected += weights[token] * values[token * width + d] / denominator;
-            EXPECT_NEAR(actual.data<const float>()[h * width + d], expected, 2e-5f) << "head=" << h << " dim=" << d;
-        }
-    }
+    const auto expected = expected_attention(q.data(), keys, values, first, past + 1, bias.data(), 0.f);
+    for (size_t i = 0; i < heads * width; ++i)
+        EXPECT_NEAR(actual.data<const float>()[i], expected[i], 2e-5f) << "index=" << i;
 }
 
 TEST_P(PagedAttnRelativeBiasLongContextTest, LongCachedContext) {

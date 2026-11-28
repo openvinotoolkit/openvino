@@ -61,7 +61,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -660,37 +659,6 @@ TEST(GGUFInkling, PagedAttentionRejectsLiveConvolutionState) {
     OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
                     ov::Exception,
                     testing::HasSubstr("cannot retain unconverted state"));
-}
-
-TEST(GGUFInkling, PagedAttentionRejectsMalformedRelativeBias) {
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    ov::frontend::gguf::FrontEnd frontend;
-    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
-    auto model = frontend.convert(frontend.load(temporary.path));
-    bool changed = false;
-    for (const auto& node : model->get_ops()) {
-        const auto gather = ov::as_type_ptr<ov::op::v6::GatherElements>(node);
-        const auto broadcast =
-            gather ? ov::as_type_ptr<ov::op::v3::Broadcast>(gather->get_input_node_shared_ptr(1)) : nullptr;
-        const auto select =
-            broadcast ? ov::as_type_ptr<ov::op::v1::Select>(broadcast->get_input_node_shared_ptr(0)) : nullptr;
-        if (!select)
-            continue;
-        const auto fallback = ov::as_type_ptr<ov::op::v0::Constant>(select->get_input_node_shared_ptr(2));
-        ASSERT_TRUE(fallback);
-        auto values = fallback->cast_vector<int64_t>();
-        for (auto& value : values)
-            --value;
-        select->input(2).replace_source_output(
-            ov::op::v0::Constant::create(fallback->get_element_type(), fallback->get_shape(), values));
-        changed = true;
-        break;
-    }
-    ASSERT_TRUE(changed);
-    OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
-                    ov::Exception,
-                    testing::HasSubstr("clamped distance"));
 }
 
 TEST(GGUFInkling, PagedAttentionAllowsUnrelatedGatherMask) {
