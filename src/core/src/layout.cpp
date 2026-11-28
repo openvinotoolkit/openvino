@@ -391,7 +391,7 @@ std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
     // Fill the rest
     int dst_pos = 0;
     auto find_free_pos = [&]() {
-        while (mapped[dst_pos] && dst_pos < src_static.m_left_size) {
+        while (dst_pos < src_static.m_left_size && mapped[dst_pos]) {
             dst_pos++;
         }
         OPENVINO_ASSERT(dst_pos < src_static.m_left_size,
