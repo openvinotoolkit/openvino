@@ -1,0 +1,83 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "sizes"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 2
+        data_type: 7
+        int64_data: 4
+        int64_data: 2
+        name: "const_sizes"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "X"
+    input: ""
+    input: ""
+    input: "sizes"
+    output: "Y"
+    op_type: "Resize"
+    attribute {
+      name: "axes"
+      ints: 2
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "coordinate_transformation_mode"
+      s: "asymmetric"
+      type: STRING
+    }
+    attribute {
+      name: "keep_aspect_ratio_policy"
+      s: "unknown_policy"
+      type: STRING
+    }
+    attribute {
+      name: "mode"
+      s: "nearest"
+      type: STRING
+    }
+  }
+  name: "test_resize18_sizes_invalid_keep_aspect_ratio_policy"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 18
+}

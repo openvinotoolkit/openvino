@@ -41,6 +41,12 @@ TEST(ONNXFeConvertException, exception_if_other_translation_exception) {
                     testing::HasSubstr("only 'DCR' and 'CRD' modes are supported"));
 }
 
+TEST(ONNXFeConvertException, exception_if_resize_invalid_keep_aspect_ratio_policy) {
+    OV_EXPECT_THROW(convert_model("resize18_sizes_invalid_keep_aspect_ratio_policy.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("keep_aspect_ratio_policy is not supported"));
+}
+
 TEST(ONNXFeConvertException, exception_if_unsupported_recurrent_layout) {
     OV_EXPECT_THROW(convert_model("rnn_layout_invalid.onnx"),
                     ov::AssertFailure,

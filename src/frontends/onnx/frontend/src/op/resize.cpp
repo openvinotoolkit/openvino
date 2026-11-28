@@ -5,7 +5,17 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils/common.hpp"
 using namespace ov::op;
 
@@ -104,6 +114,36 @@ InterpolateAttrs get_resize_attrs(const ov::frontend::onnx::Node& node) {
 
     return attrs;
 }
+
+ov::Output<ov::Node> apply_keep_aspect_ratio_policy(const ov::Output<ov::Node>& data,
+                                                    const ov::Output<ov::Node>& sizes,
+                                                    const std::vector<int64_t>& axes,
+                                                    const std::string& policy) {
+    ov::Output<ov::Node> input_sizes = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
+    if (!axes.empty()) {
+        const auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        const auto gather_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        input_sizes = std::make_shared<v8::Gather>(input_sizes, axes_const, gather_axis);
+    }
+    const auto target_sizes = std::make_shared<v0::Convert>(sizes, ov::element::i64);
+
+    // The spec computes new_size[j] = round_half_up(in[j] * scale), where scale = min/max over i of size[i] / in[i].
+    // Rounding is monotonic, so this equals min/max over i of round_half_up(in[j] * size[i] / in[i]), which is
+    // computed exactly in integers as (2 * in[j] * size[i] + in[i]) / (2 * in[i]) to avoid floating-point errors.
+    const auto two = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    const auto input_sizes_column = std::make_shared<v0::Unsqueeze>(input_sizes, one);
+    const auto doubled_products =
+        std::make_shared<v1::Multiply>(std::make_shared<v1::Multiply>(input_sizes_column, two), target_sizes);
+    const auto numerators = std::make_shared<v1::Add>(doubled_products, input_sizes);
+    const auto denominators = std::make_shared<v1::Multiply>(input_sizes, two);
+    const auto candidates = std::make_shared<v1::Divide>(numerators, denominators);
+
+    if (policy == "not_larger") {
+        return std::make_shared<v1::ReduceMin>(candidates, one, false);
+    }
+    return std::make_shared<v1::ReduceMax>(candidates, one, false);
+}
 }  // namespace
 
 namespace opset_11 {
@@ -115,22 +155,35 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
 
     auto attrs = get_resize_attrs(node);
 
+    const auto keep_aspect_ratio_policy = node.get_attribute_value<std::string>("keep_aspect_ratio_policy", "stretch");
+    CHECK_VALID_NODE(node,
+                     keep_aspect_ratio_policy == "stretch" || keep_aspect_ratio_policy == "not_larger" ||
+                         keep_aspect_ratio_policy == "not_smaller",
+                     keep_aspect_ratio_policy,
+                     " - this keep_aspect_ratio_policy is not supported."
+                     " Choose one of the following policies: stretch, not_larger, not_smaller");
+
+    auto axes_attr = node.get_attribute_value<std::vector<int64_t>>("axes", {});
+    const auto data_rank = data.get_partial_shape().rank();
+    for (auto& axis : axes_attr) {
+        axis = common::normalize_axis(node.get_description(), axis, data_rank);
+    }
+
     ov::Output<ov::Node> scale_or_sizes;
     if (inputs.size() == 4 && !ov::op::util::is_null(inputs[3])) {
         attrs.shape_calculation_mode = v11::Interpolate::ShapeCalcMode::SIZES;
         scale_or_sizes = inputs.at(3);
+        // keep_aspect_ratio_policy is only applicable when the output shape is given by "sizes"
+        if (keep_aspect_ratio_policy != "stretch") {
+            scale_or_sizes = apply_keep_aspect_ratio_policy(data, scale_or_sizes, axes_attr, keep_aspect_ratio_policy);
+        }
     } else {
         attrs.shape_calculation_mode = v11::Interpolate::ShapeCalcMode::SCALES;
         scale_or_sizes = inputs.at(2);
     }
-    auto axes_attr = node.get_attribute_value<std::vector<int64_t>>("axes", {});
+
     if (axes_attr.empty()) {
         return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, attrs)};
-    }
-
-    const auto data_rank = data.get_partial_shape().rank();
-    for (auto& axis : axes_attr) {
-        axis = common::normalize_axis(node.get_description(), axis, data_rank);
     }
 
     auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes_attr.size()}, axes_attr);

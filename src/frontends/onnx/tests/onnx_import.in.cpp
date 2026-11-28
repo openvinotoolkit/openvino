@@ -2733,6 +2733,85 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_downsample_sizes_3D_linear_params) 
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_axes_not_larger) {
+    const auto model = convert_model("resize18_sizes_axes_not_larger.onnx");
+
+    // Input [1,1,2,4], sizes=[4,2] on axes [2,3]: scale = min(4/2, 2/4) = 0.5 => output [1,1,1,2]
+    const Shape expected_output_shape{1, 1, 1, 2};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_expected_output<float>(expected_output_shape, {1.0f, 3.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_axes_not_smaller_dynamic) {
+    const auto model = convert_model("resize18_sizes_axes_not_smaller_dynamic.onnx");
+
+    // Input [1,1,H,W] = [1,1,2,4], sizes=[4,2] on axes [2,3]: scale = max(4/2, 2/4) = 2 => output [1,1,4,8]
+    const Shape expected_output_shape{1, 1, 4, 8};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 4}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f, 1.25f, 1.75f, 2.25f, 2.75f, 3.25f, 3.75f, 4.0f, 2.0f, 2.25f, 2.75f, 3.25f, 3.75f, 4.25f, 4.75f, 5.0f,
+         4.0f, 4.25f, 4.75f, 5.25f, 5.75f, 6.25f, 6.75f, 7.0f, 5.0f, 5.25f, 5.75f, 6.25f, 6.75f, 7.25f, 7.75f, 8.0f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_negative_axes_not_smaller) {
+    const auto model = convert_model("resize18_sizes_negative_axes_not_smaller.onnx");
+
+    // Input [1,1,2,4], sizes=[4,2] on axes [-2,-1]: scale = max(4/2, 2/4) = 2 => output [1,1,4,8]
+    const Shape expected_output_shape{1, 1, 4, 8};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 4.0f, 4.0f, 1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 4.0f, 4.0f,
+         5.0f, 5.0f, 6.0f, 6.0f, 7.0f, 7.0f, 8.0f, 8.0f, 5.0f, 5.0f, 6.0f, 6.0f, 7.0f, 7.0f, 8.0f, 8.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_no_axes_not_larger) {
+    const auto model = convert_model("resize18_sizes_no_axes_not_larger.onnx");
+
+    // Input [1,1,2,4], sizes=[1,1,4,2] on all axes: scale = min(1, 1, 4/2, 2/4) = 0.5
+    // => output [round(0.5), round(0.5), 1, 2] = [1,1,1,2]
+    const Shape expected_output_shape{1, 1, 1, 2};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_expected_output<float>(expected_output_shape, {1.0f, 3.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_axes_not_larger_round_half_up) {
+    const auto model = convert_model("resize18_sizes_axes_not_larger_round_half_up.onnx");
+
+    // Input [1,1,5,6], sizes=[4,3] on axes [2,3]: scale = min(4/5, 3/6) = 0.5
+    // => output [1,1,round(2.5),3] = [1,1,3,3] (halfway cases are rounded up; "stretch" would give [1,1,4,3])
+    const Shape expected_output_shape{1, 1, 3, 3};
+    auto test_case = ov::test::TestCase(model, s_device);
+    std::vector<float> input_data(30);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape,
+                                         {1.0f, 3.5f, 6.0f, 13.0f, 15.5f, 18.0f, 25.0f, 27.5f, 30.0f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_sizes_axes_not_larger_non_exact_scale) {
+    const auto model = convert_model("resize18_sizes_axes_not_larger_non_exact_scale.onnx");
+
+    // Input [1,1,12,54], sizes=[7,54] on axes [2,3]: scale = min(7/12, 54/54) = 7/12
+    // => output [1,1,7,round(31.5)] = [1,1,7,32]. 7/12 is not exact in floating point, where 54 * 7/12 gives
+    // 31.499998 and would be rounded down to 31.
+    const Shape expected_output_shape{1, 1, 7, 32};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>(12 * 54, 1.0f));
+    test_case.add_expected_output<float>(expected_output_shape, std::vector<float>(7 * 32, 1.0f));
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape) {
     auto model = convert_model("shape.onnx");
 
