@@ -166,7 +166,16 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
 
     switch (kernelLookupKey) {
     case WEIGHT_FP32: {
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
+        if (hasArmISASupport(ArmISA::SME2)) {
+            kernelLookupKey |= kernelLookup::ISA_SME2;
+        }
+        if (kernelLookupKey & ISA_SME2) {
+            useSme2 = true;
+            _kernel =
+                std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_SME2_MOPA>>(N, K, lhsPackedMem);
+        } else {
+            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
+        }
 
         auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
         auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
@@ -286,6 +295,15 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
         M = std::accumulate(outDims.begin(), outDims.end() - 1, 1, std::multiplies<>());
     } else {
         M = outDims[0];
+    }
+    if (useSme2) {
+        if (M == 1) {
+            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_SME2_MLA>>(N, K);
+        } else {
+            _kernel =
+                std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_SME2_MOPA>>(N, K, lhsPackedMem);
+        }
+        _kernel->setRhsPackedMemory(rhsPackedMem);
     }
     size_t totalScratchpadSize = 0;
     if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {

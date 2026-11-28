@@ -15,7 +15,7 @@ namespace ov::intel_cpu {
 
 // ISA an ARM executor requires in its supports() predicate. ASIMD is the baseline (declare
 // nothing); requiring a higher ISA (e.g. SVE) makes the executor decline on incapable cores.
-enum class ArmISA : uint8_t { ASIMD, SVE, DOTPROD, I8MM };
+enum class ArmISA : std::uint8_t { ASIMD, SVE, DOTPROD, I8MM, SME2 };
 
 bool hasArmISASupport(ArmISA isa);
 

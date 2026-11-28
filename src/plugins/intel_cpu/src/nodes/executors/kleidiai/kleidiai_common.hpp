@@ -1,6 +1,7 @@
-// Copyright (C) 2026 FUJITSU LIMITED
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2026 FUJITSU LIMITED
 #pragma once
 
 #include <algorithm>
@@ -33,8 +34,12 @@
 #include "utils/precision_support.h"
 
 // Headers for F32 KAI kernels
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32p_f32p/kai_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa.h"
+#include "kai/ukernels/matmul/pack/kai_lhs_pack_f32p2vlx1_f32_sme.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 
 // Headers for INT8 KAI kernels
@@ -73,6 +78,8 @@ inline constexpr float FLOAT_MAX = std::numeric_limits<float>::max();
 inline constexpr float FLOAT_MIN = (-std::numeric_limits<float>::max());
 enum class KAIKernelTag : std::uint8_t {
     F32_NEON_MLA,
+    F32_SME2_MOPA,
+    F32_SME2_MLA,
     I8_NEON_DOTPROD,
     I8_NEON_IMM,
     I4_NEON_DOTPROD,
@@ -84,6 +91,7 @@ enum class KAIKernelTag : std::uint8_t {
 };
 
 using KernelInterface = std::variant<kai_matmul_clamp_f32_f32_f32p_ukernel,
+                                     std::monostate,
                                      kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel,
                                      kai_matmul_clamp_f32_qai8dxp_qsi4cxp_ukernel,
                                      kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel,
@@ -94,6 +102,7 @@ protected:
     size_t M = 0UL, N = 0UL, K = 0UL;
     size_t BLOCK_SIZE = 0UL, sr = 0UL, kr = 0UL, mr = 0UL, nr = 0UL;
     size_t packedlhs_block_in_bytes = 0UL;
+    MemoryPtr rhsPackedMem;
 
 public:
     uKernelBase() = default;
@@ -144,6 +153,10 @@ public:
     /// @return
     virtual size_t getLHSPackedSize([[maybe_unused]] size_t m) {
         return 0;
+    }
+
+    virtual void setRhsPackedMemory(MemoryPtr rhsPackedMemory) {
+        rhsPackedMem = rhsPackedMemory;
     }
 };
 
@@ -251,6 +264,191 @@ public:
                                 FLOAT_MAX);
         });
     }  // end of execute()...
+};
+
+template <>
+class uKernel<KAIKernelTag::F32_SME2_MOPA> : public uKernelBase {
+private:
+    size_t mr = 0;
+    size_t nr = 0;
+    size_t kr = 0;
+    size_t sr = 0;
+    MemoryPtr& lhsPackedMem;
+
+public:
+    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem) : lhsPackedMem(lhsPackedMem) {
+        this->N = N;
+        this->K = K;
+        mr = kai_get_mr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+        nr = kai_get_n_step_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme();
+        kr = kai_get_kr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+        sr = kai_get_sr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+    }
+
+    size_t get_rhsPackedSize() override {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(N, K);
+    }
+
+    void packData([[maybe_unused]] bool isTransposed,
+                  MemoryCPtr packedWeights,
+                  MemoryPtr biasMem,
+                  [[maybe_unused]] bool hasBias,
+                  [[maybe_unused]] float* rhs_scales,
+                  MemoryPtr rhsPackedMemory) override {
+        rhsPackedMem = rhsPackedMemory;
+        kai_run_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(1,
+                                                          N,
+                                                          K,
+                                                          nr,
+                                                          kr,
+                                                          sr,
+                                                          N * sizeof(float),
+                                                          packedWeights->getData(),
+                                                          biasMem->getData(),
+                                                          nullptr,
+                                                          rhsPackedMemory->getData(),
+                                                          0,
+                                                          nullptr);
+    }
+
+    KernelInterface getuKernelInterface() override {
+        return std::monostate{};
+    }
+
+    KAIKernelTag getKernelTag() override {
+        return KAIKernelTag::F32_SME2_MOPA;
+    }
+
+    size_t getLHSPackedSize(size_t m) override {
+        return kai_get_lhs_packed_size_lhs_pack_f32p2vlx1_f32_sme(m, K, mr, kr, sr);
+    }
+
+    void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
+                 ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
+                 ov::intel_cpu::MemoryPtr dstMem,
+                 ov::intel_cpu::MemoryPtr srcMem) override {
+        OPENVINO_ASSERT(lhsPackedMem != nullptr, "SME2 MOPA LHS scratchpad is not initialized");
+        kai_run_lhs_pack_f32p2vlx1_f32_sme(M,
+                                           K,
+                                           mr,
+                                           kr,
+                                           sr,
+                                           0,
+                                           srcMem->getData(),
+                                           K * sizeof(float),
+                                           lhsPackedMem->getData());
+
+        const size_t n_step = kai_get_n_step_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+        const size_t n_blocks = (N + n_step - 1) / n_step;
+        const size_t dst_stride_row = N * sizeof(float);
+        cpu_parallel->parallel_for(n_blocks, [&](size_t n_block) {
+            const size_t n_start = n_block * n_step;
+            const size_t n_end = std::min(n_start + n_step, N);
+            const size_t n_block_size = n_end - n_start;
+            const size_t lhs_packed_offset =
+                kai_get_lhs_packed_offset_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa(0, K);
+            const size_t rhs_packed_offset =
+                kai_get_rhs_packed_offset_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa(n_start, K);
+            const size_t dst_offset =
+                kai_get_dst_offset_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa(0, n_start, dst_stride_row);
+            kai_run_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa(
+                M,
+                n_block_size,
+                K,
+                static_cast<uint8_t*>(lhsPackedMem->getData()) + lhs_packed_offset,
+                static_cast<uint8_t*>(rhsPackedMem->getData()) + rhs_packed_offset,
+                static_cast<uint8_t*>(dstMem->getData()) + dst_offset,
+                dst_stride_row,
+                sizeof(float),
+                FLOAT_MIN,
+                FLOAT_MAX);
+        });
+    }
+};
+
+template <>
+class uKernel<KAIKernelTag::F32_SME2_MLA> : public uKernelBase {
+private:
+    size_t nr = 0;
+    size_t kr = 0;
+    size_t sr = 0;
+
+public:
+    uKernel(size_t N, size_t K) {
+        this->N = N;
+        this->K = K;
+        nr = kai_get_n_step_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme();
+        kr = kai_get_kr_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla();
+        sr = kai_get_sr_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla();
+    }
+
+    size_t get_rhsPackedSize() override {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(N, K);
+    }
+
+    void packData([[maybe_unused]] bool isTransposed,
+                  MemoryCPtr packedWeights,
+                  MemoryPtr biasMem,
+                  [[maybe_unused]] bool hasBias,
+                  [[maybe_unused]] float* rhs_scales,
+                  MemoryPtr rhsPackedMemory) override {
+        rhsPackedMem = rhsPackedMemory;
+        kai_run_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(1,
+                                                          N,
+                                                          K,
+                                                          nr,
+                                                          kr,
+                                                          sr,
+                                                          N * sizeof(float),
+                                                          packedWeights->getData(),
+                                                          biasMem->getData(),
+                                                          nullptr,
+                                                          rhsPackedMemory->getData(),
+                                                          0,
+                                                          nullptr);
+    }
+
+    KernelInterface getuKernelInterface() override {
+        return std::monostate{};
+    }
+
+    KAIKernelTag getKernelTag() override {
+        return KAIKernelTag::F32_SME2_MLA;
+    }
+
+    void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
+                 ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
+                 ov::intel_cpu::MemoryPtr dstMem,
+                 ov::intel_cpu::MemoryPtr srcMem) override {
+        OPENVINO_ASSERT(M == 1, "SME2 MLA kernel requires M == 1");
+        const size_t n_step = kai_get_n_step_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla();
+        const size_t n_blocks = (N + n_step - 1) / n_step;
+        const size_t dst_stride_row = N * sizeof(float);
+        cpu_parallel->parallel_for(n_blocks, [&](size_t n_block) {
+            const size_t n_start = n_block * n_step;
+            const size_t n_end = std::min(n_start + n_step, N);
+            const size_t n_block_size = n_end - n_start;
+            const size_t lhs_offset = kai_get_lhs_offset_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla(0, K);
+            const size_t rhs_packed_offset =
+                kai_get_rhs_packed_offset_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla(n_start, K);
+            const size_t dst_offset =
+                kai_get_dst_offset_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla(0, n_start, dst_stride_row);
+            kai_run_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla(
+                1,
+                n_block_size,
+                K,
+                static_cast<uint8_t*>(srcMem->getData()) + lhs_offset,
+                K * sizeof(float),
+                static_cast<uint8_t*>(rhsPackedMem->getData()) + rhs_packed_offset,
+                static_cast<uint8_t*>(dstMem->getData()) + dst_offset,
+                dst_stride_row,
+                sizeof(float),
+                FLOAT_MIN,
+                FLOAT_MAX);
+        });
+    }
 };
 
 // Kernel interfaces for the INT8 per-channel symmetric path (qai8dxp LHS, qsi8cxp RHS).

@@ -98,6 +98,13 @@ OPENVINO_RUNTIME_API bool with_cpu_arm_dotprod();
 OPENVINO_RUNTIME_API bool with_cpu_arm_i8mm();
 
 /**
+ * @brief      Checks whether CPU supports ARM SME2 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is ARM SME2 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_arm_sme2();
+
+/**
  * @brief      Checks whether CPU supports ARM SVE capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` if ARM SVE instructions are available, `false` otherwise
