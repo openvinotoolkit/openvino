@@ -108,9 +108,13 @@ bool evaluate(const util::TopKBase* const node, TensorVector& outputs, const Ten
 
     auto output_shape = output_shapes.front().get_shape();
     const auto axis = ov::util::normalize(node->get_provided_axis(), output_shape.size());
+    const auto input_dim = inputs[0].get_shape()[axis];
     if (output_shape[axis] == 0) {
         // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.
-        output_shape[axis] = inputs[0].get_shape()[axis];
+        output_shape[axis] = input_dim;
+    } else if (output_shape[axis] > input_dim) {
+        // there are no input elements for the output positions past the input dimension
+        return false;
     }
 
     for (auto& t : outputs) {
