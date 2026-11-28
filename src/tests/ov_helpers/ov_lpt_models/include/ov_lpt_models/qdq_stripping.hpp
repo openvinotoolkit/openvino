@@ -87,6 +87,14 @@ public:
                                                                        const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_fq_on_model_output_pattern_ref(const ov::PartialShape& input_shape);
 
+    // Chain of QDQs on model outputs where two identical QDQs quantize the same tensor:
+    // out0 = QDQ(x), out1 = QDQ(Identity(out0)), out2 = QDQ(Identity(out1)), out3 = QDQ(Identity(out1))
+    static std::shared_ptr<ov::Model> build_identical_sibling_qdqs_on_model_outputs_pattern(
+        const ov::PartialShape& input_shape,
+        const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_identical_sibling_qdqs_on_model_outputs_pattern_ref(
+        const ov::PartialShape& input_shape);
+
 private:
     // Builds one residual block: MVN → Conv+bias [→ optional FQ] + shortcut → Add.
     // Shared by build_residual_block_pattern (source) and build_residual_block_pattern_ref (ref).

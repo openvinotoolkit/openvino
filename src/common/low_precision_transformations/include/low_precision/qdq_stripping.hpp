@@ -8,6 +8,7 @@
 #include <set>
 
 #include "lpt_visibility.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/pass.hpp"
 #include "quantization_details.hpp"
 
@@ -28,6 +29,29 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
+    const std::set<size_t> levels_to_strip;
+    const bool need_weights_adjustment;
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief QDQStripping fuses Q/DQ chains into FakeQuantize and strips FakeQuantize operations with specified levels:
+ *
+ *   x -> FakeQuantize -> Convert -> Convert -> [Subtract] -> Multiply -> y      =>      x -> y
+ *
+ * ConvertQuantizeDequantize also runs before SharedOpOptimization: SharedOpOptimization can merge identical Q/DQ
+ * chains only up to the DQ Multiply (e.g. when both Multiplies feed model outputs), and such chains can't be fused.
+ */
+class LP_TRANSFORMATIONS_API QDQStripping : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("low_precision::QDQStripping");
+    QDQStripping(const ov::element::TypeVector& quantization_precisions,
+                 const std::set<size_t>& levels_to_strip,
+                 bool need_weights_adjustment = false);
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    const ov::element::TypeVector quantization_precisions;
     const std::set<size_t> levels_to_strip;
     const bool need_weights_adjustment;
 };

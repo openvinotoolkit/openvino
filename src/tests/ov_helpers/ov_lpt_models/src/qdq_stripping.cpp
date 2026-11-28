@@ -732,6 +732,42 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_patter
     return std::make_shared<ov::Model>(outputs, ov::ParameterVector{param}, "QDQStripping");
 }
 
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_identical_sibling_qdqs_on_model_outputs_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto qp = get_fq_on_model_output_qp(quantization_precision);
+    auto qdq = [&](const ov::Output<ov::Node>& input) {
+        auto fq = build_fq(input, qp);
+        auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+        auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+        return build_dq(convert2, quantization_precision, qp, false);
+    };
+
+    auto half = ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f});
+    auto out0 = qdq(std::make_shared<ov::op::v1::Multiply>(param, half));
+    auto out1 = qdq(std::make_shared<ov::op::v16::Identity>(out0));
+    auto out2 = qdq(std::make_shared<ov::op::v16::Identity>(out1));
+    auto out3 = qdq(std::make_shared<ov::op::v16::Identity>(out1));
+    return std::make_shared<ov::Model>(ov::OutputVector{out0, out1, out2, out3},
+                                       ov::ParameterVector{param},
+                                       "QDQStripping");
+}
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_identical_sibling_qdqs_on_model_outputs_pattern_ref(
+    const ov::PartialShape& input_shape) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto half = ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f});
+    auto out0 = std::make_shared<ov::op::v1::Multiply>(param, half);
+    auto out1 = std::make_shared<ov::op::v16::Identity>(out0);
+    // the sibling Identities are merged and out3 takes it, so out2 gets its own Identity
+    auto out3 = std::make_shared<ov::op::v16::Identity>(out1);
+    auto out2 = std::make_shared<ov::op::v16::Identity>(out3);
+    return std::make_shared<ov::Model>(ov::OutputVector{out0, out1, out2, out3},
+                                       ov::ParameterVector{param},
+                                       "QDQStripping");
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ov
