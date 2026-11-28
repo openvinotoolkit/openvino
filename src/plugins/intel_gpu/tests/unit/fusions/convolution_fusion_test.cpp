@@ -3355,6 +3355,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu_multi_batch, conv_fp16_prelu_onednn, ::test
     convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_2, 2, 2, 4 },
 }));
 
+// The oneDNN prelu post-op takes a common or per channel slope only, so a spatial slope (Keras PReLU) stays unfused
+class conv_prelu_spatial_slope_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_prelu_spatial_slope_onednn, basic) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        data("slope_data", get_mem(layout{ p.out_shape, p.default_type, p.default_format })),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), "slope_data", activation_func::relu_negative_slope),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.data_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_prelu_spatial_slope_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_1, 3, 3, 3 },
+    convolution_test_params{ CASE_CONV_FP32_1, 3, 3, 3 },
+}));
+
 class conv_int8_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {};
 TEST_P(conv_int8_eltwise_onednn, u8_eltwise_sum_out) {
     auto p = GetParam();

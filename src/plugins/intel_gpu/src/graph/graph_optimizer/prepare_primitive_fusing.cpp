@@ -348,6 +348,24 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                     (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
                     continue;
                 }
+            } else if (eltw_node.get_dependency(non_const_dep_idx).is_type<deconvolution>()) {
+                if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE) {
+                    continue;
+                }
+                // Same per channel check as for static shapes; the output may be dynamic, so take the features from the weights
+                auto& deconv = eltw_node.get_dependency(non_const_dep_idx).as<deconvolution>();
+                const auto& weights_layout = deconv.weights().get_output_layout();
+                if (weights_layout.is_dynamic()) {
+                    continue;
+                }
+                const auto oiyx_weights = weights_layout.convert_to_weights_layout(deconv.get_primitive()->grouped_weights_shape);
+                const auto out_features = oiyx_weights.group() * oiyx_weights.ofm();
+                const auto& const_layout = eltw_node.get_dependency(const_dep_idx.value()).get_output_layout();
+                // NUMPY broadcasting right-aligns a lower rank constant, so its dim 1 would not be the channel axis
+                if (const_layout.get_partial_shape().size() != deconv.get_output_layout().get_partial_shape().size() ||
+                    const_layout.feature() != out_features || const_layout.count() != static_cast<size_t>(out_features)) {
+                    continue;
+                }
             } else if (!eltw_node.get_dependency(non_const_dep_idx).is_type<convolution>()) {
                 continue;
             }
@@ -408,6 +426,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         };
 
         auto recalculate_biases = [&](data_node& original_node, data_node& second_node) -> bool {
+            // The sum is attached to original_node, so its other users or a requested output would see it as well
+            if (original_node.is_output() || original_node.get_users().size() != 1) {
+                return false;
+            }
             auto original_mem = original_node.get_attached_memory_ptr();
             auto second_mem = second_node.get_attached_memory_ptr();
             if (original_mem->count() != second_mem->count() || original_mem->get_layout().data_type != second_mem->get_layout().data_type) {
@@ -496,6 +518,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<deconvolution>()) {
             auto& deconv = replace_candidate.as<deconvolution>();
+            // A requested output must keep the unbiased value
+            if (deconv.is_output()) {
+                continue;
+            }
             auto desc = deconv.get_primitive();
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
@@ -511,21 +537,13 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
 
-            auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
-                                                                         desc->input[0],
-                                                                         desc->weights.pid,
-                                                                         bias_name,
-                                                                         desc->groups,
-                                                                         desc->stride,
-                                                                         desc->pad,
-                                                                         desc->dilations,
-                                                                         deconv.get_output_layout().get_tensor(),
-                                                                         desc->grouped_weights_shape);
-
-            deconv_with_bias_prim->pads_begin = desc->pads_begin;
-            deconv_with_bias_prim->pads_end = desc->pads_end;
-            deconv_with_bias_prim->out_padding = desc->out_padding;
-            deconv_with_bias_prim->auto_pad = desc->auto_pad;
+            auto deconv_with_bias_prim = desc->typed_clone();
+            deconv_with_bias_prim->id = desc->id + "_tmp";
+            deconv_with_bias_prim->bias = bias_name;
+            if (deconv.get_output_layout().is_static()) {
+                deconv_with_bias_prim->with_output_size = true;
+                deconv_with_bias_prim->output_size = deconv.get_output_layout().get_tensor();
+            }
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<fully_connected>()) {
@@ -932,6 +950,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     try {
                         onednn::convert_activation_func(activation_func);
                     } catch (...) {
+                        return;
+                    }
+                    // oneDNN can't take this slope, so fusing it would move the producer to OCL; keep the PReLU separate
+                    if (activation_func == cldnn::activation_func::relu_negative_slope && activation_node.get_primitive()->additional_params_input.is_valid() &&
+                        !onednn::is_supported_prelu_slope(input, activation_node.get_dependency(1).get_output_layout()) &&
+                        lo.get_preferred_impl_type(input, format::any) == impl_types::onednn) {
                         return;
                     }
 #endif
