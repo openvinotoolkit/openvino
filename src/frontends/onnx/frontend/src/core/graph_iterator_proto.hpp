@@ -41,7 +41,7 @@ enum GraphIteratorProtoMemoryManagementMode : int {
 
 bool is_valid_model(std::istream& model);
 
-class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
+class GraphIteratorProto : public ov::frontend::onnx::GraphIteratorV2 {
     size_t node_index = 0;
     std::shared_ptr<ModelProto> m_model;
     const GraphProto* m_graph{};
@@ -49,6 +49,9 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> m_tensors{};
     std::filesystem::path m_model_dir;
+    // Cached copy of the model metadata. get_metadata_ref() returns it by reference, see
+    // GraphIteratorV2::get_metadata_ref().
+    std::map<std::string, std::string> m_metadata;
     GraphIteratorProtoMemoryManagementMode m_mode;
     // This is used for keeping MMAP cache handles
     MappedMemoryHandles m_mmap_cache;
@@ -114,9 +117,11 @@ public:
 
     std::int64_t get_opset_version(const std::string& domain) const override;
 
-    std::map<std::string, std::string> get_metadata() const override;
+    const std::map<std::string, std::string>& get_metadata_ref() const override {
+        return m_metadata;
+    }
 
-    std::filesystem::path get_model_dir() const override {
+    const std::filesystem::path& get_model_dir_ref() const override {
         return m_model_dir;
     }
 
@@ -147,6 +152,8 @@ protected:
     std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner);
 
 private:
+    /// Rebuilds the cached metadata from m_model. Call whenever m_model changes.
+    void refresh_metadata();
 };
 
 }  // namespace ov::frontend::onnx
