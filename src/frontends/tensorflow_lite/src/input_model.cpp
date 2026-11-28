@@ -364,11 +364,10 @@ void InputModel::InputModelTFLiteImpl::override_all_outputs(const std::vector<ov
 
 void InputModel::InputModelTFLiteImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                                         const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    for (const auto& output_place : m_outputs) {
-        auto output_lite_place =
-            std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(output_place);
-        FRONT_END_GENERAL_CHECK(output_lite_place != nullptr, "Input Model has unexpected place as output");
-        output_lite_place->set_output_index(-1);
+    for (const auto& input_place : m_inputs) {
+        auto input_lite_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(input_place);
+        FRONT_END_GENERAL_CHECK(input_lite_place != nullptr, "Input Model has unexpected place as input");
+        input_lite_place->set_input_index(-1);
     }
     m_inputs.clear();
     for (const auto& input_place : inputs) {
