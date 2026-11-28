@@ -1648,7 +1648,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         }
 
 #if defined(OPENVINO_ARCH_ARM64)
-        if (output_emb.get_precision() == ov::element::f16) {
+        if (output_emb.get_precision() == ov::element::f16 && present_key.get_precision() == ov::element::f16 &&
+            present_value.get_precision() == ov::element::f16) {
             bool has_nan = false;
             if (output_emb.m_rank == 4) {
                 const auto Bn = output_emb.size(0);
@@ -1712,21 +1713,19 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                         std::vector<float> k_f32(kv_len * head_size);
                         std::vector<float> v_f32(kv_len * head_size_v);
 
-                        const size_t k_stride_m = present_key.stride(2);
                         const size_t k_stride_s = present_key.stride(3);
-                        const ov::float16* k_ptr = &present_key.at<ov::float16>({b, hk, 0, 0});
                         for (size_t n = 0; n < kv_len; n++) {
-                            const ov::float16* k_row = k_ptr + n * k_stride_m;
+                            const size_t b_kv = beam_table ? static_cast<size_t>(beam_table.ptr<int32_t>(b)[n]) : b;
+                            const ov::float16* k_row = &present_key.at<ov::float16>({b_kv, hk, n, 0});
                             for (size_t s = 0; s < head_size; s++) {
                                 k_f32[n * head_size + s] = static_cast<float>(k_row[s * k_stride_s]);
                             }
                         }
 
-                        const size_t v_stride_m = present_value.stride(2);
                         const size_t v_stride_s = present_value.stride(3);
-                        const ov::float16* v_ptr = &present_value.at<ov::float16>({b, hk, 0, 0});
                         for (size_t n = 0; n < kv_len; n++) {
-                            const ov::float16* v_row = v_ptr + n * v_stride_m;
+                            const size_t b_kv = beam_table ? static_cast<size_t>(beam_table.ptr<int32_t>(b)[n]) : b;
+                            const ov::float16* v_row = &present_value.at<ov::float16>({b_kv, hk, n, 0});
                             for (size_t s = 0; s < head_size_v; s++) {
                                 v_f32[n * head_size_v + s] = static_cast<float>(v_row[s * v_stride_s]);
                             }
