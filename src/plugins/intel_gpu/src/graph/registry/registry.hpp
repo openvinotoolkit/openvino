@@ -188,6 +188,7 @@ REGISTER_IMPLS(moe_3gemm_fused_compressed);
 REGISTER_IMPLS(moe_router_fused);
 REGISTER_IMPLS(moe_mask_gen);
 REGISTER_IMPLS(moe_mask_gen_reshape);
+REGISTER_IMPLS(megakernel);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);

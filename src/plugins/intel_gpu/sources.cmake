@@ -74,6 +74,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/lora.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/lrn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/megakernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/matrix_nms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe.cpp

@@ -178,6 +178,7 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     # Distinct binary dirs so the same source dirs can be added twice in a COMBINED build.
     add_subdirectory(src/runtime         runtime${SUFFIX})
     add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
+    add_subdirectory(src/megakernel_interface      megakernel_interface${SUFFIX})
     add_subdirectory(src/graph           graph${SUFFIX})
 
     # One per stack: the objects link this stack's graph library, so a COMBINED build cannot

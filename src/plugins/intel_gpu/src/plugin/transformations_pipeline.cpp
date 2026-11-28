@@ -124,6 +124,7 @@
 #include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
+#include "plugin/transformations/insert_megakernel.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/stateless_kv_fusion.hpp"
@@ -1971,6 +1972,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
             return rank != 4;
         });
+        manager.register_pass<ov::intel_gpu::InsertMegaKernel>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);

@@ -10,6 +10,7 @@
 #include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/megakernel.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -97,6 +98,10 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
     if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
         ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
+        return true;
+    }
+
+    if (ov::is_type<ov::intel_gpu::op::MegaKernel>(op)) {
         return true;
     }
 

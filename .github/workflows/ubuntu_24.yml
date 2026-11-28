@@ -346,9 +346,61 @@ jobs:
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     if: ${{ github.event_name == 'schedule' }}
 
+  Megakernel_Test:
+    name: Megakernel integration test
+    needs: [ Docker, Smart_CI ]
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU
+      )
+    timeout-minutes: 180
+    runs-on:
+      group: Intel-GPU
+      labels: [ self-hosted, igpu, Linux ]
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      options: --group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
+    env:
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      CMAKE_BUILD_PARALLEL_LEVEL: 15
+    steps:
+      - name: Update CA certificates
+        run: update-ca-certificates
+
+      - name: Checkout OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        shell: bash
+        run: bash -e install_build_dependencies.sh
+
+      - name: Configure megakernel integration test
+        shell: bash
+        run: |
+          cmake -S . -B build-megakernel-test -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=OCL -DENABLE_TESTS=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DOUTPUT_ROOT="$PWD/build-megakernel-test/output" \
+            -DMEGAKERNEL_ROOT="$PWD/tests/megakernel" -DMEGAKERNEL_IMPLEMENTATION=megakernel_test_lib
+
+      - name: Build megakernel integration test
+        shell: bash
+        run: cmake --build build-megakernel-test --target ov_megakernel_integration_test
+
+      - name: Run megakernel integration test
+        shell: bash
+        run: build-megakernel-test/output/bin/intel64/Release/ov_megakernel_integration_test
+
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, Openvino_genai, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
+    needs: [Smart_CI, Build, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, Openvino_genai, LLM_Accuracy_CPU, LLM_Accuracy_iGPU, Megakernel_Test]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
