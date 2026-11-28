@@ -13,8 +13,10 @@
 
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/common/path_util.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -27,6 +29,15 @@
 
 namespace ov::frontend::ir {
 namespace {
+
+// Deserializers for internal (dev API) ops that may appear in a saved IR. They have no opset, so their IR version is
+// the default "extension"; see create_extensions_map() in FrontEnd::load_impl.
+const std::vector<ov::BaseOpExtension::Ptr>& internal_op_extensions() {
+    static const std::vector<ov::BaseOpExtension::Ptr> exts = {
+        std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>(),
+    };
+    return exts;
+}
 
 std::shared_ptr<ov::util::WeightsProvider> make_buffer_weights_provider(
     const std::shared_ptr<ov::AlignedBuffer>& weights,
@@ -167,9 +178,15 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
+        // Internal ops that frontends emit directly (e.g. the GGUF frontend for hybrid linear-attention models) and
+        // that are not part of any opset: they serialize with version "extension", so without a default mapping an
+        // IR written by ov::save_model could not be read back.
+        for (const auto& ext : internal_op_extensions())
+            exts.insert({ext->get_type_info(), ext});
+        // User-registered extensions take precedence over the defaults above.
         for (const auto& ext : m_extensions) {
             if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-                exts.insert({base_ext->get_type_info(), base_ext});
+                exts[base_ext->get_type_info()] = base_ext;
         }
         return exts;
     };
