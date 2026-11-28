@@ -23,7 +23,6 @@ CPU Plugin contains the following components:
 * [Internal CPU Plugin Optimizations](./docs/internal_cpu_plugin_optimization.md)
 * [FakeQuantize insights and optimizations](./docs/fake_quantize.md)
 * [Selective build (Conditional Compilation)](./docs/selective_build.md)
-* [Workaround for python stack size on AMX hosts](./docs/wa_amx_python_sigaltstack.md)
 
 ## See also
 

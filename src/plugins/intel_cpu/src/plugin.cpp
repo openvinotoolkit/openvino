@@ -58,7 +58,6 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
-#include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/codec_xor.hpp"
@@ -246,7 +245,7 @@ static std::string getDeviceFullName() {
     return brand_string;
 }
 
-Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
+Plugin::Plugin() : deviceFullName(getDeviceFullName()) {
     set_device_name("CPU");
 #if defined(OPENVINO_ARCH_X86_64)
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine

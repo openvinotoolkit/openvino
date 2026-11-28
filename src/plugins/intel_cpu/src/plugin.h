@@ -78,8 +78,6 @@ private:
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
     ov::AnyMap m_compiled_model_runtime_properties;
-
-    std::shared_ptr<void> specialSetup;
 };
 
 }  // namespace ov::intel_cpu

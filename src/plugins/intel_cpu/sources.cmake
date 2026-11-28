@@ -578,8 +578,6 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/shape_inference/static_dimension.hpp
     ${CPU_SRC_DIR}/shape_inference/static_shape.cpp
     ${CPU_SRC_DIR}/shape_inference/static_shape.hpp
-    ${CPU_SRC_DIR}/sigstack_manager.cpp
-    ${CPU_SRC_DIR}/sigstack_manager.h
     ${CPU_SRC_DIR}/sub_memory_manager.hpp
     ${CPU_SRC_DIR}/thread_pool_imp.cpp
     ${CPU_SRC_DIR}/thread_pool_imp.hpp
