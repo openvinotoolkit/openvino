@@ -216,8 +216,8 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
 
             // Distribute padding: for NOTSET/EXPLICIT, put more on head when odd
             // (ONNX Runtime default for non-SAME modes)
-            pads_begin[i] = total_pad - total_pad / 2;
-            pads_end[i] = total_pad / 2;
+            pads_begin[i] = auto_pad_type == ov::op::PadType::SAME_UPPER ? total_pad / 2 : total_pad - total_pad / 2;
+            pads_end[i] = total_pad - pads_begin[i];
         }
 
         // Override auto_pad_type to EXPLICIT since we've calculated explicit pads
