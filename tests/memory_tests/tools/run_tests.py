@@ -262,7 +262,11 @@ class TestCase:
 
     @property
     def precision(self) -> str | None:
-        return self.description.get("weight_precision")
+        w_precision = self.description.get("weight_precision")
+        i_precision = self.description.get("inference_precision")
+        if i_precision:
+            return f"{w_precision}-{i_precision}"
+        return w_precision
 
     @staticmethod
     def _read_description(model_path: Path) -> dict[str, str] | None:
