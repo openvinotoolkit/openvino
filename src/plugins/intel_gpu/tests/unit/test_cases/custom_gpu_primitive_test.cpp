@@ -18,6 +18,20 @@
 using namespace cldnn;
 using namespace ::tests;
 
+TEST(custom_gpu_primitive_work_sizes, rank_one_input_uses_trailing_singleton_axes) {
+    std::vector<size_t> gws, lws;
+    custom_gpu_primitive::update_work_group_size({1, 1, 1, 4}, 0, {4}, {"4", "B", "F*Y*X"}, {"X"}, gws, lws);
+    EXPECT_EQ(gws, (std::vector<size_t>{4, 4, 1}));
+    EXPECT_EQ(lws, (std::vector<size_t>{1}));
+}
+
+TEST(custom_gpu_primitive_work_sizes, rank_three_input_dispatches_its_element_count) {
+    std::vector<size_t> gws, lws;
+    custom_gpu_primitive::update_work_group_size({1, 1, 1, 6}, 0, {1, 2, 3}, {"B*F*Y*X", "F", "Y"}, {"X"}, gws, lws);
+    EXPECT_EQ(gws, (std::vector<size_t>{6, 2, 3}));
+    EXPECT_EQ(lws, (std::vector<size_t>{1}));
+}
+
 TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     //  Input2   : 2x2x2
     //  Input  : 2x2x2x2
