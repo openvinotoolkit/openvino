@@ -10,8 +10,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
@@ -4178,5 +4180,39 @@ TEST(constant_folding, loop_with_node_which_has_no_evaluate) {
 
     EXPECT_NO_THROW(pass::ConstantFolding().run_on_model(model));
     EXPECT_EQ(count_ops_of_type<op::v5::Loop>(model), 1);
+}
+
+TEST(constant_folding, random_uniform_respects_can_constant_fold_override) {
+    auto min_c = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+    auto max_c = op::v0::Constant::create(element::f32, Shape{}, {1.0f});
+    auto shape_c = op::v0::Constant::create(element::i64, Shape{1}, {4});
+    auto rand_op = std::make_shared<op::v8::RandomUniform>(shape_c, min_c, max_c, element::f32, 100, 200);
+
+    // RandomUniform overrides can_constant_fold to return false.
+    // Node::constant_fold must dynamically dispatch to RandomUniform::can_constant_fold.
+    OutputVector outputs(rand_op->get_output_size());
+    EXPECT_FALSE(rand_op->constant_fold(outputs, rand_op->input_values()));
+
+    // ov::util::constantfold_subgraph must refuse to fold RandomUniform
+    auto folded = ov::util::constantfold_subgraph(rand_op->output(0));
+    EXPECT_EQ(folded, nullptr);
+}
+
+TEST(constant_folding, gather_with_dynamic_output_shape_folds_when_inputs_resolve_to_constants) {
+    // Gather constructed with dynamic axis input (e.g. ConvertLike) has a dynamic output shape.
+    // When constantfold_subgraph resolves inputs to Constants, Gather must fold successfully.
+    auto data = op::v0::Constant::create(element::i32, Shape{3}, {10, 20, 30});
+    auto indices = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto zero_f32 = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+    auto zero_i64 = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto axis = std::make_shared<op::v1::ConvertLike>(zero_f32, zero_i64);
+
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    EXPECT_TRUE(gather->get_output_partial_shape(0).is_dynamic());
+
+    auto folded = ov::util::constantfold_subgraph(gather->output(0));
+    ASSERT_NE(folded, nullptr);
+    EXPECT_EQ(folded->get_shape(), Shape{1});
+    EXPECT_EQ(folded->cast_vector<int32_t>(), std::vector<int32_t>{20});
 }
 }  // namespace ov::test
