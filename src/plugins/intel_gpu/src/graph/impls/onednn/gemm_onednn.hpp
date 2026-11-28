@@ -15,7 +15,8 @@ namespace onednn {
 
 struct GemmImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::gemm")
-    GemmImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
+    GemmImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+        : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
@@ -55,7 +56,17 @@ struct GemmImplementationManager : public ImplementationManager {
             return false;
         }
 
+        if (get_shape_type() == shape_types::dynamic_shape && !node.get_fused_primitives().empty()) {
+            return false;
+        }
+
         if (out_layout.data_padding) {
+            return false;
+        }
+
+        if (!is_supported_pad(in0_layout) || !is_supported_pad(in1_layout) ||
+            (get_shape_type() == shape_types::dynamic_shape &&
+             (in0_layout.data_padding || in1_layout.data_padding))) {
             return false;
         }
 

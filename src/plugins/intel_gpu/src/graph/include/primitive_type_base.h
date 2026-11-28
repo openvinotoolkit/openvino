@@ -51,8 +51,9 @@ struct primitive_type_base : primitive_type {
                 continue;
             }
 
-            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node)) {
-                continue;
+            if (impl_type == impl_types::onednn &&
+               !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node)) {
+               continue;
             }
 
             shape_types supported_shape_type = impl->get_shape_type();

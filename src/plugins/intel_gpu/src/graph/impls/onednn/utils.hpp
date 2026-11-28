@@ -25,6 +25,7 @@ cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);
 
 // cldnn -> onednn
 dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims = 2, bool is_grouped = false);
+dnnl::memory::dims convert_layout(const cldnn::layout& l, size_t dims = 2, bool is_grouped = false);
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims = 2);
 dnnl::memory::dims flatten_tensor(cldnn::tensor t);
 dnnl::memory::dims get_strides(dnnl::memory::dims dims);
