@@ -10,6 +10,8 @@
 
 #include <openvino/runtime/tensor.hpp>
 
+#include "pixellink_helpers.hpp"
+
 namespace utils {
 
 // Structure to represent a detection bounding box
@@ -47,10 +49,15 @@ MatchResult matchDetectionsForClass(const std::vector<Detection>& predictions,
 // Supports multiple output formats:
 //   - Two-layer mode: outputs contain "pred_boxes" [batch, N, 4] (cx, cy, w, h normalized)
 //     and "logits" [batch, N, num_classes]
+//   - PixelLink mode: multiple 4D [1, C, H, W] score/delta/link heads, decoded into
+//     oriented polygons and reduced to axis-aligned single-class (class 0) boxes
 //   - Single-layer mode (e.g. YOLOv10): single output with shape [batch, N, 6]
 //     where each detection is [x1, y1, x2, y2, score, class_id]
 //   - Single-layer mode with per-class scores: single output with shape [batch, N, 5+C]
 //     where each detection is [x1, y1, x2, y2, score, class_0_score, ..., class_C-1_score]
+// The PixelLink decoder is configured through `pixellinkParams` (populated from the
+// --pixellink_* flags); it is ignored for the non-PixelLink formats.
 std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov::Tensor>& outputs,
-                                     float confidence_threshold = 0.0f);
+                                     float confidence_threshold = 0.0f,
+                                     const pixellink::DecodeParams& pixellinkParams = {});
 }  // namespace utils
