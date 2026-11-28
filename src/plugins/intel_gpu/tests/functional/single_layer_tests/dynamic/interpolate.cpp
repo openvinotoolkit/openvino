@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/interpolate.hpp"
+
+#include <cstring>
+
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/interpolate.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -271,6 +275,98 @@ const std::vector<ov::op::v4::Interpolate::CoordinateTransformMode> coordinateTr
         ov::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
         ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
+
+const std::vector<ShapeParams> rank3EquivalenceShapes = {
+    {ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
+     InputShape{{2, 18, 101}, {{2, 18, 101}}},
+     ov::test::utils::InputLayerType::CONSTANT,
+     ov::test::utils::InputLayerType::CONSTANT,
+     {{1.f, 1.f, 160.f}},
+     {0, 1, 2}},
+    {ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
+     InputShape{{-1, 18, -1}, {{1, 18, 7}, {2, 18, 11}}},
+     ov::test::utils::InputLayerType::CONSTANT,
+     ov::test::utils::InputLayerType::CONSTANT,
+     {{31.f}, {31.f}},
+     {2}},
+};
+
+class InterpolateRank3EquivalenceGPUTest : public InterpolateLayerGPUTest {
+protected:
+    void SetUp() override {
+        InterpolateLayerGPUTest::SetUp();
+        configuration.insert(ov::hint::inference_precision(std::get<2>(GetParam())));
+    }
+
+    void compile_model() override {
+        InterpolateLayerGPUTest::compile_model();
+        const auto original = ov::as_type_ptr<ov::op::util::InterpolateBase>(function->get_result()->input_value(0).get_node_shared_ptr());
+        OPENVINO_ASSERT(original, "Rank-3 equivalence expects an Interpolate result");
+        const auto data =
+            std::make_shared<ov::op::v0::Parameter>(function->get_parameters()[0]->get_element_type(), function->get_parameters()[0]->get_partial_shape());
+        const auto singleton_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+        const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(data, singleton_axis);
+        const auto axes = ov::op::v0::Constant::create(ov::element::i64, {2}, {2, 3});
+        const bool scales_mode = shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES;
+        const auto values = scales_mode ? ov::op::v0::Constant::create(ov::element::f32, {2}, std::vector<float>{1.f, scales.front().back()})
+                                        : ov::op::v0::Constant::create(ov::element::i32, {2}, std::vector<int32_t>{1, sizes.front().back()});
+        auto attrs = original->get_attrs();
+        attrs.pads_begin = attrs.pads_end = {0, 0, 0, 0};
+        std::shared_ptr<ov::Node> interpolate;
+        if (std::get<3>(GetParam())) {
+            interpolate = std::make_shared<ov::op::v11::Interpolate>(unsqueeze, values, axes, attrs);
+        } else {
+            const auto unused = ov::op::v0::Constant::create(scales_mode ? ov::element::i32 : ov::element::f32, {2}, {1, 1});
+            interpolate = std::make_shared<ov::op::v4::Interpolate>(unsqueeze, scales_mode ? unused : values, scales_mode ? values : unused, axes, attrs);
+        }
+        const auto squeeze = std::make_shared<ov::op::v0::Squeeze>(interpolate, singleton_axis);
+        const auto explicit_rank4 = std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{data});
+        rank4_request = core->compile_model(explicit_rank4, targetDevice, configuration).create_infer_request();
+    }
+
+    std::vector<ov::Tensor> calculate_refs() override {
+        // Compare two GPU paths, not GPU arithmetic against the reference evaluator.
+        rank4_request.set_input_tensor(inputs.at(function->get_parameters()[0]));
+        rank4_request.infer();
+        return {rank4_request.get_output_tensor()};
+    }
+
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override {
+        ASSERT_EQ(expected.size(), 1);
+        ASSERT_EQ(actual.size(), 1);
+        const auto& input_shape = inputs.at(function->get_parameters()[0]).get_shape();
+        const auto length = shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES ? static_cast<size_t>(input_shape[2] * scales.front().back())
+                                                                                            : static_cast<size_t>(sizes.front().back());
+        const ov::Shape output_shape{input_shape[0], input_shape[1], length};
+        ASSERT_EQ(actual[0].get_shape(), output_shape);
+        ASSERT_EQ(expected[0].get_shape(), output_shape);
+        ASSERT_EQ(actual[0].get_element_type(), expected[0].get_element_type());
+        ASSERT_EQ(actual[0].get_byte_size(), expected[0].get_byte_size());
+        EXPECT_EQ(std::memcmp(actual[0].data(), expected[0].data(), actual[0].get_byte_size()), 0)
+            << "Normalized rank-3 and explicit rank-4 GPU outputs must be bit-identical";
+    }
+
+private:
+    ov::InferRequest rank4_request;
+};
+
+TEST_P(InterpolateRank3EquivalenceGPUTest, MatchesExplicitRank4) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateRank3Equivalence,
+                         InterpolateRank3EquivalenceGPUTest,
+                         testing::Combine(testing::Combine(testing::Values(ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX),
+                                                           testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL),
+                                                           testing::Values(ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR),
+                                                           testing::Values(false),
+                                                           testing::Values(std::vector<size_t>{0, 0, 0}),
+                                                           testing::Values(std::vector<size_t>{0, 0, 0}),
+                                                           testing::Values(-0.75)),
+                                          testing::ValuesIn(rank3EquivalenceShapes),
+                                          testing::Values(ov::element::f32, ov::element::f16),
+                                          testing::Bool()),
+                         InterpolateLayerGPUTest::getTestCaseName);
 
 const std::vector<ov::op::v4::Interpolate::NearestMode> nearestModes_Smoke = {
         ov::op::v4::Interpolate::NearestMode::SIMPLE,
