@@ -911,6 +911,23 @@ def test_string_constant_inference():
     assert list(result) == ["a", "b", "c", "openvino", "string", "constant"]
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        np.array(["openvino", "constant"], dtype=str),
+        np.array([b"openvino", b"constant"], dtype=np.bytes_),
+        ["openvino", "constant"],
+    ],
+)
+def test_string_values_as_op_input(value):
+    param = ops.parameter([3], dtype=Type.string, name="input")
+    model = Model([ops.concat([param, value], axis=0)], [param])
+
+    result = compile_model(model, "CPU")([np.array(["a", "b", "c"], dtype=str)])[0]
+
+    assert list(result) == ["a", "b", "c", "openvino", "constant"]
+
+
 def test_string_constant_with_shared_memory():
     with pytest.raises(RuntimeError, match="String types can be only copied"):
         Constant(np.array(["openvino"], dtype=str), shared_memory=True)
