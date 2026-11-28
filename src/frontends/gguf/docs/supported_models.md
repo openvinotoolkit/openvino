@@ -38,6 +38,8 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `gpt-oss` | gpt-oss-20b Q4_0 | MoE, attention sinks, SWA, OAI gated activation; CPU expands MXFP4 experts to F32 at compile time (about 120 GiB for 20B) |
 | `hunyuan-dense` | Hunyuan-0.5B-Instruct Q8_0 | Learned QK-norm after RoPE |
 | `hunyuan-moe` | Hunyuan-A13B-Instruct Q2_K | QK-norm after RoPE, routed and shared experts |
+| `inkling2` | — | Inkling 2 Small backbone; clipped NoPE attention, relative bias, short convolutions, depth mixing and SITU MoE; F32 CPU oracle fixture |
+| `inkling2_loop` | Inkling-2-Mini Q8_0 | Shared-weight gated loop with independent per-pass state; fixed/varying-pass F32 CPU oracle fixtures |
 | `jais2` | Jais-2-8B-Chat Q4_K_M | Biased LayerNorm, ungated ReLU² FFN |
 | `lfm2` | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0; LFM2.5-Encoder-230M/350M, -Embedding-350M, -ColBERT-350M Q8_0 | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head; noncausal encoders with pooling and `dense_2` projection |
 | `lfm2.audio_vocoder` | LFM2.5-Audio-1.5B Q4_0 ([audio components](mmproj.md#lfm2-audio-components)) | Standalone speech component; accepts the existing publisher architecture string |
@@ -157,6 +159,40 @@ qwen4exp tests skip. Validation, all on CPU with the kernels and fusions of #393
 Limitations: PagedAttention conversion is not supported yet; no real checkpoint has been run
 (memory); the vision projector is not covered; the llama.cpp cgraph path has converters for the new
 operations but no end-to-end backend run.
+## Inkling 2
+
+Inkling 2 Small and Mini use `inkling2` and `inkling2_loop`. They share one builder: clipped
+NoPE attention with RMS-normalized V, a learned relative-position bias, a query-dependent
+attention sink, static and input-dependent short convolutions, depth-wise residual mixing,
+sigmoid-routed SITU experts and padded-vocabulary trimming. Mini unrolls the metadata loop
+count into one graph; the passes share weights and keep independent attention and convolution
+states.
+
+Design decisions:
+- The relative bias is gathered from a per-token table by clamped query-key distance. Key
+  positions are kept in an extra i32 state, so cached decode and reset need no extra inputs.
+- Sliding-window masks are halved before the bias is added, so masked logits stay finite in
+  F16.
+- Q/K/relative clipping uses `ReduceL2` and keeps llama.cpp's `1e-6` denominator epsilon only
+  for thresholds below 1. For larger thresholds, including the released models' 8 and 22.6,
+  it changes the clip factor by at most `1e-6 / threshold`, and dropping it keeps the chain
+  out of F32 on GPU.
+- Input-dependent convolution taps are extra one-hot channels of the same `SSM_CONV`, reusing
+  the regular convolution state.
+- Experts are emitted as a direct expert-major `GatherMatmul`.
+
+Limitations:
+- Inference uses the stateful SDPA model on CPU and GPU, single-sequence and greedy.
+  `SDPAToPagedAttention` does not support the model, so GenAI must use the SDPA attention
+  backend.
+- GPU decode is slow because the GPU plugin does not yet fuse SDPA with an attention sink.
+- GenAI raw-text input requires the Inkling pretokenizer and a Tokenizers build providing
+  `BPETokenizerIgnoreMerges`; otherwise supply pretokenized input. The published chat template
+  is not supported, so set `GenerationConfig.apply_chat_template` to `false`.
+- `IQ4_NL` is not supported; use a format such as `Q8_0` or `BF16`.
+- Speculative/MTP components are not supported.
+
+The `inkling2v` image encoder is described in [mmproj.md](mmproj.md#inkling-2-vision).
 
 ## LFM2 and LFM2.5 coverage
 

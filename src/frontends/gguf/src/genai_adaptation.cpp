@@ -118,12 +118,19 @@ bool has_genai_adapter(const std::shared_ptr<ov::Model>& model, const std::strin
     return false;
 }
 
+bool has_mmproj_branch(const std::shared_ptr<ov::Model>& model, const std::string& modality) {
+    const auto supported = modality + ".supported";
+    return model->has_rt_info({"gguf_mmproj", modality + ".projector"}) &&
+           (!model->has_rt_info({"gguf_mmproj", supported}) ||
+            model->get_rt_info<std::string>({"gguf_mmproj", supported}) != "false");
+}
+
 ModelMap adapt_mmproj(const std::shared_ptr<ov::Model>& model) {
     ModelMap models;
     const auto add = [&](const std::string& name, const std::shared_ptr<ov::Model>& adapted) {
         OPENVINO_ASSERT(models.emplace(name, adapted).second, "[GGUF] mmproj declares model '", name, "' twice");
     };
-    if (model->has_rt_info({"gguf_mmproj", "vision.projector"})) {
+    if (has_mmproj_branch(model, "vision")) {
         auto vision = model->clone();
         if (has_genai_vision_layout(model)) {
             AdaptMmprojToGenAI adapter(AdaptMmprojToGenAI::Modality::VISION,
@@ -136,9 +143,7 @@ ModelMap adapt_mmproj(const std::shared_ptr<ov::Model>& model) {
             add("vision_embeddings", vision);
         }
     }
-    if (model->has_rt_info({"gguf_mmproj", "audio.projector"}) &&
-        (!model->has_rt_info({"gguf_mmproj", "audio.supported"}) ||
-         model->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}) != "false")) {
+    if (has_mmproj_branch(model, "audio")) {
         auto audio = model->clone();
         const bool has_adapter = has_genai_adapter(audio, "audio");
         AdaptMmprojToGenAI adapter(AdaptMmprojToGenAI::Modality::AUDIO);

@@ -187,8 +187,8 @@ void jit_rms_kernel<isa>::generate() {
 
     // x * rsqrt(mean(x^2)+eps)
     if (m_jcp.scale_size == 1) {
-        // rsqrt(mean(x^2)+eps)
-        vmovd(xmm_tmp, ptr[reg_scale]);
+        // A single scale folds into rsqrt(mean(x^2)+eps). It is read at its own precision.
+        load(vmm_tmp, reg_scale, m_jcp.scale_prc, 1, false);
         vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
     }
     vbroadcastss(vmm_rsqrt, xmm_rsqrt);
@@ -203,14 +203,14 @@ void jit_rms_kernel<isa>::generate() {
             load(vmm_src, reg_src, m_jcp.src_prc, vec_size, false);
             vmulps(vmm_src, vmm_src, vmm_rsqrt);
             if (m_jcp.scale_size != 1) {
-                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false);
+                load(vmm_tmp, reg_scale, m_jcp.scale_prc, vec_size, false);
                 vmulps(vmm_src, vmm_src, vmm_tmp);
             }
             store(reg_dst, vmm_src, m_jcp.dst_prc, vec_size);
 
             add(reg_src, vec_size * m_jcp.src_prc.size());
             if (m_jcp.scale_size != 1) {
-                add(reg_scale, vec_size * sizeof(float));
+                add(reg_scale, vec_size * m_jcp.scale_prc.size());
             }
             add(reg_dst, vec_size * m_jcp.dst_prc.size());
             dec(reg_size);
@@ -222,7 +222,7 @@ void jit_rms_kernel<isa>::generate() {
         load(vmm_src, reg_src, m_jcp.src_prc, m_jcp.data_size % vec_size, false);
         vmulps(vmm_src, vmm_src, vmm_rsqrt);
         if (m_jcp.scale_size != 1) {
-            load(vmm_tmp, reg_scale, ov::element::f32, m_jcp.data_size % vec_size, false);
+            load(vmm_tmp, reg_scale, m_jcp.scale_prc, m_jcp.data_size % vec_size, false);
             vmulps(vmm_src, vmm_src, vmm_tmp);
         }
         store(reg_dst, vmm_src, m_jcp.dst_prc, m_jcp.data_size % vec_size);

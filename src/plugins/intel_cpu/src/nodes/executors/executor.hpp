@@ -48,6 +48,7 @@ enum class OperationType : uint8_t {
     Eltwise,
     GatherMatmul,
     GatedDeltaNet,
+    GatedResidual,
     SelectiveSSM,
     PagedSelectiveSSM
 };
@@ -60,9 +61,11 @@ public:
     using Ptr = std::shared_ptr<ExecutorContext>;
     using CPtr = std::shared_ptr<const ExecutorContext>;
 
+    // `scratchPad` replaces the scratchpad of the NUMA node; nullptr keeps the graph's (see DnnlScratchPad).
     ExecutorContext(const GraphContext::CPtr& graphContext,
                     std::vector<impl_desc_type> implPriorities,
-                    std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache = nullptr)
+                    std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache = nullptr,
+                    DnnlScratchPadPtr scratchPad = nullptr)
         : runtimeCache(graphContext->getParamsCache()),
           scratchPads(graphContext->getScratchPads()),
           weightsCache(graphContext->getWeightsCache()),
@@ -73,6 +76,9 @@ public:
           cpuParallel(graphContext->getCpuParallel()) {
         auto cpuStreamsExecutor = graphContext->getCPUStreamExecutor();
         curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
+        if (scratchPad) {
+            scratchPads[curNumaNodeId] = std::move(scratchPad);
+        }
     }
 
     [[nodiscard]] MultiCachePtr getRuntimeCache() const {

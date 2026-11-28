@@ -37,6 +37,7 @@ residual and output ordering; the shared sublayer methods do not assemble those.
 | [`blocks/`](../src/builder/blocks) | Reusable fragments: `common`, `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` |
 | [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | Per-architecture detection and per-layer accessors |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | Decoder assembly order |
+| [`arch/inkling_builder.cpp`](../src/builder/arch/inkling_builder.cpp) | Inkling 2 depth mixing, relative attention, short convolutions and Mini loop unrolling using shared operation converters |
 | [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | The `architectures` catalog returned by `builtin_architectures()` |
 | [`model_kind.hpp`](../src/builder/model_kind.hpp) | Diagnostic family detection for an unclaimed file |
 | [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | Parse, resolve the definition, invoke its builder |

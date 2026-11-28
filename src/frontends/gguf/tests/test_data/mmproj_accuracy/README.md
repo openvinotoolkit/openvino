@@ -10,7 +10,7 @@ llama.cpp build or model download is needed unless they are regenerated.
 | Suite | Layout | Families |
 |---|---|---|
 | `GGUFMMProjAccuracy` | `inputs`, `embeddings` and family-specific index inputs | `gemma3` (+`_fused`, `_legacy`), `idefics3`, `janus_pro`, `mlp` (+`_norm`, `_feature`), `internvl` (+`_qknorm`), `resampler` (+`_v2`, `_v4`), `qwen2vl_merger`, `qwen2.5vl_merger` (+`_window_video`), `qwen3vl_merger`, `qwen2a`, `ultravox`, `voxtral` (+`_odd`), `musicflamingo`, `meralion`, `glma` |
-| `GGUFMMProjDynamicAccuracy` | two input sizes as `0.*` and `1.*`; one compiled model must serve both | `muse-glimmer`, `pixtral` (+`_merge`), `phi4`, `gemma4v` (+`_one_sided`), `gemma4uv` (+`_low_contrast`), `gemma4ua`, `gemma4a`, `minicpmv4_6`, `minicpm_ocr_1_0_4x`, `deepseekocr` (+`_resize`, `_overview`), `deepseekocr2` (+`_overview`); `qwen2.5vl_merger_grids` and `resampler_grids` rerun single-grid fixture models |
+| `GGUFMMProjDynamicAccuracy` | two input sizes as `0.*` and `1.*`; one compiled model must serve both | `muse-glimmer`, `inkling2v`, `pixtral` (+`_merge`), `phi4`, `gemma4v` (+`_one_sided`), `gemma4uv` (+`_low_contrast`), `gemma4ua`, `gemma4a`, `minicpmv4_6`, `minicpm_ocr_1_0_4x`, `deepseekocr` (+`_resize`, `_overview`), `deepseekocr2` (+`_overview`); `qwen2.5vl_merger_grids` and `resampler_grids` rerun single-grid fixture models |
 
 Suffixes select fixture variants, for example fused QKV, legacy FFN names, concatenated CLIP
 feature layers, whole-tensor QK norms, an odd frame count, one-sided clipping bounds or OCR
@@ -34,6 +34,15 @@ Base fixtures and op expectations come from llama.cpp
 which has aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp`
 that no longer clamps its source in place. The Gemma4 fixtures clip only the Q input, so
 clipping that leaks into the shared K/V input fails them.
+
+`inkling2v` instead uses upstream `a6ac41c757c066941766164439f6876f2deaab04`.
+Its two-block, four-head fixture covers CLS insertion/removal, separate CLS positions,
+bilinear resizing from a 3x3 learned grid, two-axis pair RoPE, layer scales, spatial
+merging and the exact-GELU projector at 16x8 and 8x24 pixels. Both native and
+embedding-adapted graphs reuse a request across grids `0,1,0`.
+Build `mmproj_oracle.cpp` against this revision's `mtmd` target and pass
+`--families inkling2v` to regenerate it. The oracle supports both the older `clip`
+API and this revision's `mtmd_subcontext` API.
 
 ## Regenerating
 

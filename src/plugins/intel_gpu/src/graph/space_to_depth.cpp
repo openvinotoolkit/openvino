@@ -12,6 +12,7 @@
 #include <string>
 
 #include "space_to_depth_shape_inference.hpp"
+#include "dimension_util.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(space_to_depth)
@@ -33,7 +34,7 @@ std::vector<layout> space_to_depth_inst::calc_output_layouts(space_to_depth_node
     if (desc->grouped) {
         auto output_shape = input_layout.get<ShapeType>();
         output_shape[1] = desc->output_channels;
-        output_shape[2] = (output_shape[2] + desc->factor_t - 1) / desc->factor_t;
+        output_shape[2] = ov::util::dim::ceil_div(output_shape[2], static_cast<int64_t>(desc->factor_t));
         output_shape[3] = output_shape[3] / desc->factor_s;
         output_shape[4] = output_shape[4] / desc->factor_s;
         return {layout{output_shape, output_type, output_format}};

@@ -165,40 +165,35 @@ TEST(cache_serialization, kv_cache_stages_scatter_only_round_trip) {
 // --------------------------------------------------------------------------
 // MoE prefill execution flags round-trip tests
 // --------------------------------------------------------------------------
-// Mirrors the save/load logic for the three boolean flags in
-// moe_3gemm_swiglu_opt_impl: use_micro_gemm_prefill,
-// use_gpu_mask_gen_prefill, use_grouped_gemm_prefill.
+// Mirrors the save/load logic for the two boolean flags in
+// moe_3gemm_swiglu_opt_impl: use_gpu_mask_gen_prefill, use_grouped_gemm_prefill.
 // Before the fix, these flags were not serialized, causing mismatched
 // execution paths and buffer counts after cache load.
 
 namespace {
 struct moe_prefill_flags_test {
-    bool use_micro_gemm_prefill = false;
     bool use_gpu_mask_gen_prefill = false;
     bool use_grouped_gemm_prefill = false;
 
     void save(BinaryOutputBuffer& ob) const {
-        ob << use_micro_gemm_prefill;
         ob << use_gpu_mask_gen_prefill;
         ob << use_grouped_gemm_prefill;
     }
 
     void load(BinaryInputBuffer& ib) {
-        ib >> use_micro_gemm_prefill;
         ib >> use_gpu_mask_gen_prefill;
         ib >> use_grouped_gemm_prefill;
     }
 };
 }  // namespace
 
-// Test: micro_gemm path — only micro_gemm flag set
-TEST(cache_serialization, moe_prefill_flags_micro_gemm_round_trip) {
+// Test: grouped_gemm path with GPU mask gen
+TEST(cache_serialization, moe_prefill_flags_grouped_gemm_gpu_mask_gen_round_trip) {
     auto& engine = get_test_engine();
 
     moe_prefill_flags_test original;
-    original.use_micro_gemm_prefill = true;
     original.use_gpu_mask_gen_prefill = true;
-    original.use_grouped_gemm_prefill = false;
+    original.use_grouped_gemm_prefill = true;
 
     membuf mem_buf;
     {
@@ -214,9 +209,8 @@ TEST(cache_serialization, moe_prefill_flags_micro_gemm_round_trip) {
         loaded.load(ib);
     }
 
-    ASSERT_EQ(loaded.use_micro_gemm_prefill, true);
     ASSERT_EQ(loaded.use_gpu_mask_gen_prefill, true);
-    ASSERT_EQ(loaded.use_grouped_gemm_prefill, false);
+    ASSERT_EQ(loaded.use_grouped_gemm_prefill, true);
 }
 
 // Test: grouped_gemm path — only grouped_gemm flag set
@@ -224,7 +218,6 @@ TEST(cache_serialization, moe_prefill_flags_grouped_gemm_round_trip) {
     auto& engine = get_test_engine();
 
     moe_prefill_flags_test original;
-    original.use_micro_gemm_prefill = false;
     original.use_gpu_mask_gen_prefill = false;
     original.use_grouped_gemm_prefill = true;
 
@@ -242,7 +235,6 @@ TEST(cache_serialization, moe_prefill_flags_grouped_gemm_round_trip) {
         loaded.load(ib);
     }
 
-    ASSERT_EQ(loaded.use_micro_gemm_prefill, false);
     ASSERT_EQ(loaded.use_gpu_mask_gen_prefill, false);
     ASSERT_EQ(loaded.use_grouped_gemm_prefill, true);
 }
@@ -252,7 +244,6 @@ TEST(cache_serialization, moe_prefill_flags_fallback_round_trip) {
     auto& engine = get_test_engine();
 
     moe_prefill_flags_test original;
-    original.use_micro_gemm_prefill = false;
     original.use_gpu_mask_gen_prefill = false;
     original.use_grouped_gemm_prefill = false;
 
@@ -270,7 +261,6 @@ TEST(cache_serialization, moe_prefill_flags_fallback_round_trip) {
         loaded.load(ib);
     }
 
-    ASSERT_EQ(loaded.use_micro_gemm_prefill, false);
     ASSERT_EQ(loaded.use_gpu_mask_gen_prefill, false);
     ASSERT_EQ(loaded.use_grouped_gemm_prefill, false);
 }
@@ -281,7 +271,6 @@ TEST(cache_serialization, moe_prefill_flags_all_true_round_trip) {
     auto& engine = get_test_engine();
 
     moe_prefill_flags_test original;
-    original.use_micro_gemm_prefill = true;
     original.use_gpu_mask_gen_prefill = true;
     original.use_grouped_gemm_prefill = true;
 
@@ -299,7 +288,6 @@ TEST(cache_serialization, moe_prefill_flags_all_true_round_trip) {
         loaded.load(ib);
     }
 
-    ASSERT_EQ(loaded.use_micro_gemm_prefill, true);
     ASSERT_EQ(loaded.use_gpu_mask_gen_prefill, true);
     ASSERT_EQ(loaded.use_grouped_gemm_prefill, true);
 }
