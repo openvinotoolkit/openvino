@@ -31,22 +31,26 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
- * @brief auto device setting that enables compiling the model to the remaining candidate devices in the background,
- * after the actual device is ready, to populate cache blobs for faster device switching.
- * Enabling it disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback.
- * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws on every host. Ignored in
- * cumulative throughput mode, when there is no other candidate device, and when
- * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
- * In dynamic device selection, an inactive device, including the initial device, releases its compiled model only
- * if it supports model caching and has a cache location with an existing blob. It is reloaded when selected again.
+ * @brief Enables background cache warm-up for AUTO candidate devices other than the one AUTO serves inference on,
+ * including CPU when it is a candidate. Warm-up fills the model cache for a later compile_model call; it does not
+ * switch the current compiled model to another device. A warmed CPU cache blob speeds up later compile_model calls
+ * that pick CPU as the actual device; it is not used by the AUTO startup-fallback CPU helper, which compiles with
+ * caching disabled.
  *
- * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;
- * otherwise AUTO discovers its usual eligible devices. For example, to warm up the cache for GPU and NPU, so that
- * the one not selected by AUTO is compiled in the background:
+ * Requires ov::cache_dir or ov::cache_path; compiling the model throws if neither is set, except in cumulative
+ * throughput mode or when ov::cache_blob_id is set, where the property is ignored. The property is also ignored
+ * when no other candidate exists, but that check happens after the cache validation, so a single-candidate
+ * compilation without a cache location still throws. When active, it disables
+ * ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile. Devices are
+ * skipped when the cache path is a single-file cache (*.bin). Failures of
+ * the background compilation are logged as warnings; a failure to snapshot the model is reported by compile_model.
+ * See the AUTO device selection article for details.
+ *
+ * For example, to warm up other eligible candidates:
  * @code
  * core.compile_model(model,
  *                    "AUTO",
- *                    ov::device::priorities("GPU,NPU"),
+ *                    ov::device::priorities("GPU,CPU"),
  *                    ov::cache_dir("model_cache"),
  *                    ov::intel_auto::compile_for_all(true));
  * @endcode
