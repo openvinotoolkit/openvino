@@ -79,7 +79,12 @@ bool has_gguf_magic(const std::filesystem::path& path) {
 }
 
 std::optional<std::vector<std::filesystem::path>> model_paths(const std::vector<ov::Any>& variants) {
-    const auto size = variants.size() - (variants.back().is<bool>() ? 1 : 0);
+    // Trailing extras that are not paths: a bool, and a load-options ov::AnyMap (see BuildContext::options).
+    size_t size = variants.size();
+    if (size && variants[size - 1].is<ov::AnyMap>())
+        --size;
+    if (size && variants[size - 1].is<bool>())
+        --size;
     if (size == 1) {
         if (auto paths = ov::frontend::get_path_vec_from_any(variants.front())) {
             return paths;
@@ -207,8 +212,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                                     ov::util::path_to_string(path));
         }
         const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
-        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry)
-                                      : load_gguf_builder(*paths, m_impl->arch_registry);
+        const auto options = variants.back().is<ov::AnyMap>() ? variants.back().as<ov::AnyMap>() : ov::AnyMap{};
+        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry, options)
+                                      : load_gguf_builder(*paths, m_impl->arch_registry, options);
         return std::make_shared<InputModel>(builder, m_extensions);
     }
 

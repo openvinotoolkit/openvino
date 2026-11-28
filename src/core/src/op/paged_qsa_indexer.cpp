@@ -41,6 +41,10 @@ bool PagedQSAIndexer::validate_config(const Config& c, std::string& reason) {
         reason = "scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))";
         return false;
     }
+    if (c.dsa_kpool && (c.query_norm || c.query_rope || c.indexer_rotary_dim != 0)) {
+        reason = "dsa_kpool uses the index query as given: query_norm and query_rope false, indexer_rotary_dim 0";
+        return false;
+    }
     return true;
 }
 
@@ -61,7 +65,7 @@ size_t PagedQSAIndexer::get_index_key_heads() const {
     OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 2 && ps[1].is_static(),
                     "PagedQSAIndexer: raw_index_keys shape is not static");
     OPENVINO_ASSERT(m_config.indexer_head_dim != 0, "PagedQSAIndexer: indexer_head_dim is 0");
-    return static_cast<size_t>(ps[1].get_length()) / m_config.indexer_head_dim;
+    return static_cast<size_t>(ps[1].get_length()) / (m_config.indexer_head_dim * (m_config.dsa_kpool ? 2 : 1));
 }
 
 bool PagedQSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -75,15 +79,16 @@ bool PagedQSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("scale", m_config.scale);
     visitor.on_attribute("query_norm", m_config.query_norm);
     visitor.on_attribute("query_rope", m_config.query_rope);
+    visitor.on_attribute("dsa_kpool", m_config.dsa_kpool);
     return true;
 }
 
 void PagedQSAIndexer::validate_and_infer_types() {
     OV_OP_SCOPE(internal_PagedQSAIndexer_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == InputIdx::COUNT,
+                          get_input_size() == (m_config.dsa_kpool ? InputIdx::COUNT_DSA : InputIdx::COUNT),
                           "PagedQSAIndexer expects ",
-                          InputIdx::COUNT,
+                          m_config.dsa_kpool ? InputIdx::COUNT_DSA : InputIdx::COUNT,
                           " inputs, got ",
                           get_input_size());
 
@@ -185,7 +190,17 @@ void PagedQSAIndexer::validate_and_infer_types() {
         return ov::Dimension(last.get_length() / static_cast<int64_t>(m_config.indexer_head_dim));
     };
     const auto h_iq = flat_heads(index_query_ps, "index_query");
-    const auto h_ik = flat_heads(raw_index_keys_ps, "raw_index_keys");
+    // A raw key row of one head is [key | gate] (2 * D_idx) in DSA k-pool mode.
+    auto h_ik = flat_heads(raw_index_keys_ps, "raw_index_keys");
+    if (m_config.dsa_kpool && h_ik.is_static()) {
+        NODE_VALIDATION_CHECK(
+            this,
+            h_ik.get_length() % 2 == 0,
+            "PagedQSAIndexer (dsa_kpool) expects raw_index_keys rows of H_ik * 2 * indexer_head_dim, got ",
+            raw_index_keys_ps);
+        h_ik = ov::Dimension(h_ik.get_length() / 2);
+    }
+    const ov::Dimension raw_di(static_cast<int64_t>(m_config.indexer_head_dim * (m_config.dsa_kpool ? 2 : 1)));
 
     NODE_VALIDATION_CHECK(this,
                           raw_index_keys_ps.compatible(ov::PartialShape{tokens, -1}),
@@ -224,7 +239,7 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE));
     NODE_VALIDATION_CHECK(
         this,
-        get_input_partial_shape(InputIdx::INDEX_KEY_CACHE).compatible(ov::PartialShape{num_blocks, h_ik, page, di}),
+        get_input_partial_shape(InputIdx::INDEX_KEY_CACHE).compatible(ov::PartialShape{num_blocks, h_ik, page, raw_di}),
         "PagedQSAIndexer expects index_key_cache shaped [num_blocks, H_ik, page_size, indexer_head_dim], "
         "got ",
         get_input_partial_shape(InputIdx::INDEX_KEY_CACHE));
@@ -234,6 +249,19 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           "PagedQSAIndexer expects index_block_rope_cache shaped "
                           "[num_blocks, page_size/r, 2*indexer_rotary_dim], got ",
                           get_input_partial_shape(InputIdx::INDEX_BLOCK_ROPE_CACHE));
+
+    if (m_config.dsa_kpool) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_partial_shape(InputIdx::POOL_APE)
+                                  .compatible(ov::PartialShape{di, static_cast<int64_t>(m_config.key_block_size)}),
+                              "PagedQSAIndexer expects pool_ape shaped [indexer_head_dim, key_block_size], got ",
+                              get_input_partial_shape(InputIdx::POOL_APE));
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(InputIdx::HEAD_WEIGHTS).compatible(ov::PartialShape{tokens, h_iq}),
+            "PagedQSAIndexer expects head_weights shaped [tokens, H_iq], got ",
+            get_input_partial_shape(InputIdx::HEAD_WEIGHTS));
+    }
 
     const auto num_seqs = dim_at(get_input_partial_shape(InputIdx::PAST_LENS), 0);
     const auto num_seqs_plus_one =

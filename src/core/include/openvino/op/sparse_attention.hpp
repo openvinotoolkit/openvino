@@ -96,6 +96,8 @@ public:
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 
     int64_t get_key_block_size() const {
         return m_key_block_size;

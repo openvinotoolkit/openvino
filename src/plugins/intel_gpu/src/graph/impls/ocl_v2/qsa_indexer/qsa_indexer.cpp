@@ -85,7 +85,10 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const qsa_indexer>
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_ADDRESS_MODE", 1);
     jit.add(qsa::float_constant("QSA_IDX_NORM_EPS", desc->epsilon));
-    jit.add(qsa::float_constant("QSA_IDX_SCALE", ov::op::internal::QSAIndexer::effective_scale(desc->get_config())));
+    // DSA k-pool mode: [key | gate] raw rows, gated-softmax pooling with pool_ape, the query used as given, and the
+    // score weighted per token and head (the weights carry the scale, so QSA_IDX_SCALE is 1).
+    jit.make("QSA_DSA", desc->dsa_kpool ? 1 : 0);
+    jit.add(qsa::float_constant("QSA_IDX_SCALE", desc->dsa_kpool ? 1.0F : ov::op::internal::QSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
 
@@ -113,7 +116,8 @@ bool may_prefill(const kernel_impl_params& params) {
 
 /// Dense addressing has no page table, so unlike the paged gate there is no page/tile alignment constraint.
 bool can_use_dpas_score(const qsa_indexer& desc, size_t h_iq, const cldnn::device_info& info) {
-    if (!qsa::xmx_allowed(info)) {
+    // The DPAS scorer applies one scale to the head sum; DSA k-pool weights each head per token (partition scorer).
+    if (desc.dsa_kpool || !qsa::xmx_allowed(info)) {
         return false;
     }
     if (desc.indexer_head_dim % qsa::dpas_k_step != 0 || desc.indexer_head_dim * sizeof(ov::float16) < 64) {
@@ -151,20 +155,29 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        for (auto idx : {QSAIn::INDEX_QUERY,
-                         QSAIn::RAW_INDEX_KEYS,
-                         QSAIn::Q_NORM_WEIGHT,
-                         QSAIn::K_NORM_WEIGHT,
-                         QSAIn::ROPE_COS,
-                         QSAIn::ROPE_SIN,
-                         QSAIn::KEY_LENGTH,
-                         QSAIn::PAST_INCOMPLETE_RAW_K,
-                         QSAIn::PAST_INCOMPLETE_ROPE}) {
+        // Without rotation (indexer_rotary_dim == 0, e.g. DSA k-pool) the RoPE tensors are zero-size and have no memory
+        // to bind; the kernel compiles those parameters out (QSA_IDX_ROTARY_DIM == 0).
+        const bool rope = params.typed_desc<qsa_indexer>()->indexer_rotary_dim > 0;
+        for (auto idx : {QSAIn::INDEX_QUERY, QSAIn::RAW_INDEX_KEYS, QSAIn::Q_NORM_WEIGHT, QSAIn::K_NORM_WEIGHT}) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
+        }
+        if (rope) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::ROPE_COS)});
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::ROPE_SIN)});
+        }
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::KEY_LENGTH)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::PAST_INCOMPLETE_RAW_K)});
+        if (rope) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::PAST_INCOMPLETE_ROPE)});
+        }
+        if (params.typed_desc<qsa_indexer>()->dsa_kpool) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::POOL_APE)});
         }
         args.push_back(block_cache_arg(params));
         args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_RAW_K});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_ROPE});
+        if (rope) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_ROPE});
+        }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
         for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -310,6 +323,9 @@ protected:
         args.push_back(block_cache_arg(params));
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
+        if (params.typed_desc<qsa_indexer>()->dsa_kpool) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::HEAD_WEIGHTS)});
+        }
         for (uint32_t i = 0; i < 7; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }

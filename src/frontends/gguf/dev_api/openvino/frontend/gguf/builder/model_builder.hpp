@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "openvino/core/any.hpp"
 #include "openvino/frontend/gguf/builder/metadata.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
@@ -31,6 +32,10 @@ struct GGUF_FRONTEND_API BuildContext {
     // Opaque weight tables accessed through GgufTensors.
     detail::WeightStore* weights = nullptr;
     const ProjectorRegistry* projectors = nullptr;
+
+    // Load-time options: a trailing ov::AnyMap passed to FrontEnd::load after the file path(s), e.g.
+    // {"gguf_model_part": "mtp"} to build an architecture's NextN draft model instead of the main model.
+    ov::AnyMap options;
 };
 
 // Whole-model builder for any family, registered through ArchitectureDefinition.

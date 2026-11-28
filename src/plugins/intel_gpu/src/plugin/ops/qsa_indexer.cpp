@@ -20,7 +20,7 @@ namespace {
 /// Lowers QSAIndexer and QSAIndexerInPlace, which share inputs and attributes; the latter writes its block cache in place.
 template <typename Op>
 void create_qsa_indexer(ProgramBuilder& p, const std::shared_ptr<Op>& op, bool in_place_block_cache) {
-    validate_inputs_count(op, {ov::op::internal::QSAIndexer::InputIdx::COUNT});
+    validate_inputs_count(op, {ov::op::internal::QSAIndexer::InputIdx::COUNT, ov::op::internal::QSAIndexer::InputIdx::COUNT_DSA});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
     const auto& config = op->get_config();
@@ -29,10 +29,11 @@ void create_qsa_indexer(ProgramBuilder& p, const std::shared_ptr<Op>& op, bool i
     OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(config, reason), "[GPU] Cannot lower QSAIndexer op '", layer_name, "': ", reason);
 
     using In = ov::op::internal::QSAIndexer::InputIdx;
-    OPENVINO_ASSERT(config.query_norm && config.query_rope,
+    // QSA mode fuses the query RMSNorm and RoPE; DSA k-pool mode uses the query as given (validate_config checks it).
+    OPENVINO_ASSERT(config.dsa_kpool || (config.query_norm && config.query_rope),
                     "[GPU] QSAIndexer '",
                     layer_name,
-                    "': only query_norm == true and query_rope == true are supported");
+                    "': only query_norm == true and query_rope == true are supported outside dsa_kpool mode");
     OPENVINO_ASSERT(config.num_selection_heads == 1,
                     "[GPU] QSAIndexer '",
                     layer_name,
@@ -60,6 +61,18 @@ void create_qsa_indexer(ProgramBuilder& p, const std::shared_ptr<Op>& op, bool i
                         idx,
                         " must be f16, got ",
                         op->get_input_element_type(idx));
+    }
+
+    if (config.dsa_kpool) {
+        for (size_t idx : {In::POOL_APE, In::HEAD_WEIGHTS}) {
+            OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
+                            "[GPU] QSAIndexer '",
+                            layer_name,
+                            "': input ",
+                            idx,
+                            " must be f16, got ",
+                            op->get_input_element_type(idx));
+        }
     }
 
     cldnn::qsa_indexer prim(layer_name, inputs, config);
