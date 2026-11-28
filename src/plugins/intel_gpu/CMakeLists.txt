@@ -245,8 +245,9 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     # Workaround to avoid warnings during LTO build
     if(CMAKE_COMPILER_IS_GNUCXX)
-      set_target_properties(${MODULE_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
-                                                      LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
+        set_target_properties(${MODULE_NAME} 
+            PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized"
+            LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
     endif()
 
     ov_build_target_faster(${MODULE_NAME} PCH)

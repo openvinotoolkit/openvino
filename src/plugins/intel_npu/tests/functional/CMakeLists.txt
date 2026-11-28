@@ -85,6 +85,12 @@ if(MSVC)
   target_compile_options(${TARGET_NAME} PRIVATE /Zc:preprocessor)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+  # GCC 15 false positive in gtest-param-util.h (reported at LTO link time)
+  target_compile_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+  target_link_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+endif()
+
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
 file(GLOB_RECURSE BLOBS "*.blob" "*.xml" "*.bin")

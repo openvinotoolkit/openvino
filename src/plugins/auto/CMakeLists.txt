@@ -26,10 +26,6 @@ set(SOURCES
 
 # Build the optional IPF telemetry client used by the device utilization monitor.
 add_subdirectory(thirdparty)
-# WA for issue 141313
-if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-    ov_add_compiler_flags(-Wno-stringop-overflow)
-endif()
 
 if(ENABLE_AUTO AND ENABLE_MULTI)
     ov_add_plugin(NAME ${TARGET_NAME}
