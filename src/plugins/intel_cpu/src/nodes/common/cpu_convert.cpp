@@ -863,6 +863,44 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         INTEL_CPU_CVT(f16, f16), INTEL_CPU_CVT(bf16, bf16), INTEL_CPU_CVT(f64, f64), INTEL_CPU_CVT(boolean, boolean),  \
         INTEL_CPU_CVT_FP8_LIST
 
+#define INTEL_CPU_CVT_TO_BOOLEAN_LIST                                                                                 \
+    INTEL_CPU_CVT(u8, boolean), INTEL_CPU_CVT(i8, boolean), INTEL_CPU_CVT(u16, boolean), INTEL_CPU_CVT(i16, boolean), \
+        INTEL_CPU_CVT(u32, boolean), INTEL_CPU_CVT(i32, boolean), INTEL_CPU_CVT(u64, boolean),                        \
+        INTEL_CPU_CVT(i64, boolean), INTEL_CPU_CVT(f32, boolean), INTEL_CPU_CVT(f16, boolean),                        \
+        INTEL_CPU_CVT(bf16, boolean), INTEL_CPU_CVT(f64, boolean)
+
+template <typename LoopPolicy>
+struct ConvertToBooleanContext {
+    using loop_policy = LoopPolicy;
+
+    const void* srcPtr;
+    void* dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template <typename T>
+struct ConvertToBooleanPrecision;
+
+// Any non-zero value (including NaN and values in (-1, 1)) is true, as for static_cast<bool>
+template <typename src_t, typename dst_t>
+struct ConvertToBooleanPrecision<std::tuple<src_t, dst_t>> {
+    template <typename Ctx>
+    void operator()(Ctx& ctx) {
+        using LoopPolicy = typename Ctx::loop_policy;
+        const auto* src = static_cast<const src_t*>(ctx.srcPtr);
+        auto* dst = static_cast<dst_t*>(ctx.dstPtr);
+        LoopPolicy::run(ctx.size, [&](size_t i) {
+            if constexpr (std::is_integral_v<src_t>) {
+                dst[i] = static_cast<dst_t>(src[i] != 0);
+            } else {
+                dst[i] = static_cast<dst_t>(static_cast<double>(src[i]) != 0.0);
+            }
+        });
+        ctx.converted = true;
+    }
+};
+
 #define INTEL_CPU_CVT_FROM_BIN_LIST                                                                     \
     INTEL_CPU_CVT(u1, f32), INTEL_CPU_CVT(u1, f16), INTEL_CPU_CVT(u1, bf16), INTEL_CPU_CVT(u1, f64),    \
         INTEL_CPU_CVT(u1, i16), INTEL_CPU_CVT(u1, u8), INTEL_CPU_CVT(u1, i8), INTEL_CPU_CVT(u1, u16),   \
@@ -1249,6 +1287,10 @@ static void do_cpu_convert(const void* srcPtr,
         OV_SWITCH(intel_cpu, ConvertFP8Precision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FP8_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #endif
+    } else if (dstPrc == ov::element::boolean && interimPrc == ov::element::boolean && srcPrc != ov::element::boolean) {
+        ConvertToBooleanContext<LoopPolicy> ctx{srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertToBooleanPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_BOOLEAN_LIST);
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else {
         ConvertContext<LoopPolicy> ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
