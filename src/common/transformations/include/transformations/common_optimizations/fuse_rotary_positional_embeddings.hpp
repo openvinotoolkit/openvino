@@ -25,6 +25,7 @@ class TRANSFORMATIONS_API RoPEFusionGPTOSS;
 class TRANSFORMATIONS_API RoPEFusionLtxVideo;
 class TRANSFORMATIONS_API RoPEFusionCohere;
 class TRANSFORMATIONS_API RoPEFusionSliceAssign;
+class TRANSFORMATIONS_API RoPEFusionInterleavedGather;
 
 }  // namespace pass
 }  // namespace ov
@@ -117,6 +118,20 @@ class ov::pass::RoPEFusionSliceAssign : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionSliceAssign");
     RoPEFusionSliceAssign();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Fuses interleaved RoPE whose element pairs are read with Gather:
+ *   pairs = Reshape(x, [B, H, L, D/2, 2]), x0 = Gather(pairs, 0, -1), x1 = Gather(pairs, 1, -1)
+ *   y0 = x0 * A0 + x1 * A1, y1 = x0 * B0 + x1 * B1 (Add or Subtract, optional scalar factors)
+ *   y = Reshape(Concat(Unsqueeze(y0, -1), Unsqueeze(y1, -1)), [B, H, L, D])
+ * into RoPE(x, cos, sin) with is_interleaved = true, cos = interleave(A0, B1) and sin = interleave(-A1, B0).
+ */
+class ov::pass::RoPEFusionInterleavedGather : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionInterleavedGather");
+    RoPEFusionInterleavedGather();
 };
 
 /**

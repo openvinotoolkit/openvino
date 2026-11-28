@@ -4,9 +4,13 @@
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
+#include <algorithm>
+#include <array>
 #include <climits>
 #include <cstdint>
 #include <limits>
+#include <map>
+#include <tuple>
 #include <variant>
 
 #include "itt.hpp"
@@ -39,6 +43,7 @@
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -48,6 +53,7 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
@@ -55,6 +61,7 @@ namespace ov::pass {
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
 namespace v15 = ov::op::v15;
 namespace op_util = ov::op::util;
@@ -88,6 +95,8 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionLtxVideo>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionSliceAssign>();
+    // after the model-specific matchers, which may cover the same subgraph
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionInterleavedGather>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
     return symbolic_optimizations.run_on_model(model);
 }
@@ -1578,6 +1587,191 @@ RoPEFusionSliceAssign::RoPEFusionSliceAssign() {
             root->input(0).replace_source_output(rope);
             register_new_node(rope);
         }
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+namespace {
+
+// One coefficient of an interleaved RoPE half: table [* scale] [* output_scale] [* -1]
+struct InterleavedCoefficient {
+    Output<Node> table;
+    Output<Node> scale;
+    Output<Node> output_scale;
+    bool negative = false;
+
+    Output<Node> build(NodeRegistry& rg) const {
+        Output<Node> result = table;
+        for (const auto& factor : {scale, output_scale}) {
+            if (factor.get_node()) {
+                result = rg.add(op_util::make_try_fold<v1::Multiply>(result, factor));
+            }
+        }
+        if (negative) {
+            auto minus_one = rg.add(v0::Constant::create(result.get_element_type(), {}, {-1}));
+            result = rg.add(op_util::make_try_fold<v1::Multiply>(result, minus_one));
+        }
+        return result;
+    }
+
+    // the optional factors are kept as node pointers: an empty Output can't be ordered
+    auto key() const {
+        return std::make_tuple(table, scale.get_node_shared_ptr(), output_scale.get_node_shared_ptr(), negative);
+    }
+};
+
+// [..., N] tables `even` and `odd` -> [..., 2N] table with their elements interleaved
+Output<Node> interleave_tables(NodeRegistry& rg, const Output<Node>& even, const Output<Node>& odd) {
+    auto axis = rg.add(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto even_pairs = rg.add(op_util::make_try_fold<v0::Unsqueeze>(even, axis));
+    auto odd_pairs = rg.add(op_util::make_try_fold<v0::Unsqueeze>(odd, axis));
+    auto pairs = rg.add(op_util::make_try_fold<v0::Concat>(OutputVector{even_pairs, odd_pairs}, -1));
+    auto target_shape = rg.add(v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1}));
+    return rg.add(op_util::make_try_fold<v1::Reshape>(pairs, target_shape, true));
+}
+
+// RoPE broadcasts cos/sin only along dimensions of size 1
+bool broadcastable_to(const PartialShape& table_shape, const PartialShape& x_shape) {
+    for (size_t i = 0; i < 3; ++i) {
+        const bool is_one = table_shape[i].is_static() && table_shape[i].get_length() == 1;
+        if (!is_one && !ov::symbol::util::dims_are_equal(table_shape[i], x_shape[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace
+
+RoPEFusionInterleavedGather::RoPEFusionInterleavedGather() {
+    MATCHER_SCOPE(RoPEFusionInterleavedGather);
+    using namespace pattern;
+
+    auto x = any_input(has_static_dims({1, 3}) && shape_matches("[batch, num_heads, seq_len, head_size]"));
+    auto pairs = wrap_type<v1::Reshape>({x, any_input()}, shape_matches("[batch, num_heads, seq_len, half_size, 2]"));
+    auto pair_element = [&](int index) {
+        auto axis = wrap_type<v0::Constant>(value_matches("-1") || value_matches("4"));
+        return wrap_type<v1::Gather, v7::Gather, v8::Gather>({pairs, index, axis},
+                                                             shape_matches("[batch, num_heads, seq_len, half_size]"));
+    };
+    auto is_scalar = [](const Output<Node>& output) {
+        return output.get_partial_shape().is_static() && shape_size(output.get_shape()) == 1;
+    };
+
+    // half = x0 * c0 + x1 * c1, written with Add or Subtract, each product with an optional scalar factor
+    struct Half {
+        std::shared_ptr<Node> table0, table1, scale0, scale1, x1_minus_x0, x0_minus_x1, root;
+    };
+    auto make_half = [&]() {
+        Half half;
+        half.table0 = any_input(shape_matches("[?, ?, ?, half_size]"));
+        half.table1 = any_input(shape_matches("[?, ?, ?, half_size]"));
+        half.scale0 = wrap_type<v0::Constant>(is_scalar);
+        half.scale1 = wrap_type<v0::Constant>(is_scalar);
+        auto product0 = wrap_type<v1::Multiply>({pair_element(0), half.table0});
+        auto product1 = wrap_type<v1::Multiply>({pair_element(1), half.table1});
+        auto term0 = optional<v1::Multiply>({product0, half.scale0});
+        auto term1 = optional<v1::Multiply>({product1, half.scale1});
+        half.x0_minus_x1 = wrap_type<v1::Subtract>({term0, term1});
+        half.x1_minus_x0 = wrap_type<v1::Subtract>({term1, term0});
+        half.root = half.x0_minus_x1 | half.x1_minus_x0 | wrap_type<v1::Add>({term0, term1});
+        return half;
+    };
+    auto y0 = make_half();
+    auto y1 = make_half();
+
+    const auto unsqueezed = shape_matches("[batch, num_heads, seq_len, half_size, 1]");
+    auto y0_unsqueezed = wrap_type<v0::Unsqueeze, v1::Reshape>({y0.root, any_input()}, unsqueezed);
+    auto y1_unsqueezed = wrap_type<v0::Unsqueeze, v1::Reshape>({y1.root, any_input()}, unsqueezed);
+    auto concat = wrap_type<v0::Concat>({y0_unsqueezed, y1_unsqueezed},
+                                        shape_matches("[batch, num_heads, seq_len, half_size, 2]"));
+    // scalar factor on the output, folded into the tables
+    auto output_scale = wrap_type<v0::Constant>(is_scalar);
+    auto scaled = optional<v1::Multiply>({concat, output_scale});
+    auto result =
+        wrap_type<v1::Reshape>({scaled, any_input()}, shape_matches("[batch, num_heads, seq_len, head_size]"));
+
+    // RoPEs sharing the source tables share the new tables as well
+    using CoefficientKey = decltype(std::declval<InterleavedCoefficient>().key());
+    auto tables_cache =
+        std::make_shared<std::map<std::array<CoefficientKey, 4>, std::pair<Output<Node>, Output<Node>>>>();
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+        const auto& x_val = pattern_map.at(x);
+
+        // {coefficient of x0, coefficient of x1} of a half
+        auto coefficients = [&](const Half& half) {
+            auto coefficient =
+                [&](const std::shared_ptr<Node>& table, const std::shared_ptr<Node>& scale, bool negative) {
+                    InterleavedCoefficient c;
+                    c.table = pattern_map.at(table);
+                    if (pattern_map.count(scale)) {
+                        c.scale = pattern_map.at(scale);
+                    }
+                    if (pattern_map.count(output_scale)) {
+                        c.output_scale = pattern_map.at(output_scale);
+                    }
+                    c.negative = negative;
+                    return c;
+                };
+            return std::make_pair(coefficient(half.table0, half.scale0, pattern_map.count(half.x1_minus_x0) > 0),
+                                  coefficient(half.table1, half.scale1, pattern_map.count(half.x0_minus_x1) > 0));
+        };
+        auto [a0, a1] = coefficients(y0);
+        auto [b0, b1] = coefficients(y1);
+        // cos = interleave(A0, B1), sin = interleave(-A1, B0)
+        a1.negative = !a1.negative;
+
+        // tables are broadcast to x, and the interleaved ones are concatenated
+        if (!broadcastable_to(a0.table.get_partial_shape(), x_val.get_partial_shape()) ||
+            !broadcastable_to(a1.table.get_partial_shape(), x_val.get_partial_shape()) ||
+            a0.table.get_partial_shape() != b1.table.get_partial_shape() ||
+            a1.table.get_partial_shape() != b0.table.get_partial_shape()) {
+            return false;
+        }
+
+        const std::array<CoefficientKey, 4> key{a0.key(), b1.key(), a1.key(), b0.key()};
+        auto cached = tables_cache->find(key);
+        if (cached == tables_cache->end()) {
+            NodeRegistry rg;
+            auto cos = interleave_tables(rg, a0.build(rg), b1.build(rg));
+            auto sin = interleave_tables(rg, a1.build(rg), b0.build(rg));
+            NodeVector sources;
+            for (const auto* c : {&a0, &b1, &a1, &b0}) {
+                sources.push_back(c->table.get_node_shared_ptr());
+            }
+            ov::copy_runtime_info(sources, rg.get());
+            cached = tables_cache->emplace(key, std::make_pair(cos, sin)).first;
+        }
+        const auto& [cos, sin] = cached->second;
+
+        const auto& symbols = m.get_symbols();
+        ov::op::internal::RoPE::Config config;
+        config.head_cnt = static_cast<size_t>(symbols.at("num_heads").i());
+        config.head_size = static_cast<size_t>(symbols.at("head_size").i());
+        config.rotary_ndims = config.head_size;
+        config.cos_sin_ndims = config.head_size;
+        config.is_interleaved = true;
+        config.output_trans0213 = false;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(OutputVector{x_val, cos, sin}, config);
+
+        const std::array<std::shared_ptr<Node>, 5> inputs{x, y0.table0, y0.table1, y1.table0, y1.table1};
+        NodeVector matched_nodes;
+        for (const auto& [label, value] : pattern_map) {
+            const auto node = value.get_node_shared_ptr();
+            if (!ov::is_type<v0::Constant>(node) && std::find(inputs.begin(), inputs.end(), label) == inputs.end()) {
+                matched_nodes.push_back(node);
+            }
+        }
+        rope->set_friendly_name(root->get_friendly_name());
+        ov::copy_runtime_info(matched_nodes, rope);
+        ov::replace_node(root, rope);
+        register_new_node(rope);
         return true;
     };
 
