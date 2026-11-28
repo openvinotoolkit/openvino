@@ -32,6 +32,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/streams_info_table_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/streams_rank_table_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/update_proc_table_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/avg_pool_ceil_torch_divisor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp

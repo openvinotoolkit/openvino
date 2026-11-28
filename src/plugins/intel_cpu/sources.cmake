@@ -601,6 +601,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/swish_cpu.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/align_matmul_input_ranks.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/align_matmul_input_ranks.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/avg_pool_ceil_torch_divisor.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/avg_pool_ceil_torch_divisor.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.cpp
