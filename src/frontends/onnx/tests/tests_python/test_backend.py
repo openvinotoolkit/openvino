@@ -66,7 +66,6 @@ from tests import (
     xfail_issue_onnx122_flexattention,
     xfail_issue_onnx122_bitcast,
     xfail_issue_onnx122_cumprod,
-    xfail_issue_onnx122_attention,
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
     xfail_issue_onnx122_cast_infinity,
@@ -636,11 +635,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_cumprod_2d_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_int32_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_negative_axis_cpu",
-    ),
-    (
-        xfail_issue_onnx122_attention,
-        "OnnxBackendNodeModelTest.test_attention_4d_with_past_and_present_qk_matmul_bias_3d_mask_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_past_and_present_qk_matmul_bias_4d_mask_causal_cpu",
     ),
     (
         xfail_issue_onnx122_newdtype,

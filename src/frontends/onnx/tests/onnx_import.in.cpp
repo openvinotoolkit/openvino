@@ -9713,6 +9713,349 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_qk_output_mode2) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset25_window_bidirectional) {
+    // Attention-25 asymmetric bidirectional window (left=1, right=2), no causal masking:
+    // query i attends keys i-1..i+2.
+    auto model = convert_model("attention_opset25_window_bidirectional.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 5, 3)
+    test_case.add_input<float>({-0.092390f, 0.734286f,  -1.438882f, -0.663422f, -0.100728f, 2.146987f,
+                                1.393708f,  -0.207371f, 0.763587f,  0.205054f,  -1.041496f, -0.828076f,
+                                -1.053796f, -0.088759f, 0.158193f,  -1.789323f, 1.063482f,  0.037120f,
+                                -0.163758f, -0.328208f, 1.588977f,  -0.188783f, -0.181723f, 0.717900f,
+                                -0.000707f, 0.782167f,  0.086991f,  0.066256f,  1.200565f,  -0.061665f});
+    // K: (1, 2, 5, 3)
+    test_case.add_input<float>({-0.900906f, -1.259248f, 0.056633f,  -0.966219f, 0.748556f,  0.278186f,
+                                -0.310756f, -0.653905f, -0.072948f, 0.591938f,  0.857604f,  -1.194178f,
+                                1.901541f,  -0.645184f, -1.182197f, 1.552205f,  1.216322f,  0.936337f,
+                                -0.675551f, 1.069320f,  -0.109742f, -1.393236f, -0.671500f, -1.262075f,
+                                0.902139f,  1.173614f,  -1.039291f, -0.156428f, 0.394596f,  -1.166274f});
+    // V: (1, 2, 5, 3)
+    test_case.add_input<float>({0.937063f,  -1.004616f, -1.390769f, -0.846270f, -0.372083f, -0.859508f,
+                                1.205999f,  0.001889f,  -1.427728f, 0.343290f,  -1.434270f, 1.530772f,
+                                -1.202051f, -0.445511f, 0.191527f,  -0.778383f, -0.985337f, 0.252750f,
+                                -1.561119f, 1.040254f,  -1.292582f, -1.255383f, -0.144812f, -2.211669f,
+                                -0.017889f, -0.729634f, 0.333205f,  -0.108462f, 0.899155f,  -0.899989f});
+    // Y: (1, 2, 5, 3)
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 5, 3},
+        {0.221692f,  -0.397574f, -1.163820f, 0.252580f,  -0.540782f, -1.079198f, -0.525333f, -0.533327f,
+         0.060388f,  -0.295593f, -0.523843f, 0.041960f,  -0.163096f, -1.110268f, 1.091920f,  -1.394365f,
+         0.456145f,  -1.553218f, -0.970464f, -0.336555f, -0.456664f, -0.876647f, 0.363112f,  -1.147814f,
+         -0.297639f, -0.076636f, -0.585876f, -0.050483f, -0.143488f, -0.110580f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset25_window_causal) {
+    // Attention-25 asymmetric window (left=2, right=1) composed with is_causal=1: the causal frontier
+    // caps the right bound, so query i attends keys i-2..i (seq_q=4 < seq_kv=6, offset 0).
+    auto model = convert_model("attention_opset25_window_causal.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 4, 3)
+    test_case.add_input<float>({0.795923f,  -0.002340f, -0.518175f, 0.213852f,  -0.776226f, -0.592254f,
+                                -0.539468f, 0.177798f,  -0.117279f, -2.131930f, 1.435437f,  1.726910f,
+                                -0.641061f, 0.834131f,  0.555849f,  -0.427798f, -0.205939f, 1.069124f,
+                                -1.609005f, 0.816048f,  1.246827f,  -0.640058f, 1.471643f,  0.793353f});
+    // K: (1, 2, 6, 3)
+    test_case.add_input<float>(
+        {1.095872f,  -0.094325f, -1.035295f, -0.376444f, -2.260340f, -0.830427f, 0.663789f,  -0.852926f, 0.379389f,
+         2.025337f,  -0.538444f, 0.331166f,  -1.543846f, 0.938539f,  0.934116f,  -0.655474f, -0.964740f, -0.440213f,
+         -1.250903f, 0.543782f,  1.050946f,  0.117965f,  -1.808849f, 1.594066f,  0.479259f,  0.231449f,  -1.611635f,
+         -0.113272f, 0.043416f,  0.104601f,  0.577569f,  -0.843591f, -0.485385f, -0.759943f, -0.229918f, -1.825233f});
+    // V: (1, 2, 6, 3)
+    test_case.add_input<float>(
+        {0.956456f,  0.470442f, 0.755409f,  -0.162371f, 0.283397f,  -0.499728f, 1.570850f,  -1.254030f, -1.369309f,
+         -0.135164f, 0.164438f, 2.346303f,  1.046808f,  0.538474f,  -0.881844f, -0.979736f, -0.989456f, 0.774335f,
+         0.930337f,  0.876668f, -0.950162f, -1.437163f, 0.077645f,  0.464619f,  0.202936f,  0.769786f,  0.819541f,
+         1.250837f,  0.781537f, -1.620449f, -0.685149f, -0.228229f, 1.839184f,  -0.699944f, -0.315660f, -0.228788f});
+    // Y: (1, 2, 4, 3)
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 3},
+        {0.956456f,  0.470442f,  0.755409f,  0.204203f,  0.344681f,  -0.088494f, 0.705237f,  -0.118839f,
+         -0.369261f, 0.947773f,  -0.715347f, -0.634281f, 0.930337f,  0.876668f,  -0.950162f, -0.416250f,
+         0.422200f,  -0.145463f, 0.635712f,  0.780268f,  -0.744867f, 0.441327f,  0.632013f,  -0.605591f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset25_window_past) {
+    // Attention-25 causal sliding window (left=2) with an internal KV cache. The query block (3 tokens) is
+    // longer than the new K/V block (2 tokens), so offset = past_sequence_length = 4 (not seq_kv - seq_q):
+    // query i attends keys 4+i-2..4+i.
+    auto model = convert_model("attention_opset25_window_past.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 3, 3)
+    test_case.add_input<float>({0.702155f,
+                                -0.321597f,
+                                0.277102f,
+                                -1.390494f,
+                                0.090803f,
+                                1.171028f,
+                                0.566894f,
+                                -0.231632f,
+                                0.858750f,
+                                0.842386f,
+                                0.405598f,
+                                0.685620f,
+                                1.049533f,
+                                -0.729952f,
+                                -0.609996f,
+                                0.648784f,
+                                1.709717f,
+                                -0.112242f});
+    // K: (1, 2, 2, 3)
+    test_case.add_input<float>({-1.035759f,
+                                1.223356f,
+                                -0.321697f,
+                                -0.406236f,
+                                -2.380789f,
+                                -0.136414f,
+                                0.595801f,
+                                -1.012689f,
+                                0.879869f,
+                                -1.051155f,
+                                -0.640620f,
+                                -0.993737f});
+    // V: (1, 2, 2, 3)
+    test_case.add_input<float>({-0.937491f,
+                                -1.533977f,
+                                -0.393356f,
+                                -0.464522f,
+                                -0.359620f,
+                                0.135095f,
+                                -1.737823f,
+                                0.420752f,
+                                0.517663f,
+                                -0.224376f,
+                                0.512289f,
+                                -0.136773f});
+    // past_key: (1, 2, 4, 3)
+    test_case.add_input<float>({1.750452f,  1.016176f,  0.759327f, -1.414655f, -0.040935f, 0.654034f,
+                                0.908215f,  -0.094141f, 1.970469f, 0.433767f,  -0.636088f, -0.671828f,
+                                0.520151f,  0.805471f,  0.564067f, -0.172944f, 1.097328f,  -1.463459f,
+                                -0.590681f, 0.162655f,  0.854723f, 0.467840f,  -1.049141f, 1.111025f});
+    // past_value: (1, 2, 4, 3)
+    test_case.add_input<float>({1.527186f,  1.785774f,  0.348086f,  2.156447f, 0.652590f,  0.374633f,
+                                0.075314f,  -0.702424f, -0.280586f, 0.079843f, -0.369485f, 0.020339f,
+                                -2.188918f, 1.008538f,  -1.716233f, 0.195036f, 0.121106f,  -0.107901f,
+                                -0.614513f, 0.862481f,  0.560043f,  0.791840f, -0.663573f, 1.077241f});
+    // Y: (1, 2, 3, 3)
+    test_case.add_expected_output<float>(Shape{1, 2, 3, 3},
+                                         {-0.058698f,
+                                          -0.705751f,
+                                          -0.198140f,
+                                          -0.662264f,
+                                          -1.018334f,
+                                          -0.174912f,
+                                          -0.613196f,
+                                          -0.728770f,
+                                          -0.031019f,
+                                          -0.501004f,
+                                          0.136117f,
+                                          0.736445f,
+                                          -0.480106f,
+                                          0.063910f,
+                                          0.552309f,
+                                          -1.029548f,
+                                          0.463590f,
+                                          0.211395f});
+    // present_key: (1, 2, 6, 3)
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 6, 3},
+        {1.750452f, 1.016176f,  0.759327f,  -1.414655f, -0.040935f, 0.654034f,  0.908215f,  -0.094141f, 1.970469f,
+         0.433767f, -0.636088f, -0.671828f, -1.035759f, 1.223356f,  -0.321697f, -0.406236f, -2.380789f, -0.136414f,
+         0.520151f, 0.805471f,  0.564067f,  -0.172944f, 1.097328f,  -1.463459f, -0.590681f, 0.162655f,  0.854723f,
+         0.467840f, -1.049141f, 1.111025f,  0.595801f,  -1.012689f, 0.879869f,  -1.051155f, -0.640620f, -0.993737f});
+    // present_value: (1, 2, 6, 3)
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 6, 3},
+        {1.527186f,  1.785774f,  0.348086f,  2.156447f,  0.652590f,  0.374633f,  0.075314f,  -0.702424f, -0.280586f,
+         0.079843f,  -0.369485f, 0.020339f,  -0.937491f, -1.533977f, -0.393356f, -0.464522f, -0.359620f, 0.135095f,
+         -2.188918f, 1.008538f,  -1.716233f, 0.195036f,  0.121106f,  -0.107901f, -0.614513f, 0.862481f,  0.560043f,
+         0.791840f,  -0.663573f, 1.077241f,  -1.737823f, 0.420752f,  0.517663f,  -0.224376f, 0.512289f,  -0.136773f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset25_window_gqa_3d) {
+    // Attention-25 GQA (q_num_heads=4, kv_num_heads=2, 3D inputs) with a bidirectional window
+    // (left=1, right=1) and seq_q=4 < seq_kv=5.
+    auto model = convert_model("attention_opset25_window_gqa_3d.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 4, 8)
+    test_case.add_input<float>({-1.049902f, 0.269115f,  -1.148210f, 0.741525f,  -0.945530f, 1.069853f, -1.758285f,
+                                -1.312741f, -0.242178f, 0.102257f,  1.356324f,  0.132035f,  0.615465f, -1.047946f,
+                                -0.364231f, -0.906817f, -0.224780f, 0.062967f,  -0.725701f, 0.442777f, 0.645554f,
+                                -1.985089f, -1.322777f, -0.858942f, -0.625822f, -0.057593f, 0.074977f, -1.160534f,
+                                -0.368940f, -0.756495f, 1.051712f,  -0.289895f});
+    // K: (1, 5, 4)
+    test_case.add_input<float>({-0.756059f, 0.629975f, -0.660338f, -1.784704f, -0.437776f, -0.764556f, -1.276330f,
+                                0.199466f,  0.114835f, 0.138231f,  2.239064f,  -0.521533f, -2.437095f, -0.637410f,
+                                -0.569924f, 0.358291f, 0.881169f,  0.153132f,  -2.082512f, -0.458716f});
+    // V: (1, 5, 4)
+    test_case.add_input<float>({-0.311833f, -1.416389f, 0.709592f,  -0.471866f, -0.971893f, -0.170856f, -1.035810f,
+                                0.012013f,  0.711570f,  -0.269520f, -1.124524f, -1.389631f, 0.173706f,  -0.861330f,
+                                -0.347850f, -0.817206f, -0.482564f, 1.021261f,  -0.758603f, -0.070121f});
+    // Y: (1, 4, 8)
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 8},
+        {-0.560775f, -0.946636f, -0.490701f, -1.078866f, -0.811249f, -0.050242f, 0.265780f,  -0.348828f,
+         -0.205517f, -0.664834f, 0.022117f,  -0.503818f, -0.402245f, -0.935039f, 0.086011f,  -0.494347f,
+         -0.016006f, -0.485132f, 0.049631f,  -0.599863f, -1.064592f, -1.260863f, -0.827855f, -0.295784f,
+         0.188105f,  -0.467391f, 0.136388f,  -0.174113f, -0.726826f, -0.503493f, -1.041575f, -1.292046f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset25_window_nonpad) {
+    // Attention-25 causal window (left=1) with an external cache: per-batch offset = nonpad - seq_q =
+    // [-1, 1]. Batch 0 query 0 has no visible key (negative offset) and yields a zero row.
+    auto model = convert_model("attention_opset25_window_nonpad.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (2, 1, 3, 2)
+    test_case.add_input<float>({-1.083667f,
+                                -0.533835f,
+                                -0.417215f,
+                                -0.433583f,
+                                -0.198168f,
+                                -1.106551f,
+                                -0.329453f,
+                                1.411705f,
+                                -0.894532f,
+                                0.765454f,
+                                2.110943f,
+                                -0.239730f});
+    // K: (2, 1, 4, 2)
+    test_case.add_input<float>({1.355777f,
+                                -1.299060f,
+                                1.239770f,
+                                0.203042f,
+                                1.224567f,
+                                -0.896087f,
+                                0.158554f,
+                                -1.147287f,
+                                -0.331721f,
+                                -1.727821f,
+                                -0.082908f,
+                                -0.859347f,
+                                -0.703070f,
+                                0.826735f,
+                                -2.376234f,
+                                -0.948081f});
+    // V: (2, 1, 4, 2)
+    test_case.add_input<float>({-0.941032f,
+                                0.371454f,
+                                1.137614f,
+                                -0.253008f,
+                                -0.503834f,
+                                1.124188f,
+                                0.424650f,
+                                -0.016465f,
+                                1.123041f,
+                                0.094407f,
+                                -0.613516f,
+                                1.253437f,
+                                0.336255f,
+                                -0.665631f,
+                                -1.060442f,
+                                -0.116562f});
+    // nonpad_kv_seqlen: (2,)
+    test_case.add_input<int64_t>({2, 4});
+    // Y: (2, 1, 3, 2)
+    test_case.add_expected_output<float>(Shape{2, 1, 3, 2},
+                                         {0.000000f,
+                                          0.000000f,
+                                          -0.941032f,
+                                          0.371454f,
+                                          -0.444573f,
+                                          0.222309f,
+                                          -0.078465f,
+                                          0.896328f,
+                                          0.133626f,
+                                          -0.256206f,
+                                          0.196508f,
+                                          -0.610694f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset25_invalid_window) {
+    EXPECT_THROW(convert_model("attention_opset25_invalid_window.onnx"), ov::Exception);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_kv_cache_causal_past_offset) {
+    // Attention-23 causal with a KV cache where the query block (2 tokens) is longer than the new K/V
+    // block (1 token): the causal offset is past_sequence_length = 3, not seq_kv - seq_q = 2.
+    auto model = convert_model("attention_kv_cache_causal_past_offset.onnx");
+    auto test_case = test::TestCase(model, s_device);
+    // Q: (1, 2, 2, 3)
+    test_case.add_input<float>({0.266469f,
+                                -0.297421f,
+                                -0.557048f,
+                                0.054061f,
+                                1.722786f,
+                                0.359418f,
+                                0.541406f,
+                                -0.092735f,
+                                0.424820f,
+                                0.022485f,
+                                0.718273f,
+                                -0.173726f});
+    // K: (1, 2, 1, 3)
+    test_case.add_input<float>({0.596683f, 0.102819f, 0.752715f, -1.275620f, -0.355316f, 1.913313f});
+    // V: (1, 2, 1, 3)
+    test_case.add_input<float>({1.746645f, 2.598318f, 0.487453f, -0.270409f, 0.874824f, -0.506076f});
+    // past_key: (1, 2, 3, 3)
+    test_case.add_input<float>({1.048044f,
+                                -1.000896f,
+                                0.772180f,
+                                -1.657129f,
+                                0.032330f,
+                                1.790940f,
+                                -1.814901f,
+                                0.392526f,
+                                -0.492655f,
+                                1.609118f,
+                                -1.848455f,
+                                -1.375629f,
+                                2.367297f,
+                                -0.451450f,
+                                -0.137165f,
+                                -0.410286f,
+                                0.605208f,
+                                -0.394112f});
+    // past_value: (1, 2, 3, 3)
+    test_case.add_input<float>({-0.241379f,
+                                -0.955597f,
+                                0.191113f,
+                                0.465837f,
+                                1.132438f,
+                                0.574437f,
+                                0.352896f,
+                                -0.071039f,
+                                1.370129f,
+                                -1.302527f,
+                                -0.551428f,
+                                -0.479524f,
+                                -0.816920f,
+                                0.231671f,
+                                -0.266467f,
+                                0.616434f,
+                                -1.105254f,
+                                0.099627f});
+    // Y: (1, 2, 2, 3)
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 3},
+                                         {0.534512f,
+                                          0.497018f,
+                                          0.627147f,
+                                          0.742338f,
+                                          1.015828f,
+                                          0.735439f,
+                                          -0.612334f,
+                                          -0.025763f,
+                                          -0.315383f,
+                                          -0.228698f,
+                                          -0.277886f,
+                                          -0.207493f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
 // Standard ONNX opset-24 Swish: Y = X * Sigmoid(alpha * X). The translator maps it to
 // ov::op::v4::Swish so that plugins can execute it as a single activation.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24) {

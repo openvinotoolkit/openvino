@@ -188,8 +188,6 @@ xfail_issue_onnx122_bitcast = xfail_test(
     reason="OV ONNX FE does not support BitCast-26 (new in ONNX opset 26)")
 xfail_issue_onnx122_cumprod = xfail_test(
     reason="OV ONNX FE does not support CumProd-26 (new in ONNX opset 26)")
-xfail_issue_onnx122_attention = xfail_test(
-    reason="OV ONNX FE does not fully support Attention-24 for these cases (ONNX opset 24)")
 xfail_issue_onnx122_newdtype = xfail_test(
     reason="OV ONNX FE does not support new sub-byte / float8 data types "
            "(INT2/UINT2, INT4/UINT4, FLOAT4E2M1, FLOAT8E8M0, FLOAT8E*FNUZ) in Cast/CastLike/Quantize")
