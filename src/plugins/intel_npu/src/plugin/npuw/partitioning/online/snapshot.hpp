@@ -78,6 +78,7 @@ private:
     void mergeUniques();
     void mergeTriangles();
     void splitMixedPrecision();
+    void splitIrregularOutputs();
     void cleanUpUniques();
     void afterUniques();
     void markInternalCompute();

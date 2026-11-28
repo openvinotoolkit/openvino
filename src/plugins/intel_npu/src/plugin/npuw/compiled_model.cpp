@@ -1507,7 +1507,8 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& subm = const_cast<CompiledModelDesc&>(m_compiled_submodels[idx]);
             const auto real_idx = subm.replaced_by.value_or(idx);
-            const auto device_index = real_idx == idx ? find_device_index(m_dev_list, submodel_device(real_idx)) : 0u;
+            const auto device_index =
+                real_idx == idx && subm.compiled_model ? find_device_index(m_dev_list, submodel_device(real_idx)) : 0u;
             ov::npuw::orc::with_leaf_section(body_stream,
                                              CompiledModelDesc::kOrcType,
                                              CompiledModelDesc::kOrcVersion,

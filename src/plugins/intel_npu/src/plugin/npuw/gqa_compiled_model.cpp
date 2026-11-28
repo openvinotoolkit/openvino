@@ -336,9 +336,9 @@ std::function<std::string(const std::string&)> get_encrypt_callback(const ov::An
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
     const auto gqa_case = identify_case(model);
-    LOG_INFO("Detected GQA model version: " << gqa_case_name(gqa_case));
+    LOG_INFO("Detected GQA model version: " << gqa_case_name(gqa_case) << " for model " << model->get_friendly_name());
     auto [prepared_properties, stage] = with_gqa_defaults(model, properties, gqa_case);
-
+    LOG_INFO("GQA prepared properties: " << ov::Any{prepared_properties}.as<std::string>());
     static std::atomic<std::size_t> mcount{0u};
 
     model->set_friendly_name(model->get_friendly_name() + "_gqa_" +

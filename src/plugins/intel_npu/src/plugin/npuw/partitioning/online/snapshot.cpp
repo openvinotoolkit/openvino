@@ -406,6 +406,36 @@ void Snapshot::splitMixedPrecision() {
     LOG_INFO("DONE");
 }
 
+void Snapshot::splitIrregularOutputs() {
+    // Copies of a repeated block can only be folded together if they expose the same number of output layers.
+    // Some copies may expose an extra one, e.g. hidden-state taps consumed by a speculative decoding draft model.
+
+    LOG_INFO("Online partitioning: executing splitIrregularOutputs pass...");
+    LOG_BLOCK();
+
+    for (const auto& [id, group_set] : repeating()) {
+        std::map<std::size_t, GPtrSet> noutputs_to_group;
+        for (const auto& group : group_set) {
+            noutputs_to_group[group->getOutputs().size()].insert(group);
+        }
+
+        if (noutputs_to_group.size() == 1) {
+            continue;
+        }
+
+        for (const auto& [noutputs, group] : noutputs_to_group) {
+            auto rep = std::make_shared<Repeated>(getNextRepId());
+            LOG_INFO("Identified irregular Outputs number, splitting a new repeated block of "
+                     << group.size() << " groups with " << noutputs << " outputs.");
+            for (const auto& gptr : group) {
+                gptr->setRepeated(rep);
+            }
+        }
+    }
+
+    LOG_INFO("DONE");
+}
+
 void Snapshot::singleGroup() {
     LOG_INFO("Online partitioning: executing singleGroup pass...");
     LOG_BLOCK();
@@ -828,6 +858,7 @@ void Snapshot::repeatedBlocks(Snapshot::CB&& on_done) {
         }
     });
     splitMixedPrecision();
+    splitIrregularOutputs();
     cleanUpUniques();
 
     LOG_INFO("Number of groups after compiler pass: " << graphSize());

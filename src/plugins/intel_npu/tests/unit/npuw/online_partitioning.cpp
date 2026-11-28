@@ -859,3 +859,59 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
                                            std::vector<std::size_t>{9},
                                            std::vector<std::size_t>{},
                                            std::vector<std::size_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+
+namespace {
+::intel_npu::Config createSplitIrregularIOConfig(std::size_t keep_block_size, std::size_t keep_blocks) {
+    auto cfg = createConfigWithKeepBlockSize(keep_block_size);
+    cfg.update({{"NPUW_ONLINE_SPLIT_IRREGULAR_IO", "YES"}, {"NPUW_ONLINE_KEEP_BLOCKS", std::to_string(keep_blocks)}});
+    return cfg;
+}
+
+std::vector<std::size_t> repeatedBlockSizes(const ov::npuw::Ensemble& ens) {
+    std::map<std::string, std::size_t> sizes;
+    for (const auto& g : ens.groups) {
+        if (!g.repeated_id.empty()) {
+            sizes[g.repeated_id]++;
+        }
+    }
+    std::vector<std::size_t> result;
+    for (const auto& s : sizes) {
+        result.push_back(s.second);
+    }
+    std::sort(result.begin(), result.end());
+    return result;
+}
+}  // namespace
+
+TEST(OnlinePartitioningTest, SplitIrregularIO_CrossGroupConsumer_KeepsBothBlocks) {
+    ModelBuilder mb;
+    auto model = mb.get_model_with_kv_sharing_repeated_blocks(20, {1, 3, 4, 9, 15, 16});
+
+    auto cfg = createSplitIrregularIOConfig(4, /*keep_blocks=*/5);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(repeatedBlockSizes(ens), (std::vector<std::size_t>{6, 14}));
+    EXPECT_FALSE(ens.irregular_io);
+}
+
+TEST(OnlinePartitioningTest, SplitIrregularIO_CrossGroupConsumer_DropsSmallBlock) {
+    ModelBuilder mb;
+    auto model = mb.get_model_with_kv_sharing_repeated_blocks(10, {2, 5, 8});
+
+    auto cfg = createSplitIrregularIOConfig(4, /*keep_blocks=*/5);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(repeatedBlockSizes(ens), (std::vector<std::size_t>{7}));
+    EXPECT_FALSE(ens.irregular_io);
+}
+
+TEST(OnlinePartitioningTest, SplitIrregularIO_RegularBlocksAreNotSplit) {
+    ModelBuilder mb;
+    auto model = mb.get_model_with_kv_sharing_repeated_blocks(10, {});
+
+    auto cfg = createSplitIrregularIOConfig(4, /*keep_blocks=*/5);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(repeatedBlockSizes(ens), (std::vector<std::size_t>{10}));
+    EXPECT_FALSE(ens.irregular_io);
+}
