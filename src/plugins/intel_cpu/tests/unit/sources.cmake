@@ -188,6 +188,7 @@ set(CPU_UNIT_TESTS_SRCS
 
 set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/brgemm_executor_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/comparison_emitter_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/jit_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/power_emitter_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registers_pool.cpp
