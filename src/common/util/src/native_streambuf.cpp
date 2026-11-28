@@ -15,6 +15,16 @@
 #include "openvino/util/memory.hpp"
 #include "openvino/util/parallel_io.hpp"
 
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    include <windows.h>
+#endif
+
 namespace ov::util {
 
 namespace {
@@ -34,7 +44,10 @@ NativeStreamBuf::NativeStreamBuf(NativeStreamBuf&& other) noexcept
       m_end(other.m_end),
       m_window_capacity(std::exchange(other.m_window_capacity, 0)),
       m_bypass_size(other.m_bypass_size),
-      m_window(std::exchange(other.m_window, nullptr)) {
+      m_window(std::exchange(other.m_window, nullptr)),
+      m_fill_hint(other.m_fill_hint),
+      m_worker_handles(std::move(other.m_worker_handles)) {
+    other.m_worker_handles.clear();
     other.setg(nullptr, nullptr, nullptr);  // get-area still points into the stolen window — reset the source
 }
 
@@ -54,6 +67,8 @@ void NativeStreamBuf::swap(NativeStreamBuf& other) noexcept {
     std::swap(m_window_capacity, other.m_window_capacity);
     std::swap(m_bypass_size, other.m_bypass_size);
     std::swap(m_window, other.m_window);
+    std::swap(m_fill_hint, other.m_fill_hint);
+    std::swap(m_worker_handles, other.m_worker_handles);
 }
 
 NativeStreamBuf::NativeStreamBuf() noexcept : NativeStreamBuf(ov::invalid_handle, 0, 0) {}
@@ -74,6 +89,11 @@ NativeStreamBuf::NativeStreamBuf(FileHandle handle,
 }
 
 NativeStreamBuf::~NativeStreamBuf() {
+#ifdef _WIN32
+    for (auto h : m_worker_handles) {
+        CloseHandle(h);
+    }
+#endif
     aligned_free(m_window);
 }
 
@@ -102,6 +122,15 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
     size_t chunk = align_size_up(size / num_threads, min_page_alignment);
     num_threads =
         (size + chunk - 1) / chunk;  // guard: page-aligned chunk may leave trailing workers with no bytes to read
+#ifdef _WIN32
+    while (m_worker_handles.size() < num_threads) {
+        HANDLE h = ReOpenFile(m_handle, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0);
+        if (h == INVALID_HANDLE_VALUE) {
+            break;
+        }
+        m_worker_handles.push_back(h);
+    }
+#endif
     std::atomic<bool> ok{true};
     std::vector<std::thread> workers;
     workers.reserve(num_threads);
@@ -112,7 +141,8 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
                 const size_t local_off = i * chunk;
                 const size_t read_size =
                     (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
-                if (!positional_read(m_handle, dst + local_off, read_size, base_offset + local_off)) {
+                const FileHandle h = i < m_worker_handles.size() ? m_worker_handles[i] : m_handle;
+                if (!positional_read(h, dst + local_off, read_size, base_offset + local_off)) {
                     ok.store(false, std::memory_order_relaxed);
                 }
             });
@@ -132,8 +162,9 @@ bool NativeStreamBuf::fill_window() {
     if (m_cursor >= m_end || !allocate_window()) {
         return false;
     }
-    const size_t to_read =
-        static_cast<size_t>(std::min(static_cast<std::streamoff>(m_window_capacity), m_end - m_cursor));
+    const size_t to_read = static_cast<size_t>(
+        std::min(static_cast<std::streamoff>(std::min(m_fill_hint, m_window_capacity)), m_end - m_cursor));
+    m_fill_hint = std::min(m_fill_hint * 2, m_window_capacity);
     if (!read_into(m_window, to_read, m_cursor)) {
         return false;
     }
@@ -224,6 +255,7 @@ NativeStreamBuf::pos_type NativeStreamBuf::seekoff(off_type off,
         return pos_type(off_type(-1));
     }
 
+    m_fill_hint = 64 * 1024;
     setg(nullptr, nullptr, nullptr);  // drop the get-area; the next read refills from new_pos
     m_cursor = new_pos;
     return pos_type(new_pos - m_start);

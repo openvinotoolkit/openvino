@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <streambuf>
+#include <vector>
 
 #include "openvino/util/file_util.hpp"
 
@@ -93,6 +94,9 @@ private:
     size_t m_window_capacity = 0;                     //!< allocated capacity of m_window in bytes
     size_t m_bypass_size = default_native_threshold;  //!< minimum read size that bypasses the window
     char* m_window = nullptr;                         //!< window buffer backing the get-area; null until first use
+    size_t m_fill_hint = 64 * 1024;  //!< next window fill size; reset on seek, doubles per sequential fill
+    std::vector<FileHandle>
+        m_worker_handles;  //!< per-thread handles for parallel reads (shared handle serializes on Windows)
 };
 
 }  // namespace ov::util
