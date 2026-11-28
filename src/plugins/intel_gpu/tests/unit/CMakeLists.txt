@@ -63,6 +63,7 @@ ov_add_test_target(
     INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/
+        ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/
         $<TARGET_PROPERTY:openvino_intel_gpu_kernels,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/

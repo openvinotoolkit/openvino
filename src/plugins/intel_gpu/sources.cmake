@@ -261,6 +261,7 @@ set(GPU_PLUGIN_MLIR_SOURCES
 )
 
 set(GPU_PLUGIN_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/tools/batch_size_estimation.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/intel_gpu/plugin/async_infer_request.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/intel_gpu/plugin/common_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/intel_gpu/plugin/compiled_model.hpp
