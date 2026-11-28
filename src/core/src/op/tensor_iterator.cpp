@@ -55,6 +55,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
     OV_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+    NODE_VALIDATION_CHECK(this, m_bodies[0] != nullptr, "Body is not set");
 
     NODE_VALIDATION_CHECK(this, m_input_descriptions.size() == 1, "Loop contains input descriptions for other bodies");
     NODE_VALIDATION_CHECK(this,
@@ -184,6 +185,12 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
+    OPENVINO_ASSERT(get_function() != nullptr,
+                    "Cannot clone ",
+                    description(),
+                    " operation with name ",
+                    get_friendly_name(),
+                    ": body is not set");
     auto op = std::make_shared<op::v0::TensorIterator>();
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions.size());

@@ -186,6 +186,13 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
                     " operation with name ",
                     get_friendly_name());
 
+    OPENVINO_ASSERT(get_then_body() != nullptr && get_else_body() != nullptr,
+                    "Cannot clone ",
+                    description(),
+                    " operation with name ",
+                    get_friendly_name(),
+                    ": then and else bodies must be set");
+
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
     op->set_then_body(get_then_body()->clone());

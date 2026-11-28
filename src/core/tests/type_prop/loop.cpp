@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <tuple>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -1579,4 +1582,34 @@ TEST(type_prop, loop_merged_static_seed_relaxed_when_body_value_dynamic) {
 
     EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{1, Dimension::dynamic()}));
     EXPECT_TRUE(loop->get_output_partial_shape(0)[1].is_dynamic());
+}
+
+TEST(type_prop, loop_without_body) {
+    const auto trip_count = ov::op::v0::Constant::create(element::i64, {1}, {3});
+    const auto exec_cond = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+
+    for (const auto& ports : {ov::op::v5::Loop::SpecialBodyPorts{-1, 0}, ov::op::v5::Loop::SpecialBodyPorts{0, -1}}) {
+        const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+        loop->set_special_body_ports(ports);
+
+        OV_EXPECT_THROW(loop->validate_and_infer_types(), NodeValidationFailure, testing::HasSubstr("Body is not set"));
+    }
+}
+
+TEST(type_prop, loop_without_body_and_special_body_ports) {
+    const auto trip_count = ov::op::v0::Constant::create(element::i64, {1}, {3});
+    const auto exec_cond = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+    const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+
+    EXPECT_NO_THROW(loop->validate_and_infer_types());
+}
+
+TEST(type_prop, loop_clone_without_body) {
+    const auto trip_count = ov::op::v0::Constant::create(element::i64, {1}, {3});
+    const auto exec_cond = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+    const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+
+    OV_EXPECT_THROW(std::ignore = loop->clone_with_new_inputs(loop->input_values()),
+                    ov::AssertFailure,
+                    testing::HasSubstr("body is not set"));
 }
