@@ -107,6 +107,23 @@ TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
     OV_ASSERT_NO_THROW(core.get_versions("MOCK_HARDWARE"));
 }
 
+TEST(RegisterPluginTests, getVersionSkipsUnloadableAutoCandidate) {
+    ov::Core core;
+    const std::string broken_plugin_name{"BROKEN_HARDWARE"};
+    OV_ASSERT_NO_THROW(core.register_plugin("not_existing_plugin_library", broken_plugin_name));
+
+    // a device requested directly still reports that its library cannot be loaded
+    ASSERT_THROW(core.get_versions(broken_plugin_name), std::runtime_error);
+
+    // AUTO falls back from a candidate it cannot load, so the candidate is skipped
+    std::map<std::string, ov::Version> versions;
+    OV_ASSERT_NO_THROW(versions = core.get_versions("AUTO:" + broken_plugin_name));
+    ASSERT_EQ(versions.count(broken_plugin_name), 0u);
+
+    // other virtual devices keep reporting the error
+    ASSERT_THROW(core.get_versions("HETERO:" + broken_plugin_name), std::runtime_error);
+}
+
 namespace {
 int get_mock_extension_counter(const std::filesystem::path& so_path) {
     auto so = ov::util::load_shared_object(so_path);

@@ -122,6 +122,29 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
         compareDevicePriority(result, metaDevices);
     }
 }
+class ParseMetaDeviceUnloadableTest : public tests::AutoTest, public ::testing::Test {};
+
+TEST_F(ParseMetaDeviceUnloadableTest, DeviceFailedToLoadIsSkipped) {
+    // the loader reports a library it cannot load with std::runtime_error, not ov::Exception
+    const std::runtime_error load_error("Cannot load library");
+    ON_CALL(*core, get_property(StrEq("GPU"), _, _)).WillByDefault(Throw(load_error));
+    ON_CALL(*core, get_property(StrEq("GPU.0"), _, _)).WillByDefault(Throw(load_error));
+    ON_CALL(*core, get_supported_property(StrEq("GPU"), _, _)).WillByDefault(Throw(load_error));
+    ON_CALL(*core, get_supported_property(StrEq("GPU.0"), _, _)).WillByDefault(Throw(load_error));
+    ON_CALL(*plugin, parse_meta_devices)
+        .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
+            return plugin->Plugin::parse_meta_devices(priorityDevices, config);
+        });
+
+    for (const auto& priorities : {"GPU,CPU", "GPU.0,CPU"}) {
+        std::vector<DeviceInformation> result;
+        ASSERT_NO_THROW(result = plugin->parse_meta_devices(priorities, {ov::device::priorities(priorities)}))
+            << priorities;
+        ASSERT_EQ(result.size(), 1u) << priorities;
+        EXPECT_EQ(result.front().device_name, "CPU") << priorities;
+    }
+}
+
 // ConfigParams details
 // example
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
