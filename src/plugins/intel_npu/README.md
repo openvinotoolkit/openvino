@@ -297,6 +297,7 @@ Defines a preset of optimization passes to be applied during compilation. Suppor
 | 0      | Reduced subset of optimization passes. Smaller compile time.   |
 | 1      | Default. Balanced performance/compile time.                    |
 | 2      | Prioritize performance over compile time that may be an issue. |
+| 3      | Maximize hardware utilization. May increase compile time and memory footprint; compatibility is not guaranteed. |
 
 #### performance-hint-override
 An extension for LATENCY mode being specified using ``ov::hint::performance_mode``
