@@ -423,9 +423,8 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
     if(ENABLE_SYSTEM_FLATBUFFERS)
         ov_cross_compile_define_debian_arch()
 
-        # on new Ubuntu versions like 23.04 we have config called FlatBuffersConfig.cmake
-        # so, we need to provide alternative names
-        find_host_package(Flatbuffers QUIET NAMES Flatbuffers FlatBuffers NO_CMAKE_FIND_ROOT_PATH)
+        # Distributions use different capitalization for the FlatBuffers package config.
+        find_host_package(Flatbuffers QUIET NAMES Flatbuffers FlatBuffers flatbuffers NO_CMAKE_FIND_ROOT_PATH)
 
         ov_cross_compile_define_debian_arch_reset()
     endif()
