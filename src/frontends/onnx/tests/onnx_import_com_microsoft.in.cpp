@@ -2842,6 +2842,32 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_null_b
     test_case.run_with_tolerance_as_fp(0.0055f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_dynamic_bias) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_matmul_dynamic_bias.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> input_A{1.29292f, 2.47473f, 3.291903f, 4.1728944f, 5.213912031f, 6.12931230f};
+    const std::vector<int8_t> input_B{-2, -78, -5, 61, -78, -7};
+    const std::vector<float> b_scale{0.0031372549019608f, 0.0015686274509804f, 3.92156862745098e-4f};
+    const std::vector<float> dynamic_bias{0.0f, 0.0f, 0.0f};
+    const std::vector<float> expected{0.46564865f,
+                                      -0.46172738f,
+                                      -0.00934125f,
+                                      0.77972585f,
+                                      -0.91463196f,
+                                      -0.01793784f,
+                                      1.1402547f,
+                                      -1.3881232f,
+                                      -0.02705287f};
+
+    test_case.add_input<float>(Shape{3, 2}, input_A);
+    test_case.add_input<int8_t>(Shape{2, 3}, input_B);
+    test_case.add_input<float>(Shape{3}, b_scale);
+    test_case.add_input<float>(Shape{3}, dynamic_bias);
+    test_case.add_expected_output<float>(Shape{3, 3}, expected);
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
 // Shared inputs used by both DynamicQuantizeLSTM tests.
 // Expected values are from ONNX Runtime (ORT uses dynamic activation quantization with integer
 // matmuls; our translator uses weight-only dequantization, so results differ by ~1.5e-3).
