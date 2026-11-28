@@ -67,18 +67,25 @@ void jit_abs_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->fabs(dst.s, src.s);
+    switch (exec_prc_) {
+    case ov::element::f32:
+        h->fabs(dst.s, src.s);
+        break;
+    case ov::element::i32:
+        h->abs(dst.s, src.s);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
 }
 
 std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// ADD ///
@@ -906,17 +913,25 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
-    h->fneg(dst.s, src.s);
+
+    switch (exec_prc_) {
+    case ov::element::f32:
+        h->fneg(dst.s, src.s);
+        break;
+    case ov::element::i32:
+        h->neg(dst.s, src.s);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
 }
 
 std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// GELU_ERF ///

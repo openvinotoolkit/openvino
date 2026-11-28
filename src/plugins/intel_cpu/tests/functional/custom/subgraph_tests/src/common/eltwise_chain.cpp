@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <limits>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "custom/subgraph_tests/src/classes/eltwise_chain.hpp"
@@ -12,6 +16,13 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/core.hpp"
 
 using namespace CPUTestUtils;
 
@@ -21,6 +32,48 @@ using namespace ov::test::utils;
 using namespace ov::test::eltwise_chain;
 
 namespace {
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+TEST(EltwiseChain, smoke_SignedUnaryWrapsBeforeConsumer) {
+    ov::Core core;
+    auto check = [&](auto min_value, const ov::element::Type type) {
+        std::array<decltype(min_value), 5> values{min_value, -2, 0, 2, 127};
+        const ov::Shape shape{values.size()};
+        const ov::Tensor input(type, shape, values.data());
+        for (bool negate : {false, true}) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+            ov::Output<ov::Node> unary = param;
+            if (negate) {
+                unary = std::make_shared<ov::op::v0::Negative>(param);
+            } else {
+                unary = std::make_shared<ov::op::v0::Abs>(param);
+            }
+            const std::array<float, 5> expected{static_cast<float>(min_value), 2.f, 0.f,
+                                                negate ? -2.f : 2.f, negate ? -127.f : 127.f};
+            for (bool use_maximum : {false, true}) {
+                SCOPED_TRACE(::testing::Message() << type << ", negate=" << negate << ", maximum=" << use_maximum);
+                auto value = unary;
+                if (use_maximum) {
+                    auto zero = ov::op::v0::Constant::create(type, {}, {0});
+                    value = std::make_shared<ov::op::v1::Maximum>(unary, zero);
+                }
+                auto result = std::make_shared<ov::op::v0::Convert>(value, ov::element::f32);
+                auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{param});
+                auto request = core.compile_model(model, ov::test::utils::DEVICE_CPU).create_infer_request();
+                request.set_input_tensor(input);
+                request.infer();
+                const auto output = request.get_output_tensor();
+                const auto* actual = output.data<const float>();
+                for (size_t i = 0; i < expected.size(); ++i) {
+                    EXPECT_EQ(actual[i], use_maximum ? std::max(0.f, expected[i]) : expected[i]) << "index " << i;
+                }
+            }
+        }
+    };
+    check(std::numeric_limits<int8_t>::min(), ov::element::i8);
+    check(std::numeric_limits<int32_t>::min(), ov::element::i32);
+}
+#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain,
                          EltwiseChainTest,

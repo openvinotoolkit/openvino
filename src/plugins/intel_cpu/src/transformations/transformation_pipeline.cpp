@@ -110,6 +110,7 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
+#include "transformations/op_conversions/convert_negative.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
@@ -414,13 +415,6 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     const auto& to = it->second;
 
     if (convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
-        // For Convert node, converting precision from numerical data types to boolean will lead to mathematical
-        // error, because here the output precision boolean is replaced by u8:
-        //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
-        //  - either float or int values should be clipped with the interval [0; 1] to mimic bool cast behavior, i.e.
-        //  0 - is false, 1 - is true
-        //  - to perform clamping correctly an Abs op should be inserted before Clamp
-        // Thus an Abs, Ceil and Clamp nodes should be added before the Convert node for this scenario.
         ov::pass::NodeRegistry reg;
         const auto& in_prec = convert->get_input_element_type(0);
         auto parent_node = convert->input_value(0).get_node_shared_ptr();
@@ -429,13 +423,20 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
             // Add convert node for unsupported precision, such as FP64 or INT64
             parent_node = reg.make<ov::op::v0::Convert>(parent_node, item->second);
         }
-        if (in_prec.is_signed()) {
+        if (in_prec.is_integral_number() && in_prec.is_signed()) {
+            // Abs(INT_MIN) wraps. Clamp first so every nonzero integer has magnitude one.
+            parent_node = reg.make<ov::op::v0::Clamp>(parent_node, -1, 1);
             parent_node = reg.make<ov::op::v0::Abs>(parent_node);
+        } else {
+            if (in_prec.is_signed()) {
+                parent_node = reg.make<ov::op::v0::Abs>(parent_node);
+            }
+            if (in_prec.is_real()) {
+                // Preserve fractional nonzero values when the final Convert writes an integer.
+                parent_node = reg.make<ov::op::v0::Ceiling>(parent_node);
+            }
+            parent_node = reg.make<ov::op::v0::Clamp>(parent_node, 0, 1);
         }
-        if (in_prec.is_real()) {
-            parent_node = reg.make<ov::op::v0::Ceiling>(parent_node);
-        }
-        parent_node = reg.make<ov::op::v0::Clamp>(parent_node, 0, 1);
         const auto new_convert = reg.make<ov::op::v0::Convert>(parent_node, to);
         new_convert->set_friendly_name(convert->get_friendly_name());
         ov::copy_runtime_info(convert, reg.get());
@@ -617,6 +618,15 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::GatedResidualReadFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+    // Keep signed integer negation on the unary kernel. Multiply by -1 can saturate on output.
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) {
+            return any_of(node->get_input_element_type(0), element::i8, element::i32);
+        },
+        ov::pass::ConvertNegative);
+#endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
         manager,

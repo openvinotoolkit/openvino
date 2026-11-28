@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <type_traits>
 
 namespace ov {
 namespace reference {
@@ -19,7 +20,14 @@ namespace reference {
  */
 template <typename T>
 void negate(const T* arg, T* out, const size_t count) {
-    std::transform(arg, std::next(arg, count), out, std::negate<T>());
+    if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+        using U = typename std::make_unsigned<T>::type;
+        std::transform(arg, std::next(arg, count), out, [](const T v) {
+            return static_cast<T>(U{0} - static_cast<U>(v));
+        });
+    } else {
+        std::transform(arg, std::next(arg, count), out, std::negate<T>());
+    }
 }
 }  // namespace reference
 }  // namespace ov

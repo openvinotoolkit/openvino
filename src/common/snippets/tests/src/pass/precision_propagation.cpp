@@ -10,6 +10,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "precision_propagation.hpp"
 
@@ -36,6 +37,7 @@ public:
             [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
             [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};} };
         jitters[ov::snippets::op::ConvertSaturation::get_type_info_static()] = default_jitter;
+        jitters[ov::snippets::op::ConvertTruncation::get_type_info_static()] = default_jitter;
     }
 };
 

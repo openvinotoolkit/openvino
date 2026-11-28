@@ -24,6 +24,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
@@ -178,7 +179,13 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         const auto expected_type = result_type.second;
         if (actual_type != result_type.second) {
             was_updated = true;
-            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(result->input_value(0), expected_type);
+            std::shared_ptr<ov::Node> convert;
+            if (actual_type.is_integral_number() && expected_type.is_integral_number() &&
+                actual_type.bitwidth() > expected_type.bitwidth()) {
+                convert = std::make_shared<ov::snippets::op::ConvertTruncation>(result->input_value(0), expected_type);
+            } else {
+                convert = std::make_shared<ov::snippets::op::ConvertSaturation>(result->input_value(0), expected_type);
+            }
             copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);
         }
@@ -220,7 +227,15 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
 
         if (output.get_element_type() != op_output_types[i]) {
             was_updated = true;
-            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(output, op_output_types[i]);
+            std::shared_ptr<ov::Node> convert;
+            const auto src_type = output.get_element_type();
+            const auto dst_type = op_output_types[i];
+            if (src_type.is_integral_number() && dst_type.is_integral_number() &&
+                src_type.bitwidth() > dst_type.bitwidth()) {
+                convert = std::make_shared<ov::snippets::op::ConvertTruncation>(output, dst_type);
+            } else {
+                convert = std::make_shared<ov::snippets::op::ConvertSaturation>(output, dst_type);
+            }
             copy_runtime_info(output.get_node_shared_ptr(), convert);
 
             for (const auto& input : output.get_target_inputs()) {

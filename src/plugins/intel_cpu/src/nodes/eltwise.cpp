@@ -717,6 +717,13 @@ bool Eltwise::created() const {
     return getType() == Type::Eltwise;
 }
 
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+static bool isWrappingUnary(const Node& node) {
+    return any_of(node.getAlgorithm(), Algorithm::EltwiseAbs, Algorithm::EltwiseNegative) &&
+           any_of(node.getOriginalInputPrecisionAtPort(0), ov::element::i8, ov::element::i32);
+}
+#endif
+
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
         if (none_of(node->getAlgorithm(),
@@ -748,6 +755,10 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     const auto* eltwise = dynamic_cast<const Eltwise*>(node.get());
     if (eltwise == nullptr ||
         !EltwiseJitExecutor::supports(eltwise->attrs(), eltwise->getInputShapeAtPort(0).getRank())) {
+        return false;
+    }
+    // A fused kernel can skip i8 narrowing or select f32 for an i32 unary operation.
+    if (isWrappingUnary(*this) || isWrappingUnary(*eltwise)) {
         return false;
     }
 #endif
@@ -1143,6 +1154,10 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     if (parentNode->getType() != Type::Convert) {
         return false;
     }
+    // Preserve an explicit input conversion before selecting the signed unary execution precision.
+    if (isWrappingUnary(*this)) {
+        return false;
+    }
     const auto& input_precisions = parentNode->getOriginalInputPrecisions();
 
     return EltwiseJitExecutor::supports(m_attrs, inputShapes.front().getRank(), input_precisions);
@@ -1163,6 +1178,11 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
 }
 
 bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (isWrappingUnary(*this) && getOriginalOutputPrecisionAtPort(0) == ov::element::i8) {
+        return false;
+    }
+#endif
     if (none_of(convertNode->getOriginalOutputPrecisionAtPort(0),
                 ov::element::i8,
                 ov::element::u8,

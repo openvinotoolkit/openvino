@@ -66,17 +66,24 @@ void jit_abs_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
-
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    h->vfsgnjx_vv(dst, src, src);
+    if (exec_prc_ == element::i32) {
+        if (src.getIdx() != dst.getIdx()) {
+            h->vmv_v_v(dst, src);
+        }
+        h->vmslt_vx(mask_vreg(), dst, zero);
+        h->vrsub_vi(dst, dst, 0, VM::masked);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == element::f32, "Unsupported precision: ", exec_prc_);
+        h->vfsgnjx_vv(dst, src, src);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// ADD ///
@@ -2721,17 +2728,20 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
-
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    h->vfneg_vv(dst, src);
+    if (exec_prc_ == element::i32) {
+        h->vrsub_vi(dst, src, 0);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == element::f32, "Unsupported precision: ", exec_prc_);
+        h->vfneg_vv(dst, src);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// NOT EQUAL ///

@@ -18,7 +18,16 @@ constexpr T abs(const T num) {
     return num;
 }
 
-template <class T, typename std::enable_if<std::is_signed<T>::value || ov::is_floating_point<T>()>::type* = nullptr>
+template <class T, typename std::enable_if<std::is_integral<T>::value && std::is_signed<T>::value>::type* = nullptr>
+constexpr T abs(const T num) {
+    if (num < 0) {
+        using U = typename std::make_unsigned<T>::type;
+        return static_cast<T>(U{0} - static_cast<U>(num));
+    }
+    return num;
+}
+
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T abs(const T num) {
     return std::abs(num);
 }

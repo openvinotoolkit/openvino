@@ -6,6 +6,8 @@
 #include <assert.h>
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/op/maximum.hpp"
+#include "snippets/op/convert_truncation.hpp"
+
 #include "snippets/op/result.hpp"
 
 namespace ov {
@@ -22,12 +24,19 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::get(
     const element::Type& convertion_before_op2_1,
     const std::pair<element::Type, element::Type>& convertion_before_op2_2,
     const element::Type& convertion_after_op2,
-    const element::Type& convertion_before_result) {
+    const element::Type& convertion_before_result,
+    bool restore_outputs) {
     const auto create_convert = [](std::shared_ptr<Node> parent,
-                                   const element::Type convertion_type) -> std::shared_ptr<Node> {
-        return convertion_type == element::dynamic
-                   ? std::dynamic_pointer_cast<Node>(parent)
-                   : std::make_shared<ov::snippets::op::ConvertSaturation>(parent, convertion_type);
+                                   const element::Type convertion_type,
+                                   bool restore_output = false) -> std::shared_ptr<Node> {
+        if (convertion_type == element::dynamic)
+            return std::dynamic_pointer_cast<Node>(parent);
+        const auto src_type = parent->get_output_element_type(0);
+        if (restore_output && src_type.is_integral_number() && convertion_type.is_integral_number() &&
+            src_type.bitwidth() > convertion_type.bitwidth()) {
+            return std::make_shared<ov::snippets::op::ConvertTruncation>(parent, convertion_type);
+        }
+        return std::make_shared<ov::snippets::op::ConvertSaturation>(parent, convertion_type);
     };
 
     const auto make_branch = [&create_convert](
@@ -65,9 +74,9 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::get(
             convertion_before_op2_2.second));
     parent->set_friendly_name("maximum");
 
-    parent = create_convert(parent, convertion_after_op2);
+    parent = create_convert(parent, convertion_after_op2, restore_outputs);
 
-    parent = create_convert(parent, convertion_before_result);
+    parent = create_convert(parent, convertion_before_result, restore_outputs);
 
     const auto result = std::make_shared<ov::snippets::op::Result>(parent);
     auto& result_out_tensor = result->get_output_tensor(0);
@@ -103,7 +112,8 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initReference() cons
         expected.convertion_before_op2_1,
         expected.convertion_before_op2_2,
         expected.convertion_after_op2,
-        expected.convertion_before_result);
+        expected.convertion_before_result,
+        true);
 }
 
 }  // namespace snippets
