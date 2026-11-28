@@ -27,6 +27,10 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
                           "Axis input shape are required to be scalar or 1D tensor. ",
                           "Got: ",
                           axis_shape);
+    NODE_VALIDATION_CHECK(op,
+                          axis_shape.rank().is_dynamic() || axis_shape.size() == 0 || axis_shape[0].compatible(1),
+                          "Axis input must be scalar or have 1 element. Got: ",
+                          axis_shape);
 
     const auto& data_rank = data_shape.rank();
     const auto& indices_rank = indices_shape.rank();
@@ -49,6 +53,11 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
 
     if (data_shape.rank().is_static()) {
         if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, ta)) {
+            NODE_VALIDATION_CHECK(op,
+                                  axis_input->size() == 1,
+                                  "Axis input must be scalar or have 1 element. Got: ",
+                                  axis_input->size(),
+                                  " elements");
             ov::util::validate_axis((*axis_input)[0], data_rank, *op);
         }
     }
