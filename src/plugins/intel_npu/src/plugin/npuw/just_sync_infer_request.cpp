@@ -100,6 +100,23 @@ std::size_t ov::npuw::JustInferRequest::subgraph_param_base(size_t idx) const {
     return m_npuw_model->m_compiled_submodels.at(idx).param_base;
 }
 
+ov::SoPtr<ov::ITensor> ov::npuw::JustInferRequest::function_closure_tensor(std::size_t idx,
+                                                                           std::size_t input_idx) const {
+    const auto& desc = m_npuw_model->m_compiled_submodels.at(idx);
+    OPENVINO_ASSERT(input_idx >= desc.param_base, "HFA closure input index is below the function parameter base");
+    const auto closure_idx = input_idx - desc.param_base;
+    const auto& closure = desc.closure.get();
+    OPENVINO_ASSERT(closure_idx < closure.closure.size(), "HFA closure input index is out of range");
+    const auto& tensor = closure.closure.at(closure_idx);
+    OPENVINO_ASSERT(tensor, "HFA closure tensor is not initialized");
+    if (closure.is_remote.at(closure_idx)) {
+        ov::Tensor host_tensor(tensor.get_element_type(), tensor.get_shape());
+        tensor.copy_to(host_tensor);
+        return ov::get_tensor_impl(host_tensor);
+    }
+    return ov::get_tensor_impl(tensor);
+}
+
 // ====================================================================================================
 // Memory Access Simulation & Function Memory Management
 // ====================================================================================================
@@ -838,7 +855,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     for (size_t i = 0; i < func_desc.param_base; i++) {
         LOG_DEBUG("Binding parameter[" << i << "]...");
         LOG_BLOCK();
-        const auto& iport = func_desc.compiled_model->inputs()[i];
 
         auto link_iter = m_npuw_model->m_submodels_input_to_prev_output.find({idx, i});
         if (link_iter != m_npuw_model->m_submodels_input_to_prev_output.end()) {
@@ -872,6 +888,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 }
             } else {
                 // Default case
+                const auto& iport = func_desc.compiled_model->inputs()[i];
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
             }
         }  // if (link_iter)
@@ -1121,6 +1138,9 @@ void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t 
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
+    } else if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+        r->start_async();
+        r->wait();
     } else {
         r->infer();  // Run normally
     }

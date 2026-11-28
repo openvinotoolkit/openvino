@@ -1188,7 +1188,33 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
         const std::size_t closure_size = closure_desc.closure.size();
         const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
         const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
-        const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(behavior_desc->pipeline);
+        const auto* hfa = ov::npuw::attn::get_compiled_hfa(behavior_desc->pipeline.context);
+        const bool skip_param_base_bound_check = hfa != nullptr;
+        if (hfa != nullptr) {
+            OPENVINO_ASSERT(closure_size <= std::numeric_limits<std::size_t>::max() - subm.param_base,
+                            "HFA function input count overflows");
+            const auto num_function_inputs = subm.param_base + closure_size;
+            const auto& indices = hfa->_sdpa_attention_info._sdpa_indices;
+            const auto check_function_input = [&](std::size_t input_idx) {
+                OPENVINO_ASSERT(input_idx < num_function_inputs, "HFA function input index out of range");
+            };
+            check_function_input(indices.query);
+            check_function_input(indices.present_key);
+            check_function_input(indices.present_value);
+            check_function_input(indices.attention_mask);
+            for (const auto input_idx : indices.past_key_blocks) {
+                check_function_input(input_idx);
+            }
+            for (const auto input_idx : indices.past_value_blocks) {
+                check_function_input(input_idx);
+            }
+            if (indices.attention_sink) {
+                check_function_input(*indices.attention_sink);
+            }
+            if (indices.attention_scale) {
+                check_function_input(*indices.attention_scale);
+            }
+        }
 
         validate_submodel_indices(subm.host_gather,
                                   subm.quant_unpack_gather,
@@ -1299,7 +1325,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         if (is_fcall) {
             validate_routing_self_consistency(host_gather, quant_unpack_gather, param_base, closure_size);
         } else {
-            const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(pipeline);
+            const bool skip_param_base_bound_check = ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr;
             ov::npuw::validate_submodel_indices(host_gather,
                                                 quant_unpack_gather,
                                                 param_base,
@@ -1779,9 +1805,8 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
             if (submodel_desc.compiled_model == nullptr) {
                 return;
             }
-            // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
-            // Routed ports are function params, all of them are before the closure.
-            const std::size_t n_inputs = ov::npuw::attn::has_block_kv_hfa(submodel_desc.pipeline)
+            // HFA routed ports refer to the original function, not the tile model.
+            const std::size_t n_inputs = ov::npuw::attn::get_compiled_hfa(submodel_desc.pipeline.context) != nullptr
                                              ? submodel_desc.param_base
                                              : submodel_desc.compiled_model->inputs().size();
             if (link.second >= n_inputs) {
@@ -2778,8 +2803,8 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
     };
 
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern() &&
-        no_subgraph_behavior_concern()) {
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_subgraph_behavior_concern() && no_spatial_unpack() &&
+        no_failsafe_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);

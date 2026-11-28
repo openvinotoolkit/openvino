@@ -16,6 +16,8 @@
 #include <numeric>
 #include <ranges>
 #include <set>
+#include <sstream>
+#include <tuple>
 #include <vector>
 
 // Parse OpenVINO's exported classes before the private-access test shim;
@@ -29,6 +31,7 @@
 #include "attn/attn_subgraph.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
+#include "intel_npu/ops/flash_attention_tile.hpp"
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
@@ -57,6 +60,10 @@ struct BehaviorHits {
 struct EvaluationLog {
     std::mutex mutex;
     std::map<const ov::ICompiledModel*, std::vector<const ov::ISyncInferRequest*>> executions;
+    std::vector<float> hfa_initial_max;
+    std::vector<float> hfa_scale;
+    std::map<std::string, std::shared_ptr<ov::Model>> exported_models;
+    size_t next_export_id = 0;
     std::atomic<size_t> pending{0};
 };
 
@@ -314,7 +321,14 @@ public:
         return m_evaluation;
     }
 
-    void export_model(std::ostream&) const override {}
+    void export_model(std::ostream& stream) const override {
+        if (m_evaluation) {
+            std::lock_guard<std::mutex> lock(m_evaluation->mutex);
+            const auto id = std::to_string(m_evaluation->next_export_id++);
+            m_evaluation->exported_models.emplace(id, m_model->clone());
+            stream << id;
+        }
+    }
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
         return m_model;
     }
@@ -390,8 +404,24 @@ void FakeSubInferRequest::infer() {
     const auto compiled = std::static_pointer_cast<const FakeSubCompiledModel>(get_compiled_model());
     if (const auto& log = compiled->evaluation_log()) {
         ov::TensorVector inputs, outputs;
-        for (const auto& port : compiled->inputs())
+        for (const auto& port : compiled->inputs()) {
             inputs.push_back(ov::make_tensor(ov::ISyncInferRequest::get_tensor(port)));
+            if (port.get_names().count("PAST_MAX")) {
+                const auto& tensor = inputs.back();
+                const float value = tensor.get_element_type() == ov::element::f16
+                                        ? static_cast<float>(tensor.data<const ov::float16>()[0])
+                                        : tensor.data<const float>()[0];
+                std::lock_guard<std::mutex> lock(log->mutex);
+                log->hfa_initial_max.push_back(value);
+            } else if (port.get_names().count("SCALE")) {
+                const auto& tensor = inputs.back();
+                const float value = tensor.get_element_type() == ov::element::f16
+                                        ? static_cast<float>(tensor.data<const ov::float16>()[0])
+                                        : tensor.data<const float>()[0];
+                std::lock_guard<std::mutex> lock(log->mutex);
+                log->hfa_scale.push_back(value);
+            }
+        }
         for (const auto& port : compiled->outputs())
             outputs.push_back(ov::make_tensor(ov::ISyncInferRequest::get_tensor(port)));
         OPENVINO_ASSERT(compiled->get_runtime_model()->evaluate(outputs, inputs), "Test model evaluation failed");
@@ -481,6 +511,22 @@ protected:
                                                            own_ports_only,
                                                            evaluation)};
             });
+        ON_CALL(*core,
+                import_model(testing::Matcher<std::istream&>(testing::_),
+                             testing::Matcher<const std::string&>(testing::StrEq("CPU")),
+                             testing::Matcher<const ov::AnyMap&>(testing::_)))
+            .WillByDefault(
+                [plugin, own_ports_only, evaluation](std::istream& stream, const std::string&, const ov::AnyMap&) {
+                    OPENVINO_ASSERT(evaluation != nullptr, "Test model import requires an evaluation log");
+                    std::string id;
+                    stream >> id;
+                    std::lock_guard<std::mutex> lock(evaluation->mutex);
+                    return ov::SoPtr<ov::ICompiledModel>{
+                        std::make_shared<FakeSubCompiledModel>(evaluation->exported_models.at(id)->clone(),
+                                                               plugin,
+                                                               own_ports_only,
+                                                               evaluation)};
+                });
 
         return core;
     }
@@ -868,6 +914,445 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
 }
 
+TEST_F(SubgraphBehaviorInferTest, HfaRequestPreservesDistinctSinkValuesForRepeatedLayers) {
+    ov::ParameterVector parameters;
+    ov::ResultVector results;
+    for (size_t layer = 0; layer < 2; ++layer) {
+        const auto suffix = std::to_string(layer);
+        const auto make_param =
+            [&](const std::string& name, const ov::Shape& shape, const ov::element::Type& type = ov::element::f32) {
+                auto parameter = std::make_shared<ov::op::v0::Parameter>(type, shape);
+                parameter->set_friendly_name(name + suffix);
+                parameter->output(0).set_names({name + suffix});
+                parameters.push_back(parameter);
+                return parameter;
+            };
+        auto query = make_param("query.", {1, 4, 4, 16});
+        auto past_key = make_param("past_key_values.key.", {1, 4, 8, 16}, ov::element::f16);
+        auto past_value = make_param("past_key_values.value.", {1, 4, 8, 16}, ov::element::f16);
+        auto new_key = make_param("new_key.", {1, 4, 4, 16});
+        auto new_value = make_param("new_value.", {1, 4, 4, 16});
+        auto mask = make_param("mask.", {1, 1, 4, 12});
+        auto key = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{std::make_shared<ov::op::v0::Convert>(past_key, ov::element::f32), new_key},
+            2);
+        auto value = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{std::make_shared<ov::op::v0::Convert>(past_value, ov::element::f32), new_value},
+            2);
+        auto scores = std::make_shared<ov::op::v0::MatMul>(query, key, false, true);
+        auto masked = std::make_shared<ov::op::v1::Add>(scores, mask);
+        auto sink = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 1, 1}, {layer == 0 ? -2.0f : 2.0f});
+        auto sink_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 4, 1});
+        auto sink_broadcast = std::make_shared<ov::op::v3::Broadcast>(sink, sink_shape);
+        auto logits = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{masked, sink_broadcast}, -1);
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(logits, -1);
+        auto probabilities =
+            std::make_shared<ov::op::v8::Slice>(softmax,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {12}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        auto output = std::make_shared<ov::op::v0::MatMul>(probabilities, value);
+        auto transposed = std::make_shared<ov::op::v1::Transpose>(
+            output,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
+        auto reshaped = std::make_shared<ov::op::v1::Reshape>(
+            transposed,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 4, 64}),
+            false);
+        results.push_back(std::make_shared<ov::op::v0::Result>(key));
+        results.push_back(std::make_shared<ov::op::v0::Result>(value));
+        results.push_back(std::make_shared<ov::op::v0::Result>(reshaped));
+    }
+    auto model = std::make_shared<ov::Model>(results, parameters, "repeated_sink_attention");
+
+    auto evaluation = std::make_shared<EvaluationLog>();
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin, /*own_ports_only=*/true, evaluation);
+    plugin->set_core(core);
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("HFA");
+    props["NPUW_ONLINE_ISOLATE"] = std::string("P:SDPADecomposed/attn");
+    props["NPUW_ATTN_HFA_FUSED"] = std::string("NO");
+    props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+    props["NPUW_F16IC"] = std::string("NO");
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model->clone(), plugin, props);
+
+    size_t repeated_calls = 0;
+    for (size_t idx = 0; idx < compiled->m_compiled_submodels.size(); ++idx) {
+        const auto& desc = compiled->m_compiled_submodels[idx];
+        if (!desc.replaced_by) {
+            continue;
+        }
+        const auto& body = compiled->m_compiled_submodels[*desc.replaced_by];
+        EXPECT_EQ(ov::npuw::attn::get_compiled_hfa(body.pipeline.context), nullptr);
+        repeated_calls += *desc.replaced_by != idx;
+    }
+    ASSERT_GT(repeated_calls, 0u);
+
+    auto request = compiled->create_infer_request();
+    ov::TensorVector inputs;
+    for (const auto& input : model->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        if (input.get_any_name().find("past_key_values.value.") == 0) {
+            std::fill_n(tensor.data<ov::float16>(), tensor.get_size(), ov::float16{1.0f});
+        } else if (input.get_any_name().find("new_value.") == 0) {
+            std::fill_n(tensor.data<float>(), tensor.get_size(), 1.0f);
+        }
+        inputs.push_back(tensor);
+        request->set_tensor(compiled->inputs()[inputs.size() - 1], ov::get_tensor_impl(tensor));
+    }
+    ov::TensorVector expected;
+    for (const auto& output : model->outputs()) {
+        expected.emplace_back(output.get_element_type(), output.get_shape());
+    }
+    ASSERT_TRUE(model->evaluate(expected, inputs));
+    ASSERT_NO_THROW(request->infer());
+    for (size_t output_index = 0; output_index < expected.size(); ++output_index) {
+        const auto actual = request->get_tensor(compiled->outputs()[output_index]);
+        ASSERT_EQ(actual->get_shape(), expected[output_index].get_shape());
+        for (size_t element_index = 0; element_index < expected[output_index].get_size(); ++element_index) {
+            EXPECT_NEAR(actual->data<const float>()[element_index],
+                        expected[output_index].data<const float>()[element_index],
+                        1e-5f);
+        }
+    }
+    EXPECT_GT(expected[2].data<const float>()[0], expected[5].data<const float>()[0]);
+}
+
+TEST_F(SubgraphBehaviorInferTest, CwaiWithoutFoldRunsNoSinkAttention) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+    ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin, /*own_ports_only=*/true);
+    plugin->set_core(core);
+    auto props = base_props();
+    props["NPUW_FOLD"] = std::string("NO");
+    props["NPUW_CWAI"] = std::string("YES");
+    props["NPUW_ATTN"] = std::string("HFA");
+    props["NPUW_ATTN_HFA_FUSED"] = std::string("NO");
+    props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+    ASSERT_TRUE(
+        std::any_of(compiled->m_compiled_submodels.begin(), compiled->m_compiled_submodels.end(), [](const auto& desc) {
+            return desc.replaced_by.has_value();
+        }));
+    size_t hfa_functions = 0;
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        if (ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
+            ++hfa_functions;
+            EXPECT_TRUE(desc.pipeline.runtime_behavior.has_value());
+        }
+    }
+    ASSERT_GT(hfa_functions, 0u);
+
+    auto request = compiled->create_infer_request();
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        if (input.get_names().count("position_ids")) {
+            std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+        }
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+    EXPECT_NO_THROW(request->infer());
+}
+
+TEST_F(SubgraphBehaviorInferTest, CustomSinkDecompositionSelectsAttentionModes) {
+    for (const auto& mode : {std::make_pair(std::string("HFA"), false),
+                             std::make_pair(std::string("HFA"), true),
+                             std::make_pair(std::string("PYRAMID"), false)}) {
+        const auto& attention_mode = mode.first;
+        const bool fused = mode.second;
+        SCOPED_TRACE(attention_mode);
+        SCOPED_TRACE(fused);
+        auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+        size_t sink_layers = 0;
+        for (const auto& node : model->get_ordered_ops()) {
+            auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+            if (!sdpa) {
+                continue;
+            }
+            ASSERT_EQ(sdpa->get_input_size(), 5u);
+            auto sink = ov::op::v0::Constant::create(ov::element::f32,
+                                                     ov::Shape{1, 4, 1, 1},
+                                                     {sink_layers++ == 0 ? -2.0f : 2.0f});
+            auto with_sink = std::make_shared<ov::op::v13::ScaledDotProductAttention>(sdpa->input_value(0),
+                                                                                      sdpa->input_value(1),
+                                                                                      sdpa->input_value(2),
+                                                                                      sdpa->input_value(3),
+                                                                                      sdpa->input_value(4),
+                                                                                      sink,
+                                                                                      sdpa->get_causal());
+            with_sink->set_friendly_name(sdpa->get_friendly_name());
+            ov::replace_node(sdpa, with_sink);
+        }
+        ASSERT_EQ(sink_layers, 2u);
+        ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+        ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+        auto reference = model->clone();
+
+        auto evaluation = std::make_shared<EvaluationLog>();
+        auto plugin = std::make_shared<TestPlugin>();
+        auto core = make_core(plugin, /*own_ports_only=*/true, evaluation);
+        plugin->set_core(core);
+        auto props = base_props();
+        props["NPUW_ATTN"] = attention_mode;
+        props["NPUW_ATTN_HFA_FUSED"] = fused ? std::string("YES") : std::string("NO");
+        props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+        auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+        size_t attention_calls = 0;
+        for (const auto& desc : compiled->m_compiled_submodels) {
+            if (!desc.replaced_by) {
+                continue;
+            }
+            const auto& body = compiled->m_compiled_submodels[*desc.replaced_by];
+            const auto* hfa = ov::npuw::attn::get_compiled_hfa(body.pipeline.context);
+            if ((hfa && hfa->_sdpa_attention_info._sdpa_indices.attention_sink) ||
+                (attention_mode == "PYRAMID" && ov::npuw::attn::get_compiled_pyramid(body.pipeline.context))) {
+                ++attention_calls;
+            }
+            if (hfa) {
+                EXPECT_FALSE(hfa->_sdpa_attention_info._sdpa_indices.attention_scale.has_value());
+                for (const auto& op : hfa->_compiled_tile_model->get_runtime_model()->get_ordered_ops()) {
+                    if (auto tile = ov::as_type_ptr<ov::intel_npu::op::FlashAttentionTile>(op)) {
+                        EXPECT_LE(tile->get_input_size(), 7u);
+                    }
+                }
+            }
+        }
+        ASSERT_GE(attention_calls, 2u);
+        auto request = compiled->create_infer_request();
+        ov::TensorVector inputs;
+        for (const auto& input : compiled->inputs()) {
+            ov::Tensor tensor(input.get_element_type(), input.get_shape());
+            std::memset(tensor.data(), 0, tensor.get_byte_size());
+            if (input.get_names().count("position_ids")) {
+                std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+            }
+            inputs.push_back(tensor);
+            request->set_tensor(input, ov::get_tensor_impl(tensor));
+        }
+        ov::TensorVector expected;
+        for (const auto& output : reference->outputs()) {
+            expected.emplace_back(output.get_element_type(), output.get_shape());
+        }
+        ASSERT_TRUE(reference->evaluate(expected, inputs));
+        ASSERT_NO_THROW(request->infer());
+        for (size_t output_idx = 0; output_idx < expected.size(); ++output_idx) {
+            const auto actual = request->get_tensor(compiled->outputs()[output_idx]);
+            ASSERT_EQ(actual->get_element_type(), ov::element::f32);
+            ASSERT_EQ(actual->get_shape(), expected[output_idx].get_shape());
+            for (size_t element_idx = 0; element_idx < expected[output_idx].get_size(); ++element_idx) {
+                EXPECT_NEAR(actual->data<const float>()[element_idx],
+                            expected[output_idx].data<const float>()[element_idx],
+                            1e-3f);
+            }
+        }
+    }
+}
+
+class HfaClosureInferTest : public SubgraphBehaviorInferTest,
+                            public ::testing::WithParamInterface<std::tuple<bool, bool, bool>> {};
+
+TEST_P(HfaClosureInferTest, ReadsDistinctSinkAndScaleClosuresForRepeatedCalls) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+    ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+    size_t attention_index = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto softmax = ov::as_type_ptr<ov::op::v8::Softmax>(node);
+        if (!softmax) {
+            continue;
+        }
+        auto add = ov::as_type_ptr<ov::op::v1::Add>(softmax->get_input_node_shared_ptr(0));
+        ASSERT_NE(add, nullptr);
+        const auto scores = add->input_value(0);
+        ASSERT_TRUE(ov::is_type<ov::op::v0::MatMul>(scores.get_node_shared_ptr()));
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
+        scale->set_friendly_name("test_scale." + std::to_string(attention_index++));
+        scale->output(0).set_names({scale->get_friendly_name()});
+        add->input(0).replace_source_output(std::make_shared<ov::op::v1::Multiply>(scores, scale));
+        model->add_parameters({scale});
+    }
+    ASSERT_EQ(attention_index, 2u);
+    auto reference_model = model->clone();
+    size_t reference_layer = 0;
+    for (const auto& node : reference_model->get_ordered_ops()) {
+        auto softmax = ov::as_type_ptr<ov::op::v8::Softmax>(node);
+        if (!softmax) {
+            continue;
+        }
+        const auto consumers = softmax->output(0).get_target_inputs();
+        auto sink = ov::op::v0::Constant::create(ov::element::f32,
+                                                 ov::Shape{1, 4, 4, 1},
+                                                 {reference_layer++ == 0 ? -2.0f : 2.0f});
+        auto logits = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{softmax->input_value(0), sink}, -1);
+        softmax->input(0).replace_source_output(logits);
+        auto probabilities =
+            std::make_shared<ov::op::v8::Slice>(softmax,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {12}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        for (auto consumer : consumers) {
+            consumer.replace_source_output(probabilities);
+        }
+    }
+    ASSERT_EQ(reference_layer, 2u);
+    reference_model->validate_nodes_and_infer_types();
+
+    auto evaluation = std::make_shared<EvaluationLog>();
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin, /*own_ports_only=*/true, evaluation);
+    plugin->set_core(core);
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("HFA");
+    props["NPUW_ATTN_HFA_FUSED"] = std::get<2>(GetParam()) ? std::string("YES") : std::string("NO");
+    props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+    props["NPUW_FUNCALL_ASYNC"] = std::get<0>(GetParam()) ? std::string("YES") : std::string("NO");
+    props["NPUW_UNFOLD_IREQS"] = std::get<1>(GetParam()) ? std::string("YES") : std::string("NO");
+
+    auto sink_model = reference_model->clone();
+    const auto sink_parameters = sink_model->get_parameters();
+    for (const auto& parameter : sink_parameters) {
+        const auto& name = parameter->get_friendly_name();
+        if (name != "test_scale.0" && name != "test_scale.1") {
+            continue;
+        }
+        auto scale =
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {name == "test_scale.0" ? 0.125f : 0.25f});
+        for (auto consumer : parameter->output(0).get_target_inputs()) {
+            consumer.replace_source_output(scale);
+        }
+        sink_model->remove_parameter(parameter);
+    }
+    sink_model->validate_nodes_and_infer_types();
+    auto sink_compiled = std::make_shared<ov::npuw::CompiledModel>(sink_model, plugin, props);
+    size_t sink_hfa_calls = 0;
+    size_t scale_hfa_calls = 0;
+    for (const auto& desc : sink_compiled->m_compiled_submodels) {
+        if (!desc.replaced_by) {
+            continue;
+        }
+        const auto& sink_body = sink_compiled->m_compiled_submodels[*desc.replaced_by];
+        const auto* sink_hfa = ov::npuw::attn::get_compiled_hfa(sink_body.pipeline.context);
+        if (sink_hfa && sink_hfa->_sdpa_attention_info._sdpa_indices.attention_sink &&
+            *sink_hfa->_sdpa_attention_info._sdpa_indices.attention_sink >= desc.param_base) {
+            ++sink_hfa_calls;
+        }
+        if (sink_hfa && sink_hfa->_sdpa_attention_info._sdpa_indices.attention_scale &&
+            *sink_hfa->_sdpa_attention_info._sdpa_indices.attention_scale >= desc.param_base) {
+            ++scale_hfa_calls;
+        }
+    }
+    ASSERT_GE(sink_hfa_calls, 2u);
+    ASSERT_GE(scale_hfa_calls, 2u);
+
+    ov::TensorVector inputs;
+    for (const auto& input : reference_model->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        if (input.get_names().count("position_ids")) {
+            std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+        } else if (input.get_names().count("test_scale.0")) {
+            tensor.data<float>()[0] = 0.125f;
+        } else if (input.get_names().count("test_scale.1")) {
+            tensor.data<float>()[0] = 0.25f;
+        }
+        inputs.push_back(tensor);
+    }
+    ov::TensorVector expected;
+    for (const auto& output : reference_model->outputs()) {
+        expected.emplace_back(output.get_element_type(), output.get_shape());
+    }
+    ASSERT_TRUE(reference_model->evaluate(expected, inputs));
+
+    auto sink_request = sink_compiled->create_infer_request();
+    for (const auto& input : sink_compiled->inputs()) {
+        const auto name = input.get_any_name();
+        const auto reference_inputs = reference_model->inputs();
+        const auto match = std::find_if(reference_inputs.begin(), reference_inputs.end(), [&](const auto& candidate) {
+            return candidate.get_names().count(name) != 0;
+        });
+        ASSERT_NE(match, reference_inputs.end());
+        const auto input_idx = static_cast<size_t>(std::distance(reference_inputs.begin(), match));
+        sink_request->set_tensor(input, ov::get_tensor_impl(inputs[input_idx]));
+    }
+    for (size_t iteration = 0; iteration < 2; ++iteration) {
+        evaluation->hfa_initial_max.clear();
+        evaluation->hfa_scale.clear();
+        ASSERT_NO_THROW(sink_request->infer());
+        ASSERT_GE(evaluation->hfa_initial_max.size(), 2u);
+        EXPECT_FLOAT_EQ(evaluation->hfa_initial_max[0], -2.0f);
+        EXPECT_FLOAT_EQ(evaluation->hfa_initial_max[1], 2.0f);
+        ASSERT_GE(evaluation->hfa_scale.size(), 2u);
+        EXPECT_FLOAT_EQ(evaluation->hfa_scale[0], 0.125f);
+        EXPECT_FLOAT_EQ(evaluation->hfa_scale[1], 0.25f);
+        for (size_t output_idx = 0; output_idx < expected.size(); ++output_idx) {
+            const auto actual = sink_request->get_tensor(sink_compiled->outputs()[output_idx]);
+            ASSERT_EQ(actual->get_element_type(), ov::element::f32);
+            ASSERT_EQ(actual->get_shape(), expected[output_idx].get_shape());
+            for (size_t element_idx = 0; element_idx < expected[output_idx].get_size(); ++element_idx) {
+                EXPECT_NEAR(actual->data<const float>()[element_idx],
+                            expected[output_idx].data<const float>()[element_idx],
+                            1e-3f);
+            }
+        }
+    }
+
+    for (auto& desc : sink_compiled->m_compiled_submodels) {
+        if (!desc.compiled_model && !desc.replaced_by) {
+            auto placeholder = std::make_shared<ov::Model>(
+                ov::OutputVector{ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f})},
+                ov::ParameterVector{});
+            desc.compiled_model = ov::SoPtr<ov::ICompiledModel>{
+                std::make_shared<FakeSubCompiledModel>(placeholder, plugin, true, evaluation)};
+        }
+    }
+    std::stringstream cache(std::ios::in | std::ios::out | std::ios::binary);
+    ASSERT_NO_THROW(sink_compiled->export_model(cache));
+    auto imported = ov::npuw::CompiledModel::import_model(cache, plugin, props);
+    ASSERT_NE(imported, nullptr);
+    auto imported_request = imported->create_infer_request();
+    for (const auto& input : imported->inputs()) {
+        const auto name = input.get_any_name();
+        const auto reference_inputs = reference_model->inputs();
+        const auto match = std::find_if(reference_inputs.begin(), reference_inputs.end(), [&](const auto& candidate) {
+            return candidate.get_names().count(name) != 0;
+        });
+        ASSERT_NE(match, reference_inputs.end());
+        const auto input_idx = static_cast<size_t>(std::distance(reference_inputs.begin(), match));
+        imported_request->set_tensor(input, ov::get_tensor_impl(inputs[input_idx]));
+    }
+    evaluation->hfa_initial_max.clear();
+    evaluation->hfa_scale.clear();
+    ASSERT_NO_THROW(imported_request->infer());
+    ASSERT_GE(evaluation->hfa_initial_max.size(), 2u);
+    EXPECT_FLOAT_EQ(evaluation->hfa_initial_max[0], -2.0f);
+    EXPECT_FLOAT_EQ(evaluation->hfa_initial_max[1], 2.0f);
+    ASSERT_GE(evaluation->hfa_scale.size(), 2u);
+    EXPECT_FLOAT_EQ(evaluation->hfa_scale[0], 0.125f);
+    EXPECT_FLOAT_EQ(evaluation->hfa_scale[1], 0.25f);
+    for (size_t output_idx = 0; output_idx < expected.size(); ++output_idx) {
+        const auto actual = imported_request->get_tensor(imported->outputs()[output_idx]);
+        ASSERT_EQ(actual->get_element_type(), ov::element::f32);
+        ASSERT_EQ(actual->get_shape(), expected[output_idx].get_shape());
+        for (size_t element_idx = 0; element_idx < expected[output_idx].get_size(); ++element_idx) {
+            EXPECT_NEAR(actual->data<const float>()[element_idx],
+                        expected[output_idx].data<const float>()[element_idx],
+                        1e-3f);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(ClosureModes,
+                         HfaClosureInferTest,
+                         ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Bool()));
+
 TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsOutOfRangeMaskIdx) {
     auto model = ov::test::npuw::build_dynamic_attention_llm_model();
 
@@ -930,7 +1415,7 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsMaskIdxInClosureGap) {
     ov::Tensor fake_closure_tensor(ov::element::f32, ov::Shape{1});
     for (auto& desc : compiled->m_compiled_submodels) {
         if (ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context) == dynamic) {
-            auto& closure = desc.closure.unsafe_get();
+            auto& closure = desc.closure.get();
             closure.closure.push_back(fake_closure_tensor);
             closure.closure_uid.push_back(-1);
             closure.is_remote.push_back(false);
@@ -974,6 +1459,7 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
 
     auto props = base_props();
     props["NPUW_ATTN"] = std::string("PYRAMID");
+    props["NPUW_UNFOLD_IREQS"] = std::string("YES");
     // No Failsafe wrappers - they are not created for imported blobs either.
     props["NPUW_FALLBACK_EXEC"] = std::string("NO");
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
