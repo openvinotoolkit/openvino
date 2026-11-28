@@ -230,7 +230,8 @@ struct RelativeBias {
 // The distance d is query positions minus cached key positions kept in an i32 state reordered by beam_idx.
 struct RelativeBiasPattern {
     std::shared_ptr<ov::Node> root, add, table, gather, sink, fallback, distance, lower_distance, upper_distance,
-        upper_bound, query_source, key_positions, state, beam, window_offset;
+        upper_bound, lower_bound, query_source, query_shape, key_positions, key_shape, state, beam, beam_axis,
+        window_offset;
     // A bias-shaped mask that does not satisfy the full contract; matched only to reject it.
     std::shared_ptr<ov::Node> loose_root, loose_add;
 };
@@ -240,18 +241,22 @@ RelativeBiasPattern relative_bias_pattern() {
     RelativeBiasPattern p;
     p.state = wrap_type<ov::op::util::ReadValueBase>(type_matches(ov::element::i32));
     p.beam = any_input();
-    auto reorder = wrap_type<v8::Gather>({p.state, p.beam, wrap_const()});
+    p.beam_axis = wrap_const();
+    auto reorder = wrap_type<v8::Gather>({p.state, p.beam, p.beam_axis});
     p.key_positions = any_input();
     auto cache = wrap_type<v0::Concat>({reorder, p.key_positions}, {{"axis", 1}});
-    auto key_pos = wrap_type<v1::Reshape>({wrap_type<v0::Convert>({cache}), wrap_const()}, {{"special_zero", true}});
+    p.key_shape = wrap_const();
+    auto key_pos = wrap_type<v1::Reshape>({wrap_type<v0::Convert>({cache}), p.key_shape}, {{"special_zero", true}});
     p.query_source = any_input();
-    auto query_pos = wrap_type<v1::Reshape>({p.query_source, wrap_const()}, {{"special_zero", true}});
+    p.query_shape = wrap_const();
+    auto query_pos = wrap_type<v1::Reshape>({p.query_source, p.query_shape}, {{"special_zero", true}});
     p.distance = wrap_type<v1::Subtract>({query_pos, key_pos});
     p.lower_distance = any_input();
     p.upper_distance = any_input();
     p.upper_bound = wrap_const();
     p.fallback = wrap_const();
-    auto lower = wrap_type<v1::GreaterEqual>({p.lower_distance, wrap_const()});
+    p.lower_bound = wrap_const();
+    auto lower = wrap_type<v1::GreaterEqual>({p.lower_distance, p.lower_bound});
     auto upper = wrap_type<v1::Less>({p.upper_distance, p.upper_bound});
     auto select = wrap_type<v1::Select>({wrap_type<v1::LogicalAnd>({lower, upper}), p.distance, p.fallback});
     auto index = wrap_type<v3::Broadcast>({select, any_input()});
@@ -300,7 +305,13 @@ RelativeBias extract_relative_bias(const RelativeBiasPattern& p,
                     " has a relative-bias table with dynamic heads or distances: ",
                     table_shape);
     const auto span = table_shape[3].get_length() - 1;
+    OPENVINO_ASSERT(table_shape[2].compatible(1) && pattern_map.at(p.sink).get_partial_shape()[2].compatible(1),
+                    "PagedAttention: SDPA ",
+                    name,
+                    " has a relative-bias table or sink with more than one query row per token: ",
+                    table_shape);
     OPENVINO_ASSERT(pattern_map.at(p.lower_distance) == distance && pattern_map.at(p.upper_distance) == distance &&
+                        constant_is(pattern_map.at(p.lower_bound), {0}) &&
                         constant_is(pattern_map.at(p.upper_bound), {span}) &&
                         constant_is(pattern_map.at(p.fallback), {span}) && span >= 1,
                     "PagedAttention: SDPA ",
@@ -313,6 +324,9 @@ RelativeBias extract_relative_bias(const RelativeBiasPattern& p,
     const auto positions = params.get("position_ids");
     const auto beam = params.get("beam_idx");
     OPENVINO_ASSERT(positions && beam && pattern_map.at(p.beam) == beam->output(0) &&
+                        constant_is(pattern_map.at(p.beam_axis), {0}) &&
+                        constant_is(pattern_map.at(p.query_shape), {0, 1, -1, 1}) &&
+                        constant_is(pattern_map.at(p.key_shape), {0, 1, 1, -1}) &&
                         depends_on(pattern_map.at(p.query_source), positions.get()) &&
                         depends_on(pattern_map.at(p.key_positions), positions.get()),
                     "PagedAttention: SDPA ",
@@ -1051,7 +1065,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                          std::vector<int64_t>{0, heads, value.get_partial_shape()[3].get_length()}),
                     true);
             };
-            // Subtracting after the reshape keeps GPU from fusing the per-row sink into the table MatMul.
+            // Subtracting after the reshape keeps GPU from fusing the per-row sink into the table MatMul, which
+            // gives wrong rows on Xe2 for long prompts (CVS-200957). Subtract on the MatMul once it is fixed.
             const auto shifted =
                 std::make_shared<v1::Subtract>(flatten(relative_bias->table), flatten(relative_bias->sink));
             pa_arguments.push_back(std::make_shared<v0::Convert>(shifted, sdpa_node->get_input_element_type(3)));

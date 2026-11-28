@@ -113,12 +113,6 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         return;
     }
     auto rtPrecision = getRuntimePrecision();
-#if defined(OPENVINO_ARCH_ARM64)
-    const auto& relative_bias_shape = getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS);
-    CPU_NODE_ASSERT(none_of(rtPrecision, ov::element::f16, ov::element::bf16) ||
-                        (relative_bias_shape.isStatic() && relative_bias_shape.hasZeroDims()),
-                    "relative bias on ARM requires f32 inference precision");
-#endif
 
     NodeConfig config;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -517,7 +511,9 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 ov::element::Type PagedAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 #if defined(OPENVINO_ARCH_ARM64)
-    if (rtPrecision == ov::element::f16) {
+    const auto& relative_bias_shape = getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS);
+    const bool has_relative_bias = !(relative_bias_shape.isStatic() && relative_bias_shape.hasZeroDims());
+    if (rtPrecision == ov::element::f16 && !has_relative_bias) {
         rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;

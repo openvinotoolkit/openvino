@@ -8336,7 +8336,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion, SDPAToPATest, testing::ValuesI
 
 namespace {
 
-enum class RelativeBiasVariant { Full, Sliding, WrongFallback, UnrelatedIndex };
+enum class RelativeBiasVariant { Full, Sliding, WrongFallback, WrongLowerBound, UnrelatedIndex };
 
 std::shared_ptr<ov::Model> make_relative_bias_model(RelativeBiasVariant variant, int64_t window_offset = -512) {
     const int heads = 2, head_dim = 8, hidden = heads * head_dim, rel = 4, span = 6;
@@ -8384,13 +8384,14 @@ std::shared_ptr<ov::Model> make_relative_bias_model(RelativeBiasVariant variant,
     auto pos_cur = makeOP<v1::Reshape>({pos_i32, {1, -1, 1, 1}}, {{"special_zero", false}});
     auto cached = makeOP<v0::Concat>({pos_past, pos_cur}, {{"axis", 1}});
     sinks.push_back(std::make_shared<v6::Assign>(cached, pos_var));
-    auto key_pos = makeOP<v1::Reshape>({makeOP<v0::Convert>({cached}, {{"destination_type", "i64"}}), {1, 1, 1, -1}},
+    auto key_pos = makeOP<v1::Reshape>({makeOP<v0::Convert>({cached}, {{"destination_type", "i64"}}), {0, 1, 1, -1}},
                                        {{"special_zero", true}});
     auto query_src = makeOP<v1::Reshape>({position_ids, {0, 1, 1, -1}}, {{"special_zero", true}});
     auto query_pos = makeOP<v1::Reshape>({query_src, {0, 1, -1, 1}}, {{"special_zero", true}});
     auto distance = makeOP<v1::Subtract>({query_pos, key_pos}, {numpy_broadcast});
     const int64_t fallback = variant == RelativeBiasVariant::WrongFallback ? span - 1 : span;
-    auto valid = makeOP<v1::LogicalAnd>({makeOP<v1::GreaterEqual>({distance, {0l}}, {numpy_broadcast}),
+    const int64_t lower_bound = variant == RelativeBiasVariant::WrongLowerBound ? 1 : 0;
+    auto valid = makeOP<v1::LogicalAnd>({makeOP<v1::GreaterEqual>({distance, {lower_bound}}, {numpy_broadcast}),
                                          makeOP<v1::Less>({distance, {(int64_t)span}}, {numpy_broadcast})},
                                         {numpy_broadcast});
     std::shared_ptr<ov::Node> index = makeOP<v1::Select>({valid, distance, {fallback}}, {numpy_broadcast});
@@ -8486,6 +8487,13 @@ TEST(SDPAToPA, RelativeBias_SlidingWindow) {
 
 TEST(SDPAToPA, RelativeBias_WrongFallbackThrows) {
     auto model = make_relative_bias_model(RelativeBiasVariant::WrongFallback);
+    OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
+                    ov::Exception,
+                    testing::HasSubstr("clamped distance"));
+}
+
+TEST(SDPAToPA, RelativeBias_WrongLowerBoundThrows) {
+    auto model = make_relative_bias_model(RelativeBiasVariant::WrongLowerBound);
     OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
                     ov::Exception,
                     testing::HasSubstr("clamped distance"));

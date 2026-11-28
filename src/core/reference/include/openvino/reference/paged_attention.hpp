@@ -217,7 +217,6 @@ void paged_attention(std::uintptr_t node_key,
 
     // Relative bias [B_token, H, D + 1]: score += bias[token, h, min(qpos - kpos, D)] after scaling.
     const bool has_relative_bias = relative_bias != nullptr;
-    const std::size_t relative_bias_span = has_relative_bias ? relative_bias_shape.at(2) - 1 : 0;
     if (has_relative_bias) {
         OPENVINO_ASSERT(
             relative_bias_shape.size() == 3 && relative_bias_shape[0] == query_shape[0] && relative_bias_shape[2] >= 2,
@@ -271,6 +270,9 @@ void paged_attention(std::uintptr_t node_key,
     OPENVINO_ASSERT((q_heads % kv_heads) == 0,
                     "PagedAttention reference: expected num_heads to be divisible by num_kv_heads (GQA)");
     const std::size_t group = q_heads / kv_heads;
+    OPENVINO_ASSERT(!has_relative_bias || relative_bias_shape[1] == q_heads,
+                    "PagedAttention reference: relative_bias must have one row per query head");
+    const std::size_t relative_bias_span = has_relative_bias ? relative_bias_shape[2] - 1 : 0;
 
     const std::size_t out_features = q_heads * v_head_size;
     const float scale_f = detail::read_scalar_as_f32(scale, scale_et);

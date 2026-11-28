@@ -24,7 +24,10 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
     const auto relative_bias_ps = op->get_input_partial_shape(cldnn::paged_attention::PagedAttentionInputIdx::RELATIVE_BIAS);
-    prim.has_relative_bias = relative_bias_ps.is_dynamic() || ov::shape_size(relative_bias_ps.to_shape()) > 0;
+    prim.has_relative_bias = relative_bias_ps.rank().is_static() && relative_bias_ps.rank().get_length() == 3;
+    OPENVINO_ASSERT(prim.has_relative_bias || relative_bias_ps.rank().is_static(),
+                    "PagedAttention relative_bias must have a static rank on GPU, got ",
+                    relative_bias_ps);
 
     const auto& rt_info = op->get_rt_info();
     const auto* const k_head_size_id = "k_head_size";

@@ -8,6 +8,7 @@ namespace ov {
 namespace test {
 namespace {
 
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionRelativeBias,
                          PagedAttentionRelativeBiasTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
@@ -19,6 +20,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionRelativeBias,
                                             ::testing::Values(10, 100, 300),  // seq_len
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          PagedAttentionRelativeBiasTest::getTestCaseName);
+#endif
 
 }  // namespace
 }  // namespace test

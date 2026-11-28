@@ -15,7 +15,6 @@
  ******************************************************************************/
 
 // Inverse of bgm_gather: out[slot, orig_token, :] = packed[group_offsets[g] + tok, :].
-// Dispatch: y=packed row (n_tokens * top_k), x=N tile.
 // No reduction here — Multiply-by-router-weights + ReduceSum stay as separate downstream ops.
 
 #define COPY_BLOCK 8
@@ -31,31 +30,26 @@ KERNEL(bgm_scatter)(
     const global int* num_groups,
     int n_val
 ) {
-    const int row = get_global_id(1);
-    const int n_offset = get_global_id(0) * COPY_BLOCK;
-    if (n_offset >= n_val)
+    int group_id = get_global_id(2);
+    if (group_id >= num_groups[0])
         return;
 
-    int lo = 0;
-    int hi = num_groups[0] - 1;
-    while (lo < hi) {
-        const int mid = (lo + hi + 1) >> 1;
-        if (group_offsets[mid] <= row)
-            lo = mid;
-        else
-            hi = mid - 1;
-    }
-    if (row >= group_offsets[lo] + group_sizes[lo])
+    int n_tokens_in_group = group_sizes[group_id];
+    int token_in_group = get_global_id(1);
+    if (token_in_group >= n_tokens_in_group)
         return;
 
-    const int slot = group_slot_ids[lo];
-    const int orig_token = token_map[row];
-    const int n_tokens = N_TOKENS;
+    int offset = group_offsets[group_id];
+    int slot = group_slot_ids[group_id];
+    int n_tokens = N_TOKENS;
 
-    const global half* src = packed_ptr + row * n_val;
+    int orig_token = token_map[offset + token_in_group];
+
+    const global half* src = packed_ptr + (offset + token_in_group) * n_val;
     // Output leading dim is top_k (always per-slot), unlike bgm_gather's INPUT clamping.
     global half* dst = output_ptr + (slot * n_tokens + orig_token) * n_val;
 
+    int n_offset = get_global_id(0) * COPY_BLOCK;
     if (n_offset + COPY_BLOCK <= n_val) {
         half8 val = vload8(0, src + n_offset);
         vstore8(val, 0, dst + n_offset);

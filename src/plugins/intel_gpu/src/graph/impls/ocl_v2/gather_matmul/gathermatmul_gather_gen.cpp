@@ -64,12 +64,13 @@ DispatchDataFunc GatherMatmulGatherGenerator::get_dispatch_data_func() const {
         size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
         size_t n_tokens = static_cast<size_t>(rtp->n_tokens);
         size_t top_k = static_cast<size_t>(rtp->top_k);
+        size_t n_all_experts = weight_shape[0];
+        size_t max_groups = n_all_experts * top_k;
 
+        // Dispatch: x=ceil_div(K, COPY_BLOCK), y=n_tokens (max per group), z=max_groups
         constexpr size_t COPY_BLOCK = 8;
-        const size_t k_blocks = ceil_div(k, COPY_BLOCK);
-        const size_t local_x = std::min<size_t>(k_blocks, 64);
-        wgs.global = {ceil_div(k_blocks, local_x) * local_x, n_tokens * top_k, 1};
-        wgs.local = {local_x, 1, 1};
+        wgs.global = {ceil_div(k, COPY_BLOCK), n_tokens, max_groups};
+        wgs.local = {1, 1, 1};
 
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = static_cast<int32_t>(k);
