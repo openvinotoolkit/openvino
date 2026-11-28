@@ -171,7 +171,7 @@ StringAlignedBuffer::~StringAlignedBuffer() {
 }
 
 SharedStringAlignedBuffer::SharedStringAlignedBuffer(char* ptr, size_t size) {
-    m_aligned_buffer = ptr;
+    m_aligned_buffer = reinterpret_cast<std::byte*>(ptr);
     m_byte_size = size;
     m_num_elements = size / ov::element::string.size();
 }

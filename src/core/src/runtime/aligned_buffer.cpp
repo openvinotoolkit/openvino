@@ -17,7 +17,7 @@ IBufferDescriptor::~IBufferDescriptor() = default;
 AlignedBuffer::AlignedBuffer() : m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(std::max<size_t>(1, byte_size)) {
-    m_aligned_buffer = static_cast<char*>(util::aligned_alloc(m_byte_size, alignment));
+    m_aligned_buffer = static_cast<std::byte*>(util::aligned_alloc(m_byte_size, alignment));
     OPENVINO_ASSERT(m_aligned_buffer, "Failed to allocate ", m_byte_size, " bytes (alignment: ", alignment, ")");
 }
 
@@ -47,22 +47,21 @@ std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
     return nullptr;
 }
 
+const util::MemoryProperties& AlignedBuffer::get_properties() const noexcept {
+    static const util::MemoryProperties instance{};
+    return instance;
+}
+
 void AlignedBuffer::hint_evict() noexcept {}
+
+util::PrefetchToken AlignedBuffer::hint_prefetch() noexcept {
+    return {};
+}
 
 void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
 
 void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
     buffer.hint_evict(offset, size);
-}
-
-void AlignedBuffer::hint_prefetch() const {}
-
-void AlignedBuffer::invoke_hint_prefetch(const AlignedBuffer& buffer) {
-    buffer.hint_prefetch();
-}
-
-util::PrefetchToken AlignedBuffer::hint_prefetch_async() const noexcept {
-    return {};
 }
 
 util::PrefetchToken AlignedBuffer::hint_prefetch_async(size_t, size_t) const noexcept {

@@ -628,7 +628,225 @@ TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_prefetch_async_to_mmap
         std::static_pointer_cast<ov::AlignedBuffer>(parent));
 
     EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
-    child->hint_prefetch_async();
+    child->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, memory_hints_interface_evict_propagates_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t parent_offset = 64;
+    constexpr size_t child_offset = 32;
+    constexpr size_t child_size = 128;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + parent_offset,
+                                                                                        mmap_size - parent_offset,
+                                                                                        mock);
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        parent->data() + child_offset,
+        child_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(parent));
+
+    EXPECT_CALL(*mock, hint_evict_mock(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_evict();
+}
+
+TEST_F(SharedBufferTest, memory_hints_interface_prefetch_propagates_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t parent_offset = 64;
+    constexpr size_t child_offset = 32;
+    constexpr size_t child_size = 128;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + parent_offset,
+                                                                                        mmap_size - parent_offset,
+                                                                                        mock);
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        parent->data() + child_offset,
+        child_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(parent));
+
+    EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, data_does_not_start_async_prefetch) {
+    constexpr size_t mmap_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
+
+    EXPECT_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).Times(0);
+    EXPECT_NE(buffer->data(), nullptr);
+    EXPECT_NE(buffer->data_as<char>(), nullptr);
+}
+
+TEST_F(SharedBufferTest, mutable_buffer_data_matches_shared_region) {
+    constexpr size_t mmap_size = 512;
+    constexpr size_t buf_offset = 100;
+    constexpr size_t buf_size = 200;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + buf_offset,
+                                                                                        buf_size,
+                                                                                        mock);
+    EXPECT_EQ(buffer->data(), mock->data() + buf_offset);
+    EXPECT_EQ(buffer->size(), buf_size);
+    EXPECT_EQ(buffer->get_properties().offset, buf_offset);
+    EXPECT_EQ(buffer->get_id(), mock->get_id());
+}
+
+class MockBuffer final : public ov::util::IMutableBuffer {
+public:
+    explicit MockBuffer(size_t size, std::optional<uint64_t> id = std::nullopt, size_t offset = 0)
+        : m_data(size),
+          m_id(id) {
+        m_properties.offset = offset;
+    }
+
+    const std::byte* data() const noexcept override {
+        return m_data.data();
+    }
+    std::byte* data() noexcept override {
+        return m_data.data();
+    }
+    size_t size() const noexcept override {
+        return m_data.size();
+    }
+    const ov::util::MemoryProperties& get_properties() const noexcept override {
+        return m_properties;
+    }
+    std::optional<uint64_t> get_id() const noexcept override {
+        return m_id;
+    }
+
+    MOCK_METHOD(void, hint_evict, (), (noexcept, override));
+    MOCK_METHOD(ov::util::PrefetchToken, hint_prefetch, (), (noexcept, override));
+
+private:
+    std::vector<std::byte> m_data;
+    ov::util::MemoryProperties m_properties;
+    std::optional<uint64_t> m_id;
+};
+
+TEST_F(SharedBufferTest, common_buffer_with_mmap_evict_uses_own_region) {
+    constexpr size_t mmap_size = 1024;
+    constexpr size_t buf_offset = 128;
+    constexpr size_t buf_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(mock->data() + buf_offset,
+                                                                                         buf_size,
+                                                                                         mock);
+
+    EXPECT_CALL(*mock, hint_evict_mock(buf_offset, buf_size)).Times(1);
+    buffer->hint_evict();
+}
+
+TEST_F(SharedBufferTest, common_buffer_with_mmap_prefetch_uses_own_region) {
+    constexpr size_t mmap_size = 1024;
+    constexpr size_t buf_offset = 128;
+    constexpr size_t buf_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(mock->data() + buf_offset,
+                                                                                         buf_size,
+                                                                                         mock);
+
+    EXPECT_CALL(*mock, hint_prefetch_async(buf_offset, buf_size)).Times(1);
+    buffer->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, common_buffer_nested_shared_buffer_propagates_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t parent_offset = 64;
+    constexpr size_t child_offset = 32;
+    constexpr size_t child_size = 128;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + parent_offset,
+                                                                                        mmap_size - parent_offset,
+                                                                                        mock);
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(parent->data() + child_offset,
+                                                                                        child_size,
+                                                                                        parent);
+
+    EXPECT_CALL(*mock, hint_evict_mock(parent_offset + child_offset, child_size)).Times(1);
+    EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_evict();
+    child->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, common_buffer_whole_range_uses_buffer_hints) {
+    constexpr size_t size = 128;
+
+    auto source = std::make_shared<MockBuffer>(size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(source->data(), size, source);
+
+    EXPECT_CALL(*source, hint_evict()).Times(1);
+    EXPECT_CALL(*source, hint_prefetch()).Times(1);
+    buffer->hint_evict();
+    buffer->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, common_buffer_sub_range_does_not_use_whole_buffer_hints) {
+    constexpr size_t size = 128;
+
+    auto source = std::make_shared<MockBuffer>(size);
+    auto buffer =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(source->data() + 16, size / 2, source);
+
+    EXPECT_CALL(*source, hint_evict()).Times(0);
+    EXPECT_CALL(*source, hint_prefetch()).Times(0);
+    buffer->hint_evict();
+    buffer->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, common_buffer_keeps_source_id_and_offset) {
+    constexpr size_t source_offset = 64;
+    constexpr size_t region_offset = 16;
+
+    auto source = std::make_shared<MockBuffer>(128, 7, source_offset);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(source->data() + region_offset,
+                                                                                         32,
+                                                                                         source);
+
+    EXPECT_EQ(buffer->get_id(), 7u);
+    EXPECT_EQ(buffer->get_properties().offset, source_offset + region_offset);
+}
+
+TEST_F(SharedBufferTest, common_buffer_whole_range_with_source_offset_uses_buffer_hints) {
+    constexpr size_t size = 128;
+
+    auto source = std::make_shared<MockBuffer>(size, 7, 64);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(source->data(), size, source);
+
+    EXPECT_CALL(*source, hint_evict()).Times(1);
+    EXPECT_CALL(*source, hint_prefetch()).Times(1);
+    buffer->hint_evict();
+    buffer->hint_prefetch();
+}
+
+TEST_F(SharedBufferTest, writable_mmap_shared_buffer_has_no_id) {
+    auto mapped = ov::load_mmap_object(m_file_path, 0, ov::auto_size, ov::MmapMode::READ_WRITE);
+    ASSERT_FALSE(mapped->get_id().has_value());
+
+    auto buffer =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped->data(), mapped->size(), mapped);
+    auto nested = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(buffer->data(), 8, buffer);
+
+    EXPECT_FALSE(buffer->get_id().has_value());
+    EXPECT_FALSE(nested->get_id().has_value());
+}
+
+TEST_F(SharedBufferTest, explicit_descriptor_id_is_kept) {
+    auto source = std::make_shared<ov::AlignedBuffer>(64);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(
+        source->data(),
+        source->size(),
+        source,
+        ov::create_base_descriptor(42, 0, nullptr));
+
+    EXPECT_EQ(buffer->get_id(), 42u);
 }
 
 static std::vector<std::shared_ptr<ov::Node>> make_mapped_constants(const std::shared_ptr<MockMappedMemory>& mock,

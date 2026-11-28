@@ -110,7 +110,7 @@ void Extension::hint_evict(ov::op::v0::Constant& constant) noexcept {
 }
 
 ov::util::PrefetchToken Extension::hint_prefetch(const ov::op::v0::Constant& constant) noexcept {
-    return (constant.m_data && constant.m_data->get_descriptor()) ? constant.m_data->hint_prefetch_async()
+    return (constant.m_data && constant.m_data->get_descriptor()) ? constant.m_data->hint_prefetch()
                                                                   : ov::util::PrefetchToken{};
 }
 
