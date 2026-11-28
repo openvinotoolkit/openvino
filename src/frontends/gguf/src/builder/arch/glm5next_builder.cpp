@@ -32,6 +32,8 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/hyper_connection_post.hpp"
+#include "openvino/op/hyper_connection_pre.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
@@ -46,13 +48,11 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
@@ -84,9 +84,6 @@ Out reshape(const Out& x, const std::vector<int64_t>& shape) {
 }
 Out transpose(const Out& x, const std::vector<int64_t>& order) {
     return std::make_shared<ov::op::v1::Transpose>(x, ci64(order));
-}
-Out slice_last(const Out& x, int64_t begin, int64_t end) {
-    return std::make_shared<ov::op::v8::Slice>(x, ci64({begin}), ci64({end}), ci64({1}), ci64({-1}));
 }
 Out to_f32(const Out& x) {
     return x.get_element_type() == f32 ? x : Out(std::make_shared<ov::op::v0::Convert>(x, f32));
@@ -155,8 +152,8 @@ public:
 private:
     struct Mix {
         std::string y;  // [1, 1, T, E] pre-weighted sum of the streams
-        Out post;       // [1, T, hc, 1]
-        Out comb;       // [1, T, hc(dst), hc(src)]
+        Out post;       // [1, T, hc]
+        Out comb;       // [1, T, hc(src), hc(dst)]
     };
 
     void read_hparams() {
@@ -228,37 +225,32 @@ private:
     }
 
     // ---- mHC ------------------------------------------------------------------------------------------------
+    // The whole pre side (RMS norm, hc_fn projection, coefficient mix, pre-weighted sum) as one HyperConnectionPre
+    // op, so a plugin can run each mHC site as one launch instead of 7-9 small ones.
     Mix hc_pre(const Out& h, const std::string& p, const std::string& kind) {
         const auto tag = p + "hc_" + kind;
-        auto flat = reg(tag + "_flat", reshape(h, {1, 1, -1, m_hc * m_cfg.n_embd}));
-        flat = m_emit.add_op("GGML_OP_RMS_NORM", tag + "_flat_norm", {flat}, 0, {{"eps", m_cfg.rms_eps}});
-        const auto mixes = mm(p + "hc_" + kind + "_fn.weight", flat, tag + "_mixes");  // [1, 1, T, (2+hc)*hc]
-        reg(tag + "_scale", reshape(weight(p + "hc_" + kind + "_scale.weight"), {3}));
-        reg(tag + "_base", reshape(weight(p + "hc_" + kind + "_base.weight"), {(2 + m_hc) * m_hc}));
-        const auto coef = m_emit.add_op("GGML_OP_HC_MIX",
-                                        tag + "_coef",
-                                        {mixes, tag + "_scale", tag + "_base"},
-                                        0,
-                                        {{"n_streams", static_cast<int>(m_hc)},
-                                         {"sinkhorn_iterations", static_cast<int>(m_sk_iters)},
-                                         {"eps", m_hc_eps}});
-        const auto c = reshape(val(coef), {1, -1, (2 + m_hc) * m_hc});  // [1, T, 24]
-        auto pre = reshape(slice_last(c, 0, m_hc), {1, -1, m_hc, 1});
+        const int64_t M = (2 + m_hc) * m_hc;
+        auto op = std::make_shared<ov::op::internal::HyperConnectionPre>(h,
+                                                                         weight(tag + "_fn.weight"),
+                                                                         reshape(weight(tag + "_scale.weight"), {3}),
+                                                                         reshape(weight(tag + "_base.weight"), {M}),
+                                                                         m_hc,
+                                                                         m_sk_iters,
+                                                                         m_hc_eps,
+                                                                         m_cfg.rms_eps);
         Mix mix;
-        mix.post = reshape(slice_last(c, m_hc, 2 * m_hc), {1, -1, m_hc, 1});
-        // comb is [src][dst]; transpose to [dst][src] so the post mix is a plain MatMul over src.
-        mix.comb = transpose(reshape(slice_last(c, 2 * m_hc, (2 + m_hc) * m_hc), {1, -1, m_hc, m_hc}), {0, 1, 3, 2});
-        auto y =
-            std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(h, pre), ci64({2}), false);
-        mix.y = reg(tag + "_pre", reshape(y, {1, 1, -1, m_cfg.n_embd}));
+        mix.y = reg(tag + "_pre", reshape(op->output(0), {1, 1, -1, m_cfg.n_embd}));
+        mix.post = reshape(op->output(1), {1, -1, m_hc});
+        mix.comb = op->output(2);
         return mix;
     }
 
-    // out[dst] = y * post[dst] + sum_src comb[src][dst] * h[src]
+    // out[dst] = y * post[dst] + sum_src comb[src][dst] * h[src], as one HyperConnectionPost op
     Out hc_post(const Out& y, const Out& h, const Mix& mix) {
-        auto y4 = reshape(y, {1, -1, 1, m_cfg.n_embd});
-        auto mixed = std::make_shared<ov::op::v0::MatMul>(mix.comb, h);  // [1, T, dst, E]
-        return std::make_shared<ov::op::v1::Add>(std::make_shared<ov::op::v1::Multiply>(y4, mix.post), mixed);
+        return std::make_shared<ov::op::internal::HyperConnectionPost>(reshape(y, {1, -1, m_cfg.n_embd}),
+                                                                       h,
+                                                                       mix.post,
+                                                                       mix.comb);
     }
 
     // ---- KDA (Kimi Delta Attention) ---------------------------------------------------------------------------
