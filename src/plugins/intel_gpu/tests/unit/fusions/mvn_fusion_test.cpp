@@ -327,6 +327,54 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize
     mvn_test_params{ CASE_MVN_3D_U8_5, 3, 4, 6 },
 }));
 
+struct mvn_scale_shift_params {
+    bool runtime_inputs;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+class mvn_scale_shift : public BaseFusingTest<mvn_scale_shift_params> {};
+TEST_P(mvn_scale_shift, last_axis) {
+    auto p = GetParam();
+    const layout input_layout_4d{data_types::f32, format::bfyx, tensor{2, 3, 32, 4}};
+    const layout affine_layout{data_types::f32, format::bfyx, tensor{1, 1, 32, 1}};
+    auto input = get_mem(input_layout_4d);
+    auto scale = get_mem(affine_layout);
+    auto shift = get_mem(affine_layout);
+
+    if (p.runtime_inputs) {
+        create_topologies(input_layout("scale", affine_layout), input_layout("shift", affine_layout));
+    } else {
+        create_topologies(data("scale", scale), data("shift", shift));
+    }
+    add_topologies(
+        input_layout("input", input_layout_4d),
+        mvn("mvn", input_info("input"), true, 1e-10f, false, {3}),
+        eltwise("multiply", {input_info("mvn"), input_info("scale")}, eltwise_mode::prod, data_types::f32),
+        eltwise("add", {input_info("multiply"), input_info("shift")}, eltwise_mode::sum, data_types::f32),
+        reorder("output", input_info("add"), format::bfyx, data_types::f32)
+    );
+
+    network fused(engine, topology_fused, cfg_fused);
+    network reference(engine, topology_non_fused, cfg_not_fused);
+    for (auto* net : {&fused, &reference}) {
+        net->set_input_data("input", input);
+        if (p.runtime_inputs) {
+            net->set_input_data("scale", scale);
+            net->set_input_data("shift", shift);
+        }
+    }
+
+    ASSERT_TRUE(has_node_with_type<mvn>(*fused.get_program()));
+    tolerance = 1e-5f;
+    compare(reference, fused, p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_shift, ::testing::Values(
+    mvn_scale_shift_params{false, 2, 4},
+    mvn_scale_shift_params{true, 4, 6}  // The two runtime inputs also count as executed primitives.
+));
+
 class mvn_eltwise : public MVNFusingTest {};
 TEST_P(mvn_eltwise, basic) {
     auto p = GetParam();
