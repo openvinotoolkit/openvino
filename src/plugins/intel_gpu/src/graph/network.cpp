@@ -1129,6 +1129,43 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     return result;
 }
 
+void network::execute_subgraph(const primitive_id& output_id) {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::ExecuteSubgraph");
+    OPENVINO_ASSERT(!_record_replay_session, "[GPU] Subgraph execution does not support record and replay");
+    auto it = _subgraph_exec_orders.find(output_id);
+    if (it == _subgraph_exec_orders.end()) {
+        std::unordered_set<const primitive_inst*> needed;
+        std::vector<const primitive_inst*> stack{find_primitive(output_id).get()};
+        while (!stack.empty()) {
+            const primitive_inst* inst = stack.back();
+            stack.pop_back();
+            if (needed.insert(inst).second) {
+                for (const auto& dep : inst->dependencies()) {
+                    stack.push_back(dep.first);
+                }
+            }
+        }
+        std::vector<std::shared_ptr<primitive_inst>> order;
+        for (const auto& inst : _exec_order) {
+            if (needed.count(inst.get())) {
+                order.push_back(inst);
+            }
+        }
+        it = _subgraph_exec_orders.emplace(output_id, std::move(order)).first;
+    }
+
+    set_arguments();
+    for (const auto& inst : it->second) {
+        inst->clear_events();
+        inst->prepare_primitive();
+        inst->execute();
+    }
+    get_stream().flush();
+    for (const auto& inst : it->second) {
+        inst->reset_flags();
+    }
+}
+
 const event::ptr& network::get_primitive_event(const primitive_id& id) const {
     return get_primitive(id)->get_impl_params()->out_event;
 }

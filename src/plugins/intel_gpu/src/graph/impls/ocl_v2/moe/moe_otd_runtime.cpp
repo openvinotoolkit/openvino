@@ -7,6 +7,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
+#include <iostream>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -17,14 +18,21 @@ void OtdPerfCounters::dump() const {
     const auto misses = gpu_misses.load(std::memory_order_relaxed);
     const auto total = hits + misses;
     const auto loads = tensor_load_count.load(std::memory_order_relaxed);
-    GPU_DEBUG_INFO << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
+    // printed on MOE_OTD_PERF_LOG also in release builds
+    std::cerr << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
                    << ", tensor_loads=" << loads << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                    << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                    << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
                    << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
                    << ", batched_fallbacks=" << batched_fallbacks.load(std::memory_order_relaxed)
                    << ", grouped_fallbacks=" << grouped_fallbacks.load(std::memory_order_relaxed)
-                   << ", created_onednn_kernels=" << created_onednn_kernels.load(std::memory_order_relaxed) << std::endl;
+                   << ", created_onednn_kernels=" << created_onednn_kernels.load(std::memory_order_relaxed)
+                   << ", les_prefetch_loads=" << les_prefetch_loads.load(std::memory_order_relaxed)
+                   << ", les_prefetch_resident=" << les_prefetch_resident.load(std::memory_order_relaxed)
+                   << ", les_prefetch_used=" << les_prefetch_used.load(std::memory_order_relaxed)
+                   << ", les_wait_ms=" << les_wait_ns.load(std::memory_order_relaxed) / 1000000
+                   << ", les_read_ms=" << les_read_ns.load(std::memory_order_relaxed) / 1000000
+                   << ", les_copy_ms=" << les_copy_ns.load(std::memory_order_relaxed) / 1000000 << std::endl;
 }
 
 OtdPerfCounters* get_perf_counters() {
@@ -71,6 +79,40 @@ void fill_weights_memory(cldnn::stream& exec_stream, ParallelWeightReader& weigh
         weight_reader.read(reinterpret_cast<char*>(payload.data()), tensor.slice_size, src_offset);
         const auto t1 = std::chrono::steady_clock::now();
         tensor.slots->copy_from(exec_stream, payload.data(), 0, slot * tensor.slice_size, tensor.slice_size, true);
+        if (perf) {
+            const auto t2 = std::chrono::steady_clock::now();
+            perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);
+            perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()),
+                                        std::memory_order_relaxed);
+            perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+}
+
+void fill_weights_memory_async(cldnn::stream& exec_stream,
+                               ParallelWeightReader& weight_reader,
+                               const std::vector<SlicedTensor>& tensors,
+                               size_t index,
+                               size_t slot,
+                               std::vector<std::vector<uint8_t>>& keep_alive) {
+    auto* perf = get_perf_counters();
+    const bool blocking = exec_stream.get_queue_type() != cldnn::QueueTypes::in_order;
+    for (const auto& tensor : tensors) {
+        if (tensor.source) {
+            tensor.slots->copy_from(exec_stream, *tensor.source, index * tensor.slice_size, slot * tensor.slice_size, tensor.slice_size, blocking);
+            continue;
+        }
+        const size_t src_offset = tensor.file_offset + (index * tensor.slice_size);
+        OPENVINO_ASSERT(src_offset <= weight_reader.file_size() && tensor.slice_size <= weight_reader.file_size() - src_offset,
+                        "Read range out of file: src_offset=",
+                        src_offset,
+                        ", slice_size=",
+                        tensor.slice_size);
+        auto& payload = keep_alive.emplace_back(tensor.slice_size);
+        const auto t0 = std::chrono::steady_clock::now();
+        weight_reader.read(reinterpret_cast<char*>(payload.data()), tensor.slice_size, src_offset);
+        const auto t1 = std::chrono::steady_clock::now();
+        tensor.slots->copy_from(exec_stream, payload.data(), 0, slot * tensor.slice_size, tensor.slice_size, blocking);
         if (perf) {
             const auto t2 = std::chrono::steady_clock::now();
             perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);

@@ -28,7 +28,8 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
-                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr,
+                  std::vector<cldnn::les_predictor> les_predictors = {});
     CompiledModel(cldnn::BinaryInputBuffer& ib,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
@@ -123,6 +124,11 @@ private:
     // the original weight-sharing producer is destroyed.
     ov::internal::WeightSharingCtxPtr m_weight_sharing_context;
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
+
+private:
+    // Expert predictors (ov::intel_gpu::les_predictor): one program, executed by a network per graph
+    std::vector<cldnn::les_predictor> m_les_predictors;
+    void attach_les_predictors(Graph& graph) const;
 };
 
 }  // namespace ov::intel_gpu

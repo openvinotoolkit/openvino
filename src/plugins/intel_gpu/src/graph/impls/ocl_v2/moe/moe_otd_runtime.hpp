@@ -30,6 +30,13 @@ struct OtdPerfCounters {
     std::atomic<uint64_t> batched_fallbacks{0};
     std::atomic<uint64_t> grouped_fallbacks{0};
     std::atomic<uint64_t> created_onednn_kernels{0};
+    // lookahead expert scheduling: experts loaded by a prefetch, predicted experts that were already resident
+    std::atomic<uint64_t> les_prefetch_loads{0};
+    std::atomic<uint64_t> les_prefetch_resident{0};
+    std::atomic<uint64_t> les_prefetch_used{0};  // prefetched experts the router selected
+    std::atomic<uint64_t> les_wait_ns{0};        // network thread waiting for prefetch tasks
+    std::atomic<uint64_t> les_read_ns{0};        // background reads
+    std::atomic<uint64_t> les_copy_ns{0};        // background device copies (enqueue + finish)
 
     void dump() const;
 };
@@ -93,5 +100,14 @@ struct SlicedTensor {
 /// Slices are read from the weights file as stored, or copied on the device from `source`. The file reads are complete on return;
 /// the device copies are not waited for on an in-order queue, where the kernels that read the slots are enqueued after them.
 void fill_weights_memory(cldnn::stream& exec_stream, ParallelWeightReader& weight_reader, const std::vector<SlicedTensor>& tensors, size_t index, size_t slot);
+
+/// Like fill_weights_memory, but the device copies of the file reads do not block on an in-order queue: the host buffers
+/// are appended to `keep_alive`, which must outlive the copies (e.g. until the next synchronization of the stream).
+void fill_weights_memory_async(cldnn::stream& exec_stream,
+                               ParallelWeightReader& weight_reader,
+                               const std::vector<SlicedTensor>& tensors,
+                               size_t index,
+                               size_t slot,
+                               std::vector<std::vector<uint8_t>>& keep_alive);
 
 }  // namespace ov::intel_gpu::ocl::moe_otd

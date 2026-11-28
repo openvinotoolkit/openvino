@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <vector>
 
 #include "common_utils/parallel_mem_streambuf.hpp"
@@ -20,7 +22,9 @@
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -32,7 +36,9 @@
 #include "intel_gpu/runtime/profiling.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/weights_prefetch.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -79,6 +85,11 @@ ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& con
     auto ctx = property_it->second.as<ov::internal::WeightSharingCtxPtr>();
     config.erase(property_it);
     return ctx;
+}
+
+bool les_log_enabled() {
+    static const bool enabled = std::getenv("MOE_OTD_PERF_LOG") != nullptr;
+    return enabled;
 }
 
 }  // namespace
@@ -313,8 +324,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     {
+        auto les_predictors = compile_les_predictors(device_id, config, context);
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context);
+        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context,
+                                               std::move(les_predictors));
     }
 }
 
@@ -344,8 +357,123 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                 context_impl->get_device().get_info().max_global_mem_size);
     }
 
+    auto les_predictors = compile_les_predictors(device_id, config, context_impl);
+    return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context,
+                                           std::move(les_predictors));
+}
 
-    return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context);
+std::vector<cldnn::les_predictor> Plugin::compile_les_predictors(const std::string& device_id,
+                                                                 const ExecutionConfig& config,
+                                                                 const std::shared_ptr<RemoteContextImpl>& context) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_les_predictors");
+    std::vector<cldnn::les_predictor> predictors;
+    const auto& model = config.get_les_predictor();
+    if (!model) {
+        return predictors;
+    }
+    if (!config.get_moe_lookahead_prefetch() || config.get_offload_ratio() == 0) {
+        if (les_log_enabled()) {
+            std::cerr << "LES: the expert predictor is not used without GPU_MOE_LOOKAHEAD_PREFETCH and OFFLOAD_RATIO > 0" << std::endl;
+        }
+        return predictors;
+    }
+    const std::string output_prefix = "les_experts.";
+    // The 0-based decoder layer of an output named <output_prefix><layer>, -1 if it has no such name
+    auto layer_of = [&](const std::unordered_set<std::string>& names) {
+        for (const auto& name : names) {
+            if (name.size() > output_prefix.size() && name.compare(0, output_prefix.size(), output_prefix) == 0 &&
+                std::all_of(name.begin() + output_prefix.size(), name.end(), [](unsigned char c) { return std::isdigit(c); })) {
+                return std::stoi(name.substr(output_prefix.size()));
+            }
+        }
+        return -1;
+    };
+    // The hidden states of the MoE layers, the inputs of the predictors, have the activations precision
+    const ov::element::Type hidden_type = config.get_inference_precision();
+    auto start = Time::now();
+
+    // The head of every output: the Parameters it depends on, the previous token input has "prev" in its name
+    struct HeadIO {
+        int layer;
+        size_t output_index;
+        int64_t hidden_index = -1, prev_index = -1;
+        int64_t hidden_size = 0;
+    };
+    auto predictors_model = model->clone();
+    std::vector<HeadIO> heads;
+    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+    std::unordered_set<const ov::Node*> used_parameters;
+    const auto& results = predictors_model->get_results();
+    for (size_t r = 0; r < results.size(); ++r) {
+        HeadIO head{layer_of(results[r]->output(0).get_names()), r};
+        OPENVINO_ASSERT(head.layer >= 0, "[GPU] GPU_LES_PREDICTOR: unexpected output ", results[r]->get_friendly_name(), ", expected ",
+                        output_prefix, "<layer>");
+        std::vector<ov::Node*> stack{results[r].get()};
+        std::unordered_set<ov::Node*> visited;
+        while (!stack.empty()) {
+            ov::Node* node = stack.back();
+            stack.pop_back();
+            if (!visited.insert(node).second) {
+                continue;
+            }
+            if (auto parameter = ov::as_type<ov::op::v0::Parameter>(node)) {
+                const bool is_prev = parameter->get_friendly_name().find("prev") != std::string::npos;
+                auto& index = is_prev ? head.prev_index : head.hidden_index;
+                OPENVINO_ASSERT(index < 0, "[GPU] GPU_LES_PREDICTOR: the head of ", output_prefix, head.layer, " has more than one ",
+                                is_prev ? "previous token" : "hidden states", " input");
+                OPENVINO_ASSERT(used_parameters.insert(parameter).second, "[GPU] GPU_LES_PREDICTOR: input ", parameter->get_friendly_name(),
+                                " is used by several heads");
+                const auto& shape = parameter->get_output_partial_shape(0);
+                OPENVINO_ASSERT(shape.rank().is_static() && shape.size() == 2 && shape[1].is_static(),
+                                "[GPU] GPU_LES_PREDICTOR: input ", parameter->get_friendly_name(), " must be [?, hidden_size], got ", shape);
+                OPENVINO_ASSERT(head.hidden_size == 0 || head.hidden_size == shape[1].get_length(),
+                                "[GPU] GPU_LES_PREDICTOR: the inputs of the head of ", output_prefix, head.layer, " have different hidden sizes");
+                head.hidden_size = shape[1].get_length();
+                index = predictors_model->get_parameter_index(std::static_pointer_cast<ov::op::v0::Parameter>(parameter->shared_from_this()));
+                shapes[parameter->output(0)] = ov::PartialShape{1, head.hidden_size};
+                continue;
+            }
+            for (const auto& input : node->input_values()) {
+                stack.push_back(input.get_node());
+            }
+        }
+        OPENVINO_ASSERT(head.hidden_index >= 0, "[GPU] GPU_LES_PREDICTOR: the head of ", output_prefix, head.layer, " has no hidden states input");
+        heads.push_back(head);
+    }
+    OPENVINO_ASSERT(used_parameters.size() == predictors_model->get_parameters().size(),
+                    "[GPU] GPU_LES_PREDICTOR: every input must belong to the head of an output ", output_prefix, "<layer>");
+
+    // One token, the inputs in the element type of the hidden states, so that they can be bound without copies
+    predictors_model->reshape(shapes);
+    ov::preprocess::PrePostProcessor ppp(predictors_model);
+    for (size_t i = 0; i < predictors_model->get_parameters().size(); ++i) {
+        ppp.input(i).tensor().set_element_type(hidden_type);
+    }
+    predictors_model = ppp.build();
+
+    ExecutionConfig base_config = m_configs_map.at(device_id);
+    auto transformed = clone_and_transform_model(predictors_model, base_config, context);
+    base_config.finalize(context.get(), transformed.get());
+    ProgramBuilder builder(transformed, context->get_engine(), base_config);
+    auto program = builder.get_compiled_program();
+    for (const auto& head : heads) {
+        cldnn::les_predictor predictor;
+        predictor.layer = head.layer;
+        predictor.prog = program;
+        predictor.hidden_type = hidden_type;
+        predictor.hidden_size = head.hidden_size;
+        predictor.hidden_id = builder.inputPrimitiveIDs.at(head.hidden_index).at(0);
+        if (head.prev_index >= 0) {
+            predictor.prev_id = builder.inputPrimitiveIDs.at(head.prev_index).at(0);
+        }
+        predictor.output_id = layer_type_name_ID(transformed->get_results().at(head.output_index));
+        predictors.push_back(std::move(predictor));
+    }
+    if (les_log_enabled()) {
+        std::cerr << "LES: compiled the expert predictors of " << predictors.size() << " MoE layers (hidden " << hidden_type << ") in "
+                  << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
+    }
+    return predictors;
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
@@ -906,6 +1034,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::moe_lookahead_prefetch.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::les_predictor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
     };
 

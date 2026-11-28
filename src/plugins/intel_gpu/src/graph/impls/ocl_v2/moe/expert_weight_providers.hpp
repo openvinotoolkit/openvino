@@ -7,7 +7,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <future>
+#include <unordered_map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -76,6 +79,10 @@ public:
                                                             const RoutedWeightViews& slot_buffers,
                                                             cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
+    void prefetch(const std::vector<uint32_t>& experts,
+                  const RoutedWeightViews& inputs,
+                  const RoutedWeightViews& slots,
+                  cldnn::stream& stream) override;
 
     LRUCache& cache() {
         return *_cache;
@@ -97,6 +104,25 @@ private:
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
     bool _bound = false;
+    // Lookahead expert scheduling: a predicted expert owns a reserved slot (in the LRU, not filled yet) that a
+    // background task fills: it reads the weight slices from the file and copies them on _copy_stream
+    struct PendingExpert {
+        size_t slot;
+        std::vector<std::future<void>> done;  // per weight tensor: read and device copies complete
+    };
+    // Waits for the prefetch of `expert` if there is one; `fill`: the slot still belongs to the expert
+    void finish_pending(uint32_t expert, bool fill);
+    // Waits for a prefetch whose slot the LRU just evicted for another expert
+    void finish_pending_in_slot(size_t slot);
+    void finish_all_pending(bool fill);
+    std::unordered_map<uint32_t, PendingExpert> _pending;
+    cldnn::stream::ptr _copy_stream;  // a second queue: the copies overlap with the kernels of the network stream
+    std::mutex _copy_mutex;           // the background tasks enqueue on _copy_stream one at a time
+
+public:
+    ~OffloadExpertWeightProvider() override;
+
+private:
     // Handles of the slot buffers the LRU describes, compared only to detect a re-allocation
     std::vector<const void*> _slot_handles;
 };

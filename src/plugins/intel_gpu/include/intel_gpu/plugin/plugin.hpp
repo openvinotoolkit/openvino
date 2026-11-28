@@ -11,6 +11,10 @@
 #include <string>
 #include <memory>
 
+namespace cldnn {
+struct les_predictor;
+}  // namespace cldnn
+
 namespace ov::intel_gpu {
 
 class Plugin : public ov::IPlugin {
@@ -33,6 +37,11 @@ private:
                                                                 const std::shared_ptr<RemoteContextImpl>& context);
     static void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context);
     static void register_primitives();
+    // Compiles the expert predictor of ov::intel_gpu::les_predictor, used only with moe_lookahead_prefetch and offloaded
+    // MoE experts
+    std::vector<cldnn::les_predictor> compile_les_predictors(const std::string& device_id,
+                                                             const ExecutionConfig& config,
+                                                             const std::shared_ptr<RemoteContextImpl>& context) const;
     static bool is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model);
     static void set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model);
     static void create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config);
