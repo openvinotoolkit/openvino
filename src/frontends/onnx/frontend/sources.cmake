@@ -22,6 +22,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/average_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/batch_norm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/bernoulli.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/bitshift.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/bitwise_and.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/bitwise_not.cpp
