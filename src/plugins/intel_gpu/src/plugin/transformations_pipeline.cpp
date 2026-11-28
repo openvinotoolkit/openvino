@@ -448,6 +448,37 @@ bool has_shared_kv_cache_vars(const std::shared_ptr<ov::Model>& model) {
     }
     return false;
 }
+
+// The GatherMatmulCompressed primitive takes a zero point only when it has one value per scale group
+// (has_zp = shape_size(zp) > 1), so a scalar (per-tensor) zero point left on an unfused node is dropped and the
+// result is wrong. Broadcast it to the scales' shape; u3 zero points are given as u8 for the oneDNN grouped matmul.
+class ExpandGatherMatmulScalarZeroPoint : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ExpandGatherMatmulScalarZeroPoint");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        bool changed = false;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::internal::GatherMatmulCompressed>(node) || node->get_input_size() < 6) {
+                continue;
+            }
+            const auto wei_type = node->get_input_element_type(1);
+            const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(5));
+            const auto scales = node->input_value(4);
+            if (!zp || zp->get_element_type() == ov::element::dynamic || ov::shape_size(zp->get_shape()) != 1 ||
+                scales.get_partial_shape().is_dynamic() || ov::shape_size(scales.get_shape()) <= 1 || !wei_type.is_integral()) {
+                continue;
+            }
+            const auto value = zp->cast_vector<int64_t>()[0];
+            const auto zp_type = wei_type == ov::element::u3 ? ov::element::u8 : wei_type;
+            auto full = ov::op::v0::Constant::create(zp_type, scales.get_shape(), {value});
+            full->set_friendly_name(zp->get_friendly_name() + "/broadcast");
+            ov::copy_runtime_info(zp, full);
+            node->input(5).replace_source_output(full);
+            changed = true;
+        }
+        return changed;
+    }
+};
 }  // namespace
 
 static bool should_decompose_sdpa_for_memory_size(size_t max_size,
@@ -1125,6 +1156,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
+            // Runs after the MoE fusions, which consume scalar zero points themselves.
+            manager.register_pass<ExpandGatherMatmulScalarZeroPoint>();
         }
 
         register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
