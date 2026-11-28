@@ -170,6 +170,15 @@ std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(
     return concats;
 }
 
+bool is_model_result_output(const std::shared_ptr<ov::Model>& model, const ov::Output<ov::Node>& output) {
+    for (const auto& result : model->get_results()) {
+        if (same_output(result->input_value(0), output)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 PaKVReorderFusion::PaKVReorderFusion(ov::element::Type cache_precision) : m_cache_precision(cache_precision) {}
@@ -213,7 +222,8 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
         const auto concat_consumers =
             get_joint_concat_consumers(key_path.scatter->output(0), value_path.scatter->output(0));
-        if (concat_consumers.empty()) {
+        if (concat_consumers.empty() && !(is_model_result_output(m, key_path.scatter->output(0)) &&
+                                          is_model_result_output(m, value_path.scatter->output(0)))) {
             continue;
         }
 
@@ -237,16 +247,15 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
         }
         ov::copy_runtime_info(runtime_info_nodes, pa_kv_reorder);
 
-        pa_kv_reorder->output(0).get_tensor().set_names(concat_consumers.front()->output(0).get_tensor().get_names());
-
-        for (const auto& concat : concat_consumers) {
-            for (const auto& target_input : concat->output(0).get_target_inputs()) {
-                if (auto result = ov::as_type_ptr<ov::op::v0::Result>(target_input.get_node()->shared_from_this())) {
-                    result->set_argument(0, pa_kv_reorder->output(0));
-                }
+        for (const auto& result : m->get_results()) {
+            if (same_output(result->input_value(0), key_path.scatter->output(0))) {
+                result->set_argument(0, pa_kv_reorder->output(0));
+            } else if (same_output(result->input_value(0), value_path.scatter->output(0))) {
+                result->set_argument(0, pa_kv_reorder->output(1));
             }
-            ov::replace_output_update_name(concat->output(0), pa_kv_reorder->output(0));
         }
+        ov::replace_output_update_name(key_path.scatter->output(0), pa_kv_reorder->output(0));
+        ov::replace_output_update_name(value_path.scatter->output(0), pa_kv_reorder->output(1));
         rewritten = true;
     }
 

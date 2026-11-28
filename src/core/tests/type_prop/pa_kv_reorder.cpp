@@ -29,9 +29,11 @@ TEST_F(TypePropPaKVReorderTest, static_shapes) {
                             block_update_indices,
                             block_update_indices_begins);
 
-    EXPECT_EQ(op->get_output_element_type(0), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1}));
-    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{100, 8, 64, 16}));
+    EXPECT_EQ(op->get_output_element_type(1), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{100, 8, 16, 64}));
+    EXPECT_EQ(op->get_output_size(), 2);
 }
 
 TEST_F(TypePropPaKVReorderTest, dynamic_batch) {
@@ -54,8 +56,10 @@ TEST_F(TypePropPaKVReorderTest, dynamic_batch) {
                             block_update_indices,
                             block_update_indices_begins);
 
-    EXPECT_EQ(op->get_output_element_type(0), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 8, 64, 16}));
+    EXPECT_EQ(op->get_output_element_type(1), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic(), 8, 16, 64}));
 }
 
 TEST_F(TypePropPaKVReorderTest, fully_dynamic_shapes) {
@@ -74,8 +78,10 @@ TEST_F(TypePropPaKVReorderTest, fully_dynamic_shapes) {
                             block_update_indices,
                             block_update_indices_begins);
 
-    EXPECT_EQ(op->get_output_element_type(0), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic(4)));
+    EXPECT_EQ(op->get_output_element_type(1), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape::dynamic(4)));
 }
 
 TEST_F(TypePropPaKVReorderTest, dynamic_rank) {
@@ -93,8 +99,10 @@ TEST_F(TypePropPaKVReorderTest, dynamic_rank) {
                             block_update_indices,
                             block_update_indices_begins);
 
-    EXPECT_EQ(op->get_output_element_type(0), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_EQ(op->get_output_element_type(1), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(1), PartialShape::dynamic());
 }
 
 TEST_F(TypePropPaKVReorderTest, invalid_key_cache_rank) {
@@ -184,8 +192,10 @@ TEST_F(TypePropPaKVReorderTest, i8_cache) {
                             block_update_indices,
                             block_update_indices_begins);
 
-    EXPECT_EQ(op->get_output_element_type(0), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1}));
+    EXPECT_EQ(op->get_output_element_type(0), element::i8);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{100, 8, 64, 16}));
+    EXPECT_EQ(op->get_output_element_type(1), element::i8);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{100, 8, 16, 64}));
 }
 
 }  // namespace ov::test
