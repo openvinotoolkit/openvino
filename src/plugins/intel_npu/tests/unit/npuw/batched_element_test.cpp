@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/common_utils.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
@@ -680,21 +681,37 @@ TEST_F(NPUWBatchedElementTest, SingleRowPreBoundOutputWrittenInPlace) {
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer"}));
 }
 
+// Each run writes its model into a directory of its own: on Windows a model file
+// that another run still has mapped cannot be rewritten.
+class NPUWBatchedElementRoundTrip : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_dir = std::filesystem::temp_directory_path() /
+                (ov::test::utils::generateTestFilePrefix() + "_npuw_batched_round_trip");
+        std::filesystem::create_directories(m_dir);
+    }
+
+    void TearDown() override {
+        std::error_code ec;
+        std::filesystem::remove_all(m_dir, ec);
+    }
+
+    std::filesystem::path m_dir;
+};
+
 // The blob round trip on the real import path: the synthetic LLM is written to
 // disk like a converted model, so its constants carry weights-file offsets and
 // the blob is weightless. Compiled with the rerank tag it exports a batched blob,
 // the import dispatch rebuilds the wrapper from it with only WEIGHTS_PATH
 // supplied, and the imported model stacks a batch row for row like the compiled
 // one scores single prompts.
-TEST(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
+TEST_F(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
     constexpr std::size_t kRows = 3;
     constexpr std::size_t kLen = 6;
 
     ov::Core core;
-    const auto tmp = std::filesystem::temp_directory_path() / "npuw_batched_round_trip";
-    std::filesystem::create_directories(tmp);
-    const auto xml = tmp / "model.xml";
-    const auto bin = tmp / "model.bin";
+    const auto xml = m_dir / "model.xml";
+    const auto bin = m_dir / "model.bin";
     auto model = build_llm_test_model();
     ov::serialize(model, xml.string(), bin.string());
     model = core.read_model(xml.string(), bin.string());

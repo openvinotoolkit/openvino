@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_infer_request.hpp"
@@ -483,7 +484,8 @@ std::vector<ov::Tensor> run_prefill_and_generate_logits(ov::CompiledModel& compi
 class LLM4DFloatAttentionMaskRoundTrip : public ::testing::Test {
 protected:
     void SetUp() override {
-        m_dir = std::filesystem::temp_directory_path() / "npuw_4d_float_mask_round_trip";
+        m_dir = std::filesystem::temp_directory_path() /
+                (ov::test::utils::generateTestFilePrefix() + "_npuw_4d_float_mask_round_trip");
         std::filesystem::create_directories(m_dir);
     }
 
