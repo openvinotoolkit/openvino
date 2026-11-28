@@ -162,8 +162,6 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         });
         break;
     case Algorithm::MathHardSigmoid:
-        alpha = (alpha == 0.0F) ? 0.2F : alpha;
-        beta = (beta == 0.0F) ? 0.5F : beta;
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = (std::max)(0.F, (std::min)(1.F, alpha * src_data[i] + beta));
         });
@@ -179,8 +177,6 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         });
         break;
     case Algorithm::MathSelu:
-        alpha = (alpha == 0.0F) ? 1.67326F : alpha;
-        gamma = (gamma == 0.0F) ? 1.0507F : gamma;
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
             dst_data[i] = (x > 0.0F) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0F));
