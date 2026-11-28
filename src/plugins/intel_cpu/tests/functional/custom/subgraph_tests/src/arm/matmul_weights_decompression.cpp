@@ -43,6 +43,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_Kleidiai,
                        ::testing::Values(true)),
     MatmulWeightsDecompression::getTestCaseName);
 
+const std::vector<MatMulDecompressionShapeParams> input_shapes_kleidiai_activations = {
+    {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
+    {{{}, {{1, 4, 48}}}, {48, 256}},
+};
+const std::vector<fusingSpecificParams> fusing_params_kleidiai_activations{fusingRelu,
+                                                                           fusingSigmoid,
+                                                                           fusingTanh,
+                                                                           fusingElu,
+                                                                           fusingClamp,
+                                                                           fusingSoftPlus};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_Kleidiai_Activations,
+    MatmulWeightsDecompression,
+    ::testing::Combine(::testing::ValuesIn(input_shapes_kleidiai_activations),
+                       ::testing::ValuesIn(weights_precisions_kleidiai),
+                       ::testing::ValuesIn(decompression_precisions),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(true),
+                       ::testing::Values(DecompressionType::full),
+                       ::testing::Values(DecompressionType::empty),
+                       ::testing::Values(false),
+                       ::testing::Values(enable_dyn_quant_config_kleidiai),
+                       ::testing::ValuesIn(fusing_params_kleidiai_activations),
+                       ::testing::Values(true)),
+    MatmulWeightsDecompression::getTestCaseName);
+
 const std::vector<MatMulDecompressionShapeParams> group_input_shape_params_kleidiai = {
     // dynamic batch dim, multiple concrete shapes exercised, IC/group_size=64/32 -> numGroups=2
     {
