@@ -97,8 +97,10 @@ public:
 
 private:
     static std::mutex _mutex;
+    engine& _engine;
     const device::ptr _device;
     std::shared_ptr<kernel_builder> _builder;
+    std::once_flag _builder_init_once;
     std::shared_ptr<ov::threading::ITaskExecutor> _task_executor;
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
@@ -111,6 +113,7 @@ private:
     std::unordered_map<kernel_impl_params, size_t, impl_hasher> _kernel_batch_hash;
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>* /*all_batches*/) const;
     void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
+    void ensure_builder();
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;

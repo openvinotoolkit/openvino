@@ -7,6 +7,13 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_NVIDIA)
+#include "impls/onednn/pooling_onednn.hpp"
+#include "primitive_inst.h"
+#include "program_wrapper.h"
+#include "registry/implementation_manager.hpp"
+#endif
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
@@ -3299,6 +3306,168 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
 
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(OV_GPU_VENDOR_NVIDIA)
+static bool validates_nvidia_avg_pooling(ov::op::PadType auto_pad,
+                                        const ov::Shape& pads_begin,
+                                        const ov::Shape& pads_end,
+                                        ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
+                                        const ov::PartialShape& input_shape = {1, 1, 3, 3}) {
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    program prog(engine, config);
+    const layout input_layout_desc{input_shape, data_types::f32, format::bfyx};
+    auto input = std::make_shared<input_layout>("input", input_layout_desc);
+    auto pool = std::make_shared<pooling>("pool",
+                                         input_info("input"),
+                                         pooling_mode::average,
+                                         ov::Shape{2, 2},
+                                         ov::Strides{2, 2},
+                                         pads_begin,
+                                         pads_end,
+                                         auto_pad,
+                                         rounding_type);
+    auto& input_node = prog.get_or_create(input);
+    auto& pool_node = prog.get_or_create(pool);
+    program_wrapper::add_connection(prog, input_node, pool_node);
+    pool_node.recalc_output_layout();
+    return onednn::PoolingImplementationManager(shape_types::static_shape).validate_impl(pool_node);
+}
+
+TEST(pooling_gpu_nvidia, onednn_avg_pooling_rejects_larger_trailing_padding) {
+    EXPECT_FALSE(validates_nvidia_avg_pooling(ov::op::PadType::EXPLICIT, {0, 0}, {1, 1}));
+    EXPECT_FALSE(validates_nvidia_avg_pooling(ov::op::PadType::SAME_UPPER, {0, 0}, {0, 0}));
+    EXPECT_FALSE(validates_nvidia_avg_pooling(ov::op::PadType::EXPLICIT, {0, 0}, {0, 0}, ov::op::RoundingType::CEIL));
+    EXPECT_TRUE(validates_nvidia_avg_pooling(ov::op::PadType::EXPLICIT, {0, 0}, {0, 0}));
+    EXPECT_TRUE(validates_nvidia_avg_pooling(ov::op::PadType::SAME_LOWER, {0, 0}, {0, 0}));
+    EXPECT_FALSE(validates_nvidia_avg_pooling(ov::op::PadType::SAME_UPPER,
+                                             {0, 0},
+                                             {0, 0},
+                                             ov::op::RoundingType::FLOOR,
+                                             ov::PartialShape{1, 1, -1, -1}));
+}
+
+TEST(pooling_gpu_nvidia, onednn_rejects_plain_rank_three) {
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    for (auto mode : {pooling_mode::max, pooling_mode::average, pooling_mode::average_no_padding}) {
+        for (auto auto_pad : {ov::op::PadType::EXPLICIT, ov::op::PadType::SAME_UPPER}) {
+            SCOPED_TRACE(static_cast<int>(mode));
+            SCOPED_TRACE(static_cast<int>(auto_pad));
+            program prog(engine, config);
+            const layout input_lay{ov::PartialShape{1, 1, 4}, data_types::f32, format::bfyx};
+            auto input = std::make_shared<input_layout>("input", input_lay);
+            auto pool = std::make_shared<pooling>("pool", input_info("input"), mode,
+                                                  ov::Shape{2}, ov::Strides{2}, ov::Shape{0}, ov::Shape{0}, auto_pad);
+            auto& input_node = prog.get_or_create(input);
+            auto& pool_node = prog.get_or_create(pool);
+            program_wrapper::add_connection(prog, input_node, pool_node);
+            pool_node.recalc_output_layout();
+            ASSERT_EQ(pool_node.get_input_layout().get_partial_shape().rank(), 3);
+            ASSERT_EQ(pool_node.get_output_layout().get_partial_shape().rank(), 3);
+            EXPECT_FALSE(onednn::PoolingImplementationManager(shape_types::static_shape).validate_impl(pool_node));
+        }
+    }
+}
+
+TEST(pooling_gpu_nvidia, onednn_valid_ignores_attribute_padding) {
+    auto& engine = get_test_engine();
+    const layout input_lay{ov::PartialShape{1, 1, 4, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(input_lay);
+    set_values(input_mem, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    for (auto mode : {pooling_mode::max, pooling_mode::average, pooling_mode::average_no_padding}) {
+        for (bool cached : {false, true}) {
+            SCOPED_TRACE(static_cast<int>(mode));
+            SCOPED_TRACE(cached);
+            topology topology(input_layout("input", input_lay),
+                              pooling("pool", input_info("input"), mode, {2, 2}, {2, 2}, {1, 1}, {1, 1},
+                                      ov::op::PadType::VALID));
+            auto network = get_network(engine, topology, config, get_test_stream_ptr(), cached);
+            const auto* impl = network->get_primitive("pool")->get_impl();
+            ASSERT_NE(impl, nullptr);
+            ASSERT_NE(impl->m_manager, nullptr);
+            ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+            network->set_input_data("input", input_mem);
+            auto outputs = network->execute();
+            auto output_mem = outputs.at("pool").get_memory();
+            ASSERT_EQ(output_mem->get_layout().get_partial_shape(), (ov::PartialShape{1, 1, 2, 2}));
+            cldnn::mem_lock<float, mem_lock_type::read> output(output_mem, get_test_stream());
+            const auto expected = mode == pooling_mode::max ? std::vector<float>{6, 8, 14, 16}
+                                                           : std::vector<float>{3.5F, 5.5F, 11.5F, 13.5F};
+            for (size_t i = 0; i < expected.size(); ++i) {
+                EXPECT_FLOAT_EQ(output[i], expected[i]);
+            }
+        }
+    }
+}
+
+TEST(pooling_gpu_nvidia, onednn_avg_pooling_same_lower_cache_restore) {
+    auto& engine = get_test_engine();
+    const layout input_layout_desc{data_types::f32, format::bfyx, {1, 1, 3, 3}};
+    auto input_mem = engine.allocate_memory(input_layout_desc);
+    set_values(input_mem, std::vector<float>{1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F, 9.0F});
+
+    topology topology(input_layout("input", input_layout_desc),
+                      pooling("pool", input_info("input"), pooling_mode::average, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                              ov::op::PadType::SAME_LOWER));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    const auto* impl = network->get_primitive("pool")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_NE(impl->m_manager, nullptr);
+    ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+
+    network->set_input_data("input", input_mem);
+    auto outputs = network->execute();
+    auto output_mem = outputs.at("pool").get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), (ov::PartialShape{1, 1, 2, 2}));
+    cldnn::mem_lock<float, mem_lock_type::read> output(output_mem, get_test_stream());
+    const std::vector<float> expected{0.25F, 1.25F, 2.75F, 7.0F};
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_FLOAT_EQ(output[i], expected[i]);
+    }
+}
+
+TEST(pooling_gpu_nvidia, onednn_fp32_max_pooling_cache_restore) {
+    auto& engine = get_test_engine();
+    const layout input_layout_desc{data_types::f32, format::bfyx, {1, 1, 2, 2}};
+    auto input_mem = engine.allocate_memory(input_layout_desc);
+    set_values(input_mem, std::vector<float>{-4.0F, -2.0F, -3.0F, -1.0F});
+
+    topology topology(input_layout("input", input_layout_desc),
+                      pooling("pool", input_info("input"), pooling_mode::max, {2, 2}, {1, 1}));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    const auto* impl = network->get_primitive("pool")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_NE(impl->m_manager, nullptr);
+    ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+
+    network->set_input_data("input", input_mem);
+    auto outputs = network->execute();
+    auto output_mem = outputs.at("pool").get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), (ov::PartialShape{1, 1, 1, 1}));
+    cldnn::mem_lock<float, mem_lock_type::read> output(output_mem, get_test_stream());
+    EXPECT_FLOAT_EQ(output[0], -1.0F);
+}
+#endif  // OV_GPU_VENDOR_NVIDIA
+
 TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)

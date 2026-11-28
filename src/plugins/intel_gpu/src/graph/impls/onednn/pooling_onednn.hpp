@@ -7,6 +7,7 @@
 #include "registry/implementation_manager.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <memory>
 
 namespace cldnn {
@@ -20,10 +21,15 @@ struct PoolingImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<pooling>());
         const auto& config = node.get_program().get_config();
-        const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
+        if (!config.get_use_onednn()) {
             return false;
         }
+#ifndef OV_GPU_VENDOR_NVIDIA
+        const auto& info = node.get_program().get_engine().get_device_info();
+        if (!info.supports_immad || info.arch == gpu_arch::unknown) {
+            return false;
+        }
+#endif
 
         const auto& in_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
@@ -34,6 +40,17 @@ struct PoolingImplementationManager : public ImplementationManager {
             return false;
         }
 
+#ifdef OV_GPU_VENDOR_NVIDIA
+        static const std::vector<format::type> supported_formats = {
+            format::any,
+            format::bfyx,
+            format::bfzyx,
+            format::byxf,
+            format::bzyxf,
+        };
+        const bool fp_case = everyone_is(in_dt, out_dt) && one_of(in_dt, {ov::element::f32, ov::element::f16, ov::element::bf16});
+        const bool u8s8_case = everyone_is(ov::element::i8, in_dt, out_dt);
+#else
         static const std::vector<format::type> supported_formats = {
             format::any,
             format::bfyx,
@@ -71,6 +88,7 @@ struct PoolingImplementationManager : public ImplementationManager {
         bool fp_case = one_of(in_dt, {ov::element::f16, ov::element::bf16}) && everyone_is(in_dt, out_dt);
         bool u8s8_case = one_of(in_dt, {ov::element::i8, ov::element::u8}) &&
                          one_of(out_dt, {ov::element::i8, ov::element::u8, ov::element::f32, ov::element::f16, ov::element::bf16});
+#endif
 
         if (!fp_case && !u8s8_case) {
             return false;
@@ -80,8 +98,28 @@ struct PoolingImplementationManager : public ImplementationManager {
             return false;
         }
 
+#ifdef OV_GPU_VENDOR_NVIDIA
+        const auto prim = node.as<pooling>().get_primitive();
+        // Plain rank-three descriptors have one spatial axis, while pooling
+        // geometry currently expands the kernel and stride to at least two.
+        if (in_layout.get_partial_shape().rank() == 3 || out_layout.get_partial_shape().rank() == 3) {
+            return false;
+        }
+        if (!prim->indices_output.pid.empty() || prim->num_outputs != 1 || get_post_ops_count(node) > 0 ||
+            std::any_of(prim->dilation.begin(), prim->dilation.end(), [](size_t dilation) { return dilation > 1; })) {
+            return false;
+        }
+        if (prim->mode == pooling_mode::average && has_unsupported_average_padding(*prim, in_layout, out_layout)) {
+            return false;
+        }
+#endif
         return is_supported_post_ops(node);
     }
+
+#ifdef OV_GPU_VENDOR_NVIDIA
+private:
+    static bool has_unsupported_average_padding(const pooling& prim, const layout& in_layout, const layout& out_layout);
+#endif
 };
 
 }  // namespace onednn
