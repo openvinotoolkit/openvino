@@ -3,11 +3,14 @@
 //
 
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/op_extension.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -17,14 +20,44 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/op/atan2.hpp"
+
+#include <pugixml.hpp>
 
 #include <sstream>
 #include <sys/types.h>
 #include <vector>
+#include <unordered_map>
 
 namespace ov::intel_gpu {
 
 namespace {
+std::shared_ptr<ov::Model> read_custom_shape_model(const std::shared_ptr<ov::ICore>& core,
+                                                 const std::string& xml) {
+    try {
+        return core->read_model(xml, ov::Tensor{}, true);
+    } catch (const ov::Exception&) {
+        // The importing Core still owns user extensions. Only retry the reproduced
+        // GPU-fused Atan2 case with a private frontend, without changing Core's registry.
+        pugi::xml_document document;
+        OPENVINO_ASSERT(document.load_buffer(xml.data(), xml.size()), "[GPU] Invalid custom shape IR");
+        bool internal_atan2 = false;
+        for (const auto& layer : document.child("net").child("layers").children("layer")) {
+            internal_atan2 |= std::string(layer.attribute("type").value()) == "Atan2" &&
+                              std::string(layer.attribute("version").value()) == "ie_internal_opset";
+        }
+        if (!internal_atan2) {
+            throw;
+        }
+    }
+    ov::frontend::FrontEndManager manager;
+    auto frontend = manager.load_by_framework("ir");
+    OPENVINO_ASSERT(frontend, "[GPU] Custom shape inference requires the IR frontend");
+    frontend->add_extension(std::make_shared<ov::OpExtension<ov::intel_gpu::op::Atan2>>());
+    std::istringstream stream(xml);
+    return frontend->convert(frontend->load(static_cast<std::istream*>(&stream)));
+}
+
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                    const ExecutionConfig& config) {
     if (config.get_exclusive_async_requests()) {
@@ -147,7 +180,10 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                 param_names.emplace(name);
             }
 
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(param_element_type, param_shape);
+            // Allocate public port nodes and their shared-pointer control blocks in
+            // the core runtime, so copied ports do not require the GPU library.
+            auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(
+                ov::op::v0::Parameter(param_element_type, param_shape).clone_with_new_inputs({}));
             new_param->set_friendly_name(param_name);
             new_param->set_element_type(param_element_type);
             new_param->output(0).get_tensor().set_names(param_names);
@@ -185,11 +221,11 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                 param_names.emplace(name);
             }
 
-            auto fake_param = std::make_shared<ov::op::v0::Parameter>(fake_element_type, fake_shape);
+            auto fake_param = ov::op::v0::Parameter(fake_element_type, fake_shape).clone_with_new_inputs({});
             fake_param->set_friendly_name(fake_name);
             fake_param->validate_and_infer_types();
 
-            auto new_result = std::make_shared<ov::op::v0::Result>(fake_param);
+            auto new_result = ov::op::v0::Result(fake_param).clone_with_new_inputs({fake_param});
             new_result->set_friendly_name(param_name);
             new_result->output(0).get_tensor().set_names(param_names);
             new_result->validate_and_infer_types();
@@ -197,6 +233,18 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
         }
     }
 
+    using ShapeModels = std::unordered_map<std::string, std::shared_ptr<ov::Model>>;
+    auto shape_models = std::make_shared<ShapeModels>();
+    ib.set_model_reader([core = plugin->get_core(), shape_models](const std::string& xml) {
+        OPENVINO_ASSERT(core, "[GPU] Importing Core is not available");
+        auto found = shape_models->find(xml);
+        if (found == shape_models->end()) {
+            found = shape_models->emplace(xml, read_custom_shape_model(core, xml)).first;
+        }
+        // Runtime shape inference already clones the operation before assigning
+        // concrete inputs. Share only the parsed prototype and its library owners.
+        return found->second;
+    });
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     // Graph serialization already preserves its finalized ExecutionConfig. Propagate resolved
     // compilation options to the compiled-model config so get_property() reflects the imported graph.
@@ -307,12 +355,12 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v2 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
+    // v3 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
     // The desc fields are the device properties that invalidate a compiled blob if changed:
     //   rt (compile-time runtime - OCL/ZE store incompatible kernel binaries), driver (owns the
     //   kernel binaries), ip (GFX IP hardware version), eus (execution units).
     std::ostringstream ss;
-    ss << "meta=1.0"
+    ss << "meta=1.1"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
        << ";desc=[rt=" << cldnn::get_runtime_cache_tag()
        << ";driver=" << info.driver_version

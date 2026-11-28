@@ -6,6 +6,13 @@
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/pass/serialize.hpp"
+#include <algorithm>
+#include <sstream>
 #include <vector>
 #include <string>
 
@@ -67,10 +74,12 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         int batchDim = 0, featureDim = 0, yDim = 0, xDim = 0;
         // if calcWgDimInputIdx is greater than -1, take dimension from input
         if (calcWgDimInputIdx >= 0) {
-            xDim = GetDim(inputDims[inputDims.size() - 1]);
-            yDim = dims.size() > 1 ? GetDim(inputDims[inputDims.size() - 2]) : 0;
-            featureDim = dims.size() > 2 ? GetDim(inputDims[inputDims.size() - 3]) : 0;
-            batchDim = dims.size() > 3 ? GetDim(inputDims[inputDims.size() - 4]) : 0;
+            OPENVINO_ASSERT(inputDims.rank().is_static(), "[GPU] Work-size input rank must be known");
+            const auto input_rank = inputDims.size();
+            xDim = input_rank > 0 ? GetDim(inputDims[input_rank - 1]) : 1;
+            yDim = input_rank > 1 ? GetDim(inputDims[input_rank - 2]) : 1;
+            featureDim = input_rank > 2 ? GetDim(inputDims[input_rank - 3]) : 1;
+            batchDim = input_rank > 3 ? GetDim(inputDims[input_rank - 4]) : 1;
         } else {
             batchDim = (dims.size() > 0) ? GetDim(dims[0]) : 1;
             featureDim = (dims.size() > 1) ? GetDim(dims[1]) : 1;
@@ -148,12 +157,12 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
     /// @brief Original IR op
-    const std::shared_ptr<ov::Node> op;
+    std::shared_ptr<ov::Node> op;
     /// @brief -1: mean calc gws via output, else calc gws via inputs
-    const int calcWgDimInputIdx = -1;
+    int calcWgDimInputIdx = -1;
     /// @brief Custom provided rules for calc work sizes.
-    const std::vector<std::string> globalSizeRules;
-    const std::vector<std::string> localSizeRules;
+    std::vector<std::string> globalSizeRules;
+    std::vector<std::string> localSizeRules;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -167,6 +176,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         seed = hash_range(seed, kernels_code.begin(), kernels_code.end());
         seed = hash_range(seed, gws.begin(), gws.end());
         seed = hash_range(seed, lws.begin(), lws.end());
+        seed = hash_combine(seed, calcWgDimInputIdx);
+        seed = hash_range(seed, globalSizeRules.begin(), globalSizeRules.end());
+        seed = hash_range(seed, localSizeRules.begin(), localSizeRules.end());
         return seed;
     }
 
@@ -197,7 +209,8 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
             return false;
         }
 
-        return lws == rhs_casted.lws;
+        return lws == rhs_casted.lws && calcWgDimInputIdx == rhs_casted.calcWgDimInputIdx &&
+               globalSizeRules == rhs_casted.globalSizeRules && localSizeRules == rhs_casted.localSizeRules;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -209,6 +222,38 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ob << gws;
         ob << lws;
         ob << kernels_code;
+        const uint64_t schema = 0x435553544f4d3032ULL;
+        ob << schema;
+        ob << calcWgDimInputIdx;
+        ob << globalSizeRules;
+        ob << localSizeRules;
+        std::string shape_model;
+        const bool dynamic_output = std::any_of(output_layouts.begin(), output_layouts.end(),
+                                               [](const layout& output) { return output.is_dynamic(); });
+        if (dynamic_output) {
+            OPENVINO_ASSERT(op, "[GPU] Dynamic custom primitive has no shape inference operation");
+            ov::ParameterVector parameters;
+            ov::OutputVector inputs;
+            for (size_t port = 0; port < op->get_input_size(); ++port) {
+                auto parameter = std::make_shared<ov::op::v0::Parameter>(
+                    op->get_input_element_type(port), op->get_input_partial_shape(port));
+                parameter->set_friendly_name("shape_input_" + std::to_string(port));
+                parameters.push_back(parameter);
+                inputs.push_back(parameter);
+            }
+            auto independent = op->clone_with_new_inputs(inputs);
+            independent->set_friendly_name("shape_operation");
+            independent->validate_and_infer_types();
+            auto model = std::make_shared<ov::Model>(independent->outputs(), parameters, "custom_shape");
+            for (size_t port = 0; port < model->get_results().size(); ++port) {
+                model->get_results()[port]->set_friendly_name("shape_output_" + std::to_string(port));
+            }
+            std::ostringstream xml, weights;
+            ov::pass::Serialize(xml, weights).run_on_model(model);
+            OPENVINO_ASSERT(weights.str().empty(), "[GPU] Custom shape inference model must not contain weights");
+            shape_model = xml.str();
+        }
+        ob << shape_model;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -220,6 +265,59 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ib >> *const_cast<std::vector<size_t>*>(&gws);
         ib >> *const_cast<std::vector<size_t>*>(&lws);
         ib >> *const_cast<primitive_id_arr*>(&kernels_code);
+        uint64_t schema = 0;
+        ib >> schema;
+        OPENVINO_ASSERT(schema == 0x435553544f4d3032ULL,
+                        "[GPU] Incompatible custom primitive cache schema");
+        ib >> calcWgDimInputIdx;
+        ib >> globalSizeRules;
+        ib >> localSizeRules;
+        std::string shape_model;
+        ib >> shape_model;
+        const bool dynamic_output = std::any_of(output_layouts.begin(), output_layouts.end(),
+                                               [](const layout& output) { return output.is_dynamic(); });
+        OPENVINO_ASSERT(dynamic_output == !shape_model.empty(),
+                        "[GPU] Custom shape inference model does not match the cached output contract");
+        op.reset();
+        if (dynamic_output) {
+            auto model = ib.read_model(shape_model);
+            OPENVINO_ASSERT(model && model->get_parameters().size() == input.size() &&
+                                model->get_results().size() == output_layouts.size(),
+                            "[GPU] Custom shape inference model arity differs");
+            auto restored = model->get_results().front()->input_value(0).get_node_shared_ptr();
+            OPENVINO_ASSERT(restored->get_input_size() == input.size() &&
+                                restored->get_output_size() == output_layouts.size(),
+                            "[GPU] Custom shape inference operation arity differs");
+            // IR intentionally omits the v0 LSTMCell peephole edge and recreates a
+            // default Constant. The standalone model still preserves its Parameter;
+            // reconnect that original input before validating the complete contract.
+            if (ov::is_type<ov::op::v0::LSTMCell>(restored)) {
+                OPENVINO_ASSERT(input.size() == 7, "[GPU] LSTMCell shape inference requires seven inputs");
+                restored->input(6).replace_source_output(model->get_parameters()[6]->output(0));
+                restored->validate_and_infer_types();
+            }
+            for (size_t port = 0; port < input.size(); ++port) {
+                OPENVINO_ASSERT(restored->input_value(port) == model->get_parameters()[port]->output(0),
+                                "[GPU] Custom shape inference input order differs");
+            }
+            for (size_t port = 0; port < output_layouts.size(); ++port) {
+                auto restored_shape = restored->get_output_partial_shape(port);
+                // CreateCustomOp represents a static BFYX output in four-dimensional
+                // storage, including static outputs of an otherwise dynamic node.
+                if (restored_shape.is_static() && output_layouts[port].format == format::bfyx &&
+                    restored_shape.size() < 4 && output_layouts[port].get_partial_shape().rank() == 4) {
+                    auto padded_shape = restored_shape.to_shape();
+                    padded_shape.resize(4, 1);
+                    restored_shape = ov::PartialShape(padded_shape);
+                }
+                OPENVINO_ASSERT(model->get_results()[port]->input_value(0) == restored->output(port) &&
+                                    element_type_to_data_type(restored->get_output_element_type(port)) == output_layouts[port].data_type &&
+                                    restored_shape.compatible(output_layouts[port].get_partial_shape()),
+                                "[GPU] Custom shape inference output contract differs");
+            }
+            // Retain the shape model, including any extension-library ownership it carries.
+            op = std::shared_ptr<ov::Node>(model, restored.get());
+        }
     }
 };
 }  // namespace cldnn

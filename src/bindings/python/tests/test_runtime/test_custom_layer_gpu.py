@@ -2,11 +2,15 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import os
+import struct
+from xml.etree import ElementTree
 
 import numpy as np
 import pytest
 
+import openvino as ov
 import openvino.opset14 as ops
 from openvino import Core, DiscreteTypeInfo, Model, Op, Shape
 
@@ -170,3 +174,235 @@ def test_custom_layer_same_producer_on_two_ports(device, tmp_path):
     result = compiled(data)[0]
 
     assert np.array_equal(result, data * 2)
+
+
+class CacheBoundary(Op):
+    class_type_info = DiscreteTypeInfo("CacheBoundary", "cache_boundary_test")
+
+    def __init__(self, inputs=None, mode=0):
+        super().__init__(self)
+        self._attrs = {"mode": mode}
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
+
+    def get_type_info(self):
+        return self.class_type_info
+
+    def visit_attributes(self, visitor):
+        visitor.on_attributes(self._attrs)
+        return True
+
+    def clone_with_new_inputs(self, inputs):
+        return CacheBoundary(inputs, self._attrs["mode"])
+
+    def validate_and_infer_types(self):
+        if self._attrs["mode"] == 0:
+            for port in (0, 1):
+                self.set_output_type(port, self.get_input_element_type(port), self.get_input_partial_shape(port))
+        else:
+            source = 1 if self._attrs["mode"] == 1 else 0
+            self.set_output_type(0, self.get_input_element_type(source), self.get_input_partial_shape(source))
+
+
+@gpu_only
+def test_custom_cache_versions_outer_descriptor(device):
+    core = Core()
+    input_parameter = ops.parameter([1, 4], ov.Type.f32)
+    compiled = core.compile_model(Model([ops.relu(input_parameter)], [input_parameter]), device)
+    requirements = compiled.get_property("RUNTIME_REQUIREMENTS")
+    assert requirements.startswith("meta=1.1;")
+    exported = compiled.export_model().getvalue()
+    magic = struct.pack("=Q", 0x4F5645505F525251)
+    version_offset = exported.index(magic) + len(magic)
+    assert struct.unpack_from("=I", exported, version_offset)[0] == 3
+    previous_version = bytearray(exported)
+    struct.pack_into("=I", previous_version, version_offset, 2)
+    with pytest.raises(RuntimeError, match="Unsupported compatibility descriptor version"):
+        core.import_model(io.BytesIO(previous_version), device)
+
+
+def check_custom_cache_round_trip(device, tmp_path, model, config, samples, extension=None):
+    config = dict(config, INFERENCE_PRECISION_HINT=ov.Type.f32, NUM_STREAMS="1", CACHE_DIR=str(tmp_path / "cache"))
+    core = Core()
+    if extension is not None:
+        core.add_extension(ov.OpExtension(extension))
+    cold = core.compile_model(model, device, config)
+    assert not cold.get_property("LOADED_FROM_CACHE")
+    for inputs, expected in samples:
+        actual = list(cold(inputs).values())
+        assert len(actual) == len(expected)
+        for output, reference in zip(actual, expected):
+            assert output.shape == reference.shape
+            assert output.dtype == reference.dtype
+            np.testing.assert_allclose(output, reference, rtol=1e-6, atol=1e-6)
+    blob = cold.export_model()
+    import_config = dict(config)
+    import_config.pop("CACHE_DIR")
+    imported = core.import_model(blob, device, import_config)
+    warm = core.compile_model(model, device, config)
+    assert warm.get_property("LOADED_FROM_CACHE")
+    for compiled in (imported, warm):
+        for inputs, expected in samples:
+            actual = list(compiled(inputs).values())
+            assert len(actual) == len(expected)
+            for output, reference in zip(actual, expected):
+                assert output.shape == reference.shape
+                assert output.dtype == reference.dtype
+                np.testing.assert_allclose(output, reference, rtol=1e-6, atol=1e-6)
+
+
+@gpu_only
+@pytest.mark.parametrize("selected", [0, 1])
+@pytest.mark.parametrize("rank", [2, 4])
+def test_custom_cache_selected_input_work_sizes(device, tmp_path, selected, rank):
+    selected_parameter = ops.parameter([1] * (rank - 1) + [4], ov.Type.f32)
+    dynamic_parameter = ops.parameter([1, 1, 1, -1], ov.Type.f32)
+    params = [selected_parameter, dynamic_parameter] if selected == 0 else [dynamic_parameter, selected_parameter]
+    node = CacheBoundary(params, 1 if selected == 0 else 2)
+    model = Model([node], params)
+    kernel = """__kernel void dispatch(__global const float* a, __global const float* b,
+        __global float* out) {
+        // Observe the launch size without allowing the old oversized launch to read out of bounds.
+        for (size_t i=get_global_id(0); i<OUTPUT0_DIMS[3]; i+=get_global_size(0))
+            out[i]=(float)get_global_size(0);
+    }"""
+    config = write_config(tmp_path, f"""<CustomLayer name="CacheBoundary" type="SimpleGPU" version="1">
+        <Kernel entry="dispatch"><Source filename="dispatch.cl"/></Kernel><Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/></Buffers>
+        <WorkSizes dim="input,{selected}" global="X,1,1" local="1,1,1"/>
+        </CustomLayer>""", {"dispatch.cl": kernel})
+    samples = []
+    for width in (8, 12):
+        fixed = np.zeros([1] * (rank - 1) + [4], np.float32)
+        dynamic_values = np.zeros([1, 1, 1, width], np.float32)
+        inputs = [fixed, dynamic_values] if selected == 0 else [dynamic_values, fixed]
+        samples.append((inputs, [np.full(dynamic_values.shape, 4, np.float32)]))
+    check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples, CacheBoundary)
+
+
+@gpu_only
+def test_custom_cache_mixed_static_dynamic_outputs(device, tmp_path):
+    dynamic_parameter = ops.parameter([-1, 4], ov.Type.f32)
+    static_parameter = ops.parameter([4], ov.Type.f32)
+    node = CacheBoundary([dynamic_parameter, static_parameter])
+    model = Model(node.outputs(), [dynamic_parameter, static_parameter])
+    kernel = """__kernel void mixed(__global const float* a, __global const float* b,
+        __global float* out_a, __global float* out_b) {
+        size_t i=get_global_id(0); out_a[i]=a[i]; if(i<4)out_b[i]=b[i];
+    }"""
+    config = write_config(tmp_path, """<CustomLayer name="CacheBoundary" type="SimpleGPU" version="1">
+        <Kernel entry="mixed"><Source filename="mixed.cl"/></Kernel><Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+        <Tensor arg-index="3" type="output" port-index="1" format="BFYX"/></Buffers>
+        <WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>""", {"mixed.cl": kernel})
+    samples = []
+    for batch in (1, 3, 2):
+        first = np.arange(batch * 4, dtype=np.float32).reshape(batch, 4)
+        second = np.arange(4, dtype=np.float32) + 20
+        samples.append(([first, second], [first, second]))
+    check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples, CacheBoundary)
+
+
+@gpu_only
+def test_custom_cache_internal_atan2(device, tmp_path):
+    first = ops.parameter([-1, 4], ov.Type.f32)
+    second = ops.parameter([-1, 4], ov.Type.f32)
+    zero = ops.constant(np.float32(0))
+    angle = ops.atan(ops.divide(first, second))
+    pi_value = ops.constant(np.float32(np.pi))
+    negative_x = ops.select(ops.greater_equal(first, zero), ops.add(angle, pi_value), ops.subtract(angle, pi_value))
+    nonzero_x = ops.select(ops.greater(second, zero), angle, negative_x)
+    result = ops.select(ops.equal(second, zero), ops.multiply(ops.sign(first), np.float32(np.pi / 2)), nonzero_x)
+    model = Model([result], [first, second])
+    kernel = """__kernel void atan2_custom(__global const float* y, __global const float* x,
+        __global float* out) {size_t i=get_global_id(0);out[i]=atan2(y[i],x[i]);}"""
+    config = write_config(tmp_path, """<CustomLayer name="Atan2" type="SimpleGPU" version="1">
+        <Kernel entry="atan2_custom"><Source filename="atan2.cl"/></Kernel><Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/></Buffers>
+        <WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>""", {"atan2.cl": kernel})
+    samples = []
+    for batch in (1, 3, 2):
+        values = np.tile(np.array([[-2, 1, 3, -4]], np.float32), (batch, 1))
+        divisors = np.tile(np.array([[1, -2, 4, -3]], np.float32), (batch, 1))
+        samples.append(([values, divisors], [np.arctan2(values, divisors)]))
+    check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples)
+
+
+@gpu_only
+def test_custom_cache_lstm_peephole_input(device, tmp_path):
+    from openvino.utils.node_factory import NodeFactory
+
+    shapes = [[-1, 2], [-1, 2], [-1, 2], [8, 2], [8, 2], [8], [6]]
+    params = [ops.parameter(shape, ov.Type.f32) for shape in shapes]
+    node = NodeFactory("opset1").create("LSTMCell", params, {
+        "hidden_size": 2, "activations": ["sigmoid", "tanh", "tanh"],
+        "activations_alpha": [], "activations_beta": [], "clip": 0.0,
+        "weights_format": "ifco", "input_forget": False,
+    })
+    model = Model(node.outputs(), params)
+    kernel = """__kernel void lstm_custom(__global const float* x, __global const float* h,
+        __global const float* c, __global const float* w, __global const float* r,
+        __global const float* b, __global const float* p, __global float* out_h,
+        __global float* out_c) {size_t i=get_global_id(0);out_h[i]=x[i]+p[0];out_c[i]=c[i]+p[1];}"""
+    buffers = "".join(f'<Tensor arg-index="{index}" type="input" port-index="{index}" format="BFYX"/>'
+                      for index in range(7))
+    buffers += ('<Tensor arg-index="7" type="output" port-index="0" format="BFYX"/>'
+                '<Tensor arg-index="8" type="output" port-index="1" format="BFYX"/>')
+    config = write_config(tmp_path, f"""<CustomLayer name="LSTMCell" type="SimpleGPU" version="1">
+        <Kernel entry="lstm_custom"><Source filename="lstm.cl"/></Kernel><Buffers>{buffers}</Buffers>
+        <WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>""", {"lstm.cl": kernel})
+    samples = []
+    for batch in (1, 3, 2):
+        inputs = []
+        for shape in shapes:
+            data_shape = [batch if dim < 0 else dim for dim in shape]
+            inputs.append(np.arange(np.prod(data_shape), dtype=np.float32).reshape(data_shape))
+        inputs[6] += 5
+        samples.append((inputs, [inputs[0] + inputs[6][0], inputs[2] + inputs[6][1]]))
+    check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples)
+
+
+@gpu_only
+def test_custom_cache_identical_shape_models_are_independent(device, tmp_path):
+    first = ops.parameter([-1, 4], ov.Type.f32)
+    second = ops.parameter([-1, 4], ov.Type.f32)
+    model = Model([ops.relu(first), ops.relu(second)], [first, second])
+    kernel = """__kernel void relu_custom(__global const float* data, __global float* out) {
+        size_t i=get_global_id(0);out[i]=fmax(data[i],0.0f);
+    }"""
+    config = write_config(tmp_path, """<CustomLayer name="Relu" type="SimpleGPU" version="1">
+        <Kernel entry="relu_custom"><Source filename="relu.cl"/></Kernel><Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/></Buffers>
+        <WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>""", {"relu.cl": kernel})
+    samples = []
+    for first_batch, second_batch in ((1, 3), (3, 1), (2, 4)):
+        first_values = np.arange(first_batch * 4, dtype=np.float32).reshape(first_batch, 4) - 3
+        second_values = np.arange(second_batch * 4, dtype=np.float32).reshape(second_batch, 4) - 5
+        samples.append(([first_values, second_values], [np.maximum(first_values, 0), np.maximum(second_values, 0)]))
+    check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples)
+
+
+@gpu_only
+def test_gpu_load_keeps_internal_atan2_private(device, tmp_path):
+    first = ops.parameter([-1, 4], ov.Type.f32)
+    second = ops.parameter([-1, 4], ov.Type.f32)
+    xml_path = tmp_path / "model.xml"
+    ov.serialize(Model([ops.add(first, second)], [first, second]), xml_path)
+    document = ElementTree.parse(xml_path)
+    add_layer = next(layer for layer in document.findall("./layers/layer") if layer.get("type") == "Add")
+    add_layer.set("type", "Atan2")
+    add_layer.set("version", "ie_internal_opset")
+    document.write(xml_path)
+    core = Core()
+    core.get_property(device, "FULL_DEVICE_NAME")
+    # Loading GPU must not expose its private operation factories to ordinary Core readers.
+    with pytest.raises(RuntimeError, match="Atan2"):
+        core.read_model(xml_path)

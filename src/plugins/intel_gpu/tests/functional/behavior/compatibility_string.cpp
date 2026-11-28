@@ -79,6 +79,25 @@ TEST_F(CompatibilityStringGPU, GenerateAndCheckSupported) {
     ASSERT_EQ(result, ov::CompatibilityCheck::SUPPORTED);
 }
 
+// Cache shape-operation metadata requires a distinct outer compatibility schema.
+TEST_F(CompatibilityStringGPU, CustomCacheSchemaRejectsLegacyRequirements) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    const auto requirements = compiled.get_property(ov::runtime_requirements);
+    ASSERT_EQ(requirements.find("meta=1.1;"), 0u);
+    auto legacy = requirements;
+    legacy.replace(0, std::string("meta=1.1;").size(), "meta=1.0;");
+    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU,
+                               ov::compatibility_check,
+                               {{ov::runtime_requirements.name(), requirements}}),
+              ov::CompatibilityCheck::SUPPORTED);
+    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU,
+                               ov::compatibility_check,
+                               {{ov::runtime_requirements.name(), legacy}}),
+              ov::CompatibilityCheck::UNSUPPORTED);
+}
+
 // A tampered descriptor is reported as UNSUPPORTED.
 TEST_F(CompatibilityStringGPU, TamperedRequirementsUnsupported) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();

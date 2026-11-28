@@ -348,9 +348,15 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     OPENVINO_ASSERT(orig_output_layout.is_static(), "out layouts should be static for create primitive_impl!");
 
     std::vector<size_t> gws, lws;
+    ov::PartialShape work_size_input;
+    if (primitive->calcWgDimInputIdx >= 0) {
+        const auto input_index = static_cast<size_t>(primitive->calcWgDimInputIdx);
+        OPENVINO_ASSERT(input_index < impl_param.get_input_layout_size(), "[GPU] Invalid work-size input index");
+        work_size_input = impl_param.get_input_layout(input_index).get_partial_shape();
+    }
     custom_gpu_primitive::update_work_group_size(orig_output_layout.get_partial_shape(),
                                                  primitive->calcWgDimInputIdx,
-                                                 orig_output_layout.get_partial_shape(),
+                                                 work_size_input,
                                                  primitive->globalSizeRules,
                                                  primitive->localSizeRules,
                                                  gws,
