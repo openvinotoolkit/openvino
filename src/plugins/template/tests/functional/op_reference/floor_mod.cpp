@@ -32,7 +32,9 @@ struct FloorModParams {
           outType(iType),
           inputData1(CreateTensor(iType, iValues1)),
           inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(oShape, iType, oValues)) {}
+          refData(CreateTensor(iType, oValues)) {
+        refData.set_shape(oShape);
+    }
 
     PartialShape pshape1;
     PartialShape pshape2;
