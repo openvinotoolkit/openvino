@@ -4,7 +4,10 @@
 
 #include "ze_graph_ext_wrappers.hpp"
 
+#include <algorithm>
 #include <cstring>
+#include <functional>
+#include <numeric>
 #include <string_view>
 
 #include "intel_npu/prefix.hpp"
@@ -83,7 +86,24 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                            " exceeds ABI limit ",
                            ZE_MAX_GRAPH_TENSOR_REF_DIMS);
         }
-        if (metadata->shape_size != arg.dims_count) {
+        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
+        // The dimensions of an argument whose rank exceeds what the driver can describe may have been merged at
+        // compilation (e.g. [N, T, D, C, H, W] as [N, T * D, C, H, W]), the original shape being kept in the metadata.
+        // The memory layout is the same, so the original shape is reported. The first dimension still comes from the
+        // driver, as the batch handling may alter it.
+        if (metadata->shape_size > shapeFromCompiler.size() && !shapeFromCompiler.empty()) {
+            const uint64_t* const tailBegin = metadata->shape + 1;
+            const uint64_t* const tailEnd = metadata->shape + metadata->shape_size;
+            const auto elementCount = [](const auto* begin, const auto* end) {
+                return std::accumulate(begin, end, uint64_t{1}, std::multiplies<>());
+            };
+            if (std::find(tailBegin, tailEnd, dynamicDim) == tailEnd &&
+                elementCount(tailBegin, tailEnd) == elementCount(arg.dims + 1, arg.dims + arg.dims_count)) {
+                shapeFromCompiler.erase(shapeFromCompiler.begin() + 1, shapeFromCompiler.end());
+                shapeFromCompiler.insert(shapeFromCompiler.end(), tailBegin, tailEnd);
+            }
+        }
+        if (metadata->shape_size != shapeFromCompiler.size()) {
             OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
                            indexUsedByDriver,
                            ": metadata shape_size ",
@@ -91,7 +111,6 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                            " does not match dims_count ",
                            arg.dims_count);
         }
-        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
         shapeFromIRModel.reserve(metadata->shape_size);
         for (uint32_t id = 0; id < metadata->shape_size; id++) {
             if (metadata->shape[id] != dynamicDim) {
