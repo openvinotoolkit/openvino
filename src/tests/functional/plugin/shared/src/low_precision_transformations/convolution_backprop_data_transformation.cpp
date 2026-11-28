@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/convolution_backprop_data_transformation.hpp"
 
+#include <algorithm>
 #include <tuple>
 #include <vector>
 #include <string>
@@ -21,7 +22,9 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights << "_" <<
         param.dequantizationOnWeights;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ConvolutionBackpropDataTransformation::SetUp() {

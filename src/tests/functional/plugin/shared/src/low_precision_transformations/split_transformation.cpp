@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/split_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -19,7 +20,9 @@ std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<Sp
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShapes, device) << "_" <<
            param.fakeQuantize << "_axis=" << param.splitedAxis << "_n_splits=" << param.numSplit;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 

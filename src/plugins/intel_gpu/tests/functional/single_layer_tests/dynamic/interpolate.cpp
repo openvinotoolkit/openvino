@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -84,7 +86,9 @@ public:
             }
         }
 
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

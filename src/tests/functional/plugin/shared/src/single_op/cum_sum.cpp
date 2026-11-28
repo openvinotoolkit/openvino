@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/cum_sum.hpp"
+
+#include <algorithm>
+
 #include "openvino/op/cum_sum.hpp"
 
 namespace ov {
@@ -28,7 +31,9 @@ std::string CumSumLayerTest::getTestCaseName(const testing::TestParamInfo<cumSum
     result << "Exclusive=" << (exclusive ? "TRUE" : "FALSE") << "_";
     result << "Reverse=" << (reverse ? "TRUE" : "FALSE") << "_";
     result << "TargetDevice=" << targetDevice;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void CumSumLayerTest::SetUp() {

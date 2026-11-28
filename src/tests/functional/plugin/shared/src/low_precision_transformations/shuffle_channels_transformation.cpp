@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/shuffle_channels_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -20,7 +21,9 @@ std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestPa
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            param.fakeQuantizeOnData << "_axis_" << param.axis << "_group_" << param.group;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ShuffleChannelsTransformation::SetUp() {

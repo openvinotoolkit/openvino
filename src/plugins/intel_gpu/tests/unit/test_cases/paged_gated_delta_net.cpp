@@ -376,21 +376,21 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
         std::string subseq_tokens_str;
         for (size_t i = 0; i < info.param.subsequence_tokens.size(); i++) {
             if (i > 0)
-                subseq_tokens_str += "-";
+                subseq_tokens_str += ".";
             subseq_tokens_str += std::to_string(info.param.subsequence_tokens[i]);
         }
 
         std::string past_lens_str;
         for (size_t i = 0; i < info.param.past_lens.size(); i++) {
             if (i > 0)
-                past_lens_str += "-";
+                past_lens_str += ".";
             past_lens_str += std::to_string(info.param.past_lens[i]);
         }
 
         std::string cache_intervals_str;
         for (size_t i = 0; i < info.param.cache_intervals.size(); i++) {
             if (i > 0)
-                cache_intervals_str += "-";
+                cache_intervals_str += ".";
             cache_intervals_str += std::to_string(info.param.cache_intervals[i]);
         }
 

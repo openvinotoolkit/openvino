@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/concat.hpp"
+
+#include <algorithm>
+
 #include "openvino/op/concat.hpp"
 
 namespace ov {
@@ -26,7 +29,9 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
     result << "axis=" << axis << "_";
     result << "netPRC=" << model_type.get_type_name() << "_";
     result << "trgDev=" << targetName;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ConcatLayerTest::SetUp() {

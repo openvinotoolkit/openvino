@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -45,7 +47,9 @@ public:
         result << "model_type=" << model_type << "_";
         result << "useConstantStart=" << useConstantStart << "_";
         result << "targetDevice=" << targetDevice;
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:

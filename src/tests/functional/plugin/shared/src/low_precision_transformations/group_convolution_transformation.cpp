@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/group_convolution_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -29,7 +30,9 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
         (param.addReshape ? "reshape_on_weights_" : "wo_reshape_") <<
         (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void GroupConvolutionTransformation::SetUp() {

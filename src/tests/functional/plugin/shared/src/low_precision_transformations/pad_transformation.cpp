@@ -3,6 +3,8 @@
 //
 
 #include "low_precision_transformations/pad_transformation.hpp"
+
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -18,7 +20,9 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
            << "_" << param.fakeQuantize << "_"
            << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
            << padMode << "_" << (padMode == ov::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void PadTransformation::SetUp() {

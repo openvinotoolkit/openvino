@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/group_normalization_fusion.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
@@ -101,7 +103,9 @@ std::string GroupNormalizationFusionSubgraphTestsF::getTestCaseName(
             results << "_";
     }
     results << ")";
-    return results.str();
+    auto test_case_name = results.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void GroupNormalizationFusionSubgraphTestsF::run() {

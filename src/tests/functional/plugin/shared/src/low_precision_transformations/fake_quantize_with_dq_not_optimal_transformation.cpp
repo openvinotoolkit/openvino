@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/fake_quantize_with_dq_not_optimal_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -18,7 +19,9 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
     auto [netPrecision, inputShapes, device, testValues] = obj.param;
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShapes, device) << "_" << testValues;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {

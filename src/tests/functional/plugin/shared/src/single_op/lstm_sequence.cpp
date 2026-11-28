@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/lstm_sequence.hpp"
 
+#include <algorithm>
+
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -53,7 +55,9 @@ std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMS
     result << "WRBType=" << WRBType << "_";
     result << "modelType=" << model_type.get_type_name() << "_";
     result << "targetDevice=" << targetDevice << "_";
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void LSTMSequenceTest::SetUp() {

@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/pad.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
@@ -36,7 +38,9 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
     result << "PadMode=" << pad_mode << "_";
     result << "ModelType=" << model_type.get_type_name() << "_";
     result << "TrgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void PadLayerTest::SetUp() {

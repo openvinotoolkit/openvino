@@ -240,26 +240,30 @@ const std::vector<std::regex>& disabled_test_patterns() {
         if (is_xe2_or_newer()) {
             // CVS-197687. Disable the rest of failed tests to run CI validation.
             patterns.push_back(std::regex(R"__(.*ConvolutionInPlaceCrop\.smoke_GPU_second_half_feature_crop_no_oob/.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_BasicRandomUniform/.*modelType=f16_alignment=tensorflow_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_CompareWithRefs_NormalizeL2_5D/.*ReductionAxes=\(1\.2\.3\.4\)_EpsMode=.*_Epsilon=1e-09)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ZeroCopySingleFileCacheLoad_GPU/.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.2\]__weights_shape=\[2,32\]_group_size=2_weights_precision=(u4|i4)_activations_precision=f16_.*param_weights=1_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose1_has_sink=0_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose0_has_sink=0_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.16\]__weights_shape=\[1,16,32\]_group_size=1111_weights_precision=u4_activations_precision=f16_.*transpose_weights=0_.*extra_multiply=1_param_weights=1_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_MVN_3D/.*TS=\{\(1\.32\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-1\.-2)\)_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.10\.5\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-2\.-1)\)_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.3\.8\.9\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-2\.-1|-2\.-1\.-3)\)_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_MVN_5D/.*TS=\{\(1\.10\.5\.7\.8\)\}_ModelType=f16_AxType=i(32|64)_Ax=\(-3\.-2\.-1\)_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_MVN_5D/.*TS=\{\(1\.3\.8\.9\.49\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-3\.-2\.-1)\)_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_MVN_5D/.*TS=\{\(1\.3\.8\.9\.49\)\}_ModelType=f32_AxType=i(32|64)_Ax=\(-1\)_NormVariance=FALSE_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_LPT/ConvolutionTransformationGPU\..*/f16_.*level=65536_.*output_high\{ 2\.55 \}.*fq_on_weights=\{_255_\[1,1,1,1\]_\{ -12\.7 \}_\{ 12\.7 \}\})__"));
-            patterns.push_back(std::regex(R"__(.*smoke_LPT/FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformationGPU\..*f16_\[1,32,72,48\]_GPU_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_LPT/FakeQuantizeTransformation\..*f16_.*(level=16_shape=\[\]_input_low=\{ -8 \}|level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2\.55 \}_output_low=\{ -1\.28 \}).*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_LPT/GroupConvolutionTransformationGPU\..*f16_\[1,6,24,24\]_GPU_f32_4D_\[1,6,24,24\]_\[1,6,18,18\]_.*_reshape_on_weights_max_pool_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_LPT/MatMulTransformation\..*f16_GPU_\[1,4,12,2\]_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*\[1,4,2,12\]_level=256_shape=\[\]_input_low=\{ -12\.8 \}.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_LPT_4D/ConvolutionBackpropDataTransformationGPU\..*/f16_.*input_high=\{ 255 \}_output_low=\{ -12\.7 \}.*)__"));
         }
+
+        // CVS-197687. These tests have negative values in their names; run_parallel did not execute them before
+        // "-" was replaced with "_", so they were never validated in CI.
+        patterns.push_back(std::regex(R"__(.*smoke_BasicRandomUniform/.*modelType=f16_alignment=tensorflow_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_CompareWithRefs_NormalizeL2_5D/.*ReductionAxes=\(1\.2\.3\.4\)_EpsMode=.*_Epsilon=1e_09)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MVN_3D/.*TS=\{\(1\.32\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((_1|_1\._2)\)_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.10\.5\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((_1|_2\._1)\)_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.3\.8\.9\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((_2\._1|_2\._1\._3)\)_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MVN_5D/.*TS=\{\(1\.10\.5\.7\.8\)\}_ModelType=f16_AxType=i(32|64)_Ax=\(_3\._2\._1\)_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MVN_5D/.*TS=\{\(1\.3\.8\.9\.49\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((_1|_3\._2\._1)\)_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MVN_5D/.*TS=\{\(1\.3\.8\.9\.49\)\}_ModelType=f32_AxType=i(32|64)_Ax=\(_1\)_NormVariance=FALSE_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_LPT/ConvolutionTransformationGPU\..*/f16_.*level=65536_.*output_high\{ 2\.55 \}.*fq_on_weights=\{_255_\[1,1,1,1\]_\{ _12\.7 \}_\{ 12\.7 \}\})__"));
+        patterns.push_back(std::regex(R"__(.*smoke_LPT/FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformationGPU\..*f16_\[1,32,72,48\]_GPU_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_LPT/FakeQuantizeTransformation\..*f16_.*(level=16_shape=\[\]_input_low=\{ _8 \}|level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2\.55 \}_output_low=\{ _1\.28 \}).*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_LPT/GroupConvolutionTransformationGPU\..*f16_\[1,6,24,24\]_GPU_f32_4D_\[1,6,24,24\]_\[1,6,18,18\]_.*_reshape_on_weights_max_pool_.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_LPT/MatMulTransformation\..*f16_GPU_\[1,4,12,2\]_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*\[1,4,2,12\]_level=256_shape=\[\]_input_low=\{ _12\.8 \}.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_LPT_4D/ConvolutionBackpropDataTransformationGPU\..*/f16_.*input_high=\{ 255 \}_output_low=\{ _12\.7 \}.*)__"));
+        patterns.push_back(std::regex(R"__(.*smoke_MatrixNmsLayerTestGPU_static/.*TS=\(\(3\.100\.4\)_\(3\.1\.100\)_\)_model_type=f32_.*_normalized=0_.*_nms_top_k=100_keep_top_k=_1_.*_decayFunction=LINEAR_score_threshold=0_gaussian_sigma=2_post_threshold=0_.*)__"));
 
         return patterns;
     };

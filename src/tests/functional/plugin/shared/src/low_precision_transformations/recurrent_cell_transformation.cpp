@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/recurrent_cell_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -24,7 +25,9 @@ std::string RecurrentCellTransformation::getTestCaseName(const testing::TestPara
            "FQ_W_" << param.fakeQuantize_W << "_" <<
            "DQ_W_" << param.dequantization_W << "_" <<
            "PTO" << addPrecisionTransparentOperations;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void RecurrentCellTransformation::SetUp() {

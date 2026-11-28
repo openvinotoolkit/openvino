@@ -111,7 +111,9 @@ public:
     static std::string get_test_case_name(const testing::TestParamInfo<Params> &obj) {
         std::stringstream s;
         s << obj.param.l.to_short_string() << "/" << obj.index;
-        return s.str();
+        auto test_case_name = s.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 };
 TEST_P(JitterTest, data_layout) {

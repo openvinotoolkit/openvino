@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/gru_sequence.hpp"
 
+#include <algorithm>
+
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
@@ -42,7 +44,9 @@ std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSeq
     result << "clip=" << clip << "_";
     result << "IT=" << type.get_type_name() << "_";
     result << "targetDevice=" << targetDevice << "_";
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void GRUSequenceTest::SetUp() {

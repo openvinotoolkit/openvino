@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/normalize_l2.hpp"
 
+#include <algorithm>
+
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -32,7 +34,9 @@ std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<N
     result << "eps_mode=" << eps_mode << "_";
     result << "netPRC=" << model_type.get_type_name() << "_";
     result << "targetDevice=" << targetDevice;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void NormalizeL2LayerTest::SetUp() {

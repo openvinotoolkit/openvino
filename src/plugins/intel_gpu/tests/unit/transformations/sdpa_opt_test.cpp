@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <memory>
 
 #include "common_test_utils/common_utils.hpp"
@@ -150,7 +151,9 @@ public:
         result << "model_element_type=" << model_element_type << "_";
         result << "num_groups=" << num_groups << "_";
         result << "qkv_order=" << ov::test::utils::vec2str(qkv_order);
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 };
 

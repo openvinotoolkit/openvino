@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -93,7 +94,9 @@ std::string MulticlassNmsLayerTestGPU::getTestCaseName(const testing::TestParamI
     result << "keepTopK=" << keepTopK << "_outType=" << outType << "_";
     result << "sortResultType=" << sortResultType << "_sortResCrossBatch=" << sortResCB << "_nmsEta=" << nmsEta << "_normalized=" << normalized << "_";
     result << "TargetDevice=" << targetDevice;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void MulticlassNmsLayerTestGPU::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

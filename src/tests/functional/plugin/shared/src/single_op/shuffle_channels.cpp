@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/shuffle_channels.hpp"
+
+#include <algorithm>
+
 #include "openvino/op/shuffle_channels.hpp"
 
 namespace ov {
@@ -30,7 +33,9 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamIn
     result << "Group=" << std::to_string(group) << "_";
     result << "modelType=" << model_type.to_string() << "_";
     result << "trgDev="  << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ShuffleChannelsLayerTest::SetUp() {

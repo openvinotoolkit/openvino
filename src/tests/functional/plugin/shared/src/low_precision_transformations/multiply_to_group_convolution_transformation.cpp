@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/multiply_to_group_convolution_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -25,7 +26,9 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const test
         param.layerName << "_" <<
         param.expectedKernelType << "_" <<
         param.parentHasOneConsumer;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void MultiplyToGroupConvolutionTransformation::SetUp() {

@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/reduce_ops.hpp"
+
+#include <algorithm>
+
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 
@@ -18,7 +21,9 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
     if (keep_dims) result << "KeepDims_";
     result << "modelType=" << model_type.to_string() << "_";
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ReduceOpsLayerTest::SetUp() {

@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/istft.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
@@ -47,7 +49,9 @@ std::string ISTFTLayerTest::getTestCaseName(const testing::TestParamInfo<ISTFTPa
     result << "IsParameterOnly=" << param_type << "_";
 
     result << "Device=" << dev;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ISTFTLayerTest::SetUp() {

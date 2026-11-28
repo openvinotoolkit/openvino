@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/istft.hpp>
@@ -97,7 +98,9 @@ public:
         result << "_normalizedr=" << param.normalized;
         result << "_length=" << param.length;
         result << "_" << param.testcaseName;
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
     struct ISTFTInferenceParams {
