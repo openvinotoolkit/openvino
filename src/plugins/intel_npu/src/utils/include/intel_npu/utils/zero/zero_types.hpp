@@ -224,6 +224,23 @@ public:
         throwWhenUnsupported("pfnEvict", ZE_GRAPH_EXT_VERSION_1_16);
         return _impl->pfnEvict(hGraph);
     }
+
+    // version 1.20
+    ze_result_t ZE_APICALL pfnGetArgumentProperties4(ze_graph_handle_t hGraph,
+                                                     uint32_t argIndex,
+                                                     ze_graph_argument_properties_4_t* pGraphArgumentProperties) {
+        throwWhenUnsupported("pfnGetArgumentProperties4", ZE_GRAPH_EXT_VERSION_1_20);
+        return _impl->pfnGetArgumentProperties4(hGraph, argIndex, pGraphArgumentProperties);
+    }
+
+    ze_result_t ZE_APICALL pfnGetArgumentNames(ze_graph_handle_t hGraph,
+                                               uint32_t argIndex,
+                                               ze_graph_argument_name_type_t nameType,
+                                               size_t* pSize,
+                                               char* pNames) {
+        throwWhenUnsupported("pfnGetArgumentNames", ZE_GRAPH_EXT_VERSION_1_20);
+        return _impl->pfnGetArgumentNames(hGraph, argIndex, nameType, pSize, pNames);
+    }
 };
 
 /**
