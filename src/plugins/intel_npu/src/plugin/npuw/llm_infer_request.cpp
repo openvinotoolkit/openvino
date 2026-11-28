@@ -16,6 +16,7 @@
 #include "llm_compiled_model.hpp"
 #include "llm_continuous_kvcache_strategy.hpp"
 #include "logging.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -47,7 +48,6 @@ void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITe
 
     const auto& src_strides = src->get_strides();
     const auto& dst_strides = dst->get_strides();
-    const auto elem_size = src->get_byte_size() / src->get_size();
 
     const auto H = src_shape[0];
     const auto W = src_shape[1];
@@ -55,7 +55,7 @@ void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITe
     const auto IS_H = src_strides[0];
     const auto OS_H = dst_strides[0];
 
-    const size_t chunk_byte_size = W * elem_size;
+    const size_t chunk_byte_size = ov::util::get_memory_size(src->get_element_type(), W);
 
     const auto* src_p = static_cast<uint8_t*>(src->data());
     auto* dst_p = static_cast<uint8_t*>(dst->data());

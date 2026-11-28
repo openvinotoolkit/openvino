@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <climits>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -21,6 +22,7 @@
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -685,9 +687,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     const auto type = src->get_element_type();
     NPUW_ASSERT(from.size() == to.size());
 
-    // Sub-byte views are not supported here
-    NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
-
     // Bounds guard: from[d] <= to[d] <= shape[d] (prevents OOB views and unsigned wrap below).
     const auto& shape = src->get_shape();
     NPUW_ASSERT(from.size() == shape.size());
@@ -704,9 +703,22 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     const auto& strides = src->get_strides();
     uint8_t* ptr = static_cast<uint8_t*>(src->data());
 
+    // Sub-byte innermost dim is packed: its offset/extent must be byte aligned and its stride is not a byte step.
+    const bool is_sub_byte = type.bitwidth() < CHAR_BIT;
+    if (is_sub_byte && num_dims > 0) {
+        NPUW_ASSERT(ov::util::can_compute_byte_strides(type, view_shape) &&
+                    "Sub-byte view must span whole bytes in the innermost dimension");
+        NPUW_ASSERT(ov::util::can_compute_byte_strides(type, ov::Shape{from.back()}) &&
+                    "Sub-byte view must start at a byte boundary in the innermost dimension");
+    }
+
     // Shift PTR according to the strides
     for (auto d = 0u; d < num_dims; d++) {
-        ptr += strides[d] * from[d];
+        if (is_sub_byte && d + 1 == num_dims) {
+            ptr += ov::util::get_memory_size(type, from[d]);
+        } else {
+            ptr += strides[d] * from[d];
+        }
     }
 
     ov::Tensor viewt(type, view_shape, ptr, strides);
@@ -1070,9 +1082,11 @@ void ov::npuw::util::permute_i4d(const ov::SoPtr<ov::ITensor>& src,
     NPUW_ASSERT(src_shape.size() == 4);
     NPUW_ASSERT(dst_shape.size() == 4);
 
+    NPUW_ASSERT(src->get_element_type().bitwidth() >= CHAR_BIT && "Sub-byte permute is not supported");
+
     const auto& src_s = src->get_strides();
     const auto& dst_s = dst->get_strides();
-    const auto elem_size = src->get_byte_size() / src->get_size();
+    const auto elem_size = src->get_element_type().size();
 
     const auto* src_p = static_cast<uint8_t*>(src->data());
     auto* dst_p = static_cast<uint8_t*>(dst->data());
