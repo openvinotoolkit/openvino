@@ -14,6 +14,7 @@ set(WIN32_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_mmap_object.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_shared_object_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_stack_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/wstring_convert_util.cpp
 )
 
@@ -23,6 +24,7 @@ set(UNIX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_mmap_object.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_stack_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/parallel_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/wstring_convert_util.cpp
 )
@@ -57,6 +59,7 @@ target_sources(${TARGET_NAME}
         ${UTIL_INCLUDE_DIR}/openvino/util/parallel_read_streambuf.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/pp.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/shared_object.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/stack_util.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/util.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/variant_visitor.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/wstring_convert_util.hpp
@@ -75,6 +78,8 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_stream.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/stack_bounds.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/stack_util.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
         # Windows specific sources
         "$<$<BOOL:${WIN32}>:${WIN32_SOURCES}>"

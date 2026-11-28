@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/thread_utils.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,6 +19,7 @@
 
 using namespace std;
 using namespace ov;
+using testing::HasSubstr;
 
 TEST(type_prop, if_simple_test) {
     // That which we iterate over
@@ -446,4 +449,62 @@ TEST(type_prop, if_invalid_false_body) {
     if_op->validate_and_infer_types();
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
+}
+
+namespace {
+// If with a constant condition; `inner` goes into the then-body.
+shared_ptr<Node> make_if_level(const shared_ptr<Node>& inner) {
+    auto cond = make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
+    auto if_op = make_shared<op::v8::If>(cond);
+
+    auto then_p = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto then_res = make_shared<op::v0::Result>(inner ? inner : static_cast<shared_ptr<Node>>(then_p));
+    auto then_body = make_shared<Model>(OutputVector{then_res}, ParameterVector{then_p});
+
+    auto else_p = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto else_res = make_shared<op::v0::Result>(else_p);
+    auto else_body = make_shared<Model>(OutputVector{else_res}, ParameterVector{else_p});
+
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(if_op->input_value(0), then_p, else_p);
+    if_op->set_output(then_res, else_res);
+    return if_op;
+}
+
+shared_ptr<Node> make_nested_if(size_t depth) {
+    shared_ptr<Node> if_op;
+    for (size_t i = 0; i <= depth; ++i) {
+        if_op = make_if_level(if_op);
+    }
+    return if_op;
+}
+
+constexpr size_t tiny_stack_size = 96 * 1024;
+}  // namespace
+
+TEST(type_prop, if_shallow_nested_bodies_validate) {
+    OV_ASSERT_NO_THROW(std::ignore = make_nested_if(8));
+}
+
+// Small stacks: asserts the error, not the depth. Destroying the nesting while the exception
+// propagates needs stack proportional to the depth.
+TEST(type_prop, if_deep_nesting_reports_error_instead_of_overflowing_the_stack) {
+    for (const size_t stack_size : {512 * 1024, 2 * 1024 * 1024}) {
+        if (!ov::test::utils::is_stack_size_observable(stack_size)) {
+            GTEST_SKIP() << "Stack bounds are not available";
+        }
+        OV_EXPECT_THROW(ov::test::utils::run_with_stack_size(stack_size,
+                                                             [] {
+                                                                 std::ignore = make_nested_if(100000);
+                                                             }),
+                        ov::Exception,
+                        HasSubstr("nesting level is too big"));
+    }
+}
+
+TEST(type_prop, if_not_nested_validates_on_small_stack) {
+    OV_ASSERT_NO_THROW(ov::test::utils::run_with_stack_size(tiny_stack_size, [] {
+        std::ignore = make_nested_if(1);
+    }));
 }

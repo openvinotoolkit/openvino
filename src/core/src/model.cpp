@@ -21,6 +21,7 @@
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/stack_util.hpp"
 #include "shared_node_info.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
@@ -237,6 +238,11 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 
 void ov::Model::validate_nodes_and_infer_types() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::validate_nodes_and_infer_types");
+
+    // Subgraph ops validate their bodies recursively through this function; check the stack left
+    // instead of capping the depth.
+    OPENVINO_ASSERT(ov::util::has_stack_headroom(),
+                    "Stack is too small for the nested subgraphs or the nesting level is too big.");
 
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
