@@ -7,7 +7,7 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('dimension', (0, 1, 2))
+@pytest.mark.parametrize('dimension', (0, 1, 2, -1, -2))
 @pytest.mark.parametrize('size', (1, 2))
 @pytest.mark.parametrize('step', (1, 2, 3, 4))
 @pytest.mark.parametrize('input_shape',
