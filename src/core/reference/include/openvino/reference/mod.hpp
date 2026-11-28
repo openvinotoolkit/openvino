@@ -21,7 +21,9 @@ constexpr T mod(const T x, const T y) {
 
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T mod(const T x, const T y) {
-    return x - (std::trunc(x / y) * y);
+    // std::fmod is exact. x - std::trunc(x / y) * y gives 0 instead of nearly y when x / y rounds up to a
+    // whole number, for example 4.2f and 1.4f.
+    return std::fmod(x, y);
 }
 
 /**

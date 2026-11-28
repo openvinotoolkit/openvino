@@ -1,6 +1,9 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
+import numpy as np
 import pytest
 import torch
 
@@ -72,3 +75,42 @@ class TestFmodTypes(PytorchLayerTest):
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape), ie_device, precision, ir_version)
+
+
+class TestFmodExactMultiples(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.input_tensor,)
+
+    def create_model(self, divisor):
+        class aten_fmod(torch.nn.Module):
+            def __init__(self, divisor):
+                super().__init__()
+                self.divisor = divisor
+
+            def forward(self, x):
+                return torch.fmod(x, self.divisor)
+
+        return aten_fmod(divisor), "aten::fmod"
+
+    # x / divisor rounds up to a whole number for some of these multiples (4.2 / 1.4 is 3.0 in float32),
+    # where the exact result is nearly the divisor.
+    @pytest.mark.parametrize("divisor", [0.1, 1.4, 6.2831855])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'),
+                       reason='The aarch64 emitters still compute x - q * y with a separate multiply (#38929)')
+    def test_fmod_exact_multiples(self, divisor, ie_device, precision, ir_version):
+        self.input_tensor = (np.arange(-30, 31) * divisor).astype(np.float32)
+        self._test(*self.create_model(divisor), ie_device, precision, ir_version)
+
+    # x / divisor is beyond float precision, so one quotient step is not enough.
+    @pytest.mark.parametrize("divisor", [3.0, -7.0, 0.1])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'),
+                       reason='The aarch64 emitters still compute x - q * y with a separate multiply (#38929)')
+    def test_fmod_large_quotients(self, divisor, ie_device, precision, ir_version):
+        self.input_tensor = np.array([1073741824.0, 1e10, -1e10, 123456789e20, -3.4e38, 3.4e38], np.float32)
+        self._test(*self.create_model(divisor), ie_device, precision, ir_version)
