@@ -3,11 +3,18 @@
 //
 
 #include "custom/single_layer_tests/classes/reduce.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "utils/fusing_test_utils.hpp"
-#include "utils/filter_cpu_info.hpp"
-#include "ov_lpt_models/common/builders.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <limits>
+
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -15,6 +22,133 @@ namespace ov {
 namespace test {
 namespace Reduce {
 namespace {
+
+using ReductionType = ov::test::utils::ReductionType;
+
+ReduceLayerCPUTestParamSet reduceNaNParams(ReductionType type,
+                                           const ov::Shape& shape,
+                                           const std::vector<int>& axes,
+                                           const std::vector<cpu_memory_format_t>& formats,
+                                           bool jit) {
+    const auto impl = jit ? (ov::with_cpu_x86_avx512_core() ? "jit_avx512" : "jit_avx2") : "ref";
+    return {basicReduceParams{axes,
+                              ov::test::utils::OpType::VECTOR,
+                              true,
+                              type,
+                              ElementType::f32,
+                              ElementType::dynamic,
+                              ElementType::dynamic,
+                              {{ov::PartialShape(shape), {shape}}}},
+            CPUSpecificParams{formats, formats, {}, impl},
+            emptyFusingSpec,
+            {{ov::hint::inference_precision.name(), ov::element::f32}}};
+}
+
+class ReduceNaNLayerTest : public ReduceCPULayerTest {
+protected:
+    void runAndCheck() {
+        if (selectedType.find("jit_") == 0 && !ov::with_cpu_x86_avx2()) {
+            GTEST_SKIP() << "Reduce JIT requires AVX2";
+        }
+        ASSERT_NO_FATAL_FAILURE(run());
+        const auto nodes = compiledModel.get_runtime_model()->get_ops();
+        ASSERT_TRUE(std::any_of(nodes.begin(), nodes.end(), [](const auto& node) {
+            const auto& info = node->get_rt_info();
+            const auto layerType = info.find(ov::exec_model_info::LAYER_TYPE);
+            return layerType != info.end() && layerType->second.template as<std::string>() == "Reduce";
+        })) << "Reduce node is missing from the runtime model";
+        CheckPluginRelatedResults(compiledModel, "Reduce");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& shapes) override {
+        auto input = ov::Tensor(ov::element::f32, shapes.at(0));
+        auto* data = input.data<float>();
+        constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+        if (shapes[0].size() == 6) {
+            // Along axes {0, 2}, the first group is {8, NaN, NaN, 5} and the second is all NaN.
+            const float values[] = {8.0F, nan, nan, nan, nan, 5.0F, nan, nan};
+            ASSERT_EQ(input.get_size(), 8U);
+            std::copy_n(values, input.get_size(), data);
+        } else {
+            const float values[] = {2.0F, 8.0F, nan, 5.0F, 6.0F};
+            for (size_t i = 0; i < input.get_size(); ++i) {
+                data[i] = values[i % 5];
+            }
+        }
+        inputs = {{function->get_parameters().front(), input}};
+    }
+
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override {
+        ASSERT_EQ(expected.size(), 1U);
+        ASSERT_EQ(actual.size(), 1U);
+        ASSERT_EQ(actual[0].get_shape(), expected[0].get_shape());
+        for (size_t i = 0; i < actual[0].get_size(); ++i) {
+            EXPECT_EQ(actual[0].data<const float>()[i], expected[0].data<const float>()[i]) << "Output index: " << i;
+        }
+    }
+};
+
+TEST_P(ReduceNaNLayerTest, IgnoreNaN) {
+    runAndCheck();
+}
+
+const auto reduceNaNJitCases = [] {
+    std::vector<ReduceLayerCPUTestParamSet> cases;
+    const auto blocked = ov::with_cpu_x86_avx512_core() ? nChw16c : nChw8c;
+    for (const auto type : {ReductionType::Min, ReductionType::Max}) {
+        cases.push_back(reduceNaNParams(type, {5}, {0}, {x}, true));
+        cases.push_back(reduceNaNParams(type, {33}, {0}, {x}, true));
+        cases.push_back(reduceNaNParams(type, {1, 3, 2, 3}, {3}, {nchw}, true));
+        cases.push_back(reduceNaNParams(type, {1, 3, 4, 4}, {1}, {nhwc}, true));
+        cases.push_back(reduceNaNParams(type, {1, 19, 2, 17}, {1, 2, 3}, {blocked}, true));
+    }
+    return cases;
+}();
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceNaN,
+                         ReduceNaNLayerTest,
+                         testing::ValuesIn(reduceNaNJitCases),
+                         ReduceNaNLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceMaxNaN,
+                         ReduceNaNLayerTest,
+                         testing::Values(reduceNaNParams(ReductionType::Max, {2, 2, 2, 1, 1, 1}, {0, 2}, {}, false)),
+                         ReduceNaNLayerTest::getTestCaseName);
+
+class ReduceNonFiniteLayerTest : public ReduceNaNLayerTest {
+protected:
+    bool isMin() const {
+        return reductionType == ReductionType::Min;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& shapes) override {
+        auto input = ov::Tensor(ov::element::f32, shapes.at(0));
+        auto* data = input.data<float>();
+        std::fill_n(data, input.get_size(), std::numeric_limits<float>::quiet_NaN());
+        // Only the second reduction group contains an infinity.
+        constexpr float inf = std::numeric_limits<float>::infinity();
+        data[input.get_size() - 1] = isMin() ? inf : -inf;
+        inputs = {{function->get_parameters().front(), input}};
+    }
+
+    std::vector<ov::Tensor> calculate_refs() override {
+        ov::Tensor expected(ov::element::f32, function->get_output_shape(0));
+        const auto seed = isMin() ? std::numeric_limits<float>::infinity() : std::numeric_limits<float>::lowest();
+        std::fill_n(expected.data<float>(), expected.get_size(), seed);
+        return {expected};
+    }
+};
+
+TEST_P(ReduceNonFiniteLayerTest, KeepsInitialValue) {
+    runAndCheck();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceNonFinite,
+                         ReduceNonFiniteLayerTest,
+                         testing::Values(reduceNaNParams(ReductionType::Min, {2, 17}, {1}, {}, true),
+                                         reduceNaNParams(ReductionType::Min, {2, 2, 2, 1, 1, 1}, {0, 2}, {}, false),
+                                         reduceNaNParams(ReductionType::Max, {2, 17}, {1}, {}, true)),
+                         ReduceNonFiniteLayerTest::getTestCaseName);
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
@@ -26,7 +160,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_3D_fuse_dyn = {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{}, {{2, 19, 2, 2, 9}}}},
-    {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D_dyn = {

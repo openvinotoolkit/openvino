@@ -63,6 +63,8 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include <type_traits>
+
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
@@ -251,8 +253,8 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    static_assert(isa == cpu::x64::avx2 || isa == cpu::x64::avx512_core);
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
     bool planar_layout = false;
     bool support_intermediate_int = false;
@@ -289,7 +291,6 @@ private:
     Xmm xmm_dst = Xmm(2);
     Vmm vmm_zero = Vmm(3);
     Xmm xmm_zero = Xmm(3);
-    Vmm vmm_dst_aux = Vmm(4);
     Xmm xmm_aux1 = Xmm(5);
     Xmm xmm_aux2 = Xmm(6);
     Xmm xmm_aux3 = Xmm(7);
@@ -334,7 +335,7 @@ private:
         //         case 4    ~0        1         1.0f     1.0f     1.0f
         // step 5: loop: offset src, and do step 2 and step 3
         // ================================================================
-        // ***isa: OTHER***
+        // ***isa: AVX2***
         // ReduceAnd (Logical And)
         // step 1: init dst 0x3f800000 (1.0f)
         // step 2: if src equals 0, set it 0x00000000, else set 0xffffffff
@@ -376,7 +377,7 @@ private:
         // cases: [planar layout reducing other dimensions but W] [blocked layout]
         L(reduce_to_vector_label);
         {
-            int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
+            int step = vlen / sizeof(float);
             cmp(reg_work_amount, step);
             jl(reduce_main_end_label, T_NEAR);  // avoid illegal loading and storing
 
@@ -399,9 +400,6 @@ private:
                     mov(reg_divisor, ptr[reg_params + GET_OFF(divisor)]);
                     uni_vbroadcastss(vmm_aux, ptr[reg_divisor]);
                     uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
-                    if (isa == cpu::x64::sse41) {
-                        uni_vdivps(vmm_dst_aux, vmm_dst_aux, vmm_aux);
-                    }
                 }
                 L(reduce_divide_end_label);
             }
@@ -498,9 +496,6 @@ private:
                 jl(reduce_loop_end_label, T_NEAR);
 
                 reduce_gather(vmm_dst, 0);
-                if (isa == cpu::x64::sse41) {
-                    reduce_gather(vmm_dst_aux, 4 * jcp_.src_data_size);
-                }
 
                 add(reg_src, step * jcp_.src_data_size);
                 sub(reg_work_amount, step);
@@ -589,7 +584,7 @@ private:
         Xbyak::Label reduce_batch_label;
         Xbyak::Label reduce_batch_end_label;
 
-        int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
+        int step = vlen / sizeof(float);
         cmp(reg_work_batch, 1);
         je(reduce_label, T_NEAR);
 
@@ -625,11 +620,6 @@ private:
     void reduce_once() {
         load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel(vmm_src, vmm_dst);
-
-        if (isa == cpu::x64::sse41) {
-            load_vector(vmm_src, ptr[reg_src + 4 * jcp_.src_data_size], jcp_.src_dt);
-            reduce_kernel(vmm_src, vmm_dst_aux);
-        }
     }
 
     void reduce_batch() {
@@ -645,10 +635,6 @@ private:
 
             load_vector(vmm_src, ptr[reg_src_aux], jcp_.src_dt);
             reduce_kernel(vmm_src, vmm_dst);
-            if (isa == cpu::x64::sse41) {
-                load_vector(vmm_src, ptr[reg_src_aux + 4 * jcp_.src_data_size], jcp_.src_dt);
-                reduce_kernel(vmm_src, vmm_dst_aux);
-            }
 
             add(reg_src_aux, reg_reduce_stride);
             sub(reg_work_batch_aux, 1);
@@ -671,7 +657,7 @@ private:
                         uni_vcvtdq2ps(vmm_src, vmm_src);
                     }
                 }
-            } else if (isa == cpu::x64::avx2) {
+            } else {
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 if (jcp_.src_dt == memory::data_type::f32) {
                     vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
@@ -681,8 +667,6 @@ private:
                         uni_vcvtdq2ps(vmm_src, vmm_src);
                     }
                 }
-            } else {
-                pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
             }
             break;
         case memory::data_type::bf16:
@@ -848,7 +832,7 @@ private:
         Xbyak::Label reduce_loop_label;
         Xbyak::Label reduce_loop_end_label;
 
-        int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
+        int step = vlen / sizeof(float);
         L(reduce_loop_label);
         {
             cmp(reg_work_amount, step);
@@ -856,11 +840,6 @@ private:
 
             load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
             reduce_kernel(vmm_src, vmm_dst);
-
-            if (isa == cpu::x64::sse41) {
-                load_vector(vmm_src, ptr[reg_src + 4 * jcp_.src_data_size], jcp_.src_dt);
-                reduce_kernel(vmm_src, vmm_dst);
-            }
 
             add(reg_src, step * jcp_.src_data_size);
             sub(reg_work_amount, step);
@@ -891,10 +870,11 @@ private:
             uni_vaddps(vmm_dst, vmm_dst, vmm_src);
             break;
         case Algorithm::ReduceMax:
-            uni_vmaxps(vmm_dst, vmm_dst, vmm_src);
+            // Keep the non-NaN accumulator when the input is NaN.
+            uni_vmaxps(vmm_dst, vmm_src, vmm_dst);
             break;
         case Algorithm::ReduceMin:
-            uni_vminps(vmm_dst, vmm_dst, vmm_src);
+            uni_vminps(vmm_dst, vmm_src, vmm_dst);
             break;
         case Algorithm::ReduceL2:
         case Algorithm::ReduceSumSquare:
@@ -940,10 +920,10 @@ private:
             uni_vaddps(xmm_dst, xmm_dst, xmm_src);
             break;
         case Algorithm::ReduceMax:
-            uni_vmaxps(xmm_dst, xmm_dst, xmm_src);
+            uni_vmaxps(xmm_dst, xmm_src, xmm_dst);
             break;
         case Algorithm::ReduceMin:
-            uni_vminps(xmm_dst, xmm_dst, xmm_src);
+            uni_vminps(xmm_dst, xmm_src, xmm_dst);
             break;
         case Algorithm::ReduceL2:
         case Algorithm::ReduceSumSquare:
@@ -971,25 +951,14 @@ private:
 
     void load_dst_vector() {
         load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
-        if (isa == cpu::x64::sse41) {
-            load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
-        }
     }
 
     void store_dst_vector() {
         if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_core) {
             uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
-
-            if (isa == cpu::x64::sse41) {
-                uni_cmpneqps(vmm_dst_aux, vmm_dst_aux, vmm_zero);
-                uni_vandps(vmm_dst_aux, vmm_dst_aux, vmm_aux);
-            }
         }
         store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
-        if (isa == cpu::x64::sse41) {
-            store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst_aux, jcp_.dst_dt);
-        }
     }
 
     void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
@@ -1084,15 +1053,9 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                }
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    uni_vmovd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
             break;
         case memory::data_type::u8:
@@ -1101,15 +1064,9 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                }
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    uni_vmovd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
             break;
         default:
@@ -1157,9 +1114,7 @@ private:
     }
 
     void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
-        if (isa == cpu::x64::sse41) {
-            horiz_store(vmm_dst, dst_dt, load_embedded);
-        } else if (isa == cpu::x64::avx2) {
+        if (isa == cpu::x64::avx2) {
             auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
@@ -1190,7 +1145,7 @@ private:
         store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
     }
 
-    void horiz_ps(const Xmm& xmm, const Operand& op) {
+    void horiz_ps(const Xmm& xmm, const Xmm& op) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_vandps(xmm, xmm, op);
@@ -1205,10 +1160,10 @@ private:
             uni_vaddps(xmm, xmm, op);
             break;
         case Algorithm::ReduceMax:
-            uni_vmaxps(xmm, xmm, op);
+            uni_vmaxps(xmm, op, xmm);
             break;
         case Algorithm::ReduceMin:
-            uni_vminps(xmm, xmm, op);
+            uni_vminps(xmm, op, xmm);
             break;
         case Algorithm::ReduceOr:
             uni_vorps(xmm, xmm, op);
@@ -1246,7 +1201,7 @@ private:
         broadcast_int(aux_vals.float_one);
         broadcast_int(aux_vals.float_abs);
         broadcast_int(aux_vals.float_min);
-        broadcast_int(aux_vals.float_max);
+        broadcast_int(aux_vals.float_inf);
         broadcast_int(aux_vals.int32_min);
         broadcast_int(aux_vals.int32_max);
         broadcast_int(aux_vals.int32_one);
@@ -1256,7 +1211,7 @@ private:
         int float_one = 0x3f800000;  // 1.0f
         int float_abs = 0x7fffffff;  // mask to make positive
         int float_min = 0xff7fffff;  // float minimum
-        int float_max = 0x7f7fffff;  // float maximum
+        int float_inf = 0x7f800000;  // positive infinity
         int int32_min = 0xcf000000;  // -2^31 presented in float
         int int32_max = 0x4effffff;  // 2^31-1 presented in float
         int int32_one = 0x00000001;  // integer 1
@@ -1377,8 +1332,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    static_assert(isa == cpu::x64::avx2 || isa == cpu::x64::avx512_core);
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
     bool planar_layout = false;
     bool post_reduce = true;
@@ -1409,7 +1364,6 @@ private:
     Vmm vmm_dst = Vmm(1);
     Xmm xmm_dst = Xmm(1);
     Vmm vmm_zero = Vmm(2);
-    Vmm vmm_dst_aux = Vmm(3);
     Xbyak::Xmm xmm_aux1 = Xbyak::Xmm(4);
     Xbyak::Xmm xmm_aux2 = Xbyak::Xmm(5);
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(6);
@@ -1442,7 +1396,7 @@ private:
             Xbyak::Label reduce_loop_label;
             Xbyak::Label reduce_loop_end_label;
 
-            int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
+            int step = vlen / sizeof(float);
             L(reduce_loop_label);
             {
                 cmp(reg_work_amount, step);
@@ -1450,15 +1404,9 @@ private:
 
                 // load
                 wrap_load_vector(vmm_dst, 0);
-                if (isa == cpu::x64::sse41) {
-                    wrap_load_vector(vmm_dst_aux, 4);
-                }
 
                 // reduce and store
                 horiz_reduce_store(vmm_dst, jcp_.dst_dt);
-                if (isa == cpu::x64::sse41) {
-                    horiz_reduce_store(vmm_dst_aux, jcp_.dst_dt, true);
-                }
 
                 add(reg_dst, step * jcp_.dst_data_size);
                 if (jcp_.fuse_low_precision) {
@@ -1491,7 +1439,7 @@ private:
                 Xbyak::Label reduce_loop_label;
                 Xbyak::Label reduce_loop_end_label;
 
-                int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
+                int step = vlen / sizeof(float);
                 L(reduce_loop_label);
                 {
                     cmp(reg_work_amount, step);
@@ -1503,21 +1451,6 @@ private:
                         apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
                     }
                     store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
-
-                    if (isa == cpu::x64::sse41) {
-                        wrap_load_vector(vmm_dst, 4);
-                        reduce_map_kernel(vmm_dst);
-                        if (post_ops_fusing) {
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
-                                add(reg_oc_off, 4 * sizeof(float));
-                            }
-                            apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
-                                sub(reg_oc_off, 4 * sizeof(float));
-                            }
-                        }
-                        store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst, jcp_.dst_dt);
-                    }
 
                     add(reg_dst, step * jcp_.dst_data_size);
                     if (jcp_.fuse_low_precision) {
@@ -1536,7 +1469,7 @@ private:
                     Xbyak::Label reduce_loop_label;
                     Xbyak::Label reduce_loop_end_label;
 
-                    int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
+                    int step = vlen / sizeof(float);
                     L(reduce_loop_label);
                     {
                         cmp(reg_work_amount, step);
@@ -1545,18 +1478,6 @@ private:
                         wrap_load_vector(vmm_dst, 0);
                         apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
                         store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
-
-                        if (isa == cpu::x64::sse41) {
-                            wrap_load_vector(vmm_dst, 4);
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
-                                add(reg_oc_off, 4 * sizeof(float));
-                            }
-                            apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
-                                sub(reg_oc_off, 4 * sizeof(float));
-                            }
-                            store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst, jcp_.dst_dt);
-                        }
 
                         add(reg_dst, step * jcp_.dst_data_size);
                         if (jcp_.fuse_low_precision) {
@@ -1839,15 +1760,9 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                }
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    uni_vmovd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
             break;
         case memory::data_type::u8:
@@ -1856,15 +1771,9 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                }
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    uni_vmovd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
             break;
         default:
@@ -1912,9 +1821,7 @@ private:
     }
 
     void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
-        if (isa == cpu::x64::sse41) {
-            horiz_store(vmm_dst, dst_dt, load_embedded);
-        } else if (isa == cpu::x64::avx2) {
+        if (isa == cpu::x64::avx2) {
             auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
@@ -1953,7 +1860,7 @@ private:
         }
     }
 
-    void horiz_ps(const Xmm& xmm, const Operand& op) {
+    void horiz_ps(const Xmm& xmm, const Xmm& op) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_vandps(xmm, xmm, op);
@@ -1968,10 +1875,10 @@ private:
             uni_vaddps(xmm, xmm, op);
             break;
         case Algorithm::ReduceMax:
-            uni_vmaxps(xmm, xmm, op);
+            uni_vmaxps(xmm, op, xmm);
             break;
         case Algorithm::ReduceMin:
-            uni_vminps(xmm, xmm, op);
+            uni_vminps(xmm, op, xmm);
             break;
         case Algorithm::ReduceOr:
             uni_vorps(xmm, xmm, op);
@@ -2251,11 +2158,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 #endif
 
     if (jit_mode) {
-        impl_desc_type impl_type = impl_desc_type::jit_sse42;
+        impl_desc_type impl_type = impl_desc_type::jit_avx2;
         if (ov::with_cpu_x86_avx512_core()) {
             impl_type = impl_desc_type::jit_avx512;
-        } else if (ov::with_cpu_x86_avx2()) {
-            impl_type = impl_desc_type::jit_avx2;
         }
 
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_type);
@@ -2265,7 +2170,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 if (ov::with_cpu_x86_avx512_core()) {
                     pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp16c, LayoutType::nCsp16c, input_prec, output_prec, impl_type);
-                } else if (ov::with_cpu_x86_avx2() || ov::with_cpu_x86_sse42()) {
+                } else if (ov::with_cpu_x86_avx2()) {
                     pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp8c, LayoutType::nCsp8c, input_prec, output_prec, impl_type);
                 }
@@ -2273,7 +2178,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 if (ov::with_cpu_x86_avx512_core()) {
                     pushDesc(LayoutType::nspc, LayoutType::ncsp, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp16c, LayoutType::ncsp, input_prec, output_prec, impl_type);
-                } else if (ov::with_cpu_x86_avx2() || ov::with_cpu_x86_sse42()) {
+                } else if (ov::with_cpu_x86_avx2()) {
                     pushDesc(LayoutType::nspc, LayoutType::ncsp, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp8c, LayoutType::ncsp, input_prec, output_prec, impl_type);
                 }
@@ -2345,8 +2250,6 @@ void Reduce::prepareParams() {
             post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>>(key.jcp, *attr.get());
         } else if (ov::with_cpu_x86_avx2()) {
             post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>>(key.jcp, *attr.get());
-        } else if (ov::with_cpu_x86_sse42()) {
-            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>>(key.jcp, *attr.get());
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (post_kernel) {
@@ -2415,7 +2318,7 @@ void Reduce::createPrimitive() {
     jcp.round_to_zero = round_to_zero;
 
 #if defined(OPENVINO_ARCH_X86_64)
-    compile_post_kernel = true;
+    compile_post_kernel = jit_mode;
 #else
     compile_post_kernel = false;
 #endif  // OPENVINO_ARCH_X86_64
@@ -2466,8 +2369,6 @@ void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (ov::with_cpu_x86_avx2()) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx2>>(jcp);
-    } else if (ov::with_cpu_x86_sse42()) {
-        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::sse41>>(jcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
     if (kernel) {
@@ -2523,7 +2424,7 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto* out_ptr = reinterpret_cast<float*>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            CPU_NODE_THROW("supports only plain layout on machine w/o sse42.");
+            CPU_NODE_THROW("supports only plain layout without JIT support.");
         }
     }
 }
@@ -3380,7 +3281,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         if (output_prec == ov::element::f32) {
             auto* out_p = reinterpret_cast<float*>(out_ptr);
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<float>::max();
+                out_p[i] = std::numeric_limits<float>::infinity();
             });
         } else if (output_prec == ov::element::i32) {
             auto* out_p = reinterpret_cast<int32_t*>(out_ptr);
@@ -3390,12 +3291,12 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         } else if (output_prec == ov::element::bf16) {
             auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<bfloat16_t>::max();
+                out_p[i] = std::numeric_limits<bfloat16_t>::infinity();
             });
         } else if (output_prec == ov::element::f16) {
             auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<ov::float16>::max();
+                out_p[i] = std::numeric_limits<ov::float16>::infinity();
             });
         } else if (output_prec == ov::element::u8) {
             auto* out_p = out_ptr;
@@ -3617,7 +3518,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         break;
     case Algorithm::ReduceMax:
         reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::lowest(), [](float x, float y) -> float {
-            return x > y ? x : y;
+            return std::max(x, y);
         });
         break;
     case Algorithm::ReduceMean:
@@ -3626,8 +3527,8 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         });
         break;
     case Algorithm::ReduceMin:
-        reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::max(), [](float x, float y) -> float {
-            return x < y ? x : y;
+        reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::infinity(), [](float x, float y) -> float {
+            return std::min(x, y);
         });
         break;
     case Algorithm::ReduceOr:
@@ -3839,7 +3740,7 @@ bool Reduce::canApplyJIT(const ov::element::Type& input_prec, const ov::element:
     static const ov::element::Type supportedPrecisions[] =
         {ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8};
 
-    return (ov::with_cpu_x86_sse42()) && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
+    return ov::with_cpu_x86_avx2() && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), input_prec) !=
                std::end(supportedPrecisions) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), output_prec) !=
