@@ -2,24 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <limits>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/identity.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -141,6 +148,33 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     }
 }
 
+std::shared_ptr<ov::Node> make_onnx_reduce_max(const Node& node,
+                                             const std::set<element::Type>& supported_types,
+                                             bool axes_as_attr = true) {
+    const auto data = node.get_ov_inputs().at(0);
+    const auto reduced = make_ov_reduction_op<v1::ReduceMax>(node, data, supported_types, axes_as_attr);
+    if (!data.get_element_type().is_real() || !ov::is_type<v1::ReduceMax>(reduced)) {
+        return reduced;
+    }
+
+    const auto& shape = data.get_partial_shape();
+    if (shape.rank().is_static() &&
+        std::all_of(shape.begin(), shape.end(), [](const Dimension& dim) { return dim.get_min_length() > 0; })) {
+        return reduced;
+    }
+
+    // ONNX uses negative infinity when a reduced dimension has length zero.
+    const auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+    const auto axis_zero = v0::Constant::create(element::i64, Shape{1}, {0});
+    const auto data_shape = std::make_shared<v3::ShapeOf>(data);
+    const auto reduced_dims = std::make_shared<v8::Gather>(data_shape, reduced->input_value(1), zero);
+    const auto empty_dims = std::make_shared<v1::Equal>(reduced_dims, zero);
+    const auto is_empty = std::make_shared<v1::ReduceLogicalOr>(empty_dims, axis_zero);
+    const auto neg_inf = v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()});
+    const auto typed_neg_inf = std::make_shared<v0::Convert>(neg_inf, data.get_element_type());
+    return std::make_shared<v1::Select>(is_empty, typed_neg_inf, reduced);
+}
+
 std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node,
                                                  const std::set<element::Type>& supported_types,
                                                  const bool axes_as_attr = true) {
@@ -214,7 +248,7 @@ ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v1)};
+    return {make_onnx_reduce_max(node, supported_types_v1)};
 }
 
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
@@ -294,7 +328,7 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
+    return {make_onnx_reduce_max(node, supported_types_v3)};
 }
 
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
@@ -340,7 +374,7 @@ ov::OutputVector reduce_l1(const Node& node) {
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+    return {make_onnx_reduce_max(node, supported_types_v3, false)};
 }
 
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
@@ -398,7 +432,7 @@ namespace opset_20 {
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     if (data.get_element_type() != element::boolean) {
-        return {make_ov_reduction_op<v1::ReduceMax>(node, data, supported_types_v3, false)};
+        return {make_onnx_reduce_max(node, supported_types_v3, false)};
     } else {
         // Handling boolean as a uint8
         return {std::make_shared<v0::Convert>(
