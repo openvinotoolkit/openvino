@@ -453,4 +453,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_SDPA_With_Sink,
                          ReferenceSDPATest,
                          testing::ValuesIn(generateCombinedParamsWithSink()),
                          ReferenceSDPATest::getTestCaseName);
+
+// An integer key or value is converted to the query's type. The value 200 is out of i8 range, so
+// reading the u8 value as i8 would show.
+std::vector<SDPAParams> generateParamsIntegerKeyValue() {
+    SDPAParams p;
+    p.qShape = PartialShape{1, 2, 2};
+    p.kShape = PartialShape{1, 2, 2};
+    p.vShape = PartialShape{1, 2, 2};
+    p.attentionMaskShape = PartialShape{};
+    p.outputShape = PartialShape{1, 2, 2};
+    p.isCausal = false;
+    p.testcaseName = "i8_key_u8_value";
+    p.qData = reference_tests::Tensor(element::f32, Shape{1, 2, 2}, std::vector<float>{0.5f, -1.0f, 1.0f, 0.25f});
+    p.kData = reference_tests::Tensor(element::i8, Shape{1, 2, 2}, std::vector<int8_t>{1, -2, 3, 0});
+    p.vData = reference_tests::Tensor(element::u8, Shape{1, 2, 2}, std::vector<uint8_t>{2, 4, 6, 200});
+    p.expectedOutputData = reference_tests::Tensor(element::f32,
+                                                   Shape{1, 2, 2},
+                                                   std::vector<float>{3.320954f, 68.72674f, 5.416719f, 171.4192f});
+    p.sinkShape = PartialShape{0};
+    return {p};
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_SDPA_Integer_Key_Value,
+                         ReferenceSDPATest,
+                         testing::ValuesIn(generateParamsIntegerKeyValue()),
+                         ReferenceSDPATest::getTestCaseName);
 }  // namespace

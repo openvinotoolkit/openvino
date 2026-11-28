@@ -28,6 +28,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
@@ -426,4 +427,56 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
         model_ref = std::make_shared<ov::Model>(OutputVector{ref},
                                                 ParameterVector{query, key, value, attention_mask, scale, sinks});
     }
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionIntegerKeyValue) {
+    const auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
+    const auto key = std::make_shared<v0::Parameter>(element::i8, PartialShape{1, 32, 32});
+    const auto value = std::make_shared<v0::Parameter>(element::u4, PartialShape{1, 32, 32});
+    const auto attention_mask = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
+    const auto scale = std::make_shared<v0::Parameter>(element::f16, PartialShape{1});
+    {
+        const auto sdpa =
+            std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, false);
+        model =
+            std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, attention_mask, scale});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+    {
+        const auto ref = scaled_dot_product_attention_decomposition(query,
+                                                                    std::make_shared<v1::ConvertLike>(key, query),
+                                                                    std::make_shared<v1::ConvertLike>(value, query),
+                                                                    attention_mask,
+                                                                    scale,
+                                                                    false);
+        model_ref =
+            std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask, scale});
+    }
+}
+
+// The integer key is converted to the query's type even when that type is only known after the
+// decomposition, as when a model is decomposed before its parameter types are set.
+TEST(TransformationTests, ScaledDotProductAttentionDecompositionIntegerKeyFollowsRefinedQueryType) {
+    const auto query = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{1, 32, 32});
+    const auto key = std::make_shared<v0::Parameter>(element::i8, PartialShape{1, 32, 32});
+    const auto value = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{1, 32, 32});
+    const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, false);
+    const auto model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    manager.run_passes(model);
+
+    query->set_element_type(element::f32);
+    value->set_element_type(element::f32);
+    model->validate_nodes_and_infer_types();
+
+    std::vector<std::string> dynamic_outputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        for (const auto& output : node->outputs()) {
+            if (output.get_element_type().is_dynamic()) {
+                dynamic_outputs.push_back(node->get_type_name());
+            }
+        }
+    }
+    EXPECT_EQ(dynamic_outputs, std::vector<std::string>{});
 }
