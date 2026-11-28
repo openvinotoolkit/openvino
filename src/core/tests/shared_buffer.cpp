@@ -827,7 +827,7 @@ TEST_F(SharedBufferTest, common_buffer_whole_range_with_source_offset_uses_buffe
 }
 
 TEST_F(SharedBufferTest, writable_mmap_shared_buffer_has_no_id) {
-    auto mapped = ov::load_mmap_object(m_file_path, 0, ov::auto_size, false, ov::MmapMode::READ_WRITE);
+    auto mapped = ov::load_mmap_object(m_file_path, 0, ov::auto_size, ov::MmapMode::READ_WRITE);
     ASSERT_FALSE(mapped->get_id().has_value());
 
     auto buffer =
