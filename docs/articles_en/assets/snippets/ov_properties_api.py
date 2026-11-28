@@ -5,7 +5,6 @@
 import openvino as ov
 import openvino.properties as props
 import openvino.properties.hint as hints
-import openvino.properties.device as device
 
 from utils import get_model
 
@@ -17,10 +16,12 @@ def main():
     # [get_available_devices]
 
     # [hetero_priorities]
+    import openvino.properties.device as device
     device_priorites = core.get_property("HETERO", device.priorities)
     # [hetero_priorities]
 
     # [cpu_device_name]
+    import openvino.properties.device as device
     cpu_device_name = core.get_property("CPU", device.full_name)
     # [cpu_device_name]
 
