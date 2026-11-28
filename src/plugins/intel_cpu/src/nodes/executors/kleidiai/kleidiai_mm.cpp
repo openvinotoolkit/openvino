@@ -119,6 +119,9 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     const bool useDynamicQuant = useDynamicQuantizationImpl(attrs, originalWeightsDesc);
     if (!useDynamicQuant) {
         kernelLookupKey = kernelLookup::WEIGHT_FP32;
+        if (hasArmISASupport(ArmISA::SME2)) {
+            kernelLookupKey |= kernelLookup::ISA_SME2;
+        }
     } else {
         const auto weightPrecision = memory.at(ARG_WEI)->getDescPtr()->getPrecision();
         if (weightPrecision == element::i4 || weightPrecision == element::u4) {
@@ -165,8 +168,14 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     };
 
     switch (kernelLookupKey) {
-    case WEIGHT_FP32: {
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
+    case WEIGHT_FP32:
+    case WEIGHT_FP32 | ISA_SME2: {
+        if ((kernelLookupKey & ISA_SME2) != 0) {
+            _kernel =
+                std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_SME2_MOPA>>(N, K, lhsPackedMem);
+        } else {
+            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
+        }
 
         auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
         auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);

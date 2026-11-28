@@ -39,6 +39,7 @@ public:
         WEIGHT_INT4 = 1 << 3,
         ISA_DOTPROD = 1 << 4,
         ISA_I8MM = 1 << 5,
+        ISA_SME2 = 1 << 10,
         QUANT_CHANNEL = 1 << 6,
         QUANT_GROUP = 1 << 7,
         QUANT_SYMMETRIC = 1 << 8,

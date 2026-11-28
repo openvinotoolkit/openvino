@@ -19,6 +19,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/merge_transpose_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/kleidiai_fc_sme2_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/tensoriterator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
@@ -278,6 +279,7 @@ endfunction()
 if(ENABLE_UNITY_BUILD)
     group_source_files(unit_src_nodes
         ${CMAKE_CURRENT_LIST_DIR}/nodes/eltwise_node_test.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/nodes/kleidiai_fc_sme2_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp)
     group_source_files(unit_src_transformations
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp

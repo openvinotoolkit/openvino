@@ -21,6 +21,8 @@ bool hasArmISASupport(ArmISA isa) {
         return with_cpu_arm_dotprod();
     case ArmISA::I8MM:
         return with_cpu_arm_i8mm();
+    case ArmISA::SME2:
+        return with_cpu_arm_sme2();
     }
     // An unhandled ArmISA must never be silently reported as supported: that could let an
     // executor emit instructions the core lacks. Fail loudly so a newly added ISA is wired up.
