@@ -16,28 +16,39 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::test {
 
-// Decomposed LTX-Video rope table applied to a projection: the angle chain must stay f32 under bf16
-// enforcement, MatMuls stay bf16. The static case also exercises Snippets tokenization.
+// Decomposed rope table applied to a projection: the angle chain must stay f32 under bf16/f16
+// inference, MatMuls stay in low precision. The static case also exercises Snippets tokenization.
+enum class AngleChain {
+    SHIFTED_GRID,   // grid * freqs + shift -> Transpose -> Reshape (LTX-Video)
+    CENTERED_GRID,  // (grid * 2 - 1) * freqs -> Reshape (LTX-2, single position axis)
+};
+
+inline std::ostream& operator<<(std::ostream& os, AngleChain chain) {
+    return os << (chain == AngleChain::SHIFTED_GRID ? "ShiftedGrid" : "CenteredGrid");
+}
+
 using RopeTablePrecisionParams = std::tuple<ov::element::Type,  // inference precision
+                                            AngleChain,         // angle chain topology
                                             InputShape>;        // hidden states shape
 
 class RopeTablePrecisionCPUTest : public testing::WithParamInterface<RopeTablePrecisionParams>,
                                   public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RopeTablePrecisionParams>& obj) {
-        const auto& [infer_prc, shape] = obj.param;
+        const auto& [infer_prc, chain, shape] = obj.param;
         std::ostringstream result;
-        result << "inferPRC=" << infer_prc << "_" << (shape.first.is_dynamic() ? "dynamic" : "static");
+        result << "inferPRC=" << infer_prc << "_" << chain << "_" << (shape.first.is_dynamic() ? "dynamic" : "static");
         result << "_IS=" << ov::test::utils::partialShape2str({shape.first});
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [infer_prc, hidden_shape] = GetParam();
+        const auto& [infer_prc, chain, hidden_shape] = GetParam();
         targetDevice = utils::DEVICE_CPU;
         configuration.insert({ov::hint::inference_precision.name(), infer_prc});
         // low precision angles give O(1) errors; honest rounding stays well under this
@@ -50,17 +61,26 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]),
                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[1])};
 
-        // ~500 rad max after the freq multiply: fatal for bf16 (~2 rad steps), exact for f32 sin/cos
-        auto freqs = utils::make_constant(ov::element::f32, ov::Shape{1, 1, BANDS}, std::vector<float>{1, 2, 4, 8});
-        auto angles = std::make_shared<ov::op::v1::Multiply>(params[0], freqs);
-        auto shifted = std::make_shared<ov::op::v1::Add>(
-            angles,
-            utils::make_constant(ov::element::f32, ov::Shape{}, std::vector<float>{-1.0F}));
-        auto order = utils::make_constant(ov::element::i32, ov::Shape{3}, std::vector<int>{0, 2, 1});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(shifted, order);
+        // ~1.6e4 rad max after the freq multiply, as in LTX models: low precision steps exceed 2*pi
+        // (f16: 8 rad, bf16: 64 rad), while f32 sin/cos stay exact
+        auto freqs = utils::make_constant(ov::element::f32, ov::Shape{1, 1, BANDS}, std::vector<float>{1, 16, 64, 250});
+        auto minus_one = utils::make_constant(ov::element::f32, ov::Shape{}, std::vector<float>{-1.0F});
         auto target_shape =
             utils::make_constant(ov::element::i32, ov::Shape{2}, std::vector<int>{1, static_cast<int>(HIDDEN_SIZE)});
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, target_shape, false);
+        std::shared_ptr<ov::Node> reshape;
+        if (chain == AngleChain::SHIFTED_GRID) {
+            auto angles = std::make_shared<ov::op::v1::Multiply>(params[0], freqs);
+            auto shifted = std::make_shared<ov::op::v1::Add>(angles, minus_one);
+            auto order = utils::make_constant(ov::element::i32, ov::Shape{3}, std::vector<int>{0, 2, 1});
+            auto transpose = std::make_shared<ov::op::v1::Transpose>(shifted, order);
+            reshape = std::make_shared<ov::op::v1::Reshape>(transpose, target_shape, false);
+        } else {
+            auto two = utils::make_constant(ov::element::f32, ov::Shape{}, std::vector<float>{2.0F});
+            auto scaled = std::make_shared<ov::op::v1::Multiply>(params[0], two);
+            auto centered = std::make_shared<ov::op::v1::Add>(scaled, minus_one);
+            auto angles = std::make_shared<ov::op::v1::Multiply>(centered, freqs);
+            reshape = std::make_shared<ov::op::v1::Reshape>(angles, target_shape, false);
+        }
         auto cos = std::make_shared<ov::op::v0::Cos>(reshape);
         auto sin = std::make_shared<ov::op::v0::Sin>(reshape);
 
@@ -106,16 +126,17 @@ protected:
 };
 
 TEST_P(RopeTablePrecisionCPUTest, CompareWithRefs) {
-    // bf16-only test: skip on CPUs without bf16 support
-    if (!ov::with_cpu_x86_bfloat16()) {
-        GTEST_SKIP() << "No BF16 support";
+    const auto infer_prc = std::get<0>(GetParam());
+    if (!ov::intel_cpu::hasHardwareSupport(infer_prc)) {
+        GTEST_SKIP() << "No " << infer_prc << " support";
     }
     run();
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_RopeTablePrecision,
                          RopeTablePrecisionCPUTest,
-                         testing::Combine(testing::Values(ov::element::bf16),
+                         testing::Combine(testing::Values(ov::element::bf16, ov::element::f16),
+                                          testing::Values(AngleChain::SHIFTED_GRID, AngleChain::CENTERED_GRID),
                                           testing::Values(InputShape{ov::PartialShape{-1, 256},
                                                                      {ov::Shape{64, 256}, ov::Shape{32, 256}}},
                                                           InputShape{ov::PartialShape{64, 256}, {ov::Shape{64, 256}}})),
