@@ -13,8 +13,13 @@ namespace {
 
 constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
 constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
+constexpr cl_uint CL_L0_EVENT_HANDLE = 0x42B2;
 constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
 constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
+constexpr cl_uint CL_L0_PLATFORM_DRIVER_HANDLE = 0x42B5;
+constexpr cl_uint CL_L0_IMAGE_HANDLE = 0x42B6;
+
+constexpr cl_mem_properties CL_L0_IMAGE_LIST_END_HANDLE = 0;
 
 inline void expect_success(cl_int error, void *handle, const std::string& message) {
     if (error != CL_SUCCESS || handle == nullptr) {
@@ -22,6 +27,26 @@ inline void expect_success(cl_int error, void *handle, const std::string& messag
             " (Error code: ", std::to_string(error),
             ", returned handle=", std::to_string((uintptr_t)handle), ")");
     }
+}
+
+bool check_interop_extension(cl_device_id device) {
+    size_t size = 0;
+    if (clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, nullptr, &size) != CL_SUCCESS || size == 0) {
+        return false;
+    }
+    std::vector<char> extensions(size);
+    if (clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, size, extensions.data(), nullptr) != CL_SUCCESS ||
+        extensions.back() != '\0') {
+        return false;
+    }
+    std::istringstream extension_list(extensions.data());
+    std::string extension;
+    while (extension_list >> extension) {
+        if (extension == "cl_intel_level_zero_interop") {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<cl_device_id> find_ocl_devices() {
@@ -89,13 +114,8 @@ std::vector<std::pair<ze_driver_handle_t, ze_device_handle_t>> find_ze_devices()
 } // namespace
 
 bool ze_ocl_interop::check_support(ze_device_handle_t ze_device) const {
-    try {
-        auto* ocl_dev = find_ocl_device(ze_device);
-        return (ocl_dev != nullptr);
-    }
-    catch(...) {
-        return false;
-    }
+    auto it = _device_map.find(ze_device);
+    return it != _device_map.end() && it->second != nullptr && check_interop_extension(it->second);
 };
 
 void ze_ocl_interop::init() {
@@ -107,6 +127,9 @@ void ze_ocl_interop::init() {
         _device_map[ze_device.second] = nullptr;
     }
     for (auto &ocl_device : ocl_devices) {
+        if (!check_interop_extension(ocl_device)) {
+            continue;
+        }
         ze_device_handle_t ze_dev = nullptr;
         try {
             ze_dev = get_ze_device(ocl_device);
@@ -126,14 +149,13 @@ cl_device_id ze_ocl_interop::find_ocl_device(ze_device_handle_t ze_device) const
 }
 
 ze_driver_handle_t ze_ocl_interop::find_ze_driver(cl_device_id ocl_device) {
-    auto* ze_device = get_ze_device(ocl_device);
-    auto all_devices = find_ze_devices();
-    for (auto &device : all_devices) {
-        if (device.second == ze_device) {
-            return device.first;
-        }
-    }
-    OPENVINO_THROW("[GPU] Failed to find matching ZE driver for given ZE device");
+    cl_platform_id platform = nullptr;
+    cl_int error = clGetDeviceInfo(ocl_device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+    expect_success(error, platform, "[GPU] Failed to get OCL platform for device");
+    ze_driver_handle_t driver = nullptr;
+    error = clGetPlatformInfo(platform, CL_L0_PLATFORM_DRIVER_HANDLE, sizeof(driver), &driver, nullptr);
+    expect_success(error, driver, "[GPU] Attempt to extract ZE driver from OCL platform failed");
+    return driver;
 }
 
 ze_context_handle_t ze_ocl_interop::get_ze_context(cl_context context) {
@@ -161,17 +183,34 @@ void* ze_ocl_interop::get_ze_usm(cl_mem ocl_mem) {
     return ze_mem;
 }
 
+ze_event_handle_t ze_ocl_interop::get_ze_event(cl_event event) {
+    ze_event_handle_t ze_event = nullptr;
+    cl_int error = clGetEventInfo(event, CL_L0_EVENT_HANDLE, sizeof(ze_event), &ze_event, nullptr);
+    expect_success(error, ze_event, "[GPU] Attempt to extract ZE event from OCL event failed");
+    return ze_event;
+}
+
 ze_image_handle_t ze_ocl_interop::get_ze_image(cl_mem ocl_mem) {
-    cl_mem mem = ocl_mem;
-    cl_int error;
-    ze_image_handle_t ze_image;
-    error = clGetMemObjectInfo(mem, CL_L0_MEM_OBJ_HANDLE, sizeof(ze_image_handle_t), &ze_image, nullptr);
-    expect_success(error, ze_image, "[GPU] Attempt to extract ZE image from OCL buffer failed");
-    return ze_image;
+    auto images = get_ze_images(ocl_mem);
+    OPENVINO_ASSERT(images.size() == 1, "[GPU] Expected exactly one ZE image for OCL image, got ", images.size());
+    return images.front();
+}
+
+std::vector<ze_image_handle_t> ze_ocl_interop::get_ze_images(cl_mem ocl_mem) {
+    size_t size = 0;
+    cl_int error = clGetImageInfo(ocl_mem, CL_L0_IMAGE_HANDLE, 0, nullptr, &size);
+    OPENVINO_ASSERT(error == CL_SUCCESS && size > 0 && size % sizeof(ze_image_handle_t) == 0,
+                    "[GPU] Failed to query ZE image handles from OCL image (Error code: ", error, ", size: ", size, ")");
+    std::vector<ze_image_handle_t> images(size / sizeof(ze_image_handle_t), nullptr);
+    error = clGetImageInfo(ocl_mem, CL_L0_IMAGE_HANDLE, size, images.data(), nullptr);
+    for (auto image : images) {
+        expect_success(error, image, "[GPU] Attempt to extract ZE image from OCL image failed");
+    }
+    return images;
 }
 
 ze_device_handle_t ze_ocl_interop::get_ze_device(cl_device_id device) {
-    ze_device_handle_t ze_device;
+    ze_device_handle_t ze_device = nullptr;
     cl_int error = clGetDeviceInfo(device, CL_L0_DEVICE_HANDLE, sizeof(ze_device_handle_t), &ze_device, nullptr);
     expect_success(error, ze_device, "[GPU] Attempt to extract ZE device from OCL device failed");
     return ze_device;
@@ -203,13 +242,30 @@ cl_mem ze_ocl_interop::create_cl_buffer(void* usm_ptr, const ocl_buffer_args& ar
     return converted_mem;
 }
 
-cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_args& args) {
-    cl_mem_properties properties[] = {CL_L0_MEM_OBJ_HANDLE, reinterpret_cast<cl_mem_properties>(image), 0};
+cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_args &args) {
+    cl_mem_properties properties[] = {CL_L0_IMAGE_HANDLE, reinterpret_cast<cl_mem_properties>(image), 0, 0};
     cl_int error;
     cl_mem converted_mem = clCreateImageWithProperties(args.context, properties, args.flags, &args.format, &args.desc, nullptr, &error);
     expect_success(error, converted_mem, "[GPU] Attempt to create CL image from ZE image failed");
     return converted_mem;
 }
+
+cl_mem ze_ocl_interop::create_cl_image(const std::vector<ze_image_handle_t>& images, const ocl_image_args &args) {
+    // creating CL image from multiple ZE images
+    OPENVINO_ASSERT(!images.empty(), "[GPU] At least one ZE image is required to create an OCL image");
+    std::vector<cl_mem_properties> properties{CL_L0_IMAGE_HANDLE};
+    for (auto image : images) {
+        OPENVINO_ASSERT(image != nullptr, "[GPU] Cannot create an OCL image from a null ZE image");
+        properties.push_back(reinterpret_cast<cl_mem_properties>(image));
+    }
+    properties.push_back(CL_L0_IMAGE_LIST_END_HANDLE);
+    properties.push_back(0);
+    cl_int error;
+    cl_mem converted_mem = clCreateImageWithProperties(args.context, properties.data(), args.flags, &args.format, &args.desc, nullptr, &error);
+    expect_success(error, converted_mem, "[GPU] Attempt to create CL image from ZE image failed");
+    return converted_mem;
+}
+
 
 }  // namespace ze
 }  // namespace cldnn

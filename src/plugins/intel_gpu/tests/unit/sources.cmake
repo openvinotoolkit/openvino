@@ -592,6 +592,7 @@ set(GPU_UNIT_TESTS_ZE_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_engine_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_events_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_interop_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_image_memory_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_resource_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_usm_memory_test.cpp

@@ -73,13 +73,15 @@ public:
     static ze_command_list_handle_t get_ze_cmd_list(cl_command_queue queue);
     static void* get_ze_usm(cl_mem ocl_mem);
     static ze_image_handle_t get_ze_image(cl_mem ocl_mem);
+    static std::vector<ze_image_handle_t> get_ze_images(cl_mem ocl_mem);
     static ze_device_handle_t get_ze_device(cl_device_id device);
+    static ze_event_handle_t get_ze_event(cl_event event);
 
     static cl_context create_cl_context(ze_context_handle_t context, const ocl_context_args& args);
     static cl_command_queue create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args);
     static cl_mem create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args);
-    static cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args);
-
+    static cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args);  // from 1 ZE image
+    static cl_mem create_cl_image(const std::vector<ze_image_handle_t>& images, const ocl_image_args& args); // from multiple ZE images
 protected:
     ze_ocl_interop() = default;
     /// @brief Initialize OpenCL and L0 drivers and fill device_map

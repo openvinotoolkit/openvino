@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "runtime/ze/ze_device_detector.hpp"
 #include "runtime/ze/ze_device.hpp"
+#include "runtime/ze/ze_ocl_interop.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -139,6 +140,23 @@ TEST(ze_devices_test, is_same_device) {
 		auto second_device = devices.rbegin()->second;
 
 		ASSERT_FALSE(first_device->is_same(second_device));
+	}
+}
+
+TEST(ze_devices_test, find_ze_driver_matches_device_driver) {
+	ze::ze_device_detector device_detector;
+	const bool initialize = false;
+	auto devices = device_detector.get_available_devices(nullptr, nullptr, 0, std::numeric_limits<int>::max(), initialize);
+	auto& interop = ze::ze_ocl_interop::get_instance();
+
+	for (const auto& device : devices) {
+		auto ze_device = std::dynamic_pointer_cast<ze::ze_device>(device.second);
+		ASSERT_NE(ze_device, nullptr);
+		if (!interop.check_support(ze_device->get_device().handle())) {
+			GTEST_SKIP() << "No Level Zero device with OpenCL interoperability found";
+		}
+		auto ocl_device = interop.find_ocl_device(ze_device->get_device().handle());
+		EXPECT_EQ(interop.find_ze_driver(ocl_device), ze_device->get_driver().handle());
 	}
 }
 
