@@ -6,6 +6,8 @@
 #include "json_object.h"
 #include <string>
 #include <algorithm>
+#include <numeric>
+#include <optional>
 #include "utils.hpp"
 #include "swiglu_inst.h"
 
@@ -384,6 +386,65 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         return updated_param;
     }
     return std::move(orig_impl_param);
+}
+
+std::optional<layout> fully_connected_inst::get_fused_peer_2d_layout(const layout& peer, const ov::PartialShape& output_shape) {
+    const auto& peer_shape = peer.get_partial_shape();
+    // A peer of another rank may be canonicalized against numpy broadcast (e.g. [N] -> [N, 1, 1, 1]), so only fold a peer of
+    // the output rank.
+    if (peer_shape.is_dynamic() || output_shape.rank().is_dynamic() || output_shape.size() < 2 || peer_shape.size() != output_shape.size() ||
+        !format::is_default_format(peer.format) || peer.data_padding || peer.data_padding.is_dynamic()) {
+        return std::nullopt;
+    }
+
+    const auto peer_dims = peer_shape.to_shape();
+    const int64_t cols = static_cast<int64_t>(peer_dims.back());
+    // Dynamic output_shape
+    // Fold only if the peer is fully broadcast along the leading dimensions.
+    if (output_shape.is_dynamic()) {
+        // [1,..,1,N]
+        const bool broadcast_all = std::all_of(peer_dims.begin(), peer_dims.end() - 1, [](size_t dim) {
+            return dim == 1;
+        });
+        if (!broadcast_all) {
+            return std::nullopt;
+        }
+        auto folded = peer;
+        folded.set_partial_shape(ov::PartialShape{1, cols});
+        folded.format = format::bfyx;
+        return folded;
+    }
+
+    // Static output_shape
+    // Fold only if the peer is either fully broadcast or matches the output shape along the leading dimensions.
+    const auto out_dims = output_shape.to_shape();
+    bool broadcast_all = true;  // per-column peer, e.g. bias [1, 1, 1, N]
+    bool no_broadcast = true;   // exact match with output's leading dims
+    for (size_t i = 0; i < out_dims.size() - 1; ++i) {
+        broadcast_all &= peer_dims[i] == 1;
+        no_broadcast &= peer_dims[i] == out_dims[i];
+    }
+
+    size_t rows = 0;
+    if (broadcast_all) {
+        rows = 1;
+    } else if (no_broadcast) {
+        rows = std::accumulate(out_dims.begin(), out_dims.end() - 1, size_t{1}, std::multiplies<size_t>());
+    } else {
+        // Partial broadcast, e.g. [1, H, 1, N]: an output row does not map to a peer row in a 2D view
+        return std::nullopt;
+    }
+
+    auto folded = peer;
+    folded.set_partial_shape(ov::PartialShape{static_cast<int64_t>(rows), cols});
+    folded.format = format::bfyx;
+    return folded;
+}
+
+bool fully_connected_inst::can_view_fused_peer_in_2d(const layout& peer, const ov::PartialShape& output_shape) {
+    // A single value reads the same with any view, even if its rank differs from the output's
+    const bool is_static_scalar = peer.is_static() && peer.count() == 1;
+    return is_static_scalar || get_fused_peer_2d_layout(peer, output_shape).has_value();
 }
 
 template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node const& node,

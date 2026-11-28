@@ -54,7 +54,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
                     return false;
                 if (!ocl_supports_weights_layout(node) || !no_hadamard_input(node))
                     return false;
-                return node.get_output_pshape().size() <= 3;
+                return node.get_output_pshape().size() <= 4;
         })
     };
 

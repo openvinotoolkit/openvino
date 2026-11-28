@@ -9,6 +9,7 @@
 
 #include <string>
 #include <memory>
+#include <optional>
 
 namespace cldnn {
 template <>
@@ -52,6 +53,11 @@ public:
     static bool has_fake_alignment() { return true; }
     static std::string to_string(fully_connected_node const& node);
     static bool can_apply_single_batch_optimization(const kernel_impl_params& impl_param);
+    // OCL FC kernels compute an FC with input_size > 3 on a 2D [B*H*W, N] view of its output, so fused op peers must be
+    // read in the same 2D form. Returns the peer reshaped to that view, or std::nullopt if it can't be expressed in 2D.
+    static std::optional<layout> get_fused_peer_2d_layout(const layout& peer, const ov::PartialShape& output_shape);
+    // True if the peer can be reshaped to the 2D view, or is a single value, which reads the same with any view
+    static bool can_view_fused_peer_in_2d(const layout& peer, const ov::PartialShape& output_shape);
 
     typed_primitive_inst(network& network, fully_connected_node const& node);
 

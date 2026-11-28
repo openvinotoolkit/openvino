@@ -3538,6 +3538,24 @@ bool primitive_inst::is_valid_fusion() const {
     if (fuse_descriptors.empty()) {
         return true;
     }
+
+    // OCL FC kernels run an FC with input_size > 3 on a 2D view of its output, so every fused op peer (eltwise input, quantize
+    // range, activation param) must be viewable in 2D, as prepare_primitive_fusing checks. Check it again, as the peer may be
+    // changed after fusion (e.g. an in place crop pads it), or the FC may get an OCL impl although it preferred oneDNN when it was
+    // fused (e.g. oneDNN rejects a post-op fused later). update_impl() selects a oneDNN impl whenever one is available, so only
+    // FCs without it may run with an OCL impl.
+    if (get_node().is_type<fully_connected>() && get_node().as<fully_connected>().get_primitive()->input_size > 3 && !_impls_factory->has(impl_types::onednn)) {
+        const auto& node_out_pshape = get_node().get_output_layout().get_partial_shape();
+        for (const auto& fd : fuse_descriptors) {
+            for (size_t i = 0; fd.has_outer_dep() && i < fd.deps.size(); ++i) {
+                const auto& peer = get_node().get_input_layout(fd.outer_dep_start_idx + i);
+                if (!fully_connected_inst::can_view_fused_peer_in_2d(peer, node_out_pshape)) {
+                    LOG_AND_RETURN_FALSE(_node);
+                }
+            }
+        }
+    }
+
     std::vector<fused_primitive_desc> fused_eltwise_prims;
     for (const auto& fd : fuse_descriptors) {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {

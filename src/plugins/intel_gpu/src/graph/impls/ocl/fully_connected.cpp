@@ -169,8 +169,52 @@ public:
         updated_impl_param.weights_layout = input_layouts[1];
 
         updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout(), swiglu_fused);
+        apply_2d_view_to_fused_peers(updated_impl_param, impl_param.get_output_layout().get_partial_shape());
 
         return updated_impl_param;
+    }
+
+    // The output of input_size > 3 is computed as 2D [B*H*W, N], so fused op peers have to be viewed in 2D too.
+    // This holds for every fused op peer (eltwise input, quantize range, activation param), and peers that can't be viewed in
+    // 2D are not fused.
+    // Returns the first peer that can't be viewed in 2D, which the kernel would read incorrectly.
+    static std::optional<layout> apply_2d_view_to_fused_peers(kernel_impl_params& impl_params, const ov::PartialShape& output_shape) {
+        if (impl_params.typed_desc<fully_connected>()->input_size <= 3) {
+            return std::nullopt;
+        }
+
+        std::optional<layout> unfoldable_peer;
+        for (const auto& fd : impl_params.fused_desc) {
+            if (!fd.has_outer_dep()) {
+                continue;
+            }
+            for (size_t i = 0; i < fd.deps.size(); ++i) {
+                auto& peer_layout = impl_params.input_layouts[fd.outer_dep_start_idx + i];
+                if (auto folded = fully_connected_inst::get_fused_peer_2d_layout(peer_layout, output_shape)) {
+                    peer_layout = *folded;
+                } else if (!unfoldable_peer && !fully_connected_inst::can_view_fused_peer_in_2d(peer_layout, output_shape)) {
+                    unfoldable_peer = peer_layout;
+                }
+            }
+        }
+        return unfoldable_peer;
+    }
+
+    // When creating the impl of a static FC with input_size > 3, check that every fused op peer can be viewed in 2D, and fail if
+    // not. Unlike a dynamic FC, a static FC can't fall back to an unfused subgraph at runtime.
+    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
+        if (!arg.is_dynamic()) {
+            auto updated_impl_param = static_canonicalize_shapes(impl_param);
+            const auto unfoldable_peer = apply_2d_view_to_fused_peers(updated_impl_param, updated_impl_param.get_output_layout().get_partial_shape());
+            OPENVINO_ASSERT(!unfoldable_peer.has_value(),
+                            "[GPU] OCL fully_connected ",
+                            arg.id(),
+                            " can't read its fused op input ",
+                            unfoldable_peer->to_short_string(),
+                            " on the 2D view of its output ",
+                            impl_param.get_output_layout().to_short_string());
+        }
+        return parent::create<fully_connected_impl>(arg, impl_param);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
@@ -238,14 +282,37 @@ public:
         return params;
     }
 
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        if (impl_params.typed_desc<fully_connected>()->input_size <= 3) {
+            parent::update(inst, impl_params);
+            return;
+        }
+
+        auto new_impl_params = canonicalize_shapes(impl_params);
+        const auto view_params = update_impl_params(new_impl_params);
+        update_dispatch_data(new_impl_params, view_params);
+        // The shape-agnostic kernel is built for the 2D view made by update_impl_params(), so shape_info has to describe that view
+        // too. Only input0 and output0 are replaced: update_impl_params() also moves the decompression scale/zp to input 2/3
+        // regardless of the bias, while shape_info follows the dependency order of the node. Fused op peers have no shape_info
+        // entry, since only static peers are fused to an FC with input_size > 3.
+        new_impl_params.input_layouts[0] = view_params.input_layouts[0];
+        new_impl_params.output_layouts[0] = view_params.output_layouts[0];
+        inst.update_shape_info_tensor(new_impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        update_dispatch_data(impl_param, update_impl_params(impl_param));
+    }
+
+private:
+    // @p updated_impl_param is update_impl_params(@p impl_param), passed in so that update() computes it only once
+    void update_dispatch_data(const kernel_impl_params& impl_param, const kernel_impl_params& updated_impl_param) {
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
         if (_kernel_data.params == nullptr) {
             _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
         }
 
         auto& params = static_cast<kernel_params_t&>(*_kernel_data.params);
-        auto updated_impl_param = update_impl_params(impl_param);
         update_shapes(params, updated_impl_param);
 
         if (impl_param.typed_desc<fully_connected>()->input_size != 3) {
@@ -273,7 +340,7 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
                                              });
     implementation_map<fully_connected>::add(impl_types::ocl,
                                              shape_types::static_shape,
-                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>,
+                                             fully_connected_impl::create,
                                              {
                                                  std::make_tuple(data_types::f32, format::yxfb),
                                                  std::make_tuple(data_types::f16, format::yxfb),

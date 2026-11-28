@@ -251,6 +251,11 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             if (!data_type_traits::is_i4_u4(wt_dt)) {
                 continue;
             }
+            // get_fc_output_layout() of the OCL impl halves the output for a fused swiglu only for input_size == 3, and an FC with
+            // input_size > 3 runs on a 2D view whose output keeps the full N. So don't fuse swiglu to such an FC.
+            if (dep_node.as<fully_connected>().get_primitive()->input_size > 3) {
+                continue;
+            }
             GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to FC " << dep_node.id() << std::endl;
             p.fuse_nodes(dep_node, *node, &fusing_history);
             continue;
@@ -676,6 +681,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
         };
 
+        // OCL FC kernels run an FC with input_size > 3 on a 2D [B*H*W, N] view of its output.
+        // This applies to every fused op peer (eltwise input, quantize range, activation param), as checked again when the static
+        // OCL impl is created (ocl::fully_connected_impl::create()) and, for a dynamic FC, before each execution
+        // (primitive_inst::is_valid_fusion()).
+        auto fc_can_fold_fused_peers = [&](fully_connected_node& node, const std::vector<layout>& peer_layouts) -> bool {
+            const auto& out_layout = node.get_output_layout();
+            if (node.get_primitive()->input_size <= 3) {
+                return true;
+            }
+            if (lo.has_all_enabled_onednn_impls_optimization_attribute() && lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
+                return true;
+            }
+            return std::all_of(peer_layouts.begin(), peer_layouts.end(), [&out_layout](const layout& peer_layout) {
+                return fully_connected_inst::can_view_fused_peer_in_2d(peer_layout, out_layout.get_partial_shape());
+            });
+        };
+
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
             bool does_support_fusings = false;
             auto in0_dt = node.get_input_layout(0).data_type;
@@ -940,7 +962,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
-            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
+            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>()) &&
+                           (!activation_node.is_parameterized() || fc_can_fold_fused_peers(input.as<fully_connected>(), {activation_node.get_input_layout(1)}));
 
             should_fuse |= input.is_type<gemm>() && gemm_supports_fusings(input.as<gemm>());
 
@@ -1116,7 +1139,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt() &&
+                           fc_can_fold_fused_peers(input_data.as<fully_connected>(), quantize_param_layouts());
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1309,6 +1333,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
                 can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
                 can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
+            }
+
+            for (size_t i = 0; i < parents.size(); i++) {
+                const auto& peer = parents[parents.size() - 1 - i];
+                const auto& peer_layout = peer.first->get_output_layout(true, static_cast<size_t>(peer.second));
+                if (can_fuse_parents[i] && parents[i].first->is_type<fully_connected>() &&
+                    !fc_can_fold_fused_peers(parents[i].first->as<fully_connected>(), {peer_layout})) {
+                    can_fuse_parents[i] = false;
+                }
             }
 
 #if OV_GPU_WITH_CM
