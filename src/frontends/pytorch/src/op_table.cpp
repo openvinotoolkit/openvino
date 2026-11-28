@@ -133,6 +133,7 @@ OP_CONVERTER(translate_grouped_mm);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hann_window);
+OP_CONVERTER(translate_hardshrink);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_histc);
 OP_CONVERTER(translate_hstack);
@@ -265,6 +266,7 @@ OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
+OP_CONVERTER(translate_softshrink);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_split_with_sizes);
 OP_CONVERTER(translate_square);
@@ -585,6 +587,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::greater", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::hann_window", op::translate_hann_window},
+        {"aten::hardshrink", op::optional_out<op::translate_hardshrink, 2>},
+        {"aten::hardshrink_", op::inplace_op<op::translate_hardshrink>},
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
@@ -769,6 +773,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
         {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
+        {"aten::softshrink", op::optional_out<op::translate_softshrink, 2>},
+        {"aten::softshrink_", op::inplace_op<op::translate_softshrink>},
         {"aten::sort", op::translate_sort},
         {"aten::special_expit",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
@@ -945,6 +951,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.full_like.default", op::translate_full_like_fx},
         {"aten.gelu.default", op::translate_gelu_fx},
         {"aten.grid_sampler_2d.default", op::translate_grid_sampler},
+        {"aten.hardshrink.default", op::translate_hardshrink},
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_fill.int_Scalar", op::translate_index_fill_},
@@ -977,6 +984,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.slice.Tensor", op::translate_slice_fx},
         {"aten.slice_copy.Tensor", op::translate_slice_fx},
         {"aten.slice_scatter.default", op::translate_slice_scatter_fx},
+        {"aten.softshrink.default", op::translate_softshrink},
         {"aten.split.Tensor", op::translate_list_view_fx},
         {"aten.stack.default", op::translate_stack_fx},
         {"aten.std.correction", op::translate_std_fx},
