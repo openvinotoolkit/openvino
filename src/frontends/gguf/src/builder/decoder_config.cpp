@@ -80,6 +80,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
     };
     OPENVINO_ASSERT(valid_layer_count(p.layers.size()) && valid_layer_count(kv_heads_per_layer.size()) &&
                         valid_layer_count(p.attention.sliding_layers.size()) &&
+                        valid_layer_count(p.attention.rope_layers.size()) &&
                         valid_layer_count(p.hybrid.recurrent_layers.size()),
                     "[GGUF] per-layer settings must describe every decoder layer");
     rms_eps = p.normalization.epsilon;
@@ -117,6 +118,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
     expert_groups = std::max(1, p.experts.groups);
     expert_groups_used = std::max(1, p.experts.groups_used);
     moe_sigmoid_gating = p.experts.routing == ExpertRouting::Sigmoid;
+    moe_rescale_down_input = p.experts.rescale_down_input;
     expert_weights_scale = p.experts.weights_scale;
     expert_weights_norm = p.experts.normalize_weights;
     embedding_scale = p.scales.embedding;
@@ -211,6 +213,12 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
                          : attention_scale != 0.0f ? attention_scale
                                                    : 1.0f / std::sqrt(static_cast<float>(layer.head_size));
         layer.rope = o && o->rope ? *o->rope : layer.swa ? rope_config_swa : rope_config;
+        layer.rope_enabled =
+            o && o->rope_enabled ? *o->rope_enabled
+            : rope_on_swa_only || rope_skip_period > 0
+                ? (!rope_on_swa_only || layer.swa) && (rope_skip_period == 0 || (il + 1) % rope_skip_period != 0)
+            : !p.attention.rope_layers.empty() ? p.attention.rope_layers.at(il) != 0
+                                               : true;
         layer.moe = o && o->experts ? *o->experts : is_moe && il >= dense_lead && (il + 1) % moe_layer_step == 0;
         layer.recurrent = o && o->recurrent                    ? *o->recurrent
                           : !gated_delta_net                   ? false

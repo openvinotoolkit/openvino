@@ -227,6 +227,33 @@ std::string moe_ffn(GraphEmitter& e,
         e.add_weight(p + "ffn_gate_exps.bias");
         gate = e.add_op("GGML_OP_ADD_ID", p + "moe_gate_b", {gate, p + "ffn_gate_exps.bias", selected});
     }
+    if (cfg.moe_rescale_down_input) {
+        OPENVINO_ASSERT(!eb && !cfg.moe_swiglu_oai,
+                        "[GGUF] routed activation rescaling requires bias-free SwiGLU or GeGLU experts");
+        // Bound each routed row's SwiGLU product by amax|gate| * amax|up| / 1024 and move that factor
+        // from the up projection to the routing weight, so F16 inference cannot overflow (llama.cpp
+        // build_amax_src1_f16). Every factor fits F16; the rescaled product stays below 18432.
+        const auto n_ff = static_cast<int32_t>(e.value(up).get_partial_shape()[3].get_length());
+        const auto row_amax = [&](const std::string& x, const std::string& name) {
+            auto positive = e.add_op("GGML_UNARY_OP_RELU", name + "_pos", {x});
+            auto negative =
+                e.add_op("GGML_UNARY_OP_RELU", name + "_neg", {e.add_op("GGML_UNARY_OP_NEG", name + "_negated", {x})});
+            auto magnitude = e.add_op("GGML_OP_ADD", name + "_abs", {positive, negative});
+            auto amax = e.add_op("GGML_OP_POOL_2D",
+                                 name,
+                                 {magnitude},
+                                 1,
+                                 {{"pool_params", std::vector<int32_t>{n_ff, 1, n_ff, 1, 0, 0}}});
+            return scale(e, amax, 1.0f / 32.0f, name + "_scaled");
+        };
+        auto factor = e.add_op("GGML_OP_MUL",
+                               p + "moe_act_bound",
+                               {row_amax(gate, p + "moe_gate_amax"), row_amax(up, p + "moe_up_amax")});
+        factor =
+            e.add_op("GGML_OP_CLAMP", p + "moe_act_scale", {factor}, 0, {{"clamp_min", 1.0f}, {"clamp_max", 65504.0f}});
+        up = e.add_op("GGML_OP_DIV", p + "moe_up_rescaled", {up, factor});
+        weights = e.add_op("GGML_OP_MUL", p + "moe_w_rescaled", {weights, factor});
+    }
     std::string act;
     if (cfg.moe_swiglu_oai) {
         act = e.add_op("GGML_GLU_OP_SWIGLU_OAI",

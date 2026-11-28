@@ -125,6 +125,7 @@ helpers remain internal migration adapters under builder. The topology never rer
 | Scalar scales (minicpm) | `embedding_scale` / `residual_scale` / `logit_scale` |
 | Soft-caps (gemma2/3) | `attn_logit_softcapping` / `final_logit_softcapping` |
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
+| NoPE layers | `attention.rope_pattern` (per-layer boolean array or scalar) |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
 
 Attention output gates may provide one sigmoid value per channel or per head.
@@ -143,7 +144,7 @@ Files with an explicit `logit_scale` retain its value.
 
 Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries in `build_layer()`:
 `layer_is_swa`, `layer_is_moe`, `layer_head_size`, `layer_n_head_kv`, `layer_kq_scale`,
-`layer_rope_config` and `is_recurrent_layer`. Extend them for a new per-layer dimension.
+`layer_rope_config`, `layer_has_rope` and `is_recurrent_layer`. Extend them for a new per-layer dimension.
 
 ### Extend the decoder topology
 

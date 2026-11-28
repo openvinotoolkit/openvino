@@ -60,6 +60,7 @@ const ArchitectureEntry architectures[] = {
     {"ernie4_5-moe", RopeMode::Normal},
     {"exaone-moe", RopeMode::Neox},
     {"exaone4", RopeMode::Neox},
+    {"flint", RopeMode::Neox},
     {"gemma", RopeMode::Neox},
     {"gemma2", RopeMode::Neox},
     {"gemma3", RopeMode::Neox},

@@ -100,6 +100,16 @@ CASES = {
                     "selection_bias": True, "shared": True, "sigmoid": True},
     "maincoder": {"qk": True}, "mistral3": {}, "smollm3": {"layers": 4},
     "mellum": {"qk": True, "moe": True},
+    "mellum-yarn": {"architecture": "mellum", "qk": True, "moe": True, "layers": 4,
+                    "swa_layers": [True, True, True, False], "yarn": 16.0, "yarn_log_mul": 0.0,
+                    "original_context": 2},
+    "flint": {"qk": True, "moe": True, "shared": True, "lead": 1, "sigmoid": True, "selection_bias": True,
+              "expert_scale": 1.0, "sinks": True, "layers": 4, "swa_layers": [False, True, True, False],
+              "rope_layers": [False, True, True, False], "rope_freq_base_swa": 50.0},
+    "flint-rescale": {"architecture": "flint", "qk": True, "moe": True, "shared": True, "lead": 1, "sigmoid": True,
+                      "selection_bias": True, "expert_scale": 1.0, "sinks": True, "layers": 4,
+                      "swa_layers": [False, True, True, False], "rope_layers": [False, True, True, False],
+                      "gains": {"ffn_gate_exps.weight": 300.0, "ffn_up_exps.weight": 300.0}},
     "muse-glimmer": {"qk": True, "post": True, "swa": True, "gate": True},
     "deepseek2-ocr": {"moe": True, "lead": 1, "shared": True},
     "devstral-small": {"architecture": "llama", "embedding": 40},
@@ -110,14 +120,16 @@ CASES = {
 }
 
 
-def tensor_writer(writer, rng, f16=(), quantized=None, exact_q4_1=False):
+def tensor_writer(writer, rng, f16=(), quantized=None, exact_q4_1=False, gains=None):
     """Uniform random F32 tensors; norm weights are centered at 1. Names containing an `f16`
     entry are stored as F16."""
     quantized = quantized or {}
+    gains = gains or {}
 
     def tensor(name, shape, norm=False):
         values = rng.uniform(-1, 1, shape).astype(np.float32)
         values = 1 + values * .3 if norm else values * .2
+        values *= next((gain for suffix, gain in gains.items() if name.endswith(suffix)), 1.0)
         if exact_q4_1 and name == "fc.weight":
             codes = (np.arange(shape[0])[:, None] * 5 + np.arange(shape[1])[None, :] * 7) % 16
             values = -1.0 + codes.astype(np.float32) * np.float32(0.125)
@@ -640,6 +652,13 @@ def write_model(path, arch, opts):
         w.add_sliding_window_pattern(4 if arch in ("cohere2", "afmoe") else 2)
         if arch == "plamo3":
             w.add_rope_freq_base_swa(100.0)
+    if opts.get("swa_layers"):
+        w.add_sliding_window(2)
+        w.add_sliding_window_pattern(opts["swa_layers"])
+    if opts.get("rope_layers"):
+        w.add_rope_pattern(opts["rope_layers"])
+    if opts.get("rope_freq_base_swa"):
+        w.add_rope_freq_base_swa(opts["rope_freq_base_swa"])
     if opts.get("softcap"):
         w.add_attn_logit_softcapping(2.0)
         w.add_final_logit_softcapping(3.0)
@@ -669,7 +688,7 @@ def write_model(path, arch, opts):
             w.add_interleave_moe_layer_step(2)
     rng = np.random.default_rng(20260907)
     tensor = tensor_writer(w, rng, quantized=opts.get("quantized"),
-                           exact_q4_1=opts.get("q4_1_fc_exact", False))
+                           exact_q4_1=opts.get("q4_1_fc_exact", False), gains=opts.get("gains"))
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -719,6 +738,8 @@ def write_model(path, arch, opts):
                 tensor(p + f"attn_{name}_norm.weight", (width if opts.get("full_qk") else head,), True)
         if opts.get("gate"):
             tensor(p + "attn_gate.weight", (heads * head, d))
+        if opts.get("sinks"):
+            tensor(p + "attn_sinks.weight", (heads,))
         if opts.get("moe") and layer >= opts.get("lead", 0):
             tensor(p + "ffn_gate_inp.weight", (4, d))
             for name, shape in (("gate", (4, ff, d)), ("up", (4, ff, d)), ("down", (4, d, ff))):

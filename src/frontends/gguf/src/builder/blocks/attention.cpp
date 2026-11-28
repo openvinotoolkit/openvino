@@ -135,11 +135,7 @@ std::string attention(GraphEmitter& e,
 
     // RoPE. rope_freqs.weight (per-dim frequency factor) is an optional 3rd input.
     // For gemma4: global layers use rope_freqs (proportional/NTK scaling), SWA layers don't.
-    // muse-glimmer ropes ONLY its sliding-window layers; its global layers are NoPE
-    // (llama.cpp muse-glimmer.cpp: `const bool use_rope = hparams.is_swa(il)`).
-    const bool use_rope =
-        (!cfg.rope_on_swa_only || is_swa_layer) && (cfg.rope_skip_period == 0 || (il + 1) % cfg.rope_skip_period != 0);
-    if (use_rope) {
+    if (cfg.layer_has_rope(il)) {
         const bool use_rope_freqs = cfg.has_rope_freqs && !is_swa_layer;
         const auto rope = [&](const std::string& x, const std::string& name) {
             std::vector<std::string> inputs{x, "inp_pos"};

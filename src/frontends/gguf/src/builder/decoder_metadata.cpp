@@ -192,6 +192,14 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
         a.sliding_window = true;
     }
     a.sliding_window = a.sliding_window || a.window_size > 0 || !a.sliding_layers.empty();
+    const auto rope_pattern = key("attention.rope_pattern");
+    if (m.has(rope_pattern)) {
+        const auto* tensor = std::get_if<ov::Tensor>(&detail::MetadataAccess::get(m).map.at(rope_pattern));
+        if (tensor && tensor->get_shape().size() == 1)
+            a.rope_layers = integers(m, rope_pattern);
+        else
+            a.rope_layers.assign(static_cast<size_t>(d.layers), flag(m, rope_pattern, true) ? 1 : 0);
+    }
     d.per_layer_embedding = integer(m, key("embedding_length_per_layer_input"), d.per_layer_embedding);
     d.shared_kv_layers = integer(m, key("attention.shared_kv_layers"), d.shared_kv_layers);
     p.deepstack_layers = integer(m, key("n_deepstack_layers"), p.deepstack_layers);

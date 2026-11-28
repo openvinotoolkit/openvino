@@ -447,6 +447,55 @@ TEST(GGUFAFMoE, ExplicitRoutingWindowAndRopeOverrides) {
     EXPECT_EQ(DecoderConfig(with_rope, std::get<1>(loaded)).rope_skip_period, 0);
 }
 
+TEST(GGUFFlint, RopePatternSlidingRopeAndLayerOverrides) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/flint.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    auto& metadata = std::get<0>(loaded);
+    const auto& weights = std::get<1>(loaded);
+    {
+        detail::MetadataStore store{metadata};
+        auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox);
+        EXPECT_EQ(parameters.attention.rope_layers, (std::vector<int32_t>{0, 1, 1, 0}));
+        EXPECT_FLOAT_EQ(parameters.attention.sliding_rope.freq_base, parameters.attention.rope.freq_base);
+        const DecoderConfig config(parameters, weights);
+        EXPECT_TRUE(config.has_sinks);
+        EXPECT_TRUE(config.moe_sigmoid_gating);
+        EXPECT_TRUE(config.expert_weights_norm);
+        EXPECT_TRUE(config.moe_rescale_down_input);
+        for (int layer = 0; layer < 4; ++layer) {
+            const bool sliding = layer == 1 || layer == 2;
+            EXPECT_EQ(config.layer_is_swa(layer), sliding);
+            EXPECT_EQ(config.layer_has_rope(layer), sliding);
+            EXPECT_EQ(config.layer_is_moe(layer), layer > 0);
+            EXPECT_FLOAT_EQ(config.layer_rope_config(layer).freq_base, 100.0f);
+        }
+        parameters.layers.resize(4);
+        parameters.layers[0].rope_enabled = true;
+        parameters.layers[1].rope_enabled = false;
+        const DecoderConfig overridden(parameters, weights);
+        EXPECT_TRUE(overridden.layer_has_rope(0));
+        EXPECT_FALSE(overridden.layer_has_rope(1));
+        EXPECT_TRUE(overridden.layer_has_rope(2));
+        parameters.layers.clear();
+        parameters.attention.rope_skip_period = 2;
+        const DecoderConfig periodic(parameters, weights);
+        for (int layer = 0; layer < 4; ++layer)
+            EXPECT_EQ(periodic.layer_has_rope(layer), layer % 2 == 0);
+        parameters.attention.rope_skip_period = 0;
+        parameters.attention.rope_layers = {1, 0};
+        EXPECT_THROW(DecoderConfig(parameters, weights), ov::Exception);
+    }
+    ov::Tensor no_rope(ov::element::boolean, {});
+    *no_rope.data<bool>() = false;
+    metadata["flint.attention.rope_pattern"] = no_rope;
+    detail::MetadataStore store{metadata};
+    const DecoderConfig config(resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox), weights);
+    for (int layer = 0; layer < 4; ++layer)
+        EXPECT_FALSE(config.layer_has_rope(layer));
+}
+
 TEST(GGUFDSparkAccuracy, ConfidenceAndMarkovHeadsAreIndependent) {
     using namespace ov::frontend::gguf;
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");
@@ -2518,6 +2567,9 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "mistral3",
                                            "smollm3",
                                            "mellum",
+                                           "mellum-yarn",
+                                           "flint",
+                                           "flint-rescale",
                                            "muse-glimmer",
                                            "deepseek2-ocr",
                                            "devstral-small",
