@@ -32,7 +32,10 @@ class LLMInferRequest;  // forward declaration — helper always outlived by its
  *      copy_prefill_to_generate()
  *   5. Per generate step, after m_kvcache_strategy->on_generate_step_done():
  *      update_generate(num_tokens)
- *   6. Before every prefill/generate infer(): fill_attention_masks(...)
+ *   6. Before every prefill/generate infer(): fill_attention_masks(...) (generate with an EAGLE tree mask:
+ *      fill_tree_attention_masks(...))
+ *   7. On a switch to a larger generate variant, after m_kvcache_strategy->on_generate_variant_switch():
+ *      migrate_on_variant_switch(...)
  */
 class SwaKVCacheHelper {
 public:
@@ -41,7 +44,8 @@ public:
     // window_size == 0 means the model has no SWA layers.
     SwaKVCacheHelper(LLMInferRequest& request, uint32_t window_size);
 
-    // Shares SWA tensors from the largest generate variant to avoid migration on promotion.
+    // Shares SWA tensors from the largest generate variant to avoid migration on promotion. Variants smaller than
+    // the window keep their own (whole-past) SWA tensors, see migrate_on_variant_switch().
     void share_across_generate_variants();
 
     // Zeroes the prefill model's SWA past-KV inputs on a new conversation.
@@ -63,6 +67,21 @@ public:
                               const PortsMap& in_ports,
                               uint32_t num_new_tokens,
                               bool use_circular_layout) const;
+
+    // Generate step with multi-token tree verification (EAGLE tree mask input): each new token sees the ring slots
+    // inside its own window (by its position id) and the new tokens the tree mask allows. Falls back to
+    // fill_attention_masks() without a tree mask or 2D position ids.
+    void fill_tree_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                   const PortsMap& in_ports,
+                                   const ov::SoPtr<ov::ITensor>& position_ids,
+                                   uint32_t num_new_tokens) const;
+
+    // Moves the live SWA tokens into the new variant's ring when the two variants do not share the SWA tensors
+    // (a variant smaller than the window keeps its whole past).
+    void migrate_on_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& old_req,
+                                   const PortsMap& old_in_ports,
+                                   const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
+                                   const PortsMap& new_in_ports) const;
 
 private:
     void update_cache(const std::shared_ptr<ov::IAsyncInferRequest>& request,

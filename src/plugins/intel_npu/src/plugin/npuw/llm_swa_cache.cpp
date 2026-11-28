@@ -9,6 +9,7 @@
 
 #include "infer_request_utils.hpp"
 #include "kv_cache_sliding_window_manager.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
@@ -33,19 +34,27 @@ void ov::npuw::SwaKVCacheHelper::share_across_generate_variants() {
     for (const auto& name : m_request.m_swa_past_names) {
         swa_tensors[name] = largest_req->get_tensor(largest_ports.at(name));
     }
+    size_t num_kept = 0;
     for (size_t i = 0; i < generate_requests.size() - 1; ++i) {
         const auto& variant_ports = m_request.m_generate_variant_in_ports.at(generate_requests[i]);
         for (const auto& name : m_request.m_swa_past_names) {
             const auto& shared_tensor = swa_tensors.at(name);
             auto variant_tensor = generate_requests[i]->get_tensor(variant_ports.at(name));
-            OPENVINO_ASSERT(variant_tensor->get_shape() == shared_tensor->get_shape() &&
-                                variant_tensor->get_element_type() == shared_tensor->get_element_type(),
+            OPENVINO_ASSERT(variant_tensor->get_element_type() == shared_tensor->get_element_type(),
                             "SWA past tensor ",
                             name,
-                            " shape/type mismatch across generate variants — sliding-window capacity is expected "
-                            "to be independent of the total kv-cache size.");
+                            " type mismatch across generate variants.");
+            if (variant_tensor->get_shape() != shared_tensor->get_shape()) {
+                // A variant smaller than the window keeps its whole past (ShrinkSlidingWindowKVCache caps the ring
+                // at the variant's capacity); its ring never wraps and is migrated on promotion.
+                ++num_kept;
+                continue;
+            }
             generate_requests[i]->set_tensor(variant_ports.at(name), shared_tensor);
         }
+    }
+    if (num_kept > 0) {
+        LOG_INFO("Kept " << num_kept << " SWA tensors of generate variants smaller than the window unshared");
     }
     LOG_INFO("Shared " << m_request.m_swa_past_names.size() << " SWA tensors across " << generate_requests.size()
                        << " generate variants");
@@ -241,4 +250,82 @@ void ov::npuw::SwaKVCacheHelper::fill_attention_masks(const std::shared_ptr<ov::
                                                        num_new_tokens,
                                                        m_window_size,
                                                        use_circular_layout);
+}
+
+void ov::npuw::SwaKVCacheHelper::fill_tree_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                                           const PortsMap& in_ports,
+                                                           const ov::SoPtr<ov::ITensor>& position_ids,
+                                                           uint32_t num_new_tokens) const {
+    const auto mask_it = in_ports.find(ov::npuw::util::kSlidingWindowAttentionMaskParamName);
+    if (mask_it == in_ports.end()) {
+        return;
+    }
+    // Same name as Eagle3LayerNames::eagle_tree_mask.
+    const auto tree_it = in_ports.find("eagle_tree_mask");
+    if (tree_it == in_ports.end() || !position_ids || position_ids->get_shape().size() != 2u ||
+        position_ids->get_size() != num_new_tokens || position_ids->get_element_type() != ov::element::i64) {
+        fill_attention_masks(request, in_ports, num_new_tokens, /*use_circular_layout=*/true);
+        return;
+    }
+    auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
+    auto mask_tensor = request->get_tensor(mask_it->second);
+    // Unused (padding) rows keep the plain causal layout; the rows of this call's tokens are then rebuilt.
+    ov::npuw::util::fill_causal_sliding_window_mask(mask_tensor,
+                                                    kvcache_desc.num_stored_tokens,
+                                                    num_new_tokens,
+                                                    m_window_size,
+                                                    /*past_is_circular=*/true);
+    ov::npuw::util::fill_tree_sliding_window_mask(mask_tensor,
+                                                  request->get_tensor(tree_it->second),
+                                                  position_ids->data<int64_t>(),
+                                                  kvcache_desc.num_stored_tokens,
+                                                  num_new_tokens,
+                                                  m_window_size,
+                                                  /*past_is_circular=*/true);
+}
+
+void ov::npuw::SwaKVCacheHelper::migrate_on_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& old_req,
+                                                           const PortsMap& old_in_ports,
+                                                           const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
+                                                           const PortsMap& new_in_ports) const {
+    namespace uu = ov::npuw::util;
+    auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
+    const uint32_t num_stored = kvcache_desc.num_stored_tokens;
+    if (m_request.m_swa_past_names.empty() || num_stored == 0u) {
+        return;
+    }
+    size_t num_migrated = 0;
+    for (const auto& name : m_request.m_swa_past_names) {
+        auto src = old_req->get_tensor(old_in_ports.at(name));
+        auto dst = new_req->get_tensor(new_in_ports.at(name));
+        if (src->data() == dst->data() && src->get_shape() == dst->get_shape()) {
+            continue;  // shared ring
+        }
+        const bool is_value = uu::isPastValueParam(name);
+        const uint32_t kv_dim = (is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
+        const uint32_t src_cap = static_cast<uint32_t>(src->get_shape()[kv_dim]);
+        const uint32_t dst_cap = static_cast<uint32_t>(dst->get_shape()[kv_dim]);
+        const uint32_t keep = std::min({num_stored, src_cap, dst_cap});
+
+        // The variants' SWA tensors may alias one buffer with different layouts: snapshot the source first.
+        auto tmp = uu::allocMem(src->get_element_type(), src->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(tmp._ptr && "CPU buffer allocation for SWA migration failed — check memory availability");
+        src->copy_to(tmp._ptr);
+        // Token at absolute position p lives at slot p % capacity in both rings.
+        for (uint32_t abs = num_stored - keep; abs < num_stored;) {
+            const uint32_t src_slot = abs % src_cap;
+            const uint32_t dst_slot = abs % dst_cap;
+            const uint32_t run = std::min({num_stored - abs, src_cap - src_slot, dst_cap - dst_slot});
+            uu::copy_tensor_by_dim(uu::make_tensor_slice(tmp, kv_dim, src_slot, src_slot + run),
+                                   uu::make_tensor_slice(dst, kv_dim, dst_slot, dst_slot + run),
+                                   kv_dim,
+                                   kv_dim);
+            abs += run;
+        }
+        ++num_migrated;
+    }
+    if (num_migrated > 0) {
+        LOG_DEBUG("Migrated " << num_migrated << " SWA tensors (" << num_stored
+                              << " stored tokens) to the new variant");
+    }
 }

@@ -661,9 +661,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMul
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    // Generating more than 1 token per inference (e.g. speculative decoding) doesn't work
-    // with a shrunk/sliding KV cache, so shrink must stay off here even though the model
-    // has consumed per_layer_inputs.
+    // Shrink is auto-enabled only for single-token generation, so with more than 1 token per
+    // inference (e.g. speculative decoding) it must stay off here even though the model has
+    // consumed per_layer_inputs (it can still be enabled explicitly).
     ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
                                                      {{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
                                                      recorder));

@@ -24,8 +24,13 @@ namespace ov::npuw {
 //    so SWA-managed KV cache entries can be identified by name alone downstream.
 //
 // SWA contract:
-// - new_past = window_size, rounded up so that input_size + new_past is a multiple of 16
-//   (NPU HW prefers 16-aligned KV lengths).
+// - new_past = window_size (+ input_size - 1 slack slots when `multi_token_ring`), rounded up so that
+//   input_size + new_past is a multiple of 16 (NPU HW prefers 16-aligned KV lengths).
+//   The slack is for multi-token generation (speculative / tree verification): all input rows are written to the
+//   ring before the pipeline keeps the accepted ones, so the rejected rows may only overwrite tokens that no later
+//   row can see.
+// - new_past is capped at the variant's own past capacity (kvcache_size - input_size): a KV variant smaller than the
+//   window keeps its whole past (its ring never wraps), still managed and named as SWA.
 // - new_kv_total = input_size + new_past.
 //
 // Pass ordering:
@@ -37,11 +42,15 @@ class ShrinkSlidingWindowKVCache : public ov::pass::ModelPass {
     uint32_t m_kvcache_size;
     uint32_t m_input_size;
     KVAxesPosition m_kv_axes_position;
+    bool m_multi_token_ring;
     uint32_t m_window_size = 0;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ShrinkSlidingWindowKVCache");
-    ShrinkSlidingWindowKVCache(uint32_t kvcache_size, uint32_t input_size, const KVAxesPosition& kv_axes_position);
+    ShrinkSlidingWindowKVCache(uint32_t kvcache_size,
+                               uint32_t input_size,
+                               const KVAxesPosition& kv_axes_position,
+                               bool multi_token_ring = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
     // SWA window size detected by the last run_on_model() call, 0 if none.

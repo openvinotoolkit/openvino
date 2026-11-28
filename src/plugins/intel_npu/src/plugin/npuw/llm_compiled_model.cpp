@@ -678,7 +678,11 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
             // No-op (returns false) for models without sliding-window attention layers.
-            ov::npuw::ShrinkSlidingWindowKVCache swa_pass(kv_size, max_generation_token_len, axes);
+            // Multi-token generation (speculative / tree verification) needs ring slack for the rejected rows.
+            ov::npuw::ShrinkSlidingWindowKVCache swa_pass(kv_size,
+                                                          max_generation_token_len,
+                                                          axes,
+                                                          /*multi_token_ring=*/max_generation_token_len > 1);
             if (swa_pass.run_on_model(generate_variant)) {
                 // m_swa_window_size was already set from the prefill model earlier in the
                 // constructor; here we only verify every generate variant agrees with it.
@@ -986,9 +990,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // auto-enable both options for them unless the user explicitly configured it.
     bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
     if (is_per_layer_inputs_model) {
-        // SWA shrink is incompatible with prefix caching and multi-token generation (e.g.
-        // speculative decoding) and with the 4D float attention_mask. When it applies, continuous
-        // prefill is resolved off.
+        // SWA shrink is incompatible with prefix caching and with the 4D float attention_mask. It
+        // supports multi-token generation (e.g. speculative decoding), but is auto-enabled only for
+        // single-token generation; set NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK explicitly otherwise.
+        // When it applies, continuous prefill is resolved off.
         const bool swa_shrink_compatible =
             !m_enable_prefix_caching && max_generation_token_len == 1 && !m_attention_mask_is_4d_float;
         if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {

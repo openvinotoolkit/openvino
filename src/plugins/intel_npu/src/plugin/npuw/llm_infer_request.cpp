@@ -833,6 +833,11 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         auto data = kvcache_past_kv_in_tensor->data();
 
         auto origTensor = m_prefill_request->get_tensor(prefill_in_port);
+        // A sliding-window prefill past can be larger than the generate ring it would alias (e.g. window 2047:
+        // 512-token prefill chunks keep 2048 rows, a 1-token ring 2047), so such a pair keeps separate buffers.
+        if (origTensor->get_byte_size() > kvcache_past_kv_in_tensor->get_byte_size()) {
+            continue;
+        }
         auto new_tensor =
             ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data));
         m_prefill_request->set_tensor(prefill_in_port, new_tensor);
@@ -1258,6 +1263,7 @@ bool ov::npuw::LLMInferRequest::try_switch_to_larger_variant() {
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
     m_kvcache_strategy->on_generate_variant_switch(old_req, old_in_ports, m_kvcache_request, m_kvcache_in_ports);
+    m_swa_cache->migrate_on_variant_switch(old_req, old_in_ports, m_kvcache_request, m_kvcache_in_ports);
     return true;
 }
 
@@ -2030,10 +2036,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
 
-        m_swa_cache->fill_attention_masks(m_kvcache_request,
-                                          m_kvcache_in_ports,
-                                          input_tokens_len,
-                                          /*use_circular_layout=*/true);
+        // Tree verification (EAGLE tree mask): the sliding-window mask follows each token's position and the tree.
+        if (m_eagle3_ext.is_eagle3_model()) {
+            m_swa_cache->fill_tree_attention_masks(m_kvcache_request,
+                                                   m_kvcache_in_ports,
+                                                   position_ids,
+                                                   input_tokens_len);
+        } else {
+            m_swa_cache->fill_attention_masks(m_kvcache_request,
+                                              m_kvcache_in_ports,
+                                              input_tokens_len,
+                                              /*use_circular_layout=*/true);
+        }
     });
 
     m_llm_profile["N/generate:2.infer"].record([&]() {

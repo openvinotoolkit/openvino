@@ -60,6 +60,10 @@ struct LLMSwaCacheTestAccess {
         return compiled->m_generate_compiled_variants.size();
     }
 
+    static std::size_t active_variant(const Request& req) {
+        return req.m_kvcache_variant_idx;
+    }
+
     static ov::SoPtr<ov::ITensor> generate_variant_past(Request& req,
                                                         std::size_t variant_idx,
                                                         const std::string& name) {
@@ -212,7 +216,7 @@ protected:
         m_plugin = std::make_shared<NullPlugin>();
     }
 
-    void init(const ov::AnyMap& extra_props) {
+    void init(const ov::AnyMap& extra_props, size_t window_size = kWindowSize) {
         SwaCacheFactory factory;
         ov::AnyMap props{{"NPUW_LLM", "YES"},
                          {"NPUW_DEVICES", "CPU"},
@@ -222,7 +226,7 @@ protected:
         for (const auto& [key, value] : extra_props) {
             props[key] = value;
         }
-        auto model = build_sliding_window_test_model(kWindowSize, /*sliding_to_full_ratio=*/1, {}, kNumLayers);
+        auto model = build_sliding_window_test_model(window_size, /*sliding_to_full_ratio=*/1, {}, kNumLayers);
         m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, m_plugin, props, factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
         m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
@@ -348,6 +352,96 @@ TEST_F(LLMSwaCacheTest, SharesSwaPastTensorsAcrossGenerateVariants) {
             auto smaller = LLMSwaCacheTestAccess::generate_variant_past(*m_request, i, name);
             EXPECT_EQ(smaller->data(), largest->data()) << name << " variant " << i;
         }
+    }
+}
+
+// With a window that is not a multiple of 16 the chunked-prefill SWA past can be one row larger than the 1-token
+// generate ring (window 36, 16-token chunks: 48 rows vs 47). bind_past_kv() must then leave that pair on separate
+// buffers instead of aliasing the larger tensor onto the smaller one, while the full-attention pairs stay shared.
+TEST_F(LLMSwaCacheTest, PrefillPastLargerThanGenerateRingKeepsItsOwnBuffer) {
+    constexpr size_t kOddWindow = 36;
+    constexpr size_t kChunk = 16;
+    init({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", std::to_string(kChunk)}}, kOddWindow);
+    const auto& desc = LLMSwaCacheTestAccess::desc(*m_request);
+    ASSERT_EQ(desc.v_tensors_transposed_pre, desc.v_tensors_transposed_gen) << "bind_past_kv() would skip all pairs";
+    const auto& swa_names = LLMSwaCacheTestAccess::swa_past_names(*m_request);
+    ASSERT_FALSE(swa_names.empty());
+
+    for (const auto& name : swa_names) {
+        auto prefill = LLMSwaCacheTestAccess::prefill_past(*m_request, name);
+        auto generate = LLMSwaCacheTestAccess::generate_past(*m_request, name);
+        ASSERT_GT(prefill->get_byte_size(), generate->get_byte_size()) << name;
+        EXPECT_NE(prefill->data(), generate->data()) << name;
+    }
+    for (const auto& name : LLMSwaCacheTestAccess::kvcache_past_names(*m_request)) {
+        EXPECT_EQ(LLMSwaCacheTestAccess::prefill_past(*m_request, name)->data(),
+                  LLMSwaCacheTestAccess::generate_past(*m_request, name)->data())
+            << name;
+    }
+
+    // The prefill -> generate handoff still lands every token: chunk 1 (color 1), chunk 2 (color 2), first step (1).
+    run_prefill(2 * kChunk);
+    run_generate_step(2 * kChunk);
+    for (const auto& name : swa_names) {
+        const auto dim = LLMSwaCacheTestAccess::kv_dim(*m_request, name, desc.v_tensors_transposed_gen);
+        auto past = LLMSwaCacheTestAccess::generate_past(*m_request, name);
+        const std::vector<std::pair<uint32_t, uint8_t>> runs = {{0u, 1u}, {static_cast<uint32_t>(kChunk), 2u}};
+        for (const auto& [from, color] : runs) {
+            auto slice = ov::npuw::util::make_tensor_slice(past, dim, from, from + static_cast<uint32_t>(kChunk));
+            EXPECT_EQ(materialize_bytes(slice), std::vector<uint8_t>(slice->get_byte_size(), color))
+                << name << " from " << from;
+        }
+        const auto last = static_cast<uint32_t>(2 * kChunk);
+        auto step = ov::npuw::util::make_tensor_slice(past, dim, last, last + 1u);
+        EXPECT_EQ(materialize_bytes(step), std::vector<uint8_t>(step->get_byte_size(), 1u)) << name;
+    }
+}
+
+// The smallest pyramid variant can be shorter than the window: it then keeps its whole past in SWA tensors of its
+// own shape, and the switch to the next variant must move every live token into that variant's ring, keys and
+// (transposed) values alike.
+TEST_F(LLMSwaCacheTest, SwitchFromVariantSmallerThanWindowMovesTokensIntoRing) {
+    constexpr size_t kWideWindow = 1104;  // > the 1088-token variant's past (1087), < the 2112-token variant's
+    constexpr size_t kPrefillChunk = 256;
+    init({{"NPUW_LLM_GENERATE_PYRAMID", "YES"},
+          {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+          {"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"},
+          {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+          {"NPUW_LLM_PREFILL_CHUNK_SIZE", std::to_string(kPrefillChunk)}},
+         kWideWindow);
+    ASSERT_EQ(LLMSwaCacheTestAccess::generate_variant_count(m_compiled), 2u);
+    const auto& desc = LLMSwaCacheTestAccess::desc(*m_request);
+    ASSERT_TRUE(desc.v_tensors_transposed_gen) << "keys and values must use different sequence axes here";
+    const auto& swa_names = LLMSwaCacheTestAccess::swa_past_names(*m_request);
+    ASSERT_FALSE(swa_names.empty());
+
+    // 4 prefill chunks (prefill colors 1..4), 1-token steps up to the small variant's capacity (its colors 1..63),
+    // then one more step, which switches to the large variant first (its color 1).
+    constexpr size_t kPrompt = 4 * kPrefillChunk;
+    constexpr size_t kSmallCapacity = 1088 - 1;
+    run_prefill(kPrompt);
+    for (size_t pos = kPrompt; pos <= kSmallCapacity; ++pos) {
+        run_generate_step(pos);
+    }
+    ASSERT_EQ(LLMSwaCacheTestAccess::active_variant(*m_request), 1u);
+
+    for (const auto& name : swa_names) {
+        const auto dim = LLMSwaCacheTestAccess::kv_dim(*m_request, name, desc.v_tensors_transposed_gen);
+        auto past = LLMSwaCacheTestAccess::generate_past(*m_request, name);
+        ASSERT_GT(past->get_shape()[dim], kSmallCapacity + 1) << name;
+        auto expect_color = [&](size_t from, size_t to, uint8_t color) {
+            auto slice =
+                ov::npuw::util::make_tensor_slice(past, dim, static_cast<uint32_t>(from), static_cast<uint32_t>(to));
+            EXPECT_EQ(materialize_bytes(slice), std::vector<uint8_t>(slice->get_byte_size(), color))
+                << name << " positions [" << from << ", " << to << ")";
+        };
+        for (size_t chunk = 0; chunk < 4; ++chunk) {
+            expect_color(chunk * kPrefillChunk, (chunk + 1) * kPrefillChunk, static_cast<uint8_t>(chunk + 1));
+        }
+        for (size_t pos = kPrompt; pos < kSmallCapacity; ++pos) {
+            expect_color(pos, pos + 1, static_cast<uint8_t>(pos - kPrompt + 1));
+        }
+        expect_color(kSmallCapacity, kSmallCapacity + 1, 1u);
     }
 }
 

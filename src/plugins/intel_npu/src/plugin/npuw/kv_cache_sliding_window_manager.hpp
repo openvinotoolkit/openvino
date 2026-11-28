@@ -47,6 +47,19 @@ void fill_sliding_window_attention_mask(const std::shared_ptr<ov::IAsyncInferReq
                                         uint32_t window_size,
                                         bool past_is_circular);
 
+// Multi-token (tree) verification: rewrites the rows of an already filled causal sliding-window mask that hold this
+// call's num_new_tokens tokens (the bottom rows). Token i sits at absolute position row_positions[i] (tree siblings
+// share a position), sees the past tokens inside its own window, and among this call's tokens only those that
+// tree_mask_tensor marks visible. tree_mask_tensor: additive [1, 1, row_dim, cols >= row_dim] mask whose last row_dim
+// columns are this call's tokens (0 = visible), as staged for the full-attention layers.
+void fill_tree_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                   const ov::SoPtr<ov::ITensor>& tree_mask_tensor,
+                                   const int64_t* row_positions,
+                                   uint32_t num_stored_tokens,
+                                   uint32_t num_new_tokens,
+                                   uint32_t window_size,
+                                   bool past_is_circular);
+
 // Writes SWA KV deltas into a left-aligned past buffer, shifting the
 // surviving tail to the front first when the window is saturated.
 void write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_tensor,

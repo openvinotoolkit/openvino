@@ -375,10 +375,12 @@ namespace ov::npuw {
 
 ShrinkSlidingWindowKVCache::ShrinkSlidingWindowKVCache(uint32_t kvcache_size,
                                                        uint32_t input_size,
-                                                       const KVAxesPosition& kv_axes_position)
+                                                       const KVAxesPosition& kv_axes_position,
+                                                       bool multi_token_ring)
     : m_kvcache_size(kvcache_size),
       m_input_size(input_size),
-      m_kv_axes_position(kv_axes_position) {}
+      m_kv_axes_position(kv_axes_position),
+      m_multi_token_ring(multi_token_ring) {}
 
 bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
     m_window_size = detect_swa_window_size(model);
@@ -404,18 +406,19 @@ bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& 
     // Sliding layers keep only the last window_size past tokens. Grow that past region so
     // past + present lands on a kKvAlignment boundary.
     // e.g. window=512, present=1: unaligned total=513 -> aligned to 528 -> past=527.
+    // A multi-token ring adds input_size - 1 slack slots (see the header).
     int64_t new_past = 0;
     if (available_past > 0) {
         const int64_t input_size = static_cast<int64_t>(m_input_size);
-        const int64_t unaligned_total = input_size + static_cast<int64_t>(m_window_size);
+        const int64_t slack = (m_multi_token_ring && input_size > 1) ? input_size - 1 : 0;
+        const int64_t unaligned_total = input_size + static_cast<int64_t>(m_window_size) + slack;
         const int64_t aligned_total = (unaligned_total + kKvAlignment - 1) / kKvAlignment * kKvAlignment;
         new_past = aligned_total - input_size;
-        OPENVINO_ASSERT(new_past <= static_cast<int64_t>(available_past),
-                        "[SWA] window_size (",
-                        m_window_size,
-                        ") exceeds available_past (",
-                        available_past,
-                        ")");
+        if (new_past > static_cast<int64_t>(available_past)) {
+            LOG_INFO("[SWA] window_size (" << m_window_size << ") exceeds available_past (" << available_past
+                                           << "): keeping the whole past of this variant");
+            new_past = static_cast<int64_t>(available_past);
+        }
     }
     const int64_t new_kv_total = static_cast<int64_t>(m_input_size) + new_past;
 
