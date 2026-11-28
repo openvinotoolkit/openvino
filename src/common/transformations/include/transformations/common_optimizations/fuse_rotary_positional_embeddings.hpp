@@ -13,6 +13,7 @@ namespace pass {
 class TRANSFORMATIONS_API RoPEFusion;
 class TRANSFORMATIONS_API RoPEFusionGPTNEOX;
 class TRANSFORMATIONS_API RoPEFusionFlux;
+class TRANSFORMATIONS_API RoPEFusionPackedPairs;
 class TRANSFORMATIONS_API RoPEFusionGPTJ;
 class TRANSFORMATIONS_API RoPEFusionChatGLM;
 class TRANSFORMATIONS_API RoPEFusionChatGLMHF;
@@ -39,6 +40,33 @@ class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionFlux");
     RoPEFusionFlux(bool num_heads_transposed = true);
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Fuses a RoPE applied to coordinate pairs packed in the innermost dimension into the internal
+ * RoPE operation in interleaved mode.
+ *
+ * Before:
+ *
+ *   x -> reshape([batch, seq, num_heads, half_rotary_ndims, 2])
+ *     -> gather(0, axis=-1) = x0, gather(1, axis=-1) = x1
+ *     -> x0 * cos - x1 * sin, x0 * sin + x1 * cos
+ *     -> unsqueeze(-1) each -> concat(axis=-1)
+ *
+ * After:
+ *
+ *   x -> reshape([batch, seq, num_heads, head_size]) -> RoPE(is_interleaved)
+ *     -> reshape([batch, seq, num_heads, half_rotary_ndims, 2])
+ *
+ * The cos/sin tables [seq, 1, half_rotary_ndims] are widened to [1, seq, 1, head_size] by repeating
+ * every value twice. Applied only when seq, num_heads and half_rotary_ndims are static and the tables
+ * fold to constants.
+ */
+class ov::pass::RoPEFusionPackedPairs : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionPackedPairs");
+    RoPEFusionPackedPairs();
 };
 
 class ov::pass::RoPEFusionGPTJ : public ov::pass::MatcherPass {

@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
+#include <algorithm>
 #include <climits>
 #include <cstdint>
 #include <limits>
@@ -16,12 +17,15 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
@@ -69,6 +73,7 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(true);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(false);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionPackedPairs>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
@@ -179,6 +184,157 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     };
 
     auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+namespace {
+
+// Returns true if the tables fold to equal constants, after negating the sides that are asked for.
+bool tables_are_equal(const ov::Output<ov::Node>& left,
+                      const bool negate_left,
+                      const ov::Output<ov::Node>& right,
+                      const bool negate_right) {
+    const auto negate = [](const ov::Output<ov::Node>& table, const bool negate_table) -> ov::Output<ov::Node> {
+        return negate_table ? std::make_shared<v0::Negative>(table)->output(0) : table;
+    };
+    const auto equal = std::make_shared<v1::Equal>(negate(left, negate_left), negate(right, negate_right));
+    const auto comparison = ov::util::get_constant_from_source(equal);
+    if (!comparison) {
+        return false;
+    }
+    const auto results = comparison->cast_vector<bool>();
+    return std::all_of(results.begin(), results.end(), [](const bool same) {
+        return same;
+    });
+}
+
+// Repeats every table value twice and reshapes the result to `table_shape`; nullptr if not constant.
+std::shared_ptr<ov::Node> repeat_pair_values_in_table(const ov::Output<ov::Node>& table, const ov::Shape& table_shape) {
+    const auto pair_slot =
+        op_util::make_try_fold<v0::Unsqueeze>(table, v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1}));
+    const auto pairs = op_util::make_try_fold<v0::Concat>(OutputVector{pair_slot, pair_slot}, -1);
+    const auto target = v0::Constant::create(ov::element::i64, ov::Shape{4}, table_shape);
+    return ov::util::get_constant_from_source(op_util::make_try_fold<v1::Reshape>(pairs, target, false));
+}
+
+}  // namespace
+
+RoPEFusionPackedPairs::RoPEFusionPackedPairs() {
+    MATCHER_SCOPE(RoPEFusionPackedPairs);
+
+    auto x = pattern::any_input();
+    auto packed_x = pattern::wrap_type<v1::Reshape>(
+        {x, pattern::any_input()},
+        pattern::has_static_dims({1, 2, 3}) && pattern::shape_matches("[?, seq, num_heads, half_rotary_ndims, 2]"));
+    const auto pair_component = [&](const int index) {
+        const auto pair_axis =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("4") || pattern::value_matches("-1"));
+        return pattern::wrap_type<v8::Gather>({packed_x, index, pair_axis},
+                                              pattern::shape_matches("[?, seq, num_heads, half_rotary_ndims]"));
+    };
+    auto pair_first = pair_component(0);
+    auto pair_second = pair_component(1);
+
+    const auto table_pattern = pattern::shape_matches("[seq, 1, half_rotary_ndims]") ||
+                               pattern::shape_matches("[1, seq, 1, half_rotary_ndims]");
+    auto cos_first = pattern::any_input(table_pattern);
+    auto sin_first = pattern::any_input(table_pattern);
+    auto sin_second = pattern::any_input(table_pattern);
+    auto cos_second = pattern::any_input(table_pattern);
+
+    const pattern::Attributes numpy_broadcast{{"auto_broadcast", "numpy"}};
+    auto first_rotated_cos = pattern::wrap_type<v1::Multiply>({pair_first, cos_first}, numpy_broadcast);
+    auto first_rotated_sin = pattern::wrap_type<v1::Multiply>({pair_second, sin_first}, numpy_broadcast);
+    auto rotated_first = pattern::wrap_type<v1::Add, v1::Subtract>({first_rotated_cos, first_rotated_sin});
+    auto second_rotated_sin = pattern::wrap_type<v1::Multiply>({pair_first, sin_second}, numpy_broadcast);
+    auto second_rotated_cos = pattern::wrap_type<v1::Multiply>({pair_second, cos_second}, numpy_broadcast);
+    auto rotated_second = pattern::wrap_type<v1::Add, v1::Subtract>({second_rotated_sin, second_rotated_cos});
+
+    // The [..., 1] inputs and the [..., 2] output pin the Concat to the innermost axis.
+    const auto stack_on_pair_axis = [](const std::shared_ptr<ov::Node>& rotated) {
+        return pattern::wrap_type<v0::Unsqueeze, v1::Reshape>(
+            {rotated, pattern::any_input()},
+            pattern::shape_matches("[?, seq, num_heads, half_rotary_ndims, 1]"));
+    };
+    auto first_stacked = stack_on_pair_axis(rotated_first);
+    auto second_stacked = stack_on_pair_axis(rotated_second);
+    auto packed_rotated =
+        pattern::wrap_type<v0::Concat>({first_stacked, second_stacked},
+                                       pattern::shape_matches("[?, seq, num_heads, half_rotary_ndims, 2]"));
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto root = m.get_match_root();
+        if (transformation_callback(root)) {
+            return false;
+        }
+
+        const auto& symbols = m.get_symbols();
+        const auto& seq = symbols.at("seq");
+        const auto& num_heads = symbols.at("num_heads");
+        const auto& half_rotary_ndims = symbols.at("half_rotary_ndims");
+        if (seq.i() == 0 || num_heads.i() == 0 || half_rotary_ndims.i() == 0) {
+            return false;
+        }
+        const auto head_size = 2 * static_cast<size_t>(half_rotary_ndims.i());
+
+        // Tables are compared by value: a Subtract may be rewritten into an Add over a negated table.
+        const auto first_is_sub = ov::is_type<v1::Subtract>(pattern_map.at(rotated_first).get_node_shared_ptr());
+        const auto second_is_sub = ov::is_type<v1::Subtract>(pattern_map.at(rotated_second).get_node_shared_ptr());
+        const auto cos = pattern_map.at(cos_first);
+        const auto sin = pattern_map.at(sin_second);
+        if (!tables_are_equal(cos, false, pattern_map.at(cos_second), second_is_sub) ||
+            !tables_are_equal(sin, false, pattern_map.at(sin_first), !first_is_sub)) {
+            return false;
+        }
+
+        const auto table_shape = ov::Shape{1, static_cast<size_t>(seq.i()), 1, head_size};
+        const auto cos_table = repeat_pair_values_in_table(cos, table_shape);
+        const auto sin_table = repeat_pair_values_in_table(sin, table_shape);
+        if (!cos_table || !sin_table) {
+            return false;
+        }
+
+        const auto head_shape =
+            v0::Constant::create(ov::element::i64,
+                                 ov::Shape{4},
+                                 std::vector<int64_t>{-1, seq.i(), num_heads.i(), static_cast<int64_t>(head_size)});
+        const auto head_major = std::make_shared<v1::Reshape>(pattern_map.at(x), head_shape, false);
+
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.head_cnt = static_cast<size_t>(num_heads.i());
+        config.head_size = head_size;
+        config.rotary_ndims = head_size;
+        config.cos_sin_ndims = head_size;
+        const auto rope =
+            std::make_shared<ov::op::internal::RoPE>(OutputVector{head_major, cos_table, sin_table}, config);
+
+        const auto packed_shape =
+            v0::Constant::create(ov::element::i64,
+                                 ov::Shape{5},
+                                 std::vector<int64_t>{-1, seq.i(), num_heads.i(), half_rotary_ndims.i(), 2});
+        const auto packed = std::make_shared<v1::Reshape>(rope->output(0), packed_shape, false);
+
+        ov::copy_runtime_info({pattern_map.at(packed_x).get_node_shared_ptr(),
+                               pattern_map.at(pair_first).get_node_shared_ptr(),
+                               pattern_map.at(pair_second).get_node_shared_ptr(),
+                               pattern_map.at(first_rotated_cos).get_node_shared_ptr(),
+                               pattern_map.at(first_rotated_sin).get_node_shared_ptr(),
+                               pattern_map.at(rotated_first).get_node_shared_ptr(),
+                               pattern_map.at(second_rotated_sin).get_node_shared_ptr(),
+                               pattern_map.at(second_rotated_cos).get_node_shared_ptr(),
+                               pattern_map.at(rotated_second).get_node_shared_ptr(),
+                               root},
+                              {head_major, rope, packed});
+        packed->set_friendly_name(root->get_friendly_name());
+
+        ov::replace_node(root, packed);
+        register_new_node(rope);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(packed_rotated, matcher_name);
     this->register_matcher(m, callback);
 }
 
