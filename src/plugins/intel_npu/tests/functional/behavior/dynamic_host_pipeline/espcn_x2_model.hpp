@@ -88,11 +88,12 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
     };
 
     // Distinct seeds per conv give independent, reproducible weight patterns.
-    auto firstConv = makeConvAdd(scaledInput, 1, 64, 5, 0x9E3779B1u, 0.0f);
+    // Reduced ESPCN (paper: 5x5/64, 3x3/32, 3x3/4) to cut compile cost; last conv must stay r^2 = 4 channels.
+    auto firstConv = makeConvAdd(scaledInput, 1, 16, 3, 0x9E3779B1u, 0.0f);
     auto firstRelu = std::make_shared<ov::op::v0::Relu>(firstConv);
-    auto secondConv = makeConvAdd(firstRelu, 64, 32, 3, 0x85EBCA77u, 0.0f);
+    auto secondConv = makeConvAdd(firstRelu, 16, 8, 3, 0x85EBCA77u, 0.0f);
     auto secondRelu = std::make_shared<ov::op::v0::Relu>(secondConv);
-    auto thirdConv = makeConvAdd(secondRelu, 32, 4, 3, 0xC2B2AE3Du, 0.0f);
+    auto thirdConv = makeConvAdd(secondRelu, 8, 4, 3, 0xC2B2AE3Du, 0.0f);
     auto depthToSpace =
         std::make_shared<ov::op::v0::DepthToSpace>(thirdConv,
                                                    ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
@@ -116,10 +117,10 @@ struct DynamicModelConfig {
 
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
     static const std::map<std::string, DynamicModelConfig> configs = {
-        {"ESPCN_x2_DynHW_H1080xW960", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 960), true}},
-        {"ESPCN_x2_DynNHW_H1080xW960", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 960), true}},
-        {"ESPCN_x2_DynNHW_H1080xW960_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 1080), ov::Dimension(10, 960), false}},
-        {"ESPCN_x2_DynN_H1080xW960_NCHW", {ov::Dimension(1, 10), ov::Dimension(1080), ov::Dimension(960), false}},
+        {"ESPCN_x2_DynHW_H960xW960", {ov::Dimension(1), ov::Dimension(10, 960), ov::Dimension(10, 960), true}},
+        {"ESPCN_x2_DynNHW_H960xW960", {ov::Dimension(1, 10), ov::Dimension(1, 960), ov::Dimension(10, 960), true}},
+        {"ESPCN_x2_DynNHW_H960xW960_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 960), ov::Dimension(10, 960), false}},
+        {"ESPCN_x2_DynN_H960xW960_NCHW", {ov::Dimension(1, 10), ov::Dimension(960), ov::Dimension(960), false}},
     };
     return configs;
 }
