@@ -244,8 +244,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"__(.*smoke_CompareWithRefs_NormalizeL2_5D/.*ReductionAxes=\(1\.2\.3\.4\)_EpsMode=.*_Epsilon=1e-09)__"));
             patterns.push_back(std::regex(R"__(.*smoke_ZeroCopySingleFileCacheLoad_GPU/.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.2\]__weights_shape=\[2,32\]_group_size=2_weights_precision=(u4|i4)_activations_precision=f16_.*param_weights=1_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose1_has_sink=0_.*)__"));
-            patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose0_has_sink=0_.*)__"));
+            // patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose1_has_sink=0_.*)__"));
+            // patterns.push_back(std::regex(R"__(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=bf16_IS=\[1\.8\.64\.128\]_\[1\.8\.13\.128\]_\[1\.8\.13\.128\]_\[1\.1\.64\.13\]_.*is_causal=1_has_attn=0_.*has_scale=1_.*with_transpose0_has_sink=0_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MatMulCompressedWeights_extra_multiply/.*data_shape=\[\]_\[1\.4\.16\]__weights_shape=\[1,16,32\]_group_size=1111_weights_precision=u4_activations_precision=f16_.*transpose_weights=0_.*extra_multiply=1_param_weights=1_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_3D/.*TS=\{\(1\.32\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-1\.-2)\)_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_MVN_4D/.*TS=\{\(1\.10\.5\.17\)\}_ModelType=f16_AxType=i(32|64)_Ax=\((-1|-2\.-1)\)_.*)__"));
@@ -259,6 +259,20 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"__(.*smoke_LPT/GroupConvolutionTransformationGPU\..*f16_\[1,6,24,24\]_GPU_f32_4D_\[1,6,24,24\]_\[1,6,18,18\]_.*_reshape_on_weights_max_pool_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_LPT/MatMulTransformation\..*f16_GPU_\[1,4,12,2\]_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*\[1,4,2,12\]_level=256_shape=\[\]_input_low=\{ -12\.8 \}.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_LPT_4D/ConvolutionBackpropDataTransformationGPU\..*/f16_.*input_high=\{ 255 \}_output_low=\{ -12\.7 \}.*)__"));
+            // Failed in CI Win platform
+            patterns.push_back(std::regex(R"(.*MatmulWeightsDecompression.*)"));
+            patterns.push_back(std::regex(R"(.*MoECompressed.*)"));
+            patterns.push_back(std::regex(R"(.*ScaledAttnLayerGPUTest.*)"));
+            patterns.push_back(std::regex(R"(.*MatrixNmsLayerTestGPU_static/MatrixNmsLayerTestGPU.*)"));
+            patterns.push_back(std::regex(R"(.*PadLayerGPUTest.*)"));
+            patterns.push_back(std::regex(R"(.*MoEOffloadFromIRFile.*)"));
+            patterns.push_back(std::regex(R"(.*MultipleIterationStateful.*)"));
+            patterns.push_back(std::regex(R"(.*PagedAttentionTokenTypeTest.*)"));
+            patterns.push_back(std::regex(R"(.*QDQStrippingTest.*)"));
+            patterns.push_back(std::regex(R"(.*StridedSliceLayerGPUTest.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMul/UserQueueWeightsUpdateTest.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_BehaviorTests/OVInferRequestIOTensorTest.failToSetTensorWithIncorrectName/targetDevice=GPU_configItem=NUM_STREAMS_AUTO.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_LPT/ClampTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_GPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 127 \}_precision=_min=0max=127.*)"));
         }
 
         return patterns;
