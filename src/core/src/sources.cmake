@@ -123,6 +123,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hyper_connection_mix.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hyper_connection_post.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/hyper_connection_pre.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp

@@ -328,6 +328,7 @@ REGISTER_FACTORY(internal, MOECompressed);
 REGISTER_FACTORY(internal, MoERouterFused);
 REGISTER_FACTORY(internal, GatedDeltaNet);
 REGISTER_FACTORY(internal, HyperConnectionMix);
+REGISTER_FACTORY(internal, HyperConnectionPre);
 REGISTER_FACTORY(internal, HyperConnectionPost);
 REGISTER_FACTORY(internal, SelectiveSSM);
 REGISTER_FACTORY(internal, PagedCausalConv1D);

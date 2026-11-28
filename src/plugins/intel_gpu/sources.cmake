@@ -55,6 +55,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/hyper_connection_mix.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/hyper_connection_pre.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/hyper_connection_post.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_residual.cpp
     # NOTE: filename contains a literal space (pre-existing, not a typo introduced here)

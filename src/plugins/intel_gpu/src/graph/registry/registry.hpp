@@ -149,6 +149,7 @@ REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
 REGISTER_IMPLS(hyper_connection_mix);
+REGISTER_IMPLS(hyper_connection_pre);
 REGISTER_IMPLS(hyper_connection_post);
 REGISTER_IMPLS(selective_ssm);
 REGISTER_IMPLS(gemm);
