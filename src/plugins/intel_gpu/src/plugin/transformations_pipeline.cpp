@@ -91,6 +91,7 @@
 #include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/fuse_moe_scatter_reduce.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
@@ -1125,6 +1126,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
+            manager.register_pass<ov::intel_gpu::FuseMoEScatterReduce>();
         }
 
         register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);

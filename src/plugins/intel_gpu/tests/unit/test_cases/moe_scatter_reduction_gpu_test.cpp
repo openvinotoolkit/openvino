@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -273,4 +275,159 @@ TEST(moe_unit, moe_scatter_reduction_tokens_first_with_batch_dim_flag) {
 
 TEST(moe_unit, moe_scatter_reduction_batch_first_without_batch_dim_flag) {
     test_moe_scatter_reduction<ov::float16>(false, 64, false, false);
+}
+
+namespace {
+
+// row_lut mode: output[t] = sum_k weights[t, k] * data[row_lut[t * top_k + k]]. The token counts run through one network.
+template <typename T>
+void test_moe_scatter_reduction_row_lut(int32_t top_k, int32_t hidden_size, bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const auto dt = ov::element::from<T>();
+
+    topology topology(input_layout("data", layout{ov::PartialShape{ov::Dimension::dynamic(), hidden_size}, dt, format::bfyx}),
+                      input_layout("weights", layout{ov::PartialShape{ov::Dimension::dynamic(), top_k}, dt, format::bfyx}),
+                      input_layout("row_lut", layout{ov::PartialShape{ov::Dimension::dynamic()}, data_types::i32, format::bfyx}),
+                      moe_scatter_reduction("combine", input_info("data"), input_info("weights"), input_info("row_lut"), top_k));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    const float tolerance = dt == data_types::f16 ? 1e-2f : 1e-4f;
+    std::mt19937 gen((top_k * 31) + hidden_size);
+    std::uniform_real_distribution<float> dist(-1.f, 1.f);
+    for (const int32_t num_tokens : {1, 38, 5}) {
+        const int32_t rows = num_tokens * top_k;
+        std::vector<T> data(static_cast<size_t>(rows) * hidden_size);
+        std::vector<T> weights(rows);
+        for (auto& v : data) {
+            v = T(dist(gen));
+        }
+        for (auto& v : weights) {
+            v = T(dist(gen));
+        }
+        std::vector<int32_t> row_lut(rows);
+        std::iota(row_lut.begin(), row_lut.end(), 0);
+        std::shuffle(row_lut.begin(), row_lut.end(), gen);
+
+        auto data_mem = engine.allocate_memory(layout{ov::PartialShape{rows, hidden_size}, dt, format::bfyx});
+        auto weights_mem = engine.allocate_memory(layout{ov::PartialShape{num_tokens, top_k}, dt, format::bfyx});
+        auto lut_mem = engine.allocate_memory(layout{ov::PartialShape{rows}, data_types::i32, format::bfyx});
+        set_values(data_mem, data);
+        set_values(weights_mem, weights);
+        set_values(lut_mem, row_lut);
+        network->set_input_data("data", data_mem);
+        network->set_input_data("weights", weights_mem);
+        network->set_input_data("row_lut", lut_mem);
+        auto output = network->execute().at("combine").get_memory();
+        ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{static_cast<size_t>(num_tokens), static_cast<size_t>(hidden_size)}));
+
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(output, get_test_stream());
+        for (int32_t t = 0; t < num_tokens; t++) {
+            for (int32_t h = 0; h < hidden_size; h++) {
+                float ref = 0.f;
+                for (int32_t k = 0; k < top_k; k++) {
+                    const auto s = (t * top_k) + k;
+                    ref += static_cast<float>(weights[s]) * static_cast<float>(data[(static_cast<size_t>(row_lut[s]) * hidden_size) + h]);
+                }
+                ASSERT_NEAR(static_cast<float>(out_ptr[(t * hidden_size) + h]), ref, tolerance) << "token " << t << " h " << h << " tokens " << num_tokens;
+            }
+        }
+    }
+}
+
+}  // namespace
+
+class moe_scatter_reduction_row_lut : public ::testing::TestWithParam<std::tuple<int32_t, int32_t, data_types, bool>> {};  // top_k, hidden size, type, cached
+
+TEST_P(moe_scatter_reduction_row_lut, matches_reference) {
+    const auto [top_k, hidden_size, data_type, is_caching_test] = GetParam();
+    if (data_type == data_types::f16) {
+        test_moe_scatter_reduction_row_lut<ov::float16>(top_k, hidden_size, is_caching_test);
+    } else {
+        test_moe_scatter_reduction_row_lut<float>(top_k, hidden_size, is_caching_test);
+    }
+}
+
+// hidden 8192 needs two vector blocks per work-item; 66 is not a multiple of the vector size; 4100 leaves a tail of work-items
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_scatter_reduction_row_lut,
+                         ::testing::Values(std::make_tuple(6, 1536, data_types::f16, false),
+                                           std::make_tuple(8, 32, data_types::f16, false),
+                                           std::make_tuple(2, 8192, data_types::f16, false),
+                                           std::make_tuple(6, 66, data_types::f16, false),
+                                           std::make_tuple(4, 4100, data_types::f16, false),
+                                           std::make_tuple(6, 1536, data_types::f32, false),
+                                           std::make_tuple(6, 66, data_types::f32, false),
+                                           std::make_tuple(6, 1536, data_types::f16, true)));
+
+namespace {
+
+// The indices are read as by Gather-8: negative ones count from the end of data, out-of-range ones read zeros
+template <typename LutT>
+void test_moe_scatter_reduction_row_lut_gather_indices() {
+    auto& engine = get_test_engine();
+    constexpr int32_t top_k = 4;
+    constexpr int32_t hidden_size = 64;
+    constexpr int32_t data_rows = 10;
+    constexpr int32_t num_tokens = 3;
+    const auto lut_type = ov::element::from<LutT>();
+
+    topology topology(input_layout("data", layout{ov::PartialShape{ov::Dimension::dynamic(), hidden_size}, data_types::f32, format::bfyx}),
+                      input_layout("weights", layout{ov::PartialShape{ov::Dimension::dynamic(), top_k}, data_types::f32, format::bfyx}),
+                      input_layout("row_lut", layout{ov::PartialShape{ov::Dimension::dynamic()}, lut_type, format::bfyx}),
+                      moe_scatter_reduction("combine", input_info("data"), input_info("weights"), input_info("row_lut"), top_k));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    std::mt19937 gen(7);
+    std::uniform_real_distribution<float> dist(-1.f, 1.f);
+    std::vector<float> data(static_cast<size_t>(data_rows) * hidden_size);
+    std::vector<float> weights(num_tokens * top_k);
+    for (auto& v : data) {
+        v = dist(gen);
+    }
+    for (auto& v : weights) {
+        v = dist(gen);
+    }
+    const std::vector<LutT> row_lut{0, 9, -1, -10, 3, data_rows, -11, 5, 100, -100, 2, 2};
+
+    auto data_mem = engine.allocate_memory(layout{ov::PartialShape{data_rows, hidden_size}, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory(layout{ov::PartialShape{num_tokens, top_k}, data_types::f32, format::bfyx});
+    auto lut_mem = engine.allocate_memory(layout{ov::PartialShape{num_tokens * top_k}, lut_type, format::bfyx});
+    set_values(data_mem, data);
+    set_values(weights_mem, weights);
+    set_values(lut_mem, row_lut);
+    network->set_input_data("data", data_mem);
+    network->set_input_data("weights", weights_mem);
+    network->set_input_data("row_lut", lut_mem);
+    auto output = network->execute().at("combine").get_memory();
+    ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{num_tokens, hidden_size}));
+
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(output, get_test_stream());
+    for (int32_t t = 0; t < num_tokens; t++) {
+        for (int32_t h = 0; h < hidden_size; h++) {
+            float ref = 0.f;
+            for (int32_t k = 0; k < top_k; k++) {
+                const auto s = (t * top_k) + k;
+                auto row = static_cast<int64_t>(row_lut[s]);
+                row = row < 0 ? row + data_rows : row;
+                if (row >= 0 && row < data_rows) {
+                    ref += weights[s] * data[(row * hidden_size) + h];
+                }
+            }
+            ASSERT_NEAR(out_ptr[(t * hidden_size) + h], ref, 1e-4f) << "token " << t << " h " << h;
+        }
+    }
+}
+
+}  // namespace
+
+TEST(moe_unit, moe_scatter_reduction_row_lut_gather_indices_i32) {
+    test_moe_scatter_reduction_row_lut_gather_indices<int32_t>();
+}
+
+TEST(moe_unit, moe_scatter_reduction_row_lut_gather_indices_i64) {
+    test_moe_scatter_reduction_row_lut_gather_indices<int64_t>();
 }
