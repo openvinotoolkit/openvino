@@ -13,6 +13,7 @@
 #include <arm_compute/runtime/NEON/functions/NEPooling3dLayer.h>
 #include <arm_compute/runtime/NEON/functions/NEPoolingLayer.h>
 
+#include <algorithm>
 #include <any>
 #include <cstddef>
 #include <functional>
@@ -53,6 +54,15 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
                                      PoolingLayerInfo* pool_info,
                                      Pooling3dLayerInfo* pool3d_info,
                                      bool ignoreOutShapeErrors) {
+    // ACL pooling has no dilation parameter, so it would pool as if there were none. The output-shape check
+    // below misses this when the dilated and undilated output sizes are equal, so reject dilation explicitly.
+    const bool hasDilation = std::any_of(poolingAttrs.dilation.begin(), poolingAttrs.dilation.end(), [](ptrdiff_t d) {
+        return d != 1;
+    });
+    if (hasDilation) {
+        DEBUG_LOG("ACL pooling does not support dilation");
+        return false;
+    }
     unsigned int pad_left =
         (poolingAttrs.data_pad_begin.size() >= 2U) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
     unsigned int pad_right =

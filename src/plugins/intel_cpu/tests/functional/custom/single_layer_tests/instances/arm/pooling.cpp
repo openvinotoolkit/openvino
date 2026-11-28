@@ -47,6 +47,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_non2x2Kernel_ref, MaxPoolingV14
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
+// ACL pooling ignores dilation. With kernel 2, stride 2, dilation 2 the dilated and undilated output sizes
+// are equal for these inputs (5 and 9), so the output-shape check alone used to pick ACL and give wrong values.
+const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_dilation = {
+        maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                                 ov::element::Type_t::i32, 0,
+                                 ov::op::RoundingType::FLOOR, ov::op::PadType::EXPLICIT },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_Dilation_ref, MaxPoolingV8LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV84D_dilation),
+                                 ::testing::Values(InputShape{ {}, {{1, 3, 5, 5}} }, InputShape{ {}, {{1, 3, 9, 9}} }),
+                                 ::testing::Values(ElementType::f32),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MaxPoolingV8LayerCPUTest::getTestCaseName);
+
 }  // namespace Pooling
 }  // namespace test
 }  // namespace ov
