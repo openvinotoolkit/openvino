@@ -634,4 +634,27 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     AvgPoolingV16LayerTest::getTestCaseName);
 
+/* ========== Avg Pooling V16 with dilation where dilation does not change the output shape ========== */
+// With kernel 2, stride 2 and dilation 2, an odd input size gives the same output shape
+// with and without dilation. These cases check that the dilation is actually applied.
+const std::vector<std::vector<ov::Shape>> input_shapes_dilated_odd_static = {{{1, 3, 9, 9}}, {{1, 3, 17, 17}}};
+
+const auto avgPoolV16DilatedOddInputParams = ::testing::Combine(::testing::Values(std::vector<size_t>{2, 2}),
+                                                                ::testing::Values(ov::Strides{2, 2}),
+                                                                ::testing::Values(ov::Strides{2, 2}),
+                                                                ::testing::Values(std::vector<size_t>{0, 0}),
+                                                                ::testing::Values(std::vector<size_t>{0, 0}),
+                                                                ::testing::Values(ov::op::RoundingType::FLOOR),
+                                                                ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                ::testing::Values(true, false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV16_Dilated_OddInput,
+                         AvgPoolingV16LayerTest,
+                         ::testing::Combine(avgPoolV16DilatedOddInputParams,
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
+                                                input_shapes_dilated_odd_static)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         AvgPoolingV16LayerTest::getTestCaseName);
+
 }  // namespace
