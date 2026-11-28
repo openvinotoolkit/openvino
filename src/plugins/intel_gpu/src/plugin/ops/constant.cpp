@@ -17,6 +17,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "moe_offload_constant.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -115,6 +117,41 @@ static void upload_to_device(ProgramBuilder& p, cldnn::memory& dst, const char* 
     }
 }
 
+// On an integrated GPU the device reads host memory directly, so a large constant that owns page-aligned data of the
+// type the plugin uses can be wrapped as a read-only host buffer instead of being copied into a new allocation: the
+// build then does not hold every weight twice. Not wrapped (copied as before):
+//  - views of a mapped model file (a weight-sharing source buffer): their pages are file-backed and can be evicted,
+//    which the device cannot fault back in;
+//  - constants that need a type conversion, feed a Convert (constant propagation folds those into new memory) or use
+//    an image layout;
+//  - unaligned data or sizes, and constants below 1 MiB (copying those costs little).
+static bool can_wrap_host_constant(ProgramBuilder& p,
+                                   const ov::op::v0::Constant& op,
+                                   const cldnn::layout& layout,
+                                   cldnn::data_types out_dtype,
+                                   const char* data) {
+    if (p.get_engine().get_device_info().dev_type != cldnn::device_type::integrated_gpu) {
+        return false;
+    }
+    const size_t bytes = layout.bytes_count();
+    if (bytes < (size_t{1} << 20) || bytes % 64 != 0 || bytes != op.get_byte_size() || layout.format.is_image_2d()) {
+        return false;
+    }
+    if (op.get_output_element_type(0) != ov::element::Type(out_dtype) ||
+        reinterpret_cast<uintptr_t>(data) % static_cast<uintptr_t>(ov::util::get_system_page_size()) != 0) {
+        return false;
+    }
+    if (weight_sharing::Extension::get_constant_source_buffer(op)) {
+        return false;
+    }
+    for (const auto& t : op.output(0).get_target_inputs()) {
+        if (ov::is_type<ov::op::v0::Convert>(t.get_node())) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -179,6 +216,17 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                           << ", ptr: " << weight_sharing_constant_buffer_view->get_ptr()
                           << ", size: " << weight_sharing_constant_buffer_view->size()
                           << ", layout: " << constLayout.to_short_string() << std::endl;
+            return;
+        }
+        if (can_wrap_host_constant(p, *op, constLayout, out_dtype, data)) {
+            // The compiled model keeps the constant (and so the wrapped memory) alive.
+            const size_t bytes = constLayout.bytes_count();
+            auto holder = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::op::v0::Constant>>>(const_cast<char*>(data), bytes, op);
+            p.register_weight_sharing_source_buffer(holder);
+            mem = p.get_engine().create_hostbuffer(const_cast<char*>(data), bytes, cldnn::allocation_type::cl_mem, constLayout);
+            p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+            p.blobMemCache[cache_key] = initialconstPrimID;
+            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] wrapped host memory (zero copy), " << bytes << " bytes" << std::endl;
             return;
         }
         auto partial_upload = try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, constFormat, constLayout);
