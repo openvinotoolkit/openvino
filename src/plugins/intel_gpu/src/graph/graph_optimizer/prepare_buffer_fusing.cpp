@@ -89,6 +89,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     if (concat_node.is_output() || !concat_params.fused_desc.empty() || concat_node.is_in_shape_of_subgraph()) {
         return false;
     }
+    // do not optimize concat, that must be calculated in propagate_constants
+    if (concat_node.is_constant()) {
+        return false;
+    }
     bool do_runtime_buffer_fusing = true;
     GPU_DEBUG_IF(concat_node.get_config().get_disable_runtime_buffer_fusing()) {
         do_runtime_buffer_fusing = false;

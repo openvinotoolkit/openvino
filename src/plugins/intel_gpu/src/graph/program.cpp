@@ -157,7 +157,7 @@ std::shared_ptr<ICompilationContext> program::make_compilation_context(const Exe
 }
 
 program::program(engine& engine_ref,
-                 topology const& topology,
+                 std::shared_ptr<topology> topology,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  std::shared_ptr<ICompilationContext> compilation_context,
@@ -177,8 +177,13 @@ program::program(engine& engine_ref,
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
-    prepare_nodes(topology);
-    program_node::reset_unique_id();
+    OPENVINO_ASSERT(topology != nullptr, "[GPU] No topology to build the program from");
+    prepare_nodes(*topology);
+    topology.reset();
+    // An internal program can be built while another one is being built (propagate_constants), whose ids must not restart
+    if (!is_internal) {
+        program_node::reset_unique_id();
+    }
     if (no_optimizations) {
         init_graph();
     } else {
@@ -205,27 +210,6 @@ program::program(engine& engine_ref,
             this->_can_be_optimized = can_be_optimized;
         }
     }
-}
-
-program::program(engine& engine_ref,
-                 std::set<std::shared_ptr<program_node>> const& nodes,
-                 const ExecutionConfig& config,
-                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal,
-                 std::optional<std::map<primitive_type_id, bool>> onednn_impls)
-    : _engine(engine_ref),
-      _stream(_engine.create_stream(config)),
-      _config(config),
-      _task_executor(std::move(task_executor)),
-      processing_order(),
-      is_internal(is_internal),
-      _onednn_impls(std::move(onednn_impls)) {
-    _config.finalize(_engine);
-    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
-    init_primitives();
-    init_program();
-    prepare_nodes(nodes);
-    build_program(is_internal);
 }
 
 program::program(engine& engine, const ExecutionConfig& config)
@@ -295,7 +279,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, nullptr, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     std::make_shared<cldnn::topology>(topology),
+                                     config,
+                                     task_executor,
+                                     nullptr,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -306,7 +297,25 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, compilation_context, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     std::make_shared<cldnn::topology>(topology),
+                                     config,
+                                     task_executor,
+                                     compilation_context,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
+}
+
+program::ptr program::build_program(engine& engine,
+                                    std::shared_ptr<topology> topology,
+                                    const ExecutionConfig& config,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                                    std::shared_ptr<ICompilationContext> compilation_context,
+                                    bool is_internal,
+                                    bool no_optimizations,
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, std::move(topology), config, task_executor, compilation_context, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -315,16 +324,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, nullptr, nullptr, is_internal, no_optimizations, is_body_program);
-}
-
-program::ptr program::build_program(engine& engine,
-                                    const std::set<std::shared_ptr<program_node>>& nodes,
-                                    const ExecutionConfig& config,
-                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal,
-                                    std::optional<std::map<primitive_type_id, bool>> onednn_impls) {
-    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal, std::move(onednn_impls));
+    return std::make_shared<program>(engine,
+                                     std::make_shared<cldnn::topology>(topology),
+                                     config,
+                                     nullptr,
+                                     nullptr,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -412,42 +419,6 @@ bool program::analyze_output_size_handling_need() {
     return handling_needed;
 }
 
-// create new nodes for a program based on the set of nodes
-// method created to be used by propagate_constants to build sub program from constant nodes
-void program::prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes) {
-    for (const auto& itr : nodes) {
-        if (itr->is_type<data>()) {
-            get_or_create(std::make_shared<input_layout>(itr->id(), itr->as<data>().get_primitive()->mem->get_layout()));
-        } else {
-            get_or_create(itr->desc);
-        }
-    }
-    for (const auto& node : nodes_map) {
-        auto node_ptr = node.second;
-        if (node_ptr == nullptr) {
-            throw std::runtime_error("NULL pointer in nodes_map.");
-        }
-        // ToDo: avoid O(n^2) run time here (pass map instead of set?)
-        bool found = false;
-        for (const auto& src_node : nodes) {
-            if (src_node == nullptr) {
-                throw std::runtime_error("NULL pointer in nodes_map.");
-            }
-            if (node.first == src_node->get_primitive()->id) {
-                copy_node_dependencies(node_ptr.get(), src_node.get());
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            add_node_dependencies(node_ptr.get());
-        }
-        if (node_ptr->dependencies.empty()) {
-            inputs.push_back(node_ptr.get());
-        }
-    }
-}
-
 // create all nodes from topology primitives, add dependencies among them and create inputs list
 void program::prepare_nodes(topology const& topology) {
     auto const& topo_map = topology.get_primitives();
@@ -478,33 +449,6 @@ void program::add_node_dependencies(program_node* node) {
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
-        }
-    }
-}
-
-/* helper method for program constructor from list of nodes which
-   copies src_node dependencies to the destination node dest_node dependencies.
-   But only to those which appaer in this program implementation nodes_map */
-void program::copy_node_dependencies(program_node* dest_node, program_node* src_node) {
-    if (dest_node->get_primitive()->id != src_node->get_primitive()->id) {
-        throw std::runtime_error("Node " + src_node->get_primitive()->id + " and its copy " +
-                                 dest_node->get_primitive()->id + " do not match.");
-    }
-    auto src_deps = src_node->get_dependencies();
-    // add pointers to node's dependencies
-    for (auto& src_dep : src_deps) {
-        // do not copy dependencies to nodes which does not belong to the new (subgraph) topology
-        if (nodes_map.find(src_dep.first->get_primitive()->id) == nodes_map.end()) {
-            continue;
-        }
-
-        try {
-            auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
-            dest_node->dependencies.push_back({dest_dep.get(), src_dep.second});
-            dest_dep->users.push_back(dest_node);
-        } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
-                                     " that is input to: " + src_node->get_primitive()->id);
         }
     }
 }
@@ -1838,13 +1782,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         }
     }
 #endif  // OV_GPU_VENDOR_NVIDIA
-
-    if (_onednn_impls.has_value()) {
-        lo.clear_onednn_impls_optimization_attribute();
-        for (const auto& [type_id, enabled] : *_onednn_impls) {
-            lo.set_value_onednn(type_id, enabled);
-        }
-    }
 
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
