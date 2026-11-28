@@ -281,6 +281,14 @@ py::object from_ov_any(const ov::Any& any) {
         std::stringstream luid_stream;
         luid_stream << any.as<ov::device::LUID>();
         return py::cast(luid_stream.str());
+    } else if (any.is<ov::intel_gpu::ContextType>()) {
+        std::stringstream context_type_stream;
+        context_type_stream << any.as<ov::intel_gpu::ContextType>();
+        return py::cast(context_type_stream.str());
+    } else if (any.is<ov::intel_gpu::SharedMemType>()) {
+        std::stringstream shared_mem_type_stream;
+        shared_mem_type_stream << any.as<ov::intel_gpu::SharedMemType>();
+        return py::cast(shared_mem_type_stream.str());
     } else if (any.is<ov::device::PCIInfo>()) {
         return py::cast(any.as<ov::device::PCIInfo>());
     } else if (any.is<ov::intel_npu::CompilerType>()) {
