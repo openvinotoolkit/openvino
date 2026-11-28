@@ -2467,6 +2467,29 @@ void Partitioner::optimize(const std::string& func_name) {
         }
     }
 
+    // Independent of NPUW_DQ: MoE scales are relaid out on host for the compiler's group-major kernel
+    if (cfg.get<::intel_npu::NPUW_MOE_SCALE_GM>()) {
+        ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::MoECompressedScaleGroupMajor>(
+            std::ref(ctx),
+            cfg.get<::intel_npu::NPUW_MOE_SCALE_GM_F32>());
+        rewr.run_on_model(f._model);
+        // Permute first: the f32 conversion is applied on top of the relaid-out closure
+        do_permute(ctx);
+        for (auto&& p : ctx.closures_to_f32) {
+            auto param_idx = f._model->get_parameter_index(p);
+            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
+            auto closure_idx = param_idx - f._param_offset;
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f32);
+            });
+        }
+    } else if (cfg.get<::intel_npu::NPUW_MOE_SCALE_GM_F32>()) {
+        LOG_WARN("NPUW_MOE_SCALE_GM_F32 is ignored without NPUW_MOE_SCALE_GM");
+    }
+
     if (!cfg.get<::intel_npu::NPUW_DQ>()) {
         LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
                                                       << "...");
