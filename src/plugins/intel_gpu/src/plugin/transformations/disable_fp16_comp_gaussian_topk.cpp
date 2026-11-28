@@ -38,17 +38,22 @@ DisableFP16CompForGaussianTopK::DisableFP16CompForGaussianTopK() {
             return false;
         }
 
-        const auto mean_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pattern_map.at(mean).get_node_shared_ptr());
         const auto deviation_node = pattern_map.at(deviation).get_node_shared_ptr();
         const auto squared_deviation_node = pattern_map.at(squared_deviation).get_node_shared_ptr();
         const auto variance_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pattern_map.at(variance).get_node_shared_ptr());
         const auto threshold_node = pattern_map.at(threshold).get_node_shared_ptr();
 
-        // data (any_input) binds once, but the repeated wrap_type labels mean and deviation may bind to different nodes.
-        const auto& deviation_mean = deviation_node->input_value(1);
+        // data (any_input) binds once, so both means read the same tensor. The repeated wrap_type label mean may still bind to
+        // two ReduceMean nodes: SharedOpOptimization runs after ConvertPrecision, so equivalent means may not be merged yet.
+        const auto deviation_mean = ov::as_type_ptr<ov::op::v1::ReduceMean>(deviation_node->get_input_node_shared_ptr(1));
+        const auto is_deviation_mean = [&](const ov::Output<ov::Node>& output) {
+            const auto reduce_mean = ov::as_type_ptr<ov::op::v1::ReduceMean>(output.get_node_shared_ptr());
+            return reduce_mean && (reduce_mean == deviation_mean || (reduce_mean->get_keep_dims() == deviation_mean->get_keep_dims() &&
+                                                                     reduce_mean->get_reduction_axes() == deviation_mean->get_reduction_axes()));
+        };
         const bool is_gaussian_topk = squared_deviation_node->input_value(0) == squared_deviation_node->input_value(1) &&
-                                      (threshold_node->input_value(0) == deviation_mean || threshold_node->input_value(1) == deviation_mean) &&
-                                      mean_node->get_reduction_axes() == variance_node->get_reduction_axes();
+                                      (is_deviation_mean(threshold_node->input_value(0)) || is_deviation_mean(threshold_node->input_value(1))) &&
+                                      deviation_mean->get_reduction_axes() == variance_node->get_reduction_axes();
         if (!is_gaussian_topk) {
             return false;
         }

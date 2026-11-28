@@ -66,6 +66,10 @@ namespace ov::intel_gpu {
  *        k = erfinv(0.9) * sqrt(2) = 1.6448536 is a scalar computed from constants (ErfInv, Multiply) and
  *        shared by all layers; the pattern accepts any node as k.
  *
+ *        The mean feeding "deviation" and the one feeding "threshold" are either the same node or two
+ *        equivalent ReduceMean nodes (same input, keep_dims and axes), as emitted by the PyTorch frontend
+ *        before SharedOpOptimization merges them.
+ *
  * FP16 conversion is disabled (ov::disable_conversion) for the squared deviation and the nodes
  * computed from it (Multiply, ReduceMean, Sqrt, Multiply, Add). ConvertPrecision with
  * keep_precision_sensitive_in_fp32 propagates the mark up to mean and deviation. The graph
