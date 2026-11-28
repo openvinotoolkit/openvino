@@ -93,4 +93,17 @@ TEST_F(TensorNameSerializationTest, model_with_specific_output_names) {
     const auto res = model_comparator.compare(read_model, ref_model);
     EXPECT_TRUE(res.valid) << res.message;
 }
+
+TEST_F(TensorNameSerializationTest, tensor_names_with_commas_at_various_positions) {
+    const auto names = std::unordered_set<std::string>{"plain", "a,b,c", ",leading", "trailing,", "double,,comma", ","};
+    auto input = std::make_shared<Parameter>(element::f32, Shape{1});
+    input->output(0).set_names(names);
+    auto result = std::make_shared<Result>(input);
+    const auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input}, "Commas");
+
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(model);
+    const auto read_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+
+    EXPECT_THAT(read_model->input(0).get_names(), testing::UnorderedElementsAreArray(names));
+}
 }  // namespace ov::test

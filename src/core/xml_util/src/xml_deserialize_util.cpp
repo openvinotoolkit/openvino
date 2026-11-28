@@ -101,31 +101,28 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
  * @param tensor_names A string view to serialized tensor names.
  * @return A set of unique tensor names.
  */
-std::unordered_set<std::string> deserialize_tensor_names(const std::string_view& tensor_names) {
-    static const auto escaped_delim = std::regex(R"(\\,)");
-    constexpr auto delim = ",";
+std::unordered_set<std::string> deserialize_tensor_names(std::string_view tensor_names) {
+    constexpr auto delim = ',';
     constexpr auto esc_char = '\\';
 
-    auto output_names = std::unordered_set<std::string>();
-    auto name_inserter = std::inserter(output_names, output_names.end());
-    for (size_t pos = tensor_names.find(delim), start = 0; start != std::string::npos;
-         pos = tensor_names.find(delim, pos)) {
-        if (pos == std::string::npos) {
-            if (auto name_view = tensor_names.substr(start); name_view.size() > 0) {
-                *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
+    std::unordered_set<std::string> output_names;
+    std::string name;  // name being assembled from parts joined by escaped commas
+
+    for (size_t start = 0, end = 0; end != std::string_view::npos; start = end + 1) {
+        end = tensor_names.find(delim, start);
+        const auto segment = tensor_names.substr(start, end - start);
+        if (end != std::string_view::npos && segment.ends_with(esc_char)) {
+            // The comma after this part is escaped: it belongs to the name.
+            name.append(segment.substr(0, segment.size() - 1)).push_back(delim);
+        } else if (name.empty()) {
+            if (!segment.empty()) {
+                output_names.emplace(segment);
             }
-            start = pos;
-            // There's no real case when `pos' equals zero and following test `delim_pos != std::string::npos' protects
-            // against it.
-            // coverity[ overflow_const:SUPPRESS]
-        } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
-            ++pos;
         } else {
-            if (auto length = pos - start; length > 0) {
-                *name_inserter =
-                    std::regex_replace(std::string(tensor_names.substr(start, length)), escaped_delim, delim);
-            }
-            start = ++pos;
+            name.append(segment);
+            // Inserted by lvalue: an rvalue std::string insert hits a GCC 15 LTO false-positive -Wstringop-overflow
+            output_names.insert(name);
+            name.clear();
         }
     }
 
