@@ -163,7 +163,7 @@ public:
                                                                                      adaptive_rkv_diversity_block_set_indices_begins,
                                                                                      token_type_ids,
                                                                                      qq_bias,
-                                                                                     qq_bias_begins});
+                                                                                     qq_bias_begins, std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{})});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;

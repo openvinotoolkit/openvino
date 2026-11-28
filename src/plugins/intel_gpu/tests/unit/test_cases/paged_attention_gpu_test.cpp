@@ -1441,6 +1441,7 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
     auto token_type_ids_mem = pam.get_token_type_ids_memory();
     auto qq_bias_mem = pam.get_qq_bias_memory();
     auto qq_bias_begins_mem = pam.get_qq_bias_begins_memory();
+    auto relative_bias_mem = pam.get_relative_bias_memory();
 
     auto query_layout = writer_query_mem->get_layout();
     auto key_layout = key_mem->get_layout();
@@ -1468,7 +1469,8 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
             cldnn::input_info("xattention_stride"), cldnn::input_info("sinks"),
             cldnn::input_info("adaptive_rkv_start_size"), cldnn::input_info("adaptive_rkv_evictable_sizes"),
             cldnn::input_info("adaptive_rkv_diversity_block_set_indices"), cldnn::input_info("adaptive_rkv_diversity_block_set_indices_begins"),
-            cldnn::input_info("token_type_ids"), cldnn::input_info("qq_bias"), cldnn::input_info("qq_bias_begins")
+            cldnn::input_info("token_type_ids"), cldnn::input_info("qq_bias"), cldnn::input_info("qq_bias_begins"),
+            cldnn::input_info("relative_bias")
         };
 
         auto pa_prim = cldnn::paged_attention("paged_attention", pa_inputs);
@@ -1518,6 +1520,7 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
         topo.add(cldnn::input_layout("token_type_ids", token_type_ids_mem->get_layout()));
         topo.add(cldnn::input_layout("qq_bias", qq_bias_mem->get_layout()));
         topo.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_mem->get_layout()));
+        topo.add(cldnn::input_layout("relative_bias", relative_bias_mem->get_layout()));
 
         ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1555,6 +1558,7 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
         net->set_input_data("token_type_ids", token_type_ids_mem);
         net->set_input_data("qq_bias", qq_bias_mem);
         net->set_input_data("qq_bias_begins", qq_bias_begins_mem);
+        net->set_input_data("relative_bias", relative_bias_mem);
     };
 
     // Execute writer PA to fill the KV cache
@@ -1707,3 +1711,65 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
+namespace {
+paged_attention_test_params relative_bias_params(std::vector<SubsequenceDescriptor> subsequences,
+                                                 int num_heads,
+                                                 int num_kv_heads,
+                                                 int head_size,
+                                                 int sliding_window,
+                                                 int span,
+                                                 bool compression = DISABLE_CACHE_COMPRESSION,
+                                                 ov::internal::CacheQuantMode quant_mode = ov::internal::CacheQuantMode::BY_TOKEN,
+                                                 ov::element::Type kv_precision = ov::element::dynamic,
+                                                 bool disable_fa_v2 = DISABLE_FA_V2) {
+    paged_attention_test_params p{};
+    p.subsequences = std::move(subsequences);
+    p.num_heads = num_heads;
+    p.num_kv_heads = num_kv_heads;
+    p.k_head_size = head_size;
+    p.v_head_size = head_size;
+    p.block_size = 16;
+    p.sliding_window_size = sliding_window;
+    p.kv_cache_compression = compression;
+    p.key_cache_quant_mode = quant_mode;
+    p.dynamic_paddings = STATIC_INPUT_PAD;
+    p.scores_mode = DISABLE_SCORES;
+    p.rotation_config = DISABLE_ROTATION;
+    p.disable_flashattn_v2 = disable_fa_v2;
+    p.kv_cache_precision = kv_precision;
+    p.relative_bias_span = span;
+    return p;
+}
+}  // namespace
+
+class paged_attention_relative_bias_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(paged_attention_relative_bias_test, basic) {
+    auto p = GetParam();
+    execute(p, p.run_reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_relative_bias,
+    paged_attention_relative_bias_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        relative_bias_params({{40, 0}}, 2, 2, 64, 0, 16),  // prefill (sdpa_opt)
+        relative_bias_params({{40, 0}}, 2, 2, 64, 0, 16, false, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::dynamic, ENABLE_FA_V2),  // prefill,
+                                                                                                                                              // FlashAttn v2
+        relative_bias_params({{130, 0}}, 4, 2, 64, 0, 7),                                                                                     // prefill, GQA
+        relative_bias_params({{17, 31}}, 2, 2, 64, 0, 16),                    // mixed multi-token
+        relative_bias_params({{1, 40}}, 2, 2, 64, 0, 16),                     // single-token decode
+        relative_bias_params({{1, 600}}, 2, 2, 64, 0, 64),                    // decode, partitioned long context
+        relative_bias_params({{1, 600}}, 4, 2, 64, 0, 64),                    // decode, GQA, partitioned
+        relative_bias_params({{1, 300}}, 2, 2, 64, 128, 64),                  // decode, sliding window
+        relative_bias_params({{64, 0}}, 2, 2, 64, 24, 16),                    // prefill, sliding window
+        relative_bias_params({{1, 34}, {25, 0}, {10, 70}}, 2, 2, 64, 0, 16),  // sequences with different past_lens
+        relative_bias_params({{1, 300}}, 2, 2, 64, 0, 64, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8),    // i8 cache
+        relative_bias_params({{17, 31}}, 2, 2, 64, 0, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8),    // i8 cache,
+                                                                                                                                                 // mixed
+        relative_bias_params({{1, 300}}, 2, 2, 64, 0, 64, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),  // u4 cache,
+                                                                                                                                                 // by-channel
+                                                                                                                                                 // keys
+        relative_bias_params({{17, 31}}, 2, 2, 64, 0, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),  // u4 cache,
+                                                                                                                                                 // by-channel
+                                                                                                                                                 // keys, mixed
+    }));

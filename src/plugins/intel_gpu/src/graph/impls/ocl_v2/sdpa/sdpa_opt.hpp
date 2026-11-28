@@ -66,10 +66,12 @@ struct SDPAOpt : public ImplementationManager {
 
         if (desc->has_sink_input) {
             auto sink_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::SINK);
-            auto q_heads_num = q_layout.get_partial_shape()[1].get_length();
-            if (sink_layout.count() != static_cast<size_t>(q_heads_num)) {
-                OPENVINO_THROW("Currently only supporting per-head sink.Sink_layout : ", sink_layout.to_short_string(), " heads_num  :", q_heads_num);
-            }
+            const auto q_heads = q_layout.get_partial_shape()[desc->input_q_transpose_order[1]];
+            OPENVINO_ASSERT(q_heads.is_static() && sink_layout.count() == static_cast<size_t>(q_heads.get_length()),
+                            "Currently only supporting per-head sink.Sink_layout : ",
+                            sink_layout.to_short_string(),
+                            " heads_num  :",
+                            q_heads);
         }
 
         const bool use_asymmetric_quantization =

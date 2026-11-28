@@ -20,9 +20,14 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {28});
+    validate_inputs_count(op, {29});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
+    const auto relative_bias_ps = op->get_input_partial_shape(cldnn::paged_attention::PagedAttentionInputIdx::RELATIVE_BIAS);
+    prim.has_relative_bias = relative_bias_ps.rank().is_static() && relative_bias_ps.rank().get_length() == 3;
+    OPENVINO_ASSERT(prim.has_relative_bias || relative_bias_ps.rank().is_static(),
+                    "PagedAttention relative_bias must have a static rank on GPU, got ",
+                    relative_bias_ps);
 
     const auto& rt_info = op->get_rt_info();
     const auto* const k_head_size_id = "k_head_size";
@@ -125,6 +130,12 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (qq_bias_input && qq_bias_input->get_output_partial_shape(0).is_dynamic()) {
         prim.has_qq_bias = true;
     }
+    OPENVINO_ASSERT(!prim.has_relative_bias || !(prim.has_alibi || prim.has_rotated_blocks || prim.has_xattention || prim.has_adaptive_rkv ||
+                                                 prim.has_token_type_ids || prim.has_qq_bias),
+                    "[GPU] PagedAttention ",
+                    op->get_friendly_name(),
+                    ": relative bias does not support ALiBi, cache rotation, sparse attention, adaptive eviction, "
+                    "token types or speculative masks");
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.write_kv_cache = op->get_write_kv_cache();
     prim.num_outputs = 1;

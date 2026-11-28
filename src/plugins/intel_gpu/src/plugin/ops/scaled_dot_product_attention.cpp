@@ -180,7 +180,8 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     bool is_causal = op->get_causal();
     const auto compression_inputs = op->get_compression_inputs_num();
     validate_inputs_count(op, {cnt_inputs_with_mask + compression_inputs,
-                            cnt_inputs_with_scale + compression_inputs, cnt_inputs_with_sink + compression_inputs});
+                            cnt_inputs_with_scale + compression_inputs, cnt_inputs_with_sink + compression_inputs,
+                            cnt_inputs_with_sink + 1 + compression_inputs});
 
     int64_t indirect_axis = op->get_indirect_axis();
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,

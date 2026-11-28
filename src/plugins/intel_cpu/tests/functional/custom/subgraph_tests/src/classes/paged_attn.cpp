@@ -206,7 +206,7 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_model(ov::element::Type data_t
                                         adaptive_rkv_diversity_block_set_indices_begins,
                                         token_type_ids,
                                         qq_bias,
-                                        qq_bias_begins};
+                                        qq_bias_begins, std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{})};
 
     auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
 
@@ -979,6 +979,7 @@ std::shared_ptr<ov::Model> PagedAttnCacheCollisionTest::get_mixed_head_model(ov:
         c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{}));
         c.push_back(v0::Constant::create(element::u8, Shape{0}, std::vector<uint8_t>{0}));
         c.push_back(v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{0}));
+        c.push_back(v0::Constant::create(element::f32, Shape{0}, std::vector<float>{}));
         return c;
     };
 

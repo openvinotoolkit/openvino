@@ -41,7 +41,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
         TOKEN_TYPE_IDS = 25,
         QQ_BIAS = 26,
-        QQ_BIAS_BEGINS = 27
+        QQ_BIAS_BEGINS = 27,
+        RELATIVE_BIAS = 28
     };
 
     static constexpr size_t block_size = 16;
@@ -60,7 +61,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 28),
+        OPENVINO_ASSERT(inputs.size() == 29,
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -84,6 +85,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_adaptive_rkv);
         seed = hash_combine(seed, has_token_type_ids);
         seed = hash_combine(seed, has_qq_bias);
+        seed = hash_combine(seed, has_relative_bias);
         seed = hash_combine(seed, write_kv_cache);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
@@ -104,7 +106,8 @@ struct paged_attention : public primitive_base<paged_attention> {
                kv_heads_num == rhs_casted.kv_heads_num && has_alibi == rhs_casted.has_alibi && has_rotated_blocks == rhs_casted.has_rotated_blocks &&
                sliding_window == rhs_casted.sliding_window && has_score_aggregation == rhs_casted.has_score_aggregation &&
                has_xattention == rhs_casted.has_xattention && has_sink_input == rhs_casted.has_sink_input && has_adaptive_rkv == rhs_casted.has_adaptive_rkv &&
-               has_token_type_ids == rhs_casted.has_token_type_ids && has_qq_bias == rhs_casted.has_qq_bias && write_kv_cache == rhs_casted.write_kv_cache &&
+               has_token_type_ids == rhs_casted.has_token_type_ids && has_qq_bias == rhs_casted.has_qq_bias &&
+               has_relative_bias == rhs_casted.has_relative_bias && write_kv_cache == rhs_casted.write_kv_cache &&
                scale_val.value_or(1.0F) == rhs_casted.scale_val.value_or(1.0F) && is_key_by_channel == rhs_casted.is_key_by_channel;
     }
 
@@ -123,6 +126,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_adaptive_rkv;
         ob << has_token_type_ids;
         ob << has_qq_bias;
+        ob << has_relative_bias;
         ob << write_kv_cache;
 
         if (scale_val.has_value()) {
@@ -149,6 +153,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_adaptive_rkv;
         ib >> has_token_type_ids;
         ib >> has_qq_bias;
+        ib >> has_relative_bias;
         ib >> write_kv_cache;
 
         bool has_scale;
@@ -178,6 +183,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_token_type_ids = false;
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
+    bool has_relative_bias = false;
     bool write_kv_cache = true;
 };
 }  // namespace cldnn

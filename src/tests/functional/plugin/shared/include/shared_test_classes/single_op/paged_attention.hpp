@@ -225,7 +225,7 @@ protected:
                                       adaptive_rkv_start_size,adaptive_rkv_evictable_sizes,
                                       adaptive_rkv_diversity_block_set_indices,adaptive_rkv_diversity_block_set_indices_begins,
                                       token_type_ids,
-                                      qq_bias,qq_bias_begins};
+                                      qq_bias,qq_bias_begins, std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{})};
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
 

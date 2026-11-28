@@ -187,6 +187,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
     auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
+    auto relative_bias_layout = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
+    auto relative_bias_mem = engine.allocate_memory(relative_bias_layout);
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -215,7 +217,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("token_type_ids"),
                                          input_info("qq_bias"),
-                                         input_info("qq_bias_begins")
+                                         input_info("qq_bias_begins"),
+                                         input_info("relative_bias")
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -259,6 +262,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("token_type_ids", token_type_ids_layout));
     topology.add(input_layout("qq_bias", qq_bias_layout));
     topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
+    topology.add(input_layout("relative_bias", relative_bias_layout));
     topology.add(data("const_one", const_one_mem));
     topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("const_one"), 0, 1, ov::Shape{}));
@@ -298,6 +302,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("token_type_ids", token_type_ids_mem);
     network.set_input_data("qq_bias", qq_bias_mem);
     network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
+    network.set_input_data("relative_bias", relative_bias_mem);
 
     // Set original max_context_len value
     auto max_context_len_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
@@ -344,6 +349,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("token_type_ids", token_type_ids_mem);
     network.set_input_data("qq_bias", qq_bias_mem);
     network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
+    network.set_input_data("relative_bias", relative_bias_mem);
 
     // Update max_context_len value, which should be taken into account in shape recalculation for broadcast
     set_values(max_context_len_mem, {8});
@@ -450,6 +456,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
     auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
+    auto relative_bias_layout = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
+    auto relative_bias_mem = engine.allocate_memory(relative_bias_layout);
 
     auto query_layout = layout{ov::PartialShape{-1, 128}, data_types::f16, format::bfyx};
     auto key_layout = query_layout;
@@ -491,7 +499,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("token_type_ids"),
                                          input_info("qq_bias"),
-                                         input_info("qq_bias_begins")};
+                                         input_info("qq_bias_begins"),
+                                         input_info("relative_bias")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 64;
@@ -534,6 +543,7 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     topology.add(input_layout("token_type_ids", token_type_ids_input_layout));
     topology.add(input_layout("qq_bias", qq_bias_layout));
     topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
+    topology.add(input_layout("relative_bias", relative_bias_layout));
     topology.add(pa_prim);
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -570,6 +580,7 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     network.set_input_data("token_type_ids", token_type_ids_mem);
     network.set_input_data("qq_bias", qq_bias_mem);
     network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
+    network.set_input_data("relative_bias", relative_bias_mem);
 
     OV_ASSERT_NO_THROW(network.execute());
 
@@ -681,6 +692,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) 
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
     auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
+    auto relative_bias_layout = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
+    auto relative_bias_mem = engine.allocate_memory(relative_bias_layout);
 
     auto query_layout = layout{ov::PartialShape{-1, 2048}, data_types::f16, format::bfyx};
     auto key_layout = query_layout;
@@ -722,7 +735,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) 
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("token_type_ids"),
                                          input_info("qq_bias"),
-                                         input_info("qq_bias_begins")};
+                                         input_info("qq_bias_begins"),
+                                         input_info("relative_bias")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 256;
@@ -765,6 +779,7 @@ TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) 
     topology.add(input_layout("token_type_ids", token_type_ids_input_layout));
     topology.add(input_layout("qq_bias", qq_bias_layout));
     topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
+    topology.add(input_layout("relative_bias", relative_bias_layout));
     topology.add(pa_prim);
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -801,6 +816,7 @@ TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) 
     network.set_input_data("token_type_ids", token_type_ids_mem);
     network.set_input_data("qq_bias", qq_bias_mem);
     network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
+    network.set_input_data("relative_bias", relative_bias_mem);
 
     OV_ASSERT_NO_THROW(network.execute());
 

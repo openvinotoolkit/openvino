@@ -176,11 +176,22 @@ inline bool prefer_gqa_multi_tokens_fallback_kernel(size_t max_tokens, size_t ma
     return max_tokens * max_tokens * max_context_len <= 64 * 1024;
 }
 
-// GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item
+// GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item.
+// Relative bias is not implemented in the GQA paths yet.
 inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    return kv_group_size > 1 && !desc->has_sink_input && !desc->has_scores_output();
+    return kv_group_size > 1 && !desc->has_sink_input && !desc->has_relative_bias && !desc->has_scores_output();
+}
+
+inline void add_relative_bias_jit_constants(JitConstants& jit, const kernel_impl_params& params) {
+    const auto& shape = params.input_layouts[PagedAttentionInputIdx::RELATIVE_BIAS].get_partial_shape();
+    OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 3 && shape[2].is_static(),
+                    "[GPU] PagedAttention relative bias must be rank 3 with a static distance dimension, got ",
+                    shape);
+    jit.make("HAS_RELATIVE_BIAS", 1);
+    jit.add(make_type_jit_constants("RELATIVE_BIAS", params.input_layouts[PagedAttentionInputIdx::RELATIVE_BIAS].data_type));
+    jit.make("RELATIVE_BIAS_SPAN", shape[2].get_length() - 1);
 }
 
 inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& params) {
@@ -514,6 +525,9 @@ public:
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
+        if (desc->has_relative_bias) {
+            add_relative_bias_jit_constants(jit, params);
+        }
         if (desc->has_scores_output()) {
             jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
             if (desc->has_score_aggregation) {
@@ -624,6 +638,10 @@ public:
 
         if (has_sink_input) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
+
+        if (desc->has_relative_bias) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::RELATIVE_BIAS});
         }
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -836,6 +854,9 @@ public:
         }
         if (desc->has_token_type_ids) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
+        if (desc->has_relative_bias) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::RELATIVE_BIAS});
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
@@ -1483,6 +1504,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
         }
 
+        if (desc->has_relative_bias) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::RELATIVE_BIAS});
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1561,6 +1586,10 @@ public:
             const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
+        }
+
+        if (desc->has_relative_bias) {
+            add_relative_bias_jit_constants(jit, params);
         }
 
         return jit;
@@ -1728,6 +1757,11 @@ public:
             return false;
         }
 
+        // Relative bias is not implemented in micro-SDPA yet; the kernel has no inherent limitation for it.
+        if (desc->has_relative_bias) {
+            return false;
+        }
+
         // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         return !data_type_traits::is_i4_u4(kv_cache_dt) || desc->is_key_by_channel;
@@ -1817,7 +1851,7 @@ public:
 
         rt_params->gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            if (desc->has_sink_input) {
+            if (desc->has_sink_input || desc->has_relative_bias) {
                 rt_params->use_gqa_kernel = false;
             } else {
                 rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
@@ -1854,6 +1888,17 @@ public:
         const bool has_rotated_blocks = desc->has_rotated_blocks;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
+        if (desc->has_relative_bias) {
+            const auto& bias_shape = params.get_input_layout(PagedAttentionInputIdx::RELATIVE_BIAS).get_shape();
+            const auto& query_shape = params.get_input_layout(PagedAttentionInputIdx::QUERY).get_shape();
+            OPENVINO_ASSERT(bias_shape.size() == 3 && bias_shape[0] == query_shape[0] && bias_shape[1] == desc->heads_num,
+                            "[GPU] PagedAttention relative bias must be [tokens, heads, distances + 1] = [",
+                            query_shape[0],
+                            ", ",
+                            desc->heads_num,
+                            ", D + 1], got ",
+                            ov::PartialShape(bias_shape));
+        }
         update_stages_flags(instance);
         kernel_dump_info.clear_entries();
         auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());

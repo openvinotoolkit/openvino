@@ -47,7 +47,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
               ov::reference::paged_attention_cache::PagedCacheManager* cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
-    OPENVINO_ASSERT(inputs.size() == 28, "PagedAttentionExtension: expected 28 inputs, got ", inputs.size());
+    OPENVINO_ASSERT(inputs.size() == 29, "PagedAttentionExtension: expected 29 inputs, got ", inputs.size());
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
 
     resize_pa_outputs(pa_op, outputs, inputs);
@@ -67,6 +67,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     const int32_t* arkv_begins_ptr = inputs[24].get_size() > 0 ? inputs[24].data<int32_t>() : nullptr;
     const int32_t* token_type_ids_ptr = inputs[25].get_size() > 0 ? inputs[25].data<int32_t>() : nullptr;
     const std::size_t token_type_ids_count = inputs[25].get_size();
+    const void* relative_bias_ptr = inputs[28].get_size() > 0 ? inputs[28].data() : nullptr;
+    const auto relative_bias_et = relative_bias_ptr ? inputs[28].get_element_type() : ov::element::dynamic;
 
     ov::reference::paged_attention<T>(node_key,
                                       cache_manager,
@@ -118,7 +120,11 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       inputs[3].get_shape(),
                                       inputs[4].get_shape(),
                                       inputs[5].get_shape(),
-                                      inputs[6].get_shape());
+                                      inputs[6].get_shape(),
+                                      7,
+                                      relative_bias_ptr,
+                                      relative_bias_et,
+                                      inputs[28].get_shape());
     return true;
 }
 

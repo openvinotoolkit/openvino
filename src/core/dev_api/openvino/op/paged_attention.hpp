@@ -23,7 +23,7 @@ public:
 
     /// \brief Constructs a PagedAttentionExtension.
     ///
-    /// \param args 28 inputs (see spec for layout):
+    /// \param args 29 inputs:
     ///   (B_token = total tokens in the call, B_seq = number of sequences,
     ///    H = query heads, Hk = key/value heads, S = head size, Bs = block size)
     ///
@@ -55,6 +55,11 @@ public:
     /// 25  token_type_ids                                   [B_token] or [B_token, 1], i32  optional
     /// 26  qq_bias                                          [total_bias_bytes], u8    optional
     /// 27  qq_bias_begins                                   [B_seq + 1], i32          optional
+    /// 28  relative_bias                                    [B_token, H, D + 1] or empty  required (empty = disabled)
+    ///
+    /// For input 28, entries [0, D) are additive biases indexed by query-key distance;
+    /// entry D is the fallback for distances outside that range. Positions must start at zero and
+    /// advance by one within each sequence, with no gaps or cache eviction.
     explicit PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache = true);
 
     void validate_and_infer_types() override;

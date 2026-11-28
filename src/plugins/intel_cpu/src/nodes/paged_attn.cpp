@@ -129,7 +129,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 28U, "The input number of PagedAttention should be 28.");
+    CPU_NODE_ASSERT(orgInputNumber == 29U, "The input number of PagedAttention should be 29.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -253,6 +253,10 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS_BEGINS)));
+    // relative_bias, float, [B_token, H, D + 1] or empty
+    config.inConfs[PagedAttentionExecutor::ID_RELATIVE_BIAS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -507,7 +511,9 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 ov::element::Type PagedAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 #if defined(OPENVINO_ARCH_ARM64)
-    if (rtPrecision == ov::element::f16) {
+    const auto& relative_bias_shape = getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS);
+    const bool has_relative_bias = !(relative_bias_shape.isStatic() && relative_bias_shape.hasZeroDims());
+    if (rtPrecision == ov::element::f16 && !has_relative_bias) {
         rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;

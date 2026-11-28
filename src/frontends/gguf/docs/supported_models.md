@@ -126,10 +126,12 @@ Design decisions:
 - Experts are emitted as a direct expert-major `GatherMatmul`.
 
 Limitations:
-- Inference uses the stateful SDPA model on CPU and GPU, single-sequence and greedy.
-  `SDPAToPagedAttention` does not support the model, so GenAI must use the SDPA attention
-  backend.
-- GPU decode is slow because the GPU plugin does not yet fuse SDPA with an attention sink.
+- Stateful SDPA inference is single-sequence and greedy.
+- `SDPAToPagedAttention` passes the relative bias to PagedAttention as a per-token
+  `[tokens, heads, distances + 1]` table, with the sink folded in, and drops the key-position
+  state. CPU and GPU PagedAttention support it with contiguous position IDs starting at zero and
+  no cache eviction; it cannot be combined with cache rotation, sparse attention, adaptive
+  eviction or speculative masks. ARM requires F32 inference for it.
 - GenAI raw-text input requires the Inkling pretokenizer and a Tokenizers build providing
   `BPETokenizerIgnoreMerges`; otherwise supply pretokenized input. The published chat template
   is not supported, so set `GenerationConfig.apply_chat_template` to `false`.

@@ -169,5 +169,6 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch = 
                                                           bool with_scale = false,
                                                           bool stateful = false,
                                                           bool fuse_cache_reorder = false,
-                                                          size_t num_groups = 1);
+                                                          size_t num_groups = 1,
+                                                          bool with_sink = false);
 }  // namespace ov::test::utils

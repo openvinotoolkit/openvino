@@ -161,6 +161,8 @@ set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/one_hot.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/pad.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/paged_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/paged_attention_prefill.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/paged_attention_relative_bias.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/paged_attention_token_type.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/paged_causal_conv1d.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/single_op/paged_gated_delta_net.hpp
@@ -333,6 +335,7 @@ set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/one_hot.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/pad.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/paged_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/paged_attention_relative_bias.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/paged_attention_token_type.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/paged_gated_delta_net.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/single_op_tests/pooling.hpp
@@ -601,6 +604,8 @@ set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/normalize_l2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/one_hot.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/pad.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/single_op/paged_attention_prefill.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/single_op/paged_attention_relative_bias.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/paged_attention_token_type.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/single_op/paged_gated_delta_net.cpp

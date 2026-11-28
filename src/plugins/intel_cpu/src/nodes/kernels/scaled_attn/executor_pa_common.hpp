@@ -53,6 +53,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_TOKEN_TYPE_IDS = 25;                                   // [B_token | 0] or [1, B_token], i32
     static const size_t ID_QQ_BIAS = 26;         // [batch_mask_size_in_sequences], uint8
     static const size_t ID_QQ_BIAS_BEGINS = 27;  // [B_seq + 1], int32
+    static const size_t ID_RELATIVE_BIAS = 28;   // [B_token, H, D + 1], float
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
                          std::vector<ov::intel_cpu::MemoryPtr> outputs,
                          bool write_kv_cache) = 0;

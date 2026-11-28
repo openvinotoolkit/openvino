@@ -36,6 +36,7 @@ struct Params {
     size_t v_head_size;
     int32_t initial_batch;
     std::vector<int64_t> qkv_order;
+    bool with_sink = false;
 };
 
 class SDPAWithKVCacheTest : public ::testing::Test, public ::testing::WithParamInterface<Params> {
@@ -88,7 +89,8 @@ public:
                                                                      with_scale,
                                                                      stateful,
                                                                      p.with_rearrange,
-                                                                     p.num_groups);
+                                                                     p.num_groups,
+                                                                     p.with_sink);
         auto ref_model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
                                                                          n_heads,
                                                                          k_features,
@@ -100,7 +102,8 @@ public:
                                                                          with_scale,
                                                                          !stateful,
                                                                          p.with_rearrange,
-                                                                         p.num_groups);
+                                                                         p.num_groups,
+                                                                         p.with_sink);
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
@@ -337,6 +340,8 @@ public:
         result << "num_groups=" << p.num_groups << "_";
         result << "initial_batch=" << p.initial_batch << "_";
         result << "qkv_order=" << ov::test::utils::vec2str(p.qkv_order) << "_";
+        if (p.with_sink)
+            result << "sink_";
         result << "mask=" << p.with_mask << "_";
         result << "scale=" << p.with_scale << "_";
         result << "causal=" << p.causal << "_";
@@ -481,6 +486,14 @@ std::vector<Params> get_test_params() {
     }
     // Same head size without compression
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 5, 4, 512, 512, 1, {0, 1, 2, 3}});
+
+    // Per-head sink with transposed Q/K/V and with an indirect (beam-reordered) KV cache
+    const bool with_sink = true;
+    p.push_back({with_rearrange, with_mask, with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 10, 1, 64, 64, 1, {0, 2, 1, 3}, with_sink});
+    p.push_back({with_rearrange, with_mask, with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}, with_sink});
+    p.push_back({with_rearrange, with_mask, with_scale, !causal, !compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 1, 2, 3}, with_sink});
+    p.push_back({with_rearrange, with_mask, with_scale, !causal, !compressed, 4, ov::element::Type_t::f16, 5, 1, 64, 64, 1, {0, 2, 1, 3}, with_sink});
+    p.push_back({with_rearrange, with_mask, with_scale, !causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}, with_sink});
 
     return p;
 }

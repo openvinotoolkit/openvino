@@ -200,7 +200,10 @@ void paged_attention(std::uintptr_t node_key,
                      const ov::Shape& value_cache_shape,
                      const ov::Shape& past_lens_shape,
                      const ov::Shape& subseq_shape,
-                     std::size_t pool_kernel = 7) {
+                     std::size_t pool_kernel = 7,
+                     const void* relative_bias = nullptr,
+                     const ov::element::Type& relative_bias_et = ov::element::dynamic,
+                     const ov::Shape& relative_bias_shape = {}) {
     OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttention reference: cache_manager is null");
     OPENVINO_ASSERT(query != nullptr && key != nullptr && value != nullptr, "PagedAttention reference: null Q/K/V");
     OPENVINO_ASSERT(out != nullptr, "PagedAttention reference: output is null");
@@ -211,6 +214,16 @@ void paged_attention(std::uintptr_t node_key,
 
     // Sinks: per-head virtual token in the softmax (shifts max/denominator, no output weight)
     const bool has_sinks = (sinks != nullptr);
+
+    // Relative bias [B_token, H, D + 1]: score += bias[token, h, min(qpos - kpos, D)] after scaling.
+    const bool has_relative_bias = relative_bias != nullptr;
+    if (has_relative_bias) {
+        OPENVINO_ASSERT(
+            relative_bias_shape.size() == 3 && relative_bias_shape[0] == query_shape[0] && relative_bias_shape[2] >= 2,
+            "PagedAttention reference: relative_bias must be [B_token, H, D + 1] with D >= 1");
+        OPENVINO_ASSERT(alibi_slopes == nullptr && token_type_ids_count == 0 && rotated_block_count == 0,
+                        "PagedAttention reference: relative_bias does not support ALiBi, token types or rotation");
+    }
 
     // Xattention: sparse prefill via strided Q*K products with block-level masking
     const bool has_xattn = (xattention_threshold != nullptr);
@@ -257,6 +270,9 @@ void paged_attention(std::uintptr_t node_key,
     OPENVINO_ASSERT((q_heads % kv_heads) == 0,
                     "PagedAttention reference: expected num_heads to be divisible by num_kv_heads (GQA)");
     const std::size_t group = q_heads / kv_heads;
+    OPENVINO_ASSERT(!has_relative_bias || relative_bias_shape[1] == q_heads,
+                    "PagedAttention reference: relative_bias must have one row per query head");
+    const std::size_t relative_bias_span = has_relative_bias ? relative_bias_shape[2] - 1 : 0;
 
     const std::size_t out_features = q_heads * v_head_size;
     const float scale_f = detail::read_scalar_as_f32(scale, scale_et);
@@ -660,6 +676,13 @@ void paged_attention(std::uintptr_t node_key,
                     float l = dot * scale_f;
                     if (alibi_slopes != nullptr) {
                         l += slope * static_cast<float>(kpos - qpos);
+                    }
+                    if (has_relative_bias) {
+                        const auto distance = std::min(static_cast<std::size_t>(qpos - kpos), relative_bias_span);
+                        l += detail::read_at_as_f32(
+                            relative_bias,
+                            relative_bias_et,
+                            (token * relative_bias_shape[1] + h) * (relative_bias_span + 1) + distance);
                     }
                     logits[t] = l;
                 }

@@ -1395,6 +1395,9 @@ KERNEL(sdpa_opt)(
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
 #endif
+#if IS_PAGED_ATTENTION && HAS_RELATIVE_BIAS
+    const __global RELATIVE_BIAS_TYPE* relative_bias,
+#endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
@@ -2125,6 +2128,12 @@ KERNEL(sdpa_opt)(
 #ifdef HAS_ALIBI
                         const int alibi_val = (1 - SOURCE_SEQ_LEN) + seq_len + i;
                         qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
+#endif
+#if IS_PAGED_ATTENTION && HAS_RELATIVE_BIAS
+                        if (sglid < seq_idx_end) {
+                            const uint rb_distance = min((uint)(target_seq_idx + sglid - curr_seq_idx), (uint)RELATIVE_BIAS_SPAN);
+                            qk_acc[i] += TO_QK_ACC_TYPE(relative_bias[((block_start_pos + sglid) * NUM_HEADS + num_heads_dim) * (RELATIVE_BIAS_SPAN + 1) + rb_distance]);
+                        }
 #endif
 
                         // Also turns the NaN mask of keys past the sequence end into the minimum.

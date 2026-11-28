@@ -9,6 +9,7 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention.hpp"
@@ -134,6 +135,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
+    std::unordered_set<std::string> position_vars_to_remove;
     std::unordered_set<std::string> params_to_remove{"beam_idx", "attention_mask"};
 
     // Get-or-create the flattened position_ids parameter and restore its rank at each existing consumer with a
@@ -178,7 +180,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     if (m_options.is_draft_model) {
         manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove, m_options);
     } else {
-        manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+        manager.register_pass<StateManagementPattern>(m_params,
+                                                      m_results,
+                                                      m_options,
+                                                      var_ids_to_remove,
+                                                      position_vars_to_remove);
     }
     manager.register_pass<PagedSparseAttentionFusion>(m_params, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
@@ -203,6 +209,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     " SelectiveSSM node(s), but PagedSelectiveSSMFusion converted ",
                     paged_ssm_fusion->get_fused_count(),
                     ". Stateful SSM nodes cannot be left in the graph.");
+
+    var_ids_to_remove.insert(position_vars_to_remove.begin(), position_vars_to_remove.end());
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
@@ -243,6 +251,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
     model->validate_nodes_and_infer_types();
+
+    if (!position_vars_to_remove.empty()) {
+        for (const auto& node : model->get_ops()) {
+            OPENVINO_ASSERT(
+                !ov::is_type<ov::op::util::ReadValueBase>(node) && !ov::is_type<ov::op::util::AssignBase>(node),
+                "PagedAttention with relative bias cannot retain unconverted state: ",
+                node->get_friendly_name());
+        }
+    }
 
     return true;
 }

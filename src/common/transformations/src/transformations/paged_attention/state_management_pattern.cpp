@@ -4,6 +4,8 @@
 
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
+#include <limits>
+#include <optional>
 #include <tuple>
 #include <unordered_set>
 
@@ -19,9 +21,13 @@
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -207,6 +213,143 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     return res_alibi_slopes;
 }
 
+static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target);
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_gemma3_sliding_window_pattern();
+
+namespace {
+
+struct RelativeBias {
+    ov::Output<ov::Node> table;
+    ov::Output<ov::Node> sink;
+    std::shared_ptr<ov::op::util::ReadValueBase> positions_state;
+    int32_t sliding_window;
+};
+
+// Per-query distance-bias table gathered by clamped relative distance, minus a per-query sink, plus an optional
+// sliding-window mask: Add(Subtract(GatherElements(MatMul, Broadcast(Select(0 <= d < D, d, D))), sink), mask).
+// The distance d is query positions minus cached key positions kept in an i32 state reordered by beam_idx.
+struct RelativeBiasPattern {
+    std::shared_ptr<ov::Node> root, add, table, gather, sink, fallback, distance, lower_distance, upper_distance,
+        upper_bound, lower_bound, query_source, query_shape, key_positions, key_shape, state, beam, beam_axis,
+        window_offset;
+    // A bias-shaped mask that does not satisfy the full contract; matched only to reject it.
+    std::shared_ptr<ov::Node> loose_root, loose_add;
+};
+
+RelativeBiasPattern relative_bias_pattern() {
+    using namespace ov::pass::pattern;
+    RelativeBiasPattern p;
+    p.state = wrap_type<ov::op::util::ReadValueBase>(type_matches(ov::element::i32));
+    p.beam = any_input();
+    p.beam_axis = wrap_const();
+    auto reorder = wrap_type<v8::Gather>({p.state, p.beam, p.beam_axis});
+    p.key_positions = any_input();
+    auto cache = wrap_type<v0::Concat>({reorder, p.key_positions}, {{"axis", 1}});
+    p.key_shape = wrap_const();
+    auto key_pos = wrap_type<v1::Reshape>({wrap_type<v0::Convert>({cache}), p.key_shape}, {{"special_zero", true}});
+    p.query_source = any_input();
+    p.query_shape = wrap_const();
+    auto query_pos = wrap_type<v1::Reshape>({p.query_source, p.query_shape}, {{"special_zero", true}});
+    p.distance = wrap_type<v1::Subtract>({query_pos, key_pos});
+    p.lower_distance = any_input();
+    p.upper_distance = any_input();
+    p.upper_bound = wrap_const();
+    p.fallback = wrap_const();
+    p.lower_bound = wrap_const();
+    auto lower = wrap_type<v1::GreaterEqual>({p.lower_distance, p.lower_bound});
+    auto upper = wrap_type<v1::Less>({p.upper_distance, p.upper_bound});
+    auto select = wrap_type<v1::Select>({wrap_type<v1::LogicalAnd>({lower, upper}), p.distance, p.fallback});
+    auto index = wrap_type<v3::Broadcast>({select, any_input()});
+    p.table = wrap_type<v0::MatMul>({any_input(), any_input()},
+                                    rank_equals(4) && shape_matches("[?, H, ?, D]"),
+                                    {{"transpose_a", false}, {"transpose_b", true}});
+    p.gather = wrap_type<ov::op::v6::GatherElements>({p.table, index}, {{"axis", 3}});
+    p.sink = any_input(rank_equals(4) && shape_matches("[?, H, ?, 1]"));
+    auto shifted = wrap_type<v1::Subtract>({p.gather, p.sink});
+
+    auto [window_mask, window_offset] = gptoss_gemma3_sliding_window_pattern();
+    p.window_offset = window_offset;
+    // AdaptToGenAI emits Select -> [Convert] -> [Reshape/Squeeze] -> [Multiply by a constant] -> [Reshape/Unsqueeze].
+    std::shared_ptr<ov::Node> window = optional<v0::Convert>(window_mask);
+    window = optional<v1::Reshape, v0::Unsqueeze, v0::Squeeze, v15::Squeeze>({window, any_input()});
+    window = optional<v0::Convert>(window);
+    window = optional<v1::Multiply>({window, wrap_const()});
+    window = optional<v0::Convert>(window);
+    window = optional<v1::Reshape, v0::Unsqueeze, v0::Squeeze, v15::Squeeze>({window, any_input()});
+    window = optional<v0::Convert>(window);
+    p.add = wrap_type<v1::Add>({shifted, std::make_shared<Or>(ov::OutputVector{window, any_input()})});
+    p.root = optional<v0::Convert>(p.add);
+
+    auto loose_gather = wrap_type<ov::op::v6::GatherElements>({wrap_type<v0::MatMul>(), any_input()});
+    auto loose_shifted = wrap_type<v1::Subtract>({loose_gather, any_input()});
+    p.loose_add = wrap_type<v1::Add>({loose_shifted, any_input()});
+    p.loose_root = optional<v0::Convert>(p.loose_add);
+    return p;
+}
+
+bool constant_is(const ov::Output<ov::Node>& value, const std::vector<int64_t>& expected) {
+    return ov::op::util::has_constant_value(value.get_node_shared_ptr(), expected);
+}
+
+RelativeBias extract_relative_bias(const RelativeBiasPattern& p,
+                                   const ov::pass::pattern::PatternValueMap& pattern_map,
+                                   const ov::Node* sdpa,
+                                   const PaParams& params) {
+    const auto& name = sdpa->get_friendly_name();
+    const auto table = pattern_map.at(p.table);
+    const auto distance = pattern_map.at(p.distance);
+    const auto& table_shape = table.get_partial_shape();
+    OPENVINO_ASSERT(table_shape[1].is_static() && table_shape[3].is_static(),
+                    "PagedAttention: SDPA ",
+                    name,
+                    " has a relative-bias table with dynamic heads or distances: ",
+                    table_shape);
+    const auto span = table_shape[3].get_length() - 1;
+    OPENVINO_ASSERT(table_shape[2].compatible(1) && pattern_map.at(p.sink).get_partial_shape()[2].compatible(1),
+                    "PagedAttention: SDPA ",
+                    name,
+                    " has a relative-bias table or sink with more than one query row per token: ",
+                    table_shape);
+    OPENVINO_ASSERT(pattern_map.at(p.lower_distance) == distance && pattern_map.at(p.upper_distance) == distance &&
+                        constant_is(pattern_map.at(p.lower_bound), {0}) &&
+                        constant_is(pattern_map.at(p.upper_bound), {span}) &&
+                        constant_is(pattern_map.at(p.fallback), {span}) && span >= 1,
+                    "PagedAttention: SDPA ",
+                    name,
+                    " has a relative-bias table of shape ",
+                    table.get_partial_shape(),
+                    " that is not indexed by the clamped distance with fallback entry ",
+                    span);
+
+    const auto positions = params.get("position_ids");
+    const auto beam = params.get("beam_idx");
+    OPENVINO_ASSERT(positions && beam && pattern_map.at(p.beam) == beam->output(0) &&
+                        constant_is(pattern_map.at(p.beam_axis), {0}) &&
+                        constant_is(pattern_map.at(p.query_shape), {0, 1, -1, 1}) &&
+                        constant_is(pattern_map.at(p.key_shape), {0, 1, 1, -1}) &&
+                        depends_on(pattern_map.at(p.query_source), positions.get()) &&
+                        depends_on(pattern_map.at(p.key_positions), positions.get()),
+                    "PagedAttention: SDPA ",
+                    name,
+                    " computes relative distances that do not come from position_ids and the beam-reordered cached "
+                    "key positions");
+
+    int32_t window = 0;
+    if (pattern_map.count(p.window_offset)) {
+        const auto values = ov::as_type_ptr<v0::Constant>(pattern_map.at(p.window_offset).get_node_shared_ptr())
+                                ->cast_vector<int64_t>();
+        OPENVINO_ASSERT(values.size() == 1 && values[0] < 0 && values[0] >= -std::numeric_limits<int32_t>::max(),
+                        "PagedAttention: SDPA ",
+                        name,
+                        " has an invalid relative-bias sliding-window offset");
+        window = static_cast<int32_t>(-values[0]);
+    }
+    const auto state = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(p.state).get_node_shared_ptr());
+    return RelativeBias{table, pattern_map.at(p.sink), state, window};
+}
+
+}  // namespace
+
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
     auto offset = wrap_type<v0::Constant>();
     auto t196 = wrap_type<v1::Add>({any_input(), offset});
@@ -382,7 +525,8 @@ StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                          ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
-                                                         std::unordered_set<std::string>& var_ids_to_remove) {
+                                                         std::unordered_set<std::string>& var_ids_to_remove,
+                                                         std::unordered_set<std::string>& position_vars_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = any_input();
@@ -487,7 +631,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     k_to_sdpa = optional_quantization(k_to_sdpa);
     v_to_sdpa = optional_quantization(v_to_sdpa);
 
-    auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
+    const auto relative_bias_mask = relative_bias_pattern();
+
+    auto mask_to_sdpa = std::make_shared<Or>(OutputVector{relative_bias_mask.root,
+                                                          relative_bias_mask.loose_root,
+                                                          phi3_mask,
                                                           general_alibi_mask,
                                                           jais_alibi_mask,
                                                           baichuan2_13b_alibi_mask,
@@ -503,8 +651,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &results, &var_ids_to_remove](
-                                             Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS,
+                                          &pa_params,
+                                          &results,
+                                          &var_ids_to_remove,
+                                          &position_vars_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q_inner);
 
@@ -513,6 +664,25 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                  : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
                                                                          : sdpa_with_6_inputs)
                              .get_node();
+
+        std::optional<RelativeBias> relative_bias;
+        if (pattern_map.count(relative_bias_mask.add)) {
+            relative_bias = extract_relative_bias(relative_bias_mask, pattern_map, sdpa_node, pa_params);
+            OPENVINO_ASSERT(!options.allow_cache_rotation && !options.allow_xattention && !options.allow_adaptive_rkv &&
+                                !options.allow_qq_bias && !options.use_score_outputs &&
+                                !options.use_per_layer_block_indices_inputs,
+                            "PagedAttention: SDPA ",
+                            sdpa_node->get_friendly_name(),
+                            " has a relative bias, which is incompatible with cache rotation, sparse attention, cache "
+                            "eviction and speculative masks");
+            position_vars_to_remove.insert(relative_bias->positions_state->get_variable_id());
+        } else {
+            OPENVINO_ASSERT(!pattern_map.count(relative_bias_mask.loose_add),
+                            "PagedAttention: SDPA ",
+                            sdpa_node->get_friendly_name(),
+                            " has a gathered additive bias that does not match the relative-bias contract; converting "
+                            "it would drop the bias");
+        }
 
         auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
         auto v_head_size_dim = sdpa_node->get_input_tensor(2)
@@ -707,7 +877,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         pa_arguments.push_back(pa_params["block_indices_begins"]);
 
         std::shared_ptr<Node> sliding_window;
-        if (pattern_map.count(phi3_offset)) {
+        if (relative_bias) {
+            sliding_window = v0::Constant::create(element::i32, Shape{}, {relative_bias->sliding_window});
+        } else if (pattern_map.count(phi3_offset)) {
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
@@ -881,6 +1053,27 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
+        if (relative_bias) {
+            const auto heads = relative_bias->table.get_partial_shape()[1].get_length();
+            const auto flatten = [&](const ov::Output<ov::Node>& value) {
+                const auto transposed =
+                    std::make_shared<v1::Transpose>(value, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+                return std::make_shared<v1::Reshape>(
+                    transposed,
+                    v0::Constant::create(element::i64,
+                                         Shape{3},
+                                         std::vector<int64_t>{0, heads, value.get_partial_shape()[3].get_length()}),
+                    true);
+            };
+            // Subtracting after the reshape keeps GPU from fusing the per-row sink into the table MatMul, which
+            // gives wrong rows on Xe2 for long prompts (CVS-200957). Subtract on the MatMul once it is fixed.
+            const auto shifted =
+                std::make_shared<v1::Subtract>(flatten(relative_bias->table), flatten(relative_bias->sink));
+            pa_arguments.push_back(std::make_shared<v0::Convert>(shifted, sdpa_node->get_input_element_type(3)));
+        } else {
+            pa_arguments.push_back(v0::Constant::create(element::f32, Shape{0}, {}));  // relative_bias
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 29);
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
