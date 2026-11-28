@@ -126,6 +126,7 @@ ov::npuw::orc::Section read_section(ov::npuw::orc::Stream& stream) {
     section.flags = header.flags;
 
     const auto size = checked_size(header.size);
+    OPENVINO_ASSERT(size <= stream.remaining(), "ORC section size exceeds available stream data");
     if (!section.is_container()) {
         section.payload.resize(size);
         if (size != 0u) {
@@ -393,7 +394,9 @@ void ov::npuw::orc::ScopedWriteSection::close() {
 ov::npuw::orc::ScopedReadSection::ScopedReadSection(std::istream& stream) : m_stream(stream) {
     auto reader = Stream::reader(stream);
     reader & m_header;
-    m_end = checked_tellg(stream, "section bounds") + checked_streamoff(m_header.size);
+    const auto size = checked_size(m_header.size);
+    OPENVINO_ASSERT(size <= reader.remaining(), "ORC section size exceeds available stream data");
+    m_end = checked_tellg(stream, "section bounds") + checked_streamoff(size);
 }
 
 const ov::npuw::orc::SectionHeader& ov::npuw::orc::ScopedReadSection::header() const {
