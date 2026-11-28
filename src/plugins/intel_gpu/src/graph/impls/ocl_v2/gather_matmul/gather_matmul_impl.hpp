@@ -37,10 +37,13 @@ struct GatherMatmulImpl : public ImplementationManager {
             ov::element::i4,
             ov::element::i8,
             ov::element::u8,
+            ov::element::u2,  // ternary experts (base-3 t1 kernels or oneDNN grouped matmul)
+            ov::element::u1,  // binary experts (gathermatmul_t1 / _t1_dpas kernels, weights_u1)
         };
 
         static const std::vector<ov::element::Type_t> supported_quant_param_types = {
             ov::element::f16,
+            ov::element::u2,
             ov::element::u4,
             ov::element::i4,
             ov::element::i8,

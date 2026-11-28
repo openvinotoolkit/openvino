@@ -18,6 +18,10 @@
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
 #include "gather_matmul_impl.hpp"
+#include <array>
+
+#include "gathermatmul_t1_dpas_gen.hpp"
+#include "gathermatmul_t1_gen.hpp"
 #include "gather_matmul_inst.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 
@@ -72,6 +76,8 @@ inline dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         return dnnl::memory::data_type::s4;
     case cldnn::data_types::u4:
         return dnnl::memory::data_type::u4;
+    case cldnn::data_types::u2:
+        return dnnl::memory::data_type::u2;
     default:
         throw std::invalid_argument("[GPU] gather_matmul: unsupported cldnn->onednn type conversion");
     }
@@ -118,6 +124,17 @@ public:
     Stage::Ptr onednn_sort = make_stage<GatherMatmulOnednnSortGenerator>();
     Stage::Ptr onednn_scatter = make_stage<GatherMatmulScatterGenerator>();
 #endif
+    // Base-3 ternary (t1) and binary (u1) weights: dp4a GEMV per (column, token, slot); from
+    // gathermatmul_t1_dpas_min_tokens() tokens the expert-major int8 DPAS prefill (gathermatmul_t1_dpas.cl, 7 stages).
+    Stage::Ptr t1_gemv = make_stage<GatherMatmulT1Generator>();
+    Stage::Ptr t1_quant = make_stage<GatherMatmulT1Generator>(true);
+    std::array<Stage::Ptr, 7> t1d = {make_stage<GatherMatmulT1DpasGenerator>(1),
+                                     make_stage<GatherMatmulT1DpasGenerator>(2),
+                                     make_stage<GatherMatmulT1DpasGenerator>(3),
+                                     make_stage<GatherMatmulT1DpasGenerator>(4),
+                                     make_stage<GatherMatmulT1DpasGenerator>(5),
+                                     make_stage<GatherMatmulT1DpasGenerator>(6),
+                                     make_stage<GatherMatmulT1DpasGenerator>(7)};
 
     explicit GatherMatmulOCLImpl() : PrimitiveImplOCL(GatherMatmulImpl::get_type_info_static()) {
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
@@ -128,6 +145,18 @@ public:
     explicit GatherMatmulOCLImpl(const RuntimeParams& impl_param) : GatherMatmulOCLImpl() {
         auto params = impl_param;
         GPU_DEBUG_TRACE_DETAIL << "GatherMatmul create stages for dynamic = " << params.is_dynamic() << "\n";
+        if (params.typed_desc<gather_matmul>()->weights_t1 || params.typed_desc<gather_matmul>()->weights_u1) {
+            if (gathermatmul_t1_shared_quant(params)) {
+                add_stage(t1_quant, params);
+            }
+            add_stage(t1_gemv, params);
+            if (gathermatmul_t1_dpas_supported(params)) {
+                for (auto& st : t1d) {
+                    add_stage(st, params);
+                }
+            }
+            return;
+        }
 
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // Non-u4/i4 weights have no functional OCL path; force onednn-grouped.
@@ -167,9 +196,45 @@ public:
 
         size_t n_tokens = input_shape[1];
         size_t top_k = indices_shape[1];
-        size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+        const auto desc = params.typed_desc<gather_matmul>();
+        const bool packed_lowbit = desc->weights_t1 || desc->weights_u1;  // packed bytes; K is t1_k
+        size_t k = packed_lowbit ? static_cast<size_t>(desc->t1_k)
+                                 : (weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2]);
         size_t n_all_experts = weight_shape[0];
         size_t max_groups = n_all_experts * top_k;
+
+        if (packed_lowbit) {
+            // t1 / u1: buffers 0..8 of the f16 paths are unused (placeholders keep the indices); 9.. for the DPAS prefill
+            for (int i = 0; i <= 8; ++i) {
+                descs.emplace_back(static_cast<size_t>(1), ov::element::i32);
+            }
+            if (gathermatmul_t1_dpas_supported(params)) {
+                const size_t rows = n_tokens * top_k;
+                const size_t ng = k / 128;
+                const size_t max_sub = gathermatmul_t1_dpas_max_subtiles(rows, n_all_experts);
+                descs.emplace_back((rows + 8) * ng, ov::element::f32);                                 // 9: XS
+                descs.emplace_back((rows + 8) * ng, ov::element::i32);                                 // 10: XSUM
+                descs.emplace_back(gathermatmul_t1_dpas_xd_elems(params, max_sub), ov::element::u16);  // 11: XD
+                descs.emplace_back(2 * max_sub, ov::element::i32);                                     // 12: subtiles
+                descs.emplace_back(3 * max_sub, ov::element::i32);                                     // 13: tiles
+                descs.emplace_back(static_cast<size_t>(2), ov::element::i32);                          // 14: meta
+                descs.emplace_back(n_all_experts, ov::element::i32);                                   // 15: counts
+                descs.emplace_back(n_all_experts, ov::element::i32);                                   // 16: offsets
+                descs.emplace_back(rows, ov::element::i32);                                            // 17: pos
+                descs.emplace_back(rows, ov::element::i32);                                            // 18: row_token
+                descs.emplace_back(rows, ov::element::i32);                                            // 19: row_slot
+            }
+            if (gathermatmul_t1_shared_quant(params)) {
+                while (descs.size() < 20) {
+                    descs.emplace_back(static_cast<size_t>(1), ov::element::i32);  // DPAS buffers absent: placeholders
+                }
+                const size_t xrows = std::max<size_t>(n_tokens * top_k, 1);
+                descs.emplace_back(xrows * gathermatmul_t1_shared_xq_uints(params), ov::element::u32);  // 20: XQ (int8 permuted)
+                descs.emplace_back(xrows * gathermatmul_t1_shared_groups(params), ov::element::f32);    // 21: XS
+                descs.emplace_back(xrows * gathermatmul_t1_shared_groups(params), ov::element::i32);    // 22: XSUM
+            }
+            return descs;
+        }
 
         // 0: gathered_A — f16, n_tokens * top_k * K
         descs.emplace_back(n_tokens * top_k * k, ov::element::f16);
@@ -223,6 +288,24 @@ public:
     }
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        const auto& t1_desc = *instance.get_impl_params()->typed_desc<gather_matmul>();
+        if (t1_desc.weights_t1 || t1_desc.weights_u1) {
+            update_rt_params(instance);
+            auto* t1_rtp = static_cast<GatherMatmulRuntimeParams*>(m_rt_params.get());
+            if (has_stage(t1d[6]) && static_cast<size_t>(t1_rtp->n_tokens) >= gathermatmul_t1_dpas_min_tokens()) {
+                GPU_DEBUG_TRACE_DETAIL << "GatherMatmul Execute t1/u1 DPAS prefill (n_tokens=" << t1_rtp->n_tokens << ")" << std::endl;
+                auto ev = execute_stage(events, instance, t1d[0]);
+                for (size_t st = 1; st < t1d.size(); ++st) {
+                    ev = execute_stage({ev}, instance, t1d[st]);
+                }
+                return ev;
+            }
+            if (has_stage(t1_quant)) {
+                auto ev = execute_stage(events, instance, t1_quant);
+                return execute_stage({ev}, instance, t1_gemv);
+            }
+            return execute_stage(events, instance, t1_gemv);
+        }
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
@@ -311,7 +394,8 @@ private:
         static const std::vector<cldnn::data_types> quantized_types = {cldnn::data_types::u4,
                                                                        cldnn::data_types::i4,
                                                                        cldnn::data_types::u8,
-                                                                       cldnn::data_types::i8};
+                                                                       cldnn::data_types::i8,
+                                                                       cldnn::data_types::u2};
         bool is_quantized = std::any_of(quantized_types.begin(), quantized_types.end(), [&](cldnn::data_types t) {
             return t == weights_layout.data_type;
         });

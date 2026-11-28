@@ -61,7 +61,10 @@ DispatchDataFunc GatherMatmulGatherGenerator::get_dispatch_data_func() const {
         scalars.clear();
 
         const auto& weight_shape = params.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).get_shape();
-        size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+        const auto desc = params.typed_desc<gather_matmul>();
+        // t1 / u1 weights are packed bytes: the activation K is t1_k
+        size_t k = (desc->weights_t1 || desc->weights_u1) ? static_cast<size_t>(desc->t1_k)
+                                                          : (weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2]);
         size_t n_tokens = static_cast<size_t>(rtp->n_tokens);
         size_t top_k = static_cast<size_t>(rtp->top_k);
         size_t n_all_experts = weight_shape[0];
