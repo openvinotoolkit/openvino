@@ -1918,26 +1918,30 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                        ".\nPlease adjust it.");
     }
 
-    // Lazy variant switch: if the previous step exhausted the active variant's capacity,
-    // switch now before preparing inputs for this step. Guarded by m_generate_initialized
-    // because on the first step KV data is still in the prefill model and hasn't been
-    // copied to the generate model yet by on_generate_kv_init().
-    if (m_generate_initialized && kvcache_desc.num_stored_tokens >= get_current_variant_capacity()) {
-        if (!try_switch_to_larger_variant()) {
-            OPENVINO_THROW("KV-Cache is full: num_stored_tokens=",
-                           kvcache_desc.num_stored_tokens,
-                           " capacity=",
-                           get_current_variant_capacity());
-        }
-    }
-
-    // Eagle3: Check for sampling result from external pipeline via VariableState
+    // Eagle3: apply the previous step's sampling result first. It packs the accepted rows right above the trimmed
+    // num_stored_tokens, so a variant switch below migrates all of them.
     if (m_eagle3_ext.is_eagle3_model() && m_generate_initialized) {
         m_eagle3_ext.process_sampling_result_from_state(m_kvcache_request,
                                                         m_kvcache_in_ports,
                                                         kvcache_desc.num_stored_tokens,
                                                         kvcache_desc.v_tensors_transposed_gen,
                                                         kvcache_desc.dim);
+    }
+
+    // Lazy variant switch: move to a larger variant before preparing inputs when this step's rows don't fit into the
+    // active one (a multi-token step writes all its rows at num_stored_tokens, past the capacity if not switched now).
+    // Guarded by m_generate_initialized because on the first step KV data is still in the prefill model and hasn't
+    // been copied to the generate model yet by on_generate_kv_init().
+    while (m_generate_initialized &&
+           kvcache_desc.num_stored_tokens + input_tokens_len > get_current_variant_capacity()) {
+        if (!try_switch_to_larger_variant()) {
+            OPENVINO_THROW("KV-Cache is full: num_stored_tokens=",
+                           kvcache_desc.num_stored_tokens,
+                           " + ",
+                           input_tokens_len,
+                           " new tokens exceed the capacity of ",
+                           get_current_variant_capacity());
+        }
     }
 
     m_llm_profile["N/generate:1.prepare"].record([&]() {
