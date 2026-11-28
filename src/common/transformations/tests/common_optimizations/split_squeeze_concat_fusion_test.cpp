@@ -24,8 +24,21 @@
 using namespace ov;
 using namespace testing;
 
-TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
-    size_t num_splits = 4;
+class SplitSqueezeConcatFusionConcatAxis : public TransformationTestsF, public testing::WithParamInterface<int64_t> {
+public:
+    SplitSqueezeConcatFusionConcatAxis() {
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<int64_t>& info) {
+        const auto axis = info.param;
+        return "ConcatAxis" + (axis < 0 ? "Negative" + std::to_string(-axis) : std::to_string(axis));
+    }
+};
+
+TEST_P(SplitSqueezeConcatFusionConcatAxis, SplitSqueezeConcatFusion) {
+    constexpr int64_t num_splits = 4;
+    const bool concat_last_axis = GetParam() != -2;
 
     {
         auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
@@ -38,7 +51,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
             squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, GetParam());
 
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
@@ -47,15 +60,22 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
 
     {
         auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto transpose_order = opset7::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
+        const auto order = concat_last_axis ? Shape{0, 1, 3, 4, 2, 5} : Shape{0, 1, 3, 2, 4, 5};
+        auto transpose_order = opset7::Constant::create(element::i64, Shape{6}, order);
         auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order);
-        auto reshape_shape =
-            opset7::Constant::create<int64_t>(element::i64, Shape{5}, {1, 2, 640, 20, 2 * (int64_t)num_splits});
+        const auto output_shape =
+            concat_last_axis ? Shape{1, 2, 640, 20, 2 * num_splits} : Shape{1, 2, 640, 20 * num_splits, 2};
+        auto reshape_shape = opset7::Constant::create(element::i64, Shape{5}, output_shape);
         auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape, false);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         SplitSqueezeConcatFusionConcatAxis,
+                         testing::Values(4, -1, -2),
+                         SplitSqueezeConcatFusionConcatAxis::getTestCaseName);
 
 TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
     size_t num_splits = 4;
@@ -273,7 +293,10 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
         auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order_node);
         auto reshape_shape = params.input_shape;
         reshape_shape.erase(reshape_shape.begin() + params.split_axis);
-        reshape_shape[params.concat_axis] *= params.num_splits;
+        auto concat_axis = params.concat_axis;
+        if (concat_axis < 0)
+            concat_axis += static_cast<int>(reshape_shape.size());
+        reshape_shape[concat_axis] *= params.num_splits;
         auto reshape_shape_node = opset7::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape);
         auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape_node, false);
 
@@ -291,6 +314,8 @@ static std::vector<SplitReshapeConcatFusionParam> split_reshape_concat_fusion_pa
     {2, 2, Shape{3, 1, 4, 5}, {3, 2, 5}, 1, {0, 2, 1, 3}, false},
     {2, 1, Shape{3, 2, 3, 4, 5}, {3, 3, 5, 4}, 1, {0, 2, 1, 3, 4}, false},
     {4, 2, Shape{3, 1, 4, 1, 5}, {3, 1, 5}, 1, {0, 2, 1, 3, 4}, false},
+    {4, 0, Shape{4, 6, 5}, {6, 5}, -1, {1, 0, 2}, true},
+    {5, 2, Shape{4, 6, 5}, {4, 6}, -2, {2, 0, 1}, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,

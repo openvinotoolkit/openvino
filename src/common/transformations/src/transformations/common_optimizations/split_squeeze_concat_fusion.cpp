@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -86,10 +87,11 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
 
         auto input = split->input_value(0);
 
-        auto concat_axis = concat->get_axis();
         auto rank = input.get_partial_shape().rank();
         if (!rank.is_static())
             return false;
+        // Concat operates on the squeezed tensors, whose rank is one less than the Split input
+        const auto concat_axis = ov::util::normalize_axis(concat->get_axis(), rank.get_length() - 1);
         std::vector<int64_t> order(rank.get_length());
         std::iota(order.begin(), order.end(), 0);
         order.erase(order.begin() + split_axis);
