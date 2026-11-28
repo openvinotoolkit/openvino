@@ -22,6 +22,7 @@
 #include "builder/decoder_config.hpp"
 #include "builder/decoder_metadata.hpp"
 #include "builder/graph_emitter.hpp"
+#include "helper_ops/gguf_constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -53,7 +54,9 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -212,6 +215,84 @@ private:
         return m_emit.add_op("GGML_OP_MUL_MAT", name, {w, x});
     }
 
+    // Several small projections of the same input. The members that are plain float weights of one element type,
+    // with the same K and the group's widest output width (at least two of them), become ONE MatMul over the
+    // row-concatenated weights; the joint output is reshaped to [..., G, W] and split on the G axis, which a plugin
+    // can keep as buffer views. At decode that is one launch instead of one per projection. Every output is
+    // registered under its name either way, so callers read it with val(name). Models with a Hadamard rotation
+    // keep separate projections.
+    void mm_group(const std::vector<std::string>& ws, const std::string& x, const std::vector<std::string>& names) {
+        OPENVINO_ASSERT(ws.size() == names.size(), "[GGUF] glm5next mm_group: weights/names size mismatch");
+        auto separate = [&](const std::vector<size_t>& idx) {
+            for (size_t i : idx)
+                mm(ws[i], x, names[i]);
+        };
+        std::vector<size_t> all(ws.size());
+        for (size_t i = 0; i < ws.size(); ++i)
+            all[i] = i;
+        if (m_emit.has_hadamard()) {
+            separate(all);
+            return;
+        }
+        // weights are lazy GGUFConstant nodes until materialization; only plain float storage is fused
+        auto plain = [&](const std::string& w) -> Out {
+            m_emit.add_weight(w);
+            Out v = m_emit.value(w);
+            if (ov::is_type<ov::op::v0::Convert>(v.get_node_shared_ptr()))
+                v = v.get_node_shared_ptr()->input_value(0);
+            if (auto gc = ov::as_type_ptr<GGUFConstant>(v.get_node_shared_ptr())) {
+                const auto t = gc->qtype();
+                return (t == GGUF_TYPE_F32 || t == GGUF_TYPE_F16 || t == GGUF_TYPE_BF16) ? v : Out{};
+            }
+            if (!ov::is_type<ov::op::v0::Constant>(v.get_node_shared_ptr()) || !v.get_element_type().is_real())
+                return {};
+            return v;
+        };
+        std::vector<Out> wv;
+        for (const auto& w : ws) {
+            auto v = plain(w);
+            if (!v.get_node()) {
+                separate(all);
+                return;
+            }
+            const auto& ps = v.get_partial_shape();
+            if (ps.rank().is_dynamic() || ps.rank().get_length() != 2 || ps.is_dynamic() ||
+                (!wv.empty() &&
+                 (v.get_element_type() != wv[0].get_element_type() || ps[1] != wv[0].get_partial_shape()[1]))) {
+                separate(all);
+                return;
+            }
+            wv.push_back(v);
+        }
+        int64_t W = 0;
+        for (const auto& v : wv)
+            W = std::max<int64_t>(W, v.get_partial_shape()[0].get_length());
+        std::vector<size_t> grp, rest;
+        for (size_t i = 0; i < wv.size(); ++i)
+            (wv[i].get_partial_shape()[0].get_length() == W ? grp : rest).push_back(i);
+        if (grp.size() < 2) {
+            separate(all);
+            return;
+        }
+        separate(rest);
+        ov::OutputVector parts;
+        for (size_t i : grp)
+            parts.push_back(wv[i]);
+        const int64_t G = static_cast<int64_t>(grp.size());
+        Out cat = to_f32(std::make_shared<ov::op::v0::Concat>(parts, 0));       // [G * W, K]
+        Out y = std::make_shared<ov::op::v0::MatMul>(val(x), cat, false, true);  // [..., G * W]
+        // [..., G * W] -> [..., G, W]: keep the leading dims, split the last
+        auto lead = std::make_shared<ov::op::v8::Slice>(std::make_shared<ov::op::v3::ShapeOf>(y, i64),
+                                                        ci64({0}),
+                                                        ci64({-1}),
+                                                        ci64({1}));
+        auto gw = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{lead, ci64({G, W})}, 0);
+        auto y3 = std::make_shared<ov::op::v1::Reshape>(y, gw, false);
+        auto split = std::make_shared<ov::op::v1::Split>(y3, ov::op::v0::Constant::create(i64, {}, {-2}), G);
+        for (size_t j = 0; j < grp.size(); ++j)
+            reg(names[grp[j]], std::make_shared<ov::op::v0::Squeeze>(split->output(j), ci64({-2})));
+    }
+
     void build_inputs() {
         m_emit.add_input("inp_tokens", i32, ps({1, 1, 1, D}));
         m_emit.add_input("inp_pos", i32, ps({1, 1, 1, D}));
@@ -292,7 +373,11 @@ private:
         const auto v = conv("v");
 
         // decay gate: g = lb * sigmoid(-(f_b f_a x + dt_bias) * A), per key dimension; ssm_a holds -exp(A_log)
-        auto f = val(mm(p + "ssm_f_b.weight", mm(p + "ssm_f_a.weight", x, p + "kda_f_a"), p + "kda_f_b"));
+        // f_a, g_a and beta read the same x
+        mm_group({p + "ssm_f_a.weight", p + "ssm_g_a.weight", p + "ssm_beta.weight"},
+                 x,
+                 {p + "kda_f_a", p + "kda_g_a", p + "kda_beta_lin"});
+        auto f = val(mm(p + "ssm_f_b.weight", p + "kda_f_a", p + "kda_f_b"));
         Out g1 = std::make_shared<ov::op::v1::Add>(f, reshape(weight(p + "ssm_dt.bias"), {d_inner}));
         g1 = std::make_shared<ov::op::v1::Multiply>(reshape(g1, {1, -1, H, Dh}),
                                                     reshape(weight(p + "ssm_a"), {1, 1, H, 1}));
@@ -306,7 +391,7 @@ private:
         }
         const auto gate = reg(p + "kda_gate", g);
 
-        auto beta = mm(p + "ssm_beta.weight", x, p + "kda_beta_lin");
+        std::string beta = p + "kda_beta_lin";
         beta = m_emit.add_op("GGML_UNARY_OP_SIGMOID", p + "kda_beta_sig", {beta});
         beta = m_emit.add_op("GGML_OP_RESHAPE",
                              p + "kda_beta",
@@ -331,7 +416,7 @@ private:
 
         // RMSNorm(o) * sigmoid(g_b g_a x), per head
         auto normed = blocks::rms_norm(m_emit, attn, p + "ssm_norm.weight", p + "kda_normed", m_cfg.rms_eps);
-        auto g2 = val(mm(p + "ssm_g_b.weight", mm(p + "ssm_g_a.weight", x, p + "kda_g_a"), p + "kda_g_b"));
+        auto g2 = val(mm(p + "ssm_g_b.weight", p + "kda_g_a", p + "kda_g_b"));
         // the gate takes the scan output's own [B, T, H, Dh] shape: [1, T, ...] as built, [tokens, 1, ...] after
         // SDPAToPagedAttention (a fixed {1, -1, H, Dh} would broadcast to [T, T, H, Dh] there)
         auto g2_like =
@@ -407,17 +492,16 @@ private:
 
         auto iq = to_bt(val(mm(p + "indexer.attn_q_b.weight", qr, p + "indexer_q")), {Hi, Di});  // [B, T, Hi, Di]
         auto q_idx = transpose(iq, {0, 2, 1, 3});                                                // [B, Hi, T, Di]
-        auto ik = m_emit.add_op("GGML_OP_NORM",
-                                p + "indexer_k_ln",
-                                {mm(p + "indexer.attn_k.weight", x, p + "indexer_k_lin")},
-                                0,
-                                {{"eps", m_ln_eps}});
+        mm_group({p + "indexer.attn_k.weight", p + "indexer_compressor_gate.weight", p + "indexer.proj.weight"},
+                 x,
+                 {p + "indexer_k_lin", p + "indexer_gate", p + "indexer_w"});
+        auto ik = m_emit.add_op("GGML_OP_NORM", p + "indexer_k_ln", {p + "indexer_k_lin"}, 0, {{"eps", m_ln_eps}});
         Out ikn = std::make_shared<ov::op::v1::Add>(
             std::make_shared<ov::op::v1::Multiply>(val(ik), reshape(weight(p + "indexer.k_norm.weight"), {Di})),
             reshape(weight(p + "indexer.k_norm.bias"), {Di}));
-        auto ig = val(mm(p + "indexer_compressor_gate.weight", x, p + "indexer_gate"));
+        auto ig = val(p + "indexer_gate");
         auto raw = to_bt(std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ikn, ig}, -1), {2 * Di});  // [B, T, 2Di]
-        auto wts = to_bt(std::make_shared<ov::op::v1::Multiply>(val(mm(p + "indexer.proj.weight", x, p + "indexer_w")),
+        auto wts = to_bt(std::make_shared<ov::op::v1::Multiply>(val(p + "indexer_w"),
                                                                 cf32(1.0f / std::sqrt(static_cast<float>(Di * Hi)))),
                          {Hi});  // [B, T, Hi]
         // key_length: tokens in the cache after this call = max position + 1
