@@ -94,6 +94,14 @@ public:
         return Time::max();
     }
 
+    struct Summary {
+        size_t queries = 0;
+        uint64_t refreshes = 0;
+        std::optional<std::chrono::milliseconds> period;
+    };
+    // what the backend was asked and what it answered so far
+    Summary summary();
+
 private:
     void unsubscribe(const std::shared_ptr<Subscription::State>& state);
     void rebuild_devices();
@@ -119,6 +127,7 @@ private:
     std::chrono::microseconds m_cost{};
     std::chrono::milliseconds m_interval{};
     std::chrono::milliseconds m_stale_limit{300};
+    size_t m_queries = 0;
     bool m_probe_started = false;
     bool m_paused = false;
     bool m_wake = false;

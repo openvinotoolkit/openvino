@@ -446,6 +446,16 @@ TEST(SignalHubReplayTest, aSlowQueryIsStillAnsweredFromTheLastObservation) {
     EXPECT_GE(observation->version, 10u);
 }
 
+TEST(SignalHubReplayTest, summaryCountsTheQueriesAndTheRefreshesSeen) {
+    Replay replay(milliseconds(127), microseconds(2600));
+    replay.run(seconds(5), microseconds(1500));
+    const auto summary = replay.hub->summary();
+    EXPECT_EQ(summary.queries, replay.backend->calls);
+    EXPECT_GE(summary.refreshes, 10u);
+    ASSERT_TRUE(summary.period.has_value());
+    EXPECT_NEAR(static_cast<double>(summary.period->count()), 127.0, 8.0);
+}
+
 TEST(SignalHubTest, readsWantADeviceTheSubscriptionsCover) {
     Replay replay(milliseconds(127), microseconds(2600));
     replay.run(seconds(2), microseconds(1500));

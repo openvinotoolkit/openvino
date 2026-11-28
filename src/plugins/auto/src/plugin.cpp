@@ -757,6 +757,7 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
                     from_hub.emplace(*it);
                 }
             }
+            m_hub_reads++;
             LOG_DEBUG_TAG(
                 "[IPF] utilization is %lf ms old, refreshed in the background",
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - observation->observed_at)
@@ -765,6 +766,7 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
         }
     }
     const auto query_start_time = std::chrono::steady_clock::now();
+    m_sync_queries++;
     const auto result = [&] {
         std::lock_guard<std::mutex> lock(m_telemetry_mutex);
         return m_telemetry_client->utilizations(device_name_and_type);
@@ -777,6 +779,23 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
         }
     }
     return result;
+}
+
+std::string Plugin::telemetry_summary() {
+    std::shared_ptr<SignalHub> hub;
+    {
+        std::lock_guard<std::mutex> lock(m_signal_hub_mutex);
+        hub = m_signal_hub;
+    }
+    std::string text = "utilization queried by the selection:" + std::to_string(m_sync_queries.load()) +
+                       ", read from the background:" + std::to_string(m_hub_reads.load());
+    if (hub) {
+        const auto summary = hub->summary();
+        text += ", background queries:" + std::to_string(summary.queries) +
+                ", data refreshes seen:" + std::to_string(summary.refreshes) + ", refresh period:" +
+                (summary.period ? std::to_string(summary.period->count()) + " ms" : std::string("not regular"));
+    }
+    return text;
 }
 
 std::shared_ptr<SignalHub::Subscription> Plugin::subscribe_telemetry(const std::vector<DeviceInformation>& devices,

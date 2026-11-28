@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <list>
 #include <map>
@@ -96,6 +97,9 @@ public:
      * query the telemetry backend.
      * @return the subscription, which ends with its last reference
      */
+    // how the utilization was obtained so far, for the log
+    std::string telemetry_summary();
+
     std::shared_ptr<SignalHub::Subscription> subscribe_telemetry(const std::vector<DeviceInformation>& devices,
                                                                  SignalHub::StatsFn stats,
                                                                  SignalHub::HeadroomFn headroom);
@@ -149,6 +153,8 @@ private:
     mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
     // the telemetry client takes one query at a time
     mutable std::mutex m_telemetry_mutex;
+    std::atomic<size_t> m_sync_queries{0};
+    std::atomic<size_t> m_hub_reads{0};
     // declared after the client: its thread stops first
     mutable std::mutex m_signal_hub_mutex;
     std::shared_ptr<SignalHub> m_signal_hub;

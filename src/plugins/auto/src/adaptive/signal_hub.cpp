@@ -83,6 +83,17 @@ void SignalHub::rebuild_devices() {
     }
 }
 
+SignalHub::Summary SignalHub::summary() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    Summary result;
+    result.queries = m_queries;
+    if (m_observation) {
+        result.refreshes = m_observation->version;
+        result.period = m_observation->period;
+    }
+    return result;
+}
+
 std::optional<Observation> SignalHub::read(const std::vector<std::string>& device_names) {
     return read(device_names, m_options.clock());
 }
@@ -161,6 +172,7 @@ Time SignalHub::step(Time now) {
         m_probe_started = true;
         m_probe_start = now;
     }
+    m_queries++;
     m_cost = m_cost.count() == 0 ? cost : (m_cost * 3 + cost) / 4;
     if (!result.empty()) {
         const bool had = m_observation != nullptr;

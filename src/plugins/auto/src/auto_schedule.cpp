@@ -1038,6 +1038,7 @@ AutoSchedule::~AutoSchedule() {
     }
     if (dynamic_executor) {
         LOG_INFO_TAG("[dynamic] %s", m_decision_log.summary(m_instance_stats.snapshot()).c_str());
+        LOG_INFO_TAG("[dynamic] %s", m_plugin->telemetry_summary().c_str());
         // do not clear the executor manager's "AutoDynamicSchedule" entry here: clear() works by name and would
         // also evict the executors of other alive AutoSchedule instances. get_idle_cpu_streams_executor() only
         // hands out an executor nobody else holds, so instances never share one; just drop our own reference
