@@ -75,7 +75,8 @@ INSTANTIATE_TEST_SUITE_P(
                            {{1, 3, 4, 4}, {1, 3, 5, 5}, {1, 3, 6, 6}, {1, 3, 7, 7}, {1, 3, 5, 5}, {1, 3, 4, 4}}}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),
-                       ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"}),
+                       // The divisor rewrite adds an auxiliary ACL pool alongside the fallback pool.
+                       ::testing::Values(CPUSpecificParams{{}, {}, {}, "(ref_any|acl)"}),
                        ::testing::Values(emptyFusingSpec),
                        ::testing::Values(ov::AnyMap{}, ov::AnyMap{ov::hint::inference_precision(ov::element::f32)})),
     AvgPoolingV14LayerCPUTest::getTestCaseName);
@@ -154,6 +155,35 @@ TEST(AvgPoolingV14DynamicCPUTest, IncludePaddingDivisor) {
         EXPECT_EQ(output.get_shape(), (ov::Shape{1, 1, size / 2 + 1, size / 2 + 1}));
         // Even sizes leave one input value and three explicit padding positions in the last window.
         const float expected = size % 2 == 0 ? 1.0F / 4.0F : 4.0F / 9.0F;
+        EXPECT_FLOAT_EQ(output.data<const float>()[output.get_size() - 1], expected);
+    }
+}
+
+// Use an explicit expected value because the shared reference counts ceil overhang in the divisor.
+TEST(AvgPoolingV14DynamicCPUTest, Stride3IncludePaddingDivisor) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, -1});
+    auto pool = std::make_shared<ov::op::v14::AvgPool>(input,
+                                                       ov::Strides{3, 3},
+                                                       ov::Shape{1, 1},
+                                                       ov::Shape{1, 1},
+                                                       ov::Shape{3, 3},
+                                                       false,
+                                                       ov::op::RoundingType::CEIL_TORCH,
+                                                       ov::op::PadType::EXPLICIT);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{pool}, ov::ParameterVector{input});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", {ov::hint::inference_precision(ov::element::f32)});
+    auto request = compiled.create_infer_request();
+    for (std::size_t size : {6, 8, 6}) {
+        SCOPED_TRACE(size);
+        ov::Tensor tensor(ov::element::f32, ov::Shape{1, 1, size, size});
+        std::fill_n(tensor.data<float>(), tensor.get_size(), 1.0F);
+        request.set_input_tensor(tensor);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        EXPECT_EQ(output.get_shape(), (ov::Shape{1, 1, 3, 3}));
+        // At size 6 the last window contains one input value and three explicit padding positions.
+        const float expected = size == 6 ? 1.0F / 4.0F : 1.0F;
         EXPECT_FLOAT_EQ(output.data<const float>()[output.get_size() - 1], expected);
     }
 }
