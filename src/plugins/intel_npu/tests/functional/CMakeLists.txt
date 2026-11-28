@@ -10,7 +10,6 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 set(TARGET_NAME ov_npu_func_tests)
-set(EXCLUDED_FUNC_TESTS_DIR "")
 set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
 
@@ -26,13 +25,12 @@ list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
 list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_compiler_adapter
       openvino_npu_level_zero_backend openvino_npu_zero_utils openvino_npu_logger_utils)
 
+include(sources.cmake)
+
 ov_add_test_target(
   NAME
   ${TARGET_NAME}
-  ROOT
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  EXCLUDED_SOURCE_PATHS
-  ${EXCLUDED_FUNC_TESTS_DIR}
+  SOURCES ${OV_NPU_FUNCTIONAL_TEST_SOURCES}
   INCLUDES
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
@@ -58,7 +56,8 @@ ov_add_test_target(
   openvino::reference
   openvino::runtime
   openvino::npu_al
-  openvino::intel_npu_vm_runtime)
+  openvino::intel_npu_vm_runtime
+  CHECK_SOURCES_LISTED)
 
 if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)

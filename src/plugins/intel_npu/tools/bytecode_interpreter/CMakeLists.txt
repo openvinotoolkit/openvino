@@ -9,7 +9,7 @@ find_package(gflags QUIET)
 
 ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
-              ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+              SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/bytecode_interpreter.cpp
               LINK_LIBRARIES
                   PRIVATE
                       openvino::runtime::dev

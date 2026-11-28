@@ -4,6 +4,8 @@
 
 set(TARGET_NAME "ov_npu_unit_tests")
 
+include(sources.cmake)
+
 set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::commonTestUtils"
         "openvino::gmock"
@@ -24,10 +26,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/partitioning
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/src
+        SOURCES ${OV_NPU_UNIT_TEST_SOURCES}
         DEPENDENCIES
             openvino::runtime
         INCLUDES
@@ -164,6 +163,7 @@ ov_add_test_target(
             ${MANDATORY_UNIT_TESTS_LIBS}
         LABELS
             NPUW
+        CHECK_SOURCES_LISTED
 )
 
 if(ENABLE_AVX2)

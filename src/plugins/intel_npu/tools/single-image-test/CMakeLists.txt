@@ -36,10 +36,11 @@ endif()
 #
 # Define the target
 #
+include(sources.cmake)
 
 ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
-              ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+              SOURCES ${OV_NPU_SINGLE_IMAGE_TEST_SOURCES}
               LINK_LIBRARIES
                   PRIVATE
                       openvino::runtime
