@@ -9,10 +9,12 @@
 #include <pybind11/stl.h>
 
 #include <memory>
+#include <unordered_set>
 #include <openvino/pass/constant_folding.hpp>
 #include <openvino/pass/convert_fp32_to_fp16.hpp>
 #include <openvino/pass/low_latency.hpp>
 #include <openvino/pass/make_stateful.hpp>
+#include <openvino/pass/make_stateless.hpp>
 #include <openvino/pass/pass.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <openvino/pass/visualize_tree.hpp>
@@ -127,6 +129,31 @@ void regclass_transformations(py::module m) {
         :type pairs_to_replace: dict[str, str]
     )");
     make_stateful.def("__repr__", [](const ov::pass::MakeStateful& self) {
+        return Common::get_simple_repr(self);
+    });
+
+    py::class_<ov::pass::MakeStateless, std::shared_ptr<ov::pass::MakeStateless>, ov::pass::ModelPass, ov::pass::PassBase>
+        make_stateless(m, "MakeStateless");
+    make_stateless.doc() = "openvino.passes.MakeStateless transformation";
+    make_stateless.def(py::init<>(),
+                       R"(
+        The transformation replaces the state operations ReadValue and Assign with Parameter and Result operations, making the model stateless.
+
+        The inverse of the MakeStateful transformation: every ReadValue operation of a variable is
+        replaced by a Parameter (named after the variable id), the input value of the corresponding
+        Assign operation is exposed as a Result, and the variable together with its Assign sink is
+        removed from the model. After the transformation the model has no variables, and its shapes
+        can be changed with the regular Model.reshape.
+    )");
+    make_stateless.def(py::init<const std::unordered_set<std::string>&>(),
+                       py::arg("variable_ids"),
+                       R"(
+        The transformation replaces the state operations ReadValue and Assign of the given variables with Parameter and Result operations, making the model stateless.
+
+        :param variable_ids: identifiers of the variables to convert.
+        :type variable_ids: set[str]
+    )");
+    make_stateless.def("__repr__", [](const ov::pass::MakeStateless& self) {
         return Common::get_simple_repr(self);
     });
 
