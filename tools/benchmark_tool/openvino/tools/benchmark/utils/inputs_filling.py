@@ -372,14 +372,17 @@ def get_random_bf16_tensor(shape, rand_min, rand_max, rs):
 def fill_tensors_with_random(layer):
     is_4bit = layer.element_type.bitwidth == 4
     is_bf16 = layer.element_type == Type.bf16
+    is_bool = layer.element_type == Type.boolean
     dtype = np.uint8 if is_4bit else get_dtype(layer.element_type)
-    rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
+    rand_min, rand_max = (0, 1) if is_bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     if not is_bf16 and np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     input_tensors = []
     for shape in layer.shapes:
-        if shape:
+        if is_bool:
+            ov_tensor = Tensor(rs.randint(0, 2, size=list(shape), dtype=bool))
+        elif shape:
             if is_4bit:
                 ov_tensor = get_random_4bit_tensor(shape, layer.element_type, rs)
             elif is_bf16:
