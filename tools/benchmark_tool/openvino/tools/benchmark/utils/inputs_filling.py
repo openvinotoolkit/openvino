@@ -174,7 +174,7 @@ def get_image_tensors(image_paths: list[str], info: AppInputInfo, batch_sizes: l
                 logger.info(f'Image will be processed with original shape - {image.shape[:-1]}')
             elif info.layout.has_name('H') and info.layout.has_name('W'):
                 new_im_size = (widths[i % num_shapes], heights[i % num_shapes])
-                if image.shape[:-1] != new_im_size:
+                if image.shape[:2] != new_im_size[::-1]:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
