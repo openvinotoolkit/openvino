@@ -20,11 +20,13 @@
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -184,6 +186,14 @@ std::shared_ptr<ov::Model> ov::npuw::PACompiledModel::prepare_variant_model(
         for (std::size_t i = 0; i < 3; ++i) {
             token_first.emplace_back(node->input(i), node->get_input_partial_shape(i));
         }
+        // The settings a PA op computes from Constants become Constants. A
+        // model with sliding window attention has such a window in some layers
+        // and a Constant in the others, and the PA blocks must be alike to fold.
+        for (std::size_t i = 3; i < node->get_input_size(); ++i) {
+            if (const auto value = ov::util::get_constant_from_source(node->input_value(i))) {
+                node->input(i).replace_source_output(value);
+            }
+        }
         // The result returns to the layers through a Reshape to
         // [tokens, 1, heads, head_size], now to [1, tokens, heads, head_size].
         for (const auto& reader : node->output(0).get_target_inputs()) {
@@ -193,6 +203,15 @@ std::shared_ptr<ov::Model> ov::npuw::PACompiledModel::prepare_variant_model(
                             reader.get_node()->get_friendly_name());
             std::swap(shape[0], shape[1]);
             reader.get_node()->input(1).replace_source_output(reshape_target(shape));
+            // The Transpose that follows shares its order with the ones before
+            // the PA op, which are in another block of a variant. It takes its own.
+            for (const auto& transpose : reader.get_node()->output(0).get_target_inputs()) {
+                if (ov::is_type<ov::op::v1::Transpose>(transpose.get_node())) {
+                    const auto order = transpose.get_node()->input_value(1).get_node_shared_ptr();
+                    transpose.get_node()->input(1).replace_source_output(
+                        order->clone_with_new_inputs(order->input_values()));
+                }
+            }
         }
     }
     // The Gather of the sampled rows: [tokens, 1, hidden].

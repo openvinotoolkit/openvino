@@ -22,6 +22,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/runtime/core.hpp"
@@ -192,6 +194,41 @@ TEST(PAVariantModel, TakesTheTokensSecond) {
         }
     }
     EXPECT_GT(pa_ops, 0u);
+}
+
+// NPUW folds the PA blocks and the layers between them only when they are
+// alike: a setting some layers compute from Constants, such as a sliding
+// window, becomes a Constant, and the Transposes on the two sides of a PA op
+// do not share their order.
+TEST(PAVariantModel, MakesThePABlocksAlike) {
+    const auto pa_model = make_pipeline_pa_model();
+    constexpr std::size_t kSlidingWindow = 10;
+    for (const auto& node : pa_model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            auto window =
+                std::make_shared<ov::op::v1::Multiply>(ov::op::v0::Constant::create(ov::element::i32, {}, {4}),
+                                                       ov::op::v0::Constant::create(ov::element::i32, {}, {8}));
+            node->input(kSlidingWindow).replace_source_output(window);
+            break;
+        }
+    }
+    const auto model = PACompiledModel::prepare_variant_model(pa_model);
+
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            continue;
+        }
+        EXPECT_TRUE(ov::op::util::is_constant(node->get_input_node_ptr(kSlidingWindow)));
+        // The Transposes before the PA op and the one after its Reshape.
+        std::vector<ov::Node*> transposes = {node->get_input_node_ptr(0)->get_input_node_ptr(0)->get_input_node_ptr(0)};
+        for (const auto& reader : node->output(0).get_target_inputs()) {
+            transposes.push_back(reader.get_node()->output(0).get_target_inputs().begin()->get_node());
+        }
+        for (const auto* transpose : transposes) {
+            ASSERT_TRUE(ov::is_type<ov::op::v1::Transpose>(transpose)) << transpose->get_friendly_name();
+        }
+        EXPECT_NE(transposes.front()->get_input_node_ptr(1), transposes.back()->get_input_node_ptr(1));
+    }
 }
 
 // Runs a prefill of `prompt` tokens and one decode step for a batch of
