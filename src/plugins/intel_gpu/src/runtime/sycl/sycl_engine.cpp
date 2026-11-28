@@ -14,6 +14,9 @@
 #ifdef OV_GPU_VENDOR_INTEL
 #include "intel/sycl_kernel_builder.hpp"
 #endif
+#ifdef OV_GPU_VENDOR_NVIDIA
+#include "nvidia/sycl_kernel_builder.hpp"
+#endif
 #include <string>
 #include <vector>
 #include <memory>
@@ -262,7 +265,10 @@ std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
     case ::sycl::backend::ext_oneapi_level_zero:
         return std::make_shared<sycl::intel::sycl_kernel_builder>(sycl_device);
 #endif
-    // OpenCL kernels are not supported on NVIDIA GPUs yet.
+#ifdef OV_GPU_VENDOR_NVIDIA
+    case ::sycl::backend::ext_oneapi_cuda:
+        return std::make_shared<sycl::nvidia::sycl_kernel_builder>(sycl_device);
+#endif
     default:
         OPENVINO_THROW("[GPU] No kernel builder available for backend ",
                        sycl_device.get_device().get_backend());

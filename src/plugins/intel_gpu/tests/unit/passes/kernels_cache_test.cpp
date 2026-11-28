@@ -247,3 +247,136 @@ TEST(kernels_cache, reuse_kernels_property) {
         ASSERT_TRUE(concat1_kernels[idx]->is_same(*concat2_kernels[idx].get()));
     }
 }
+
+namespace {
+
+// The OV_NV_SUB_GROUP_SIZE value the preprocessor sees at the first occurrence of `marker`: the rest of the line of the
+// last redefinition ahead of it.
+std::string nv_sub_group_size_at(const std::string& src, const std::string& marker) {
+    static const std::string define = "#define OV_NV_SUB_GROUP_SIZE ";
+    const size_t pos = src.find(marker);
+    if (pos == std::string::npos) {
+        return "<marker not found>";
+    }
+    const size_t def = src.rfind(define, pos);
+    if (def == std::string::npos) {
+        return "<not defined>";
+    }
+    const size_t value = def + define.size();
+    return src.substr(value, src.find('\n', value) - value);
+}
+
+}  // namespace
+
+TEST(nvidia_replace_reqd_sub_group_size, both_attribute_spellings) {
+    const std::string src = R"__krnl(
+int lane_helper(void) { return 0; }
+REQD_SUB_GROUP_SIZE(16)
+__kernel void macro_kernel(__global int* out) {}
+__attribute__((intel_reqd_sub_group_size(8)))
+__kernel void attribute_kernel(__global int* out) {}
+)__krnl";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    // A helper ahead of the first kernel gets the first request in source order, whichever spelling states it.
+    EXPECT_EQ(nv_sub_group_size_at(out, "lane_helper"), "(16)");
+    EXPECT_EQ(nv_sub_group_size_at(out, "macro_kernel"), "(16)");
+    EXPECT_EQ(nv_sub_group_size_at(out, "attribute_kernel"), "(8)");
+    // The macro expands to nothing on NVIDIA and is kept; the raw attribute is unknown to the NVIDIA compiler and goes.
+    EXPECT_NE(out.find("REQD_SUB_GROUP_SIZE(16)"), std::string::npos);
+    EXPECT_EQ(out.find("intel_reqd_sub_group_size"), std::string::npos);
+}
+
+TEST(nvidia_replace_reqd_sub_group_size, define_lines_are_skipped) {
+    // common.cl defines the macro in terms of the attribute; neither occurrence on that line is a kernel's request.
+    const std::string define_line =
+        "#define REQD_SUB_GROUP_SIZE(sg_size) __attribute__((intel_reqd_sub_group_size(sg_size)))";
+    const std::string src = "\n" + define_line + "\nREQD_SUB_GROUP_SIZE(16)\n__kernel void probe(__global int* out) {}\n";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    EXPECT_NE(out.find(define_line), std::string::npos);
+    EXPECT_EQ(out.find("OV_NV_SUB_GROUP_SIZE (sg_size)"), std::string::npos);
+    EXPECT_EQ(nv_sub_group_size_at(out, "probe"), "(16)");
+}
+
+TEST(nvidia_replace_reqd_sub_group_size, request_syntax) {
+    // A request's argument can be any expression: it runs to the matching ')', not the first one, and a comma inside
+    // nested parentheses does not split it. The raw attribute is found wherever it sits in an attribute list; only it
+    // is taken out, and the other attributes of the list stay (a list left with a stray comma is still valid).
+    const std::string src = R"__krnl(
+__attribute__((intel_reqd_sub_group_size((8))))
+__kernel void parenthesized_kernel(__global int* out) {}
+REQD_SUB_GROUP_SIZE(MIN((16),(32)))
+__kernel void nested_kernel(__global int* out) {}
+__attribute__((intel_reqd_sub_group_size(16), reqd_work_group_size(64,1,1)))
+__kernel void request_first_kernel(__global int* out) {}
+__attribute__((reqd_work_group_size(64,1,1), intel_reqd_sub_group_size(8)))
+__kernel void request_last_kernel(__global int* out) {}
+)__krnl";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    EXPECT_EQ(nv_sub_group_size_at(out, "parenthesized_kernel"), "((8))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "nested_kernel"), "(MIN((16),(32)))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "request_first_kernel"), "(16)");
+    EXPECT_EQ(nv_sub_group_size_at(out, "request_last_kernel"), "(8)");
+    EXPECT_EQ(out.find("intel_reqd_sub_group_size"), std::string::npos);
+    const std::string wg = "reqd_work_group_size(64,1,1)";
+    size_t wg_count = 0;
+    for (size_t pos = out.find(wg); pos != std::string::npos; pos = out.find(wg, pos + wg.size())) {
+        ++wg_count;
+    }
+    EXPECT_EQ(wg_count, 2u);
+}
+
+TEST(nvidia_replace_reqd_sub_group_size, work_group_size_fallback) {
+    // With no stated sub-group size, a work-group of 8 or 16 work-items is taken as the sub-group size. The choice is
+    // left to the preprocessor because the dimensions are usually jit constants; these expressions evaluate to 8u
+    // and 16u. reqd_work_group_size is found anywhere in an attribute list, and its dimensions are split at the
+    // commas outside parentheses only, so each can be an expression.
+    const std::string src = R"__krnl(
+__attribute__((reqd_work_group_size(8,1,1)))
+__kernel void wg8_kernel(__global int* out) {}
+__attribute__((reqd_work_group_size(16,1,1)))
+__kernel void wg16_kernel(__global int* out) {}
+__attribute__((vec_type_hint(float4), reqd_work_group_size((2*4),1,1)))
+__kernel void wg_last_kernel(__global int* out) {}
+__attribute__((reqd_work_group_size(MAX(8,16),1,1), vec_type_hint(float4)))
+__kernel void wg_first_kernel(__global int* out) {}
+)__krnl";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    EXPECT_EQ(nv_sub_group_size_at(out, "wg8_kernel"),
+              "(((8)*(1)*(1)) == 8u ? 8u : (((8)*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "wg16_kernel"),
+              "(((16)*(1)*(1)) == 8u ? 8u : (((16)*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "wg_last_kernel"),
+              "((((2*4))*(1)*(1)) == 8u ? 8u : ((((2*4))*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "wg_first_kernel"),
+              "(((MAX(8,16))*(1)*(1)) == 8u ? 8u : (((MAX(8,16))*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
+    // reqd_work_group_size is standard OpenCL and is kept, as are the other attributes of its list. The redefinition is
+    // placed right before reqd_work_group_size, so the attributes ahead of it are looked for on their own.
+    EXPECT_NE(out.find("reqd_work_group_size(8,1,1)"), std::string::npos);
+    EXPECT_NE(out.find("__attribute__((vec_type_hint(float4), "), std::string::npos);
+    EXPECT_NE(out.find("reqd_work_group_size((2*4),1,1)))"), std::string::npos);
+    EXPECT_NE(out.find("reqd_work_group_size(MAX(8,16),1,1), vec_type_hint(float4)))"), std::string::npos);
+
+    // An explicit declaration wins over the work-group size: softmax_gpu_bf asks for 16 and launches a work-group of 4.
+    const std::string explicit_src =
+        "REQD_SUB_GROUP_SIZE(16)\n__attribute__((reqd_work_group_size(4,1,1)))\n__kernel void explicit_kernel(__global int* out) {}\n";
+    const std::string explicit_out = nvidia_replace_reqd_sub_group_size(explicit_src);
+    EXPECT_EQ(nv_sub_group_size_at(explicit_out, "explicit_kernel"), "(16)");
+    EXPECT_EQ(explicit_out.find("== 8u"), std::string::npos);
+}
+
+TEST(nvidia_replace_reqd_sub_group_size, default_is_restored_between_entries) {
+    const std::string entry_a = "REQD_SUB_GROUP_SIZE(16)\n__kernel void kernel_a(__global int* out) {}\n";
+    const std::string entry_b = "__kernel void kernel_b(__global int* out) {}\n";
+
+    // A source that asks for no particular sub-group size is passed through as is.
+    EXPECT_EQ(nvidia_replace_reqd_sub_group_size(entry_b), entry_b);
+
+    // Entries are concatenated after the rewrite, as kernels_cache::build_batch() does.
+    const std::string batch = nvidia_replace_reqd_sub_group_size(entry_a) + nvidia_replace_reqd_sub_group_size(entry_b);
+    EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_a"), "(16)");
+    EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "(OV_NV_DEFAULT_SUB_GROUP_SIZE)");
+}

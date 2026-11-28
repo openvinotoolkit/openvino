@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "intel_gpu/runtime/device.hpp"
 
 #ifdef _WIN32
 #include <sdkddkver.h>
@@ -30,14 +31,18 @@
 #endif
 #endif
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <functional>
 #include <sstream>
 #include <fstream>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #if defined(__unix__) && !defined(__ANDROID__)
@@ -112,6 +117,153 @@ bool kernels_cache::is_cache_enabled() const {
     return !_config.get_cache_dir().empty();
 }
 
+namespace {
+
+// A REQD_SUB_GROUP_SIZE / intel_reqd_sub_group_size occurrence on a #define line is the macro being defined
+// (common.cl), not a kernel asking for a sub-group size.
+bool on_define_line(const std::string& src, size_t pos) {
+    size_t line_start = src.rfind('\n', pos);
+    line_start = (line_start == std::string::npos) ? 0 : line_start + 1;
+    return std::string_view(src).substr(line_start, pos - line_start).find("#define") != std::string_view::npos;
+}
+
+std::string redefine_directive(const std::string& arg) {
+    return "\n#undef OV_NV_SUB_GROUP_SIZE\n#define OV_NV_SUB_GROUP_SIZE (" + arg + ")\n";
+}
+
+// The parenthesised list opening at src[open]: its arguments, split at the commas outside nested parentheses, and the
+// position of the ')' that closes it; nullopt if it is never closed. The arguments of a sub-group or work-group size
+// request can be any expressions, so they end where the parentheses balance, not at the first ')', and an expression
+// such as MAX(a, b) stays one argument.
+struct paren_args {
+    std::vector<std::string> args;
+    size_t close;
+};
+
+std::optional<paren_args> parse_paren_args(const std::string& src, size_t open) {
+    paren_args result{{std::string()}, std::string::npos};
+    size_t depth = 1;
+    for (size_t i = open + 1; i < src.size(); ++i) {
+        const char c = src[i];
+        if (c == '(') {
+            ++depth;
+        } else if (c == ')' && --depth == 0) {
+            result.close = i;
+            return result;
+        } else if (c == ',' && depth == 1) {
+            result.args.emplace_back();
+            continue;
+        }
+        result.args.back() += c;
+    }
+    return std::nullopt;
+}
+
+// Sub-group size for a kernel that states none, from the (x, y, z) arguments of its reqd_work_group_size: a work-group
+// of exactly 8 or 16 work-items runs as one sub-group of that width, as the kernels written for it expect; anything
+// else keeps the default. Without this, block reads/writes would stride by the 32-lane default.
+// The arguments are usually jit constants, so the choice is left to the preprocessor as a constant expression. An
+// empty result means the arguments were not recognised.
+std::string sub_group_size_from_work_group_size(const std::vector<std::string>& dims) {
+    if (dims.size() != 3) {
+        return {};
+    }
+    const std::string wg = "(" + dims[0] + ")*(" + dims[1] + ")*(" + dims[2] + ")";
+    return "(" + wg + ") == 8u ? 8u : ((" + wg + ") == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE)";
+}
+
+}  // namespace
+
+std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
+    // Kernels state their sub-group size through common.cl's REQD_SUB_GROUP_SIZE(x) or a raw
+    // __attribute__((intel_reqd_sub_group_size(x))). Neither takes effect on NVIDIA, so each is re-expressed as
+    // OV_NV_SUB_GROUP_SIZE, which the sub-group helpers in nvidia/compat_sg.cl read.
+    // Comments are not looked into: codegen strips them from the built-in kernels, and a custom kernel that names a
+    // request in a comment is not supported.
+    // The patterns find a request by its name and opening parenthesis only; its arguments run to the matching ')'
+    // (parse_paren_args), so they can be any expressions. A raw attribute is found wherever it sits in an attribute list,
+    // whatever else the list holds. One pattern for both spellings, so the occurrences are visited in source order and
+    // the first request - the one repeated at the top of the entry - is the first in the source whichever spelling
+    // states it. Group 1 is the name.
+    static const std::regex request_re(R"(\b(intel_reqd_sub_group_size|REQD_SUB_GROUP_SIZE)\s*\()");
+
+    std::string first_arg;
+
+    // Rewrite each occurrence into a redefinition at the point it appears, so a batch entry holding several kernels
+    // with different sub-group sizes still gets the right value for each of them. An occurrence spans from its name to
+    // the ')' closing its arguments; to_size gives the size it asks for, from the match and the arguments, and whether
+    // the occurrence itself stays in the source. A preprocessing directive may sit anywhere outside a macro's
+    // arguments, the middle of an attribute list included, so the redefinition goes right where the occurrence was.
+    auto rewrite = [&](const std::string& text,
+                       const std::regex& re,
+                       const std::function<std::pair<std::string, bool>(const std::smatch&,
+                                                                        const std::vector<std::string>&)>& to_size) {
+        std::string out;
+        size_t last = 0;
+        for (std::sregex_iterator it(text.begin(), text.end(), re), end; it != end; ++it) {
+            const size_t pos = static_cast<size_t>(it->position());
+            // A name inside the arguments of an occurrence already rewritten is part of that occurrence.
+            if (pos < last || on_define_line(text, pos)) {
+                continue;
+            }
+            const auto list = parse_paren_args(text, pos + static_cast<size_t>(it->length()) - 1);
+            if (!list) {
+                continue;
+            }
+            const auto [arg, keep_occurrence] = to_size(*it, list->args);
+            if (arg.empty()) {
+                continue;
+            }
+            if (first_arg.empty()) {
+                first_arg = arg;
+            }
+            out.append(text, last, pos - last);
+            out += redefine_directive(arg);
+            if (keep_occurrence) {
+                out.append(text, pos, list->close + 1 - pos);
+            }
+            last = list->close + 1;
+        }
+        out.append(text, last, std::string::npos);
+        return out;
+    };
+
+    const auto stated_size = [](const std::smatch& m, const std::vector<std::string>& args) {
+        // The macro form expands to nothing on this target, so leaving it in place keeps the source closer to the
+        // original. The raw attribute has to go - the NVIDIA compiler does not know it. Only the attribute itself goes:
+        // the others of its list stay, and a list left empty or with a stray comma is still a valid one.
+        // A request takes exactly one argument; anything else is not one and is left alone.
+        return std::make_pair(args.size() == 1 ? args[0] : std::string(), m[1].str() == "REQD_SUB_GROUP_SIZE");
+    };
+    // A regex search costs a pass over the source, and most kernels ask for no particular sub-group size: look for the
+    // keywords the patterns need before running them.
+    const auto contains = [&src](const char* keyword) { return src.find(keyword) != std::string::npos; };
+
+    std::string modified;
+    if (contains("REQD_SUB_GROUP_SIZE") || contains("intel_reqd_sub_group_size")) {
+        modified = rewrite(src, request_re, stated_size);
+    }
+
+    // No stated sub-group size: fall back to the one the work-group size implies, if any; an explicit declaration always
+    // wins. The attribute is found wherever it sits in its list, and stays.
+    if (first_arg.empty() && contains("reqd_work_group_size")) {
+        static const std::regex wg_re(R"(\breqd_work_group_size\s*\()");
+        modified = rewrite(src, wg_re, [](const std::smatch&, const std::vector<std::string>& args) {
+            return std::make_pair(sub_group_size_from_work_group_size(args), true);
+        });
+    }
+
+    if (first_arg.empty()) {
+        return src;
+    }
+
+    // Repeat the first redefinition at the very top of the entry: helper functions ahead of the kernel use sub-group
+    // built-ins as well and would otherwise compile against the previous entry's value (macro bodies expand lazily, so
+    // naming a jit constant defined further down is fine). Restore the default, by name, at the end of the entry so
+    // nothing leaks into the next kernel of the batch.
+    return redefine_directive(first_arg) + modified + redefine_directive("OV_NV_DEFAULT_SUB_GROUP_SIZE");
+}
+
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
@@ -176,6 +328,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
     }
 
+    const auto [nvidia_prelude, nvidia_sg_overrides] =
+        _targets_nvidia ? get_nvidia_compat_headers() : std::pair<std::vector<std::string>, std::string>{};
+
     // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
     // of the precompiled binaries or get_undef_jit calls
@@ -239,6 +394,17 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 process_batch_includes(b);
             }
 
+            // Add the NVIDIA compatibility headers to b.source like any other header, so the hash below covers them, laid
+            // out as  prelude | batch headers | sub-group overrides | kernels. The overrides shadow names that
+            // sub_group_block_read.cl and friends declare as functions, so they must come after those headers (see
+            // nvidia/compat_sg_overrides.cl).
+            if (_targets_nvidia) {
+                OPENVINO_ASSERT(b.kernels_counter <= b.source.size(), "[GPU] Batch has ", b.kernels_counter,
+                                " kernels but only ", b.source.size(), " source entries");
+                b.source.insert(b.source.end() - static_cast<std::ptrdiff_t>(b.kernels_counter), nvidia_sg_overrides);
+                b.source.insert(b.source.begin(), nvidia_prelude.begin(), nvidia_prelude.end());
+            }
+
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
             // Partition the kernel cache per runtime: OCL and ZE store incompatible native
@@ -254,8 +420,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
-            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
-            if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
+            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler, nor for the NVIDIA OpenCL compiler.
+            if (!dump_sources_dir.empty() && b.language != kernel_language::CM && !_targets_nvidia) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/') {
                     current_dump_file_name += '/';
@@ -282,9 +448,41 @@ kernels_cache::kernels_cache(engine& engine,
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
-    , batch_headers(std::move(batch_headers)) { }
+    , batch_headers(std::move(batch_headers)) {
+    _targets_nvidia = engine.runtime_type() == runtime_types::sycl && _device->get_info().vendor_id == NVIDIA_VENDOR_ID;
+}
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+std::pair<std::vector<std::string>, std::string> kernels_cache::get_nvidia_compat_headers() const {
+    // A kernels_cache built without batch headers (a standalone probe kernel) gets no compatibility headers.
+    if (batch_headers.empty()) {
+        return {};
+    }
+
+    // Every batch gets all five, so each one is required here.
+    auto get_header = [this](const char* name) -> const std::string& {
+        auto it = batch_headers.find(name);
+        OPENVINO_ASSERT(it != batch_headers.end(), "[GPU] NVIDIA compatibility header '", name,
+                        "' is missing from the primitive DB. It must be generated with GPU_VENDOR=NVIDIA "
+                        "(primitive_db_gen.py -nvidia); rebuild the kernel_selector codegen output.");
+        return it->second;
+    };
+
+    // The NVIDIA compatibility prelude, split by feature. Emitted in this order: each header relies only
+    // on the ones listed before it (see the "Depends on" notes at the top of each file).
+    static const char* const nvidia_prelude_names[] = {
+        "nvidia/compat_common",  // extension pragmas, feature macros, linear ids
+        "nvidia/compat_half",    // half limits, math, conversions, reinterprets, relational
+        "nvidia/compat_sg",      // sub-group emulation
+        "nvidia/compat_wg",      // work-group collectives
+    };
+    std::vector<std::string> prelude;
+    for (const char* name : nvidia_prelude_names) {
+        prelude.push_back(get_header(name));
+    }
+    return {std::move(prelude), get_header("nvidia/compat_sg_overrides")};
+}
+
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 // GRF size in bytes of the device. It is needed to locate the end of the host kernel thread payload when checking that
 // the microkernel registers do not overlap it. Listed explicitly (no default) so that a new architecture is flagged by -Wswitch.
 static int get_grf_bytes(gpu_arch arch) {
@@ -305,7 +503,29 @@ static int get_grf_bytes(gpu_arch arch) {
     }
     OPENVINO_THROW("[GPU] Unknown GRF size for GPU architecture ", static_cast<int>(arch));
 }
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS
+
+std::string kernels_cache::get_combined_source(const batch_program& batch) const {
+    if (!_targets_nvidia) {
+        return join_strings(batch.source);
+    }
+
+    // The NVIDIA compatibility headers are already in batch.source (see get_program_source()). What is left is
+    // re-expressing each kernel's sub-group size. That is done here rather than before hashing because it runs a few
+    // regexes over every kernel, which is only worth paying when the batch actually gets compiled (or dumped); the
+    // result follows from the kernel source alone, which the hash already covers.
+    std::string combined_source;
+    OPENVINO_ASSERT(batch.kernels_counter <= batch.source.size(), "[GPU] Batch has ", batch.kernels_counter,
+                    " kernels but only ", batch.source.size(), " source entries");
+    const size_t first_kernel = batch.source.size() - batch.kernels_counter;
+    for (size_t i = 0; i < first_kernel; ++i) {
+        combined_source += batch.source[i];
+    }
+    for (size_t i = first_kernel; i < batch.source.size(); ++i) {
+        combined_source += nvidia_replace_reqd_sub_group_size(batch.source[i]);
+    }
+    return combined_source;
+}
 
 void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
@@ -332,13 +552,15 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                                + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ext;
     }
 
+    // The source the builder compiles. It is built ahead of the cache lookup only when it is dumped, so that the dump
+    // shows exactly what the compiler gets; otherwise it is built only on a cache miss.
+    std::string combined_source;
     std::ofstream dump_file;
     if (dump_sources) {
+        combined_source = get_combined_source(batch);
         dump_file.open(current_dump_file_name);
         if (dump_file.good()) {
-            for (const auto& s : batch.source) {
-                dump_file << s;
-            }
+            dump_file << combined_source;
         }
     }
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
@@ -352,7 +574,10 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     if (!precompiled.empty()) {
         _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
     } else {
-        auto combined_source = join_strings(batch.source);
+        if (combined_source.empty()) {
+            combined_source = get_combined_source(batch);
+        }
+
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
         OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");
         OPENVINO_ASSERT(kernels.size() == batch.kernels_counter, "[GPU] Number of compiled kernels is different than kernel batch size");

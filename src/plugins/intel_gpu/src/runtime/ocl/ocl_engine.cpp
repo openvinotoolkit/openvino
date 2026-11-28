@@ -70,6 +70,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type) : engi
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
+#ifdef OV_GPU_VENDOR_INTEL
     const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
     if (!_onednn_engine) {
@@ -81,6 +82,9 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
 #    endif
     }
+#else
+    OPENVINO_THROW("[GPU] OneDNN engine can be used for Intel GPUs only");
+#endif
 }
 #endif
 

@@ -69,6 +69,13 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+#ifndef ENABLE_CM_FOR_GPU
+    // Without CM support compiled in there are no CM kernels to run, so there is nothing to probe. This also keeps
+    // the CM probe kernel away from kernel builders that cannot compile CM at all, such as the NVIDIA one.
+    (void)e;
+    (void)config;
+    return false;
+#else
     // Even though CM frontend is a component of Intel GPU driver on Windows, the version
     // may still be incompatible to existing CM kernels.
     auto* device = e.get_device().get();
@@ -122,6 +129,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
         cache[device] = false;
     }
     return cache.at(device);
+#endif  // ENABLE_CM_FOR_GPU
 }
 
 static bool parse_driver_version(const std::string& driver_version, size_t num_components, std::vector<int>& components) {
