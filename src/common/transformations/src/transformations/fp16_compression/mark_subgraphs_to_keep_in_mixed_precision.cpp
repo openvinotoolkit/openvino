@@ -4,7 +4,10 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
+#include <functional>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "itt.hpp"
@@ -453,6 +456,58 @@ public:
         MATCHER_SCOPE(MarkIntegerToFloatSubgraph);
         auto convert_pattern = pattern::wrap_type<v0::Convert>();
 
+        // Several integer-to-float Converts can feed the same bucket chain. Cache the terminal
+        // conversions reachable from each node so the shared tail is walked only once per pass
+        // run. The pass changes only rt_info, so a match cannot invalidate cached results.
+        using TerminalInput = std::pair<Node*, size_t>;
+        auto terminals_cache = std::make_shared<std::unordered_map<const Node*, std::vector<TerminalInput>>>();
+        std::function<std::vector<TerminalInput>(const Node*)> find_terminals = [terminals_cache](const Node* node) {
+            if (const auto cached = terminals_cache->find(node); cached != terminals_cache->end())
+                return cached->second;
+
+            std::vector<TerminalInput> terminals;
+            std::unordered_set<const Node*> visited{node};
+            std::vector<const Node*> nodes{node};
+            while (!nodes.empty()) {
+                const auto current = nodes.back();
+                nodes.pop_back();
+                if (const auto cached = terminals_cache->find(current); cached != terminals_cache->end()) {
+                    terminals.insert(terminals.end(), cached->second.begin(), cached->second.end());
+                    continue;
+                }
+                for (const auto& output : current->outputs()) {
+                    for (const auto& target_input : output.get_target_inputs()) {
+                        const auto consumer = target_input.get_node();
+                        if (!visited.insert(consumer).second)
+                            continue;
+
+                        if (const auto to_integer = as_type_ptr<v0::Convert>(consumer->shared_from_this())) {
+                            const auto terminal_input_type = to_integer->get_input_element_type(0);
+                            // A boolean terminal is a comparison result converted to an index; the
+                            // comparison itself is still computed from the floating point chain, so
+                            // the chain must stay in f32 as well.
+                            if ((terminal_input_type.is_real() || terminal_input_type == element::boolean) &&
+                                to_integer->get_convert_element_type().is_integral_number())
+                                terminals.emplace_back(consumer, target_input.get_index());
+                            // Any other Convert interrupts the chain, the same way it interrupts
+                            // down propagation.
+                            continue;
+                        }
+
+                        if (!is_precision_propagating_op(consumer->shared_from_this()))
+                            continue;
+
+                        // Follow every output, not just floating point ones: a comparison produces
+                        // a boolean condition, but f16 rounding of the compared values can still
+                        // change which branch a following Select takes and hence the final integer.
+                        nodes.push_back(consumer);
+                    }
+                }
+            }
+            terminals_cache->emplace(node, std::move(terminals));
+            return terminals_cache->at(node);
+        };
+
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto convert = as_type_ptr<v0::Convert>(m.get_match_root());
             if (!convert)
@@ -461,51 +516,15 @@ public:
                 !convert->get_convert_element_type().is_real())
                 return false;
 
-            std::unordered_set<const Node*> visited{convert.get()};
-            std::vector<Output<Node>> outputs{convert->output(0)};
-            bool found = false;
-            while (!outputs.empty()) {
-                const auto output = outputs.back();
-                outputs.pop_back();
-                for (const auto& target_input : output.get_target_inputs()) {
-                    const auto consumer = target_input.get_node()->shared_from_this();
-                    if (!visited.insert(consumer.get()).second)
-                        continue;
-
-                    if (const auto to_integer = as_type_ptr<v0::Convert>(consumer)) {
-                        const auto terminal_input_type = to_integer->get_input_element_type(0);
-                        // A boolean terminal is a comparison result converted to an index; the
-                        // comparison itself is still computed from the floating point chain, so
-                        // the chain must stay in f32 as well.
-                        if ((terminal_input_type.is_real() || terminal_input_type == element::boolean) &&
-                            to_integer->get_convert_element_type().is_integral_number()) {
-                            // Marking the input instead of the Convert itself keeps only the
-                            // backward chain in f32: MarkPrecisionSensitiveShapeOfSubgraphs walks
-                            // it and disables f16 conversion, while a mark on the source Convert
-                            // would propagate down into unrelated forward branches. Do not stop
-                            // here: one int-to-float Convert can feed several terminal conversions
-                            // through different branches, and all of them must be marked.
-                            mark_as_precision_sensitive(to_integer->input(0));
-                            found = true;
-                        }
-                        // Any other Convert interrupts the chain, the same way it interrupts
-                        // down propagation.
-                        continue;
-                    }
-
-                    if (!is_precision_propagating_op(consumer))
-                        continue;
-
-                    // Follow every output, not just floating point ones: a comparison produces
-                    // a boolean condition, but f16 rounding of the compared values can still
-                    // change which branch a following Select takes and hence the final integer.
-                    for (const auto& consumer_output : consumer->outputs()) {
-                        outputs.push_back(consumer_output);
-                    }
-                }
-            }
-
-            return found;
+            const auto terminals = find_terminals(convert.get());
+            if (terminals.empty())
+                return false;
+            // Marking the input instead of the Convert itself keeps only the backward chain in f32:
+            // MarkPrecisionSensitiveShapeOfSubgraphs walks it and disables f16 conversion, while a
+            // mark on the source Convert would propagate down into unrelated forward branches.
+            for (const auto& terminal : terminals)
+                mark_as_precision_sensitive(terminal.first->input(terminal.second));
+            return true;
         };
 
         auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);

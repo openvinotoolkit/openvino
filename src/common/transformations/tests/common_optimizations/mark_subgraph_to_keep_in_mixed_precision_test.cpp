@@ -1848,6 +1848,28 @@ TEST(TransformationTests, ConvertPrecision_preserves_boolean_terminal_conversion
     EXPECT_EQ(outputs[0].data<int64_t>()[0], 1) << "f16 compression must not flip a comparison converted to an integer";
 }
 
+TEST(TransformationTests, MarkIntegerToFloatSubgraph_marks_shared_terminal_chain) {
+    // Two int-to-float Converts feed the same bucket tail. Both must be found; the memoized walk
+    // must not stop after the first source Convert.
+    auto position1 = make_shared<Parameter>(element::i64, Shape{1});
+    auto position2 = make_shared<Parameter>(element::i64, Shape{1});
+    auto position1_f = make_shared<Convert>(position1, element::f32);
+    auto position2_f = make_shared<Convert>(position2, element::f32);
+    auto sum = make_shared<Add>(position1_f, position2_f);
+    auto ceiling = make_shared<Ceiling>(sum);
+    auto bucket = make_shared<Convert>(ceiling, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position1, position2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    EXPECT_TRUE(is_precision_sensitive(bucket->input(0)));
+    EXPECT_TRUE(is_conversion_disabled(position1_f, element::f16));
+    EXPECT_TRUE(is_conversion_disabled(position2_f, element::f16));
+    EXPECT_TRUE(is_conversion_disabled(sum, element::f16));
+}
+
 TEST(TransformationTests, MarkIntegerToFloatSubgraph_follows_all_split_outputs) {
     // Split has several outputs; the walk must continue from every one of them.
     auto position = make_shared<Parameter>(element::i64, Shape{2, 4});
