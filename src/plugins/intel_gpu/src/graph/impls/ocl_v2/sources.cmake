@@ -21,6 +21,10 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_gather_gen.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_scatter_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_scatter_gen.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_t1_dpas_gen.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_t1_dpas_gen.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_t1_gen.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_t1_gen.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_sort_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gathermatmul_sort_gen.hpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_base.hpp
@@ -127,6 +131,8 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/expert_gemm_compute.cl
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_t1.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_t1_dpas.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul_batched.cl
     ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_gather.cl
     ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_scatter.cl

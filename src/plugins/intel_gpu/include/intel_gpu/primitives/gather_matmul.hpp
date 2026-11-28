@@ -34,12 +34,27 @@ struct gather_matmul : public primitive_base<gather_matmul> {
     bool has_bias = false;
     bool has_zp = false;
     int32_t n_activated_experts = 0;
+    // Base-3 ternary ("t1") weights: WEIGHT is u8 [n_all_experts, N, K / 64 * 13], each 64 values of a row packed into
+    // 13 bytes (5 codes in {0, 1, 2} per byte, scaled base 3), zero point 1. t1_k is the logical K.
+    bool weights_t1 = false;
+    int64_t t1_k = 0;
+    // Binary (u1) weights: WEIGHT is u8 [n_all_experts, N, K / 8], 8 values per byte, most significant bit first,
+    // value = (bit - u1_zp) * scale. t1_k is the logical K.
+    bool weights_u1 = false;
+    float u1_zp = 0.5f;
+    // t1/u1 only: WEIGHT_SCALE holds FP8 E4M3 codes (u8) instead of f16.
+    bool scales_fp8 = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, has_bias);
         seed = hash_combine(seed, has_zp);
         seed = hash_combine(seed, n_activated_experts);
+        seed = hash_combine(seed, weights_t1);
+        seed = hash_combine(seed, t1_k);
+        seed = hash_combine(seed, weights_u1);
+        seed = hash_combine(seed, u1_zp);
+        seed = hash_combine(seed, scales_fp8);
         return seed;
     }
 
@@ -48,7 +63,9 @@ struct gather_matmul : public primitive_base<gather_matmul> {
             return false;
         }
         auto rhs_casted = downcast<const gather_matmul>(rhs);
-        return has_bias == rhs_casted.has_bias && has_zp == rhs_casted.has_zp && n_activated_experts == rhs_casted.n_activated_experts;
+        return has_bias == rhs_casted.has_bias && has_zp == rhs_casted.has_zp && n_activated_experts == rhs_casted.n_activated_experts &&
+               weights_t1 == rhs_casted.weights_t1 && t1_k == rhs_casted.t1_k && weights_u1 == rhs_casted.weights_u1 &&
+               u1_zp == rhs_casted.u1_zp && scales_fp8 == rhs_casted.scales_fp8;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -56,6 +73,11 @@ struct gather_matmul : public primitive_base<gather_matmul> {
         ob << has_bias;
         ob << has_zp;
         ob << n_activated_experts;
+        ob << weights_t1;
+        ob << t1_k;
+        ob << weights_u1;
+        ob << u1_zp;
+        ob << scales_fp8;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -63,6 +85,11 @@ struct gather_matmul : public primitive_base<gather_matmul> {
         ib >> has_bias;
         ib >> has_zp;
         ib >> n_activated_experts;
+        ib >> weights_t1;
+        ib >> t1_k;
+        ib >> weights_u1;
+        ib >> u1_zp;
+        ib >> scales_fp8;
     }
 };
 }  // namespace cldnn

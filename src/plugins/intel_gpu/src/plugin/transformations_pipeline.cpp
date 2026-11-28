@@ -244,6 +244,10 @@
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/matmul.hpp"
@@ -448,6 +452,151 @@ bool has_shared_kv_cache_vars(const std::shared_ptr<ov::Model>& model) {
     }
     return false;
 }
+
+// GatherMatmulCompressed passes zero points to the oneDNN grouped matmul as a tensor shaped like the scales, in the
+// weights' type, and treats a single-element zero point as absent (ops/gather_matmul.cpp: has_zp = shape_size > 1), which
+// silently drops it. ConvertGatherMatmulToGatherMatmulCompressed keeps scalar zero points scalar, so any standalone
+// GatherMatmulCompressed with one (e.g. ternary experts: u2 codes, zero point 1) gets wrong results. Broadcast it to
+// the scales' shape in the weights' type (one zero point per group: negligible). Ternary u2 can instead go to base-3 t1.
+// u1 (binary) GatherMatmulCompressed for the u1 kernel: a scalar float zero point (e.g. 0.5 for {-1, +1} codes), no bias, K and the scale groups in whole 64-value blocks.
+bool gathermatmul_u1_supported(const std::shared_ptr<ov::Node>& node) {
+    if (node->get_input_size() < 6 || node->get_input_element_type(1) != ov::element::u1) {
+        return false;
+    }
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(5));
+    const auto scales = node->input_value(4);
+    if (!weights || !zp || !zp->get_element_type().is_real() || ov::shape_size(zp->get_shape()) != 1 ||
+        node->get_input_partial_shape(3).is_dynamic() || ov::shape_size(node->get_input_shape(3)) > 1 ||
+        scales.get_partial_shape().is_dynamic()) {
+        return false;
+    }
+    const auto& w_shape = weights->get_shape();
+    if (w_shape.size() != 3 || w_shape[2] % 64 != 0) {
+        return false;
+    }
+    const size_t groups = ov::shape_size(scales.get_shape()) / (w_shape[0] * w_shape[1]);
+    return groups > 0 && w_shape[2] % groups == 0 && (w_shape[2] / groups) % 64 == 0;
+}
+
+// u2 GatherMatmulCompressed that can run as base-3 ternary (t1): codes {0, 1, 2} only, scalar zero point 1,
+// no bias, K and the scale groups in whole 64-value blocks. u2 has no other GPU expert kernel (the oneDNN grouped
+// matmul has no u2 microkernel), so other u2 GatherMatmuls are left uncompressed.
+bool gathermatmul_u2_is_t1(const std::shared_ptr<ov::Node>& node) {
+    if (node->get_input_size() < 6 || node->get_input_element_type(1) != ov::element::u2) {
+        return false;
+    }
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(5));
+    const auto scales = node->input_value(4);
+    if (!weights || !zp || ov::shape_size(zp->get_shape()) != 1 || zp->cast_vector<int64_t>()[0] != 1 ||
+        node->get_input_partial_shape(3).is_dynamic() || ov::shape_size(node->get_input_shape(3)) > 1 ||
+        scales.get_partial_shape().is_dynamic()) {
+        return false;
+    }
+    const auto& w_shape = weights->get_shape();
+    if (w_shape.size() != 3 || w_shape[2] % 64 != 0) {
+        return false;
+    }
+    const size_t groups = ov::shape_size(scales.get_shape()) / (w_shape[0] * w_shape[1]);
+    if (groups == 0 || w_shape[2] % groups != 0 || (w_shape[2] / groups) % 64 != 0) {
+        return false;
+    }
+    const auto* raw = static_cast<const uint8_t*>(weights->get_data_ptr());
+    const size_t bytes = weights->get_byte_size();
+    for (size_t i = 0; i < bytes; ++i) {
+        if ((raw[i] & (raw[i] >> 1) & 0x55) != 0) {  // some 2-bit code equals 3
+            return false;
+        }
+    }
+    return true;
+}
+
+// u1 weights stay compressed only for the binary GatherMatmul kernel. A u1 constant that did not become a
+// GatherMatmulCompressed weight (a dense MatMul / FullyConnected: no u1 FC kernel here) gets its decompression
+// unmarked so the following ConstantFolding turns it into f16 as before.
+class FoldStrayU1Weights : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("FoldStrayU1Weights");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        bool changed = false;
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            if (!c || c->get_element_type() != ov::element::u1) {
+                continue;
+            }
+            bool expert = false;
+            for (const auto& in : c->output(0).get_target_inputs()) {
+                expert |= ov::is_type<ov::op::internal::GatherMatmulCompressed>(in.get_node()) && in.get_index() == 1;
+            }
+            if (expert) {
+                continue;
+            }
+            ov::disable_keep_const_precision(c);
+            std::vector<ov::Node*> frontier{c.get()};
+            for (int depth = 0; depth < 6 && !frontier.empty(); ++depth) {
+                std::vector<ov::Node*> next;
+                for (auto* n : frontier) {
+                    for (const auto& in : n->output(0).get_target_inputs()) {
+                        auto* user = in.get_node();
+                        if (!ov::is_type<ov::op::v0::Convert>(user) && !ov::is_type<ov::op::v1::Subtract>(user) &&
+                            !ov::is_type<ov::op::v1::Multiply>(user) && !ov::is_type<ov::op::v1::Reshape>(user)) {
+                            continue;
+                        }
+                        const auto sp = user->shared_from_this();
+                        ov::enable_constant_folding(sp);
+                        ov::unmark_dequantization_node(sp);
+                        ov::unmark_as_decompression(sp);
+                        next.push_back(user);
+                    }
+                }
+                frontier = std::move(next);
+            }
+            changed = true;
+        }
+        return changed;
+    }
+};
+
+class ExpandGatherMatmulScalarZeroPoint : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ExpandGatherMatmulScalarZeroPoint");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        bool changed = false;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::internal::GatherMatmulCompressed>(node) || node->get_input_size() < 6) {
+                continue;
+            }
+            const auto wei_type = node->get_input_element_type(1);
+            if (wei_type == ov::element::u1) {
+                if (gathermatmul_u1_supported(node)) {
+                    node->get_rt_info()["gpu_gathermatmul_u1"] = true;
+                }
+                continue;  // never broadcast a binary (float) zero point
+            }
+            const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(5));
+            const auto scales = node->input_value(4);
+            if (!zp || zp->get_element_type() == ov::element::dynamic || ov::shape_size(zp->get_shape()) != 1 ||
+                scales.get_partial_shape().is_dynamic() || ov::shape_size(scales.get_shape()) <= 1 || !wei_type.is_integral()) {
+                continue;
+            }
+            const auto value = zp->cast_vector<int64_t>()[0];
+            // Base-3 ternary (t1, 1.625 bits per weight): ops/gather_matmul.cpp repacks the constant.
+            if (wei_type == ov::element::u2 && gathermatmul_u2_is_t1(node)) {
+                node->get_rt_info()["gpu_gathermatmul_t1"] = true;
+                continue;
+            }
+            // oneDNN's grouped matmul takes u8/s8/u4/s4 zero points: u2/u3 weights get u8 ones
+            const auto zp_type = (wei_type == ov::element::u2 || wei_type == ov::element::u3) ? ov::element::u8 : wei_type;
+            auto full = ov::op::v0::Constant::create(zp_type, scales.get_shape(), {value});
+            full->set_friendly_name(zp->get_friendly_name() + "/broadcast");
+            ov::copy_runtime_info(zp, full);
+            node->input(5).replace_source_output(full);
+            changed = true;
+        }
+        return changed;
+    }
+};
 }  // namespace
 
 static bool should_decompose_sdpa_for_memory_size(size_t max_size,
@@ -991,8 +1140,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
+    // u1: binary MoE experts (GatherMatmul u1 kernel); other u1 weights fold to f16 (FoldStrayU1Weights)
     const ov::element::TypeVector supported_woq_types =
-        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
+        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2, ov::element::u1};
+
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
@@ -1080,7 +1231,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::TransposeMatMul>();
 
         manager.register_pass<ov::pass::MarkDequantization>(
-            std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2},
+            std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2, ov::element::u1},
             !device_info.supports_immad);
         if (config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p) {
             manager.register_pass<ov::pass::MarkDequantization>(
@@ -1099,9 +1250,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8,
-                                                                                    ov::element::u3};
+                                                                                    ov::element::u3,
+                                                                                    ov::element::u2,
+                                                                                    ov::element::u1};
+            // u2 runs only as base-3 ternary (t1) and u1 only on the binary kernel: no grouped-matmul kernel for either
+            std::vector<ov::element::Type> grouped_compressed_weights_types;
+            for (const auto& t : supported_compressed_weights_types) {
+                if (t != ov::element::u2 && t != ov::element::u1) {
+                    grouped_compressed_weights_types.push_back(t);
+                }
+            }
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
-                supported_compressed_weights_types);
+                grouped_compressed_weights_types);
 
             // With f16 inference precision, f32 and bf16 activations are also supported: the MoE passes run before ConvertPrecision,
             // which converts them to f16. With dynamic inference precision, the model activation types are kept as is.
@@ -1111,8 +1271,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
                                                                                  supported_activation_types);
-            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
-                                                                                         supported_compressed_weights_types);
+            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
+                supported_activation_types,
+                supported_compressed_weights_types,
+                [](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& bgm, size_t, size_t, size_t) {
+                    const auto wt = bgm->get_input_element_type(1);
+                    return (wt != ov::element::u2 || gathermatmul_u2_is_t1(bgm)) && (wt != ov::element::u1 || gathermatmul_u1_supported(bgm));
+                });
             manager.register_pass<ov::intel_gpu::FuseMoERouter>(supported_activation_types);
 
             if (!config.get_moe_disable_fusion()) {
@@ -1125,6 +1290,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
+            // Runs after the MoE fusions, which consume scalar zero points themselves.
+            manager.register_pass<ExpandGatherMatmulScalarZeroPoint>();
         }
 
         register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
@@ -1829,6 +1996,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (enableInt8 && infer_precision == ov::element::f16) {
             manager.register_pass<RemoveFakeQuantizeBeforeDepthwiseConv>();
         }
+
+        // u1 constants that did not become binary GatherMatmul weights fold to f16 as before
+        manager.register_pass<FoldStrayU1Weights>();
 
         manager.run_passes(func);
     }
