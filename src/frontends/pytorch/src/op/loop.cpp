@@ -8,14 +8,19 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
+
+using namespace ov::op;
 
 OutputVector translate_loop(const NodeContext& context) {
     const auto& inputs = context.inputs();
@@ -291,6 +296,103 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
 
     // In FX, while_loop returns a tuple that is accessed via getitem.
     // We wrap outputs in make_list_construct so getitem can extract individual elements.
+    return {context.mark_node(make_list_construct(outputs))};
+}
+
+OutputVector translate_scan_fx(const NodeContext& context) {
+    // torch.ops.higher_order.scan(combine_fn, init, xs, additional_inputs) calls
+    //     combine_fn(*carry, *x_slices, *additional_inputs) -> (*next_carry, *ys)
+    // once per slice of xs along dim 0, starting from carry = init, and returns (*final_carry, *stacked_ys).
+    //
+    // This maps onto ov::op::v5::Loop with the converted combine_fn as its body:
+    // - init              -> merged inputs (carried from one iteration to the next)
+    // - xs                -> sliced inputs along axis 0 (the body sees one slice, without axis 0)
+    // - additional_inputs -> invariant inputs
+    // - ys                -> concatenated outputs along axis 0
+    // The trip count is xs[0].shape[0], computed at runtime so a dynamic sequence length works.
+    auto decoder = context.get_decoder();
+    PYTORCH_OP_CONVERSION_CHECK(
+        decoder->get_subgraph_size() == 1,
+        "scan must have 1 subgraph (combine_fn), got " + std::to_string(decoder->get_subgraph_size()));
+    // The decoder flattens init, xs and additional_inputs into inputs(): it reports how many inputs each one became.
+    PYTORCH_OP_CONVERSION_CHECK(context.has_attribute("__openvino_hop_input_group_sizes"),
+                                "scan requires the decoder to report the sizes of init, xs and additional_inputs.");
+    const auto group_sizes = context.get_attribute<std::vector<int64_t>>("__openvino_hop_input_group_sizes");
+    PYTORCH_OP_CONVERSION_CHECK(
+        group_sizes.size() == 3,
+        "scan expects 3 input groups (init, xs, additional_inputs), got " + std::to_string(group_sizes.size()));
+    const auto num_init = static_cast<size_t>(group_sizes[0]);
+    const auto num_xs = static_cast<size_t>(group_sizes[1]);
+    const auto num_additional = static_cast<size_t>(group_sizes[2]);
+
+    const auto& inputs = context.inputs();
+    PYTORCH_OP_CONVERSION_CHECK(num_init + num_xs + num_additional == inputs.size(),
+                                "scan input group sizes do not add up to its number of inputs.");
+    PYTORCH_OP_CONVERSION_CHECK(num_xs > 0, "scan must have at least one xs to iterate over.");
+
+    auto body = context.convert_subgraph(0);
+    const auto body_params = body->get_parameters();
+    const auto body_results = body->get_results();
+    PYTORCH_OP_CONVERSION_CHECK(body_params.size() == inputs.size(),
+                                "scan combine_fn must take one parameter per input. Expected " +
+                                    std::to_string(inputs.size()) + ", got " + std::to_string(body_params.size()));
+    PYTORCH_OP_CONVERSION_CHECK(body_results.size() >= num_init,
+                                "scan combine_fn must return at least the next carry values.");
+
+    // Loop slices xs with part_size 1, so the body receives [1, ...]: squeeze axis 0 to give combine_fn the slice it
+    // expects. Each xs parameter is replaced with a new one that feeds that Squeeze.
+    auto axis_0 = v0::Constant::create(element::i64, Shape{1}, {0});
+    std::vector<std::shared_ptr<v0::Parameter>> sliced_params;
+    for (size_t i = num_init; i < num_init + num_xs; i++) {
+        const auto& param = body_params[i];
+        auto sliced_param = std::make_shared<v0::Parameter>(param->get_element_type(), PartialShape::dynamic());
+        sliced_param->set_friendly_name(param->get_friendly_name());
+        param->output(0).replace(std::make_shared<v0::Squeeze>(sliced_param, axis_0));
+        body->replace_parameter(body->get_parameter_index(param), sliced_param);
+        sliced_params.push_back(std::move(sliced_param));
+    }
+
+    // Each ys is one step's slice: unsqueeze axis 0 so Loop concatenates the steps into [seq, ...].
+    for (size_t i = num_init; i < body_results.size(); i++) {
+        const auto& result = body_results[i];
+        result->input(0).replace_source_output(std::make_shared<v0::Unsqueeze>(result->input_value(0), axis_0));
+    }
+
+    // scan always runs every step, so the body's condition is a constant true and there is no iteration counter.
+    auto body_condition = std::make_shared<v0::Result>(v0::Constant::create(element::boolean, Shape{}, {true}));
+    body->add_results({body_condition});
+
+    auto xs_shape = context.mark_node(std::make_shared<v3::ShapeOf>(inputs[num_init], element::i64));
+    auto trip_count = context.mark_node(std::make_shared<v8::Gather>(xs_shape,
+                                                                     v0::Constant::create(element::i64, Shape{}, {0}),
+                                                                     v0::Constant::create(element::i64, Shape{}, {0})));
+    auto execution_condition = v0::Constant::create(element::boolean, Shape{}, {true});
+
+    auto loop = std::make_shared<v5::Loop>(trip_count, execution_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports({-1, static_cast<int64_t>(body->get_result_index(body_condition))});
+
+    for (size_t i = 0; i < num_init; i++) {
+        loop->set_merged_input(body_params[i], inputs[i], body_results[i]);
+    }
+    for (size_t i = 0; i < num_xs; i++) {
+        loop->set_sliced_input(sliced_params[i], inputs[num_init + i], 0, 1, 1, -1, 0);
+    }
+    for (size_t i = num_init + num_xs; i < inputs.size(); i++) {
+        loop->set_invariant_input(body_params[i], inputs[i]);
+    }
+
+    OutputVector outputs;
+    for (size_t i = 0; i < num_init; i++) {
+        outputs.push_back(loop->get_iter_value(body_results[i], -1));
+    }
+    for (size_t i = num_init; i < body_results.size(); i++) {
+        outputs.push_back(loop->get_concatenated_slices(body_results[i], 0, 1, 1, -1, 0));
+    }
+    loop->validate_and_infer_types();
+    context.mark_node(loop);
+
+    // Like while_loop, scan returns a tuple that FX unpacks with getitem.
     return {context.mark_node(make_list_construct(outputs))};
 }
 
