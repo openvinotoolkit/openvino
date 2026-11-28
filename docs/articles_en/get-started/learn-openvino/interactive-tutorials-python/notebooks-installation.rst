@@ -35,12 +35,19 @@ The table below lists the supported operating systems and Python versions.
 | macOS 10.15.x versions or higher    |  3.11, 3.12, 3.13, 3.14, 3.15  |
 +-------------------------------------+--------------------------------+
 | Windows 10, 64-bit Pro, Enterprise  |  3.11, 3.12, 3.13, 3.14, 3.15  |
-+-------------------------------------+--------------------------------+
-| Windows 10, 64-bit Pro, Enterprise  |  3.11, 3.12                    |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
 | Windows Server 2016 or higher       |  3.11, 3.12                    |
 +-------------------------------------+--------------------------------+
+
+.. note::
+
+   Python 3.15 is currently supported by OpenVINO nightly builds only. The
+   default package index does not provide ``openvino`` wheels for Python
+   3.15 yet (the current release ships wheels for Python 3.10-3.14), so the
+   notebook ``pip install`` cells fail with "No matching distribution found
+   for openvino" on Python 3.15 unless the OpenVINO nightly wheel index is
+   used. With the default index, use Python 3.11-3.14.
 
 OpenVINO Notebooks also require Git. Follow the guide below for your
 operating system or environment.
