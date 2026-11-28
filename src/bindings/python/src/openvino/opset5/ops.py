@@ -265,21 +265,21 @@ def gru_sequence(
 ) -> Node:
     """Return a node which performs GRUSequence operation.
 
-    :param inputs: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
     :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    :param weights_w: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, 3*hidden_size, input_size].
-    :param weights_r: The tensor with weights for matrix multiplication operation with hidden state.
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, 3*hidden_size, hidden_size].
-    :param biases: The sum of biases (weight and recurrence).
+    :param B: The sum of biases (weight and recurrence).
               For linear_before_reset set True the shape is [num_directions, 4*hidden_size].
               Otherwise the shape is [num_directions, 3*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
-    :param activations: The list of three activation functions for gates.
+    :param activations: The list of two activation functions for gates.
     :param activations_alpha: The list of alpha parameters for activation functions.
     :param activations_beta: The list of beta parameters for activation functions.
     :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
