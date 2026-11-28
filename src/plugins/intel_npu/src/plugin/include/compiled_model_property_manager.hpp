@@ -37,6 +37,8 @@ public:
 private:
     void registerProperties();
 
+    void checkRawBlobExportSupported() const;
+
     Config _config;
 
     const std::shared_ptr<IDevice> _device;

@@ -71,6 +71,12 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                         property.first);
         propertyDescriptorIt->second.set(property.second);
     }
+
+    // NPU_EXPORT_RAW_BLOB can also be provided when the model is compiled (or imported), in which case it does not go
+    // through its setter. Check it here, so that a compiled model can only hold it if it can be exported as a raw blob.
+    if (_config.get<EXPORT_RAW_BLOB>()) {
+        checkRawBlobExportSupported();
+    }
 }
 
 void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
@@ -115,6 +121,24 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
 Config CompiledModelPropertyManager::getConfig() const {
     std::lock_guard<std::mutex> lock(_mutex);
     return _config;
+}
+
+void CompiledModelPropertyManager::checkRawBlobExportSupported() const {
+    OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+    OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF,
+                    "Cannot export a raw blob (",
+                    ov::intel_npu::export_raw_blob.name(),
+                    "): the compiled model does not contain an ELF blob.");
+    OPENVINO_ASSERT(_graph->get_kind() == GraphKind::Weightful,
+                    "Cannot export a raw blob (",
+                    ov::intel_npu::export_raw_blob.name(),
+                    "): the compiled model is a ",
+                    to_string(_graph->get_kind()),
+                    " one and requires metadata to be exported.");
+    OPENVINO_ASSERT(!_batchSize.has_value(),
+                    "Cannot export a raw blob (",
+                    ov::intel_npu::export_raw_blob.name(),
+                    "): the compiled model holds batch information that requires metadata to be exported.");
 }
 
 void CompiledModelPropertyManager::registerProperties() {
@@ -172,7 +196,6 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false, true);
     registerConfigProperty(ENABLE_STRIDES_FOR{}, true, true);
     registerConfigProperty(ENABLE_WEIGHTLESS{}, true, true);
-    registerConfigProperty(EXPORT_RAW_BLOB{}, true, true);
     registerConfigProperty(IMPORT_RAW_BLOB{}, true, true);
     registerConfigProperty(PERF_COUNT{}, true, true);
     registerConfigProperty(PLATFORM{}, true, true);
@@ -241,6 +264,21 @@ void CompiledModelPropertyManager::registerProperties() {
             if (_graph != nullptr) {
                 _graph->set_workload_type(value.as<ov::WorkloadType>());
             }
+        }
+    );
+    register_property(ov::intel_npu::export_raw_blob.name(), false, ov::PropertyMutability::RW,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::export_raw_blob.name());
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<EXPORT_RAW_BLOB>();
+        },
+        [this](const ov::Any& value) {
+            const bool enableRawBlobExport = value.as<bool>();
+            if (enableRawBlobExport) {
+                checkRawBlobExportSupported();
+            }
+            _config.update(ov::intel_npu::export_raw_blob.name(), enableRawBlobExport);
         }
     );
     register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
