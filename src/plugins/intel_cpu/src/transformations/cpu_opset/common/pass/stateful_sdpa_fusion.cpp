@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -35,6 +36,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -321,9 +323,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         // past_k & past_v must be reordered by same beam_idx
         const auto gather_k_node =
-            ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::util::GatherBase>(pattern_map.at(gather_input_k).get_node_shared_ptr());
         const auto gather_v_node =
-            ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::util::GatherBase>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+        OPENVINO_ASSERT(gather_k_node && gather_v_node, "StatefulSDPAFusion: expected Gather nodes for K and V");
         if (gather_k_node->input_value(1) != gather_v_node->input_value(1) ||
             gather_k_node->get_output_target_inputs(0).size() != 1 ||
             gather_v_node->get_output_target_inputs(0).size() != 1) {

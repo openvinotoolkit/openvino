@@ -42,7 +42,7 @@ public:
         auto dilation = primitive->dilations;
         dilation.resize(spatial_rank, 1);
 
-        const auto& pad = primitive->pad;
+        const auto pad = deconvolution_inst::get_pads_begin(impl_param);
         const auto& groups = primitive->groups;
 
         auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param, primitive->grouped_weights_shape);
@@ -50,7 +50,13 @@ public:
         params.groups = groups;
 
         const auto weights_idx = 1 + 0;
-        const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
+        const auto& original_weights_layout = impl_param.input_layouts[weights_idx];
+        const auto weights_layout = get_deconvolution_weights_layout(original_weights_layout, primitive->grouped_weights_shape);
+        // 1D grouped weights were extended to 5D: describe them the same way to the kernel and to the weights reorder
+        if (weights_layout.get_rank() != original_weights_layout.get_rank()) {
+            params.weights = convert_weights_tensor(weights_layout, true);
+        }
+
         uint32_t kx = static_cast<uint32_t>(weights_layout.spatial(0));
         uint32_t ky = static_cast<uint32_t>(weights_layout.spatial(1));
         uint32_t kz = static_cast<uint32_t>(weights_layout.spatial(2));

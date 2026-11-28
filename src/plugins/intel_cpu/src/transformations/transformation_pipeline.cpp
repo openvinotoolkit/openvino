@@ -45,6 +45,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -207,6 +208,7 @@
 #    include "low_precision/fold_convert.hpp"
 #    include "low_precision/fuse_convert.hpp"
 #    include "low_precision/weightable_layer_transformation.hpp"
+#    include "nodes/gated_residual.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/qkv_proj.h"
 #    include "onednn/dnnl.h"
@@ -217,6 +219,7 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
+#    include "transformations/common_optimizations/gated_residual_fusion.hpp"
 #    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -322,7 +325,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static()) ||
-               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static());
+               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::internal::GatedResidual::get_type_info_static());
     };
 
     const auto consumers = node->get_output_target_inputs(0);
@@ -477,8 +481,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager("CPU:DecompressionHandling");
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
-    // Match before no-op elimination can remove a zero-offset Add from a valid hash block.
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::NGramHashFunctionFusion);
     const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
@@ -604,6 +606,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseQSAIndexer, false);
     CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
+    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights. The WRITE pattern
+    // stays eltwise (its Add is moved next to the Multiply), so the CPU Eltwise fusion can take it.
+    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion, false /* fuse_write */);
+    CPU_SET_CALLBACK_X64(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            std::string errorMsg;
+            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
+        },
+        ov::pass::GatedResidualReadFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
@@ -991,6 +1003,10 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     lowPrecPass->add_markup<AlignUnsupportedLPConvFQPrecision>();
 #endif
+    // Gathers that GatherTransformation can't handle (e.g. a per-row scale with non-constant indices) are converted to
+    // GatherCompressed here, otherwise the final ConstantFolding of LPT would decompress the u8/i8 weights.
+    lowPrecPass->add_main<ov::pass::ConvertGatherToGatherCompressed>(
+        std::vector<ov::element::Type>{ov::element::u8, ov::element::i8});
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, ConvertFullyConnectedBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);

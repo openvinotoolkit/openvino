@@ -20,6 +20,9 @@ class PrefetchStreamBuf : public std::streambuf {
 public:
     explicit PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch = true);
 
+    /** @brief Whether @p tensor can be prefetched: 1D, 8-bit elements, with memory hints. */
+    static bool is_supported(const ov::Tensor& tensor);
+
     void keep_read_data() noexcept {
         if (m_scheduler) {
             m_scheduler->keep_read_data();

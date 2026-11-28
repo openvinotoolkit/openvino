@@ -23,9 +23,11 @@ per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-
 
 | Fixtures | llama.cpp CPU oracle |
 |---|---|
-| Decoder/embedding fixtures other than the Mamba and Prism cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| Decoder/embedding fixtures other than the cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| `lfm2-encoder`, `lfm2-embed-mean`, `lfm2-embed-cls`, `lfm2-embed-last`, `lfm2-colbert`, `lfm3-d1` | Upstream `604cc430239c76ff636c443e3400bf552b750421` |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
+| `inkling2`, `inkling2-loop`, `inkling2-loop-varying` | Upstream `a6ac41c757c066941766164439f6876f2deaab04` |
 
 The cases use distinct nonzero weights and nonuniform norm scales, four query heads,
 grouped-query attention (single KV head for Gemma), and token batches `[1,2,3]`, `[4]`,
@@ -36,6 +38,19 @@ NoPE layer. ERNIE omits `expert_shared_count`, as the real 21B checkpoint does. 
 covers sigmoid routing, biased selection, group filtering, and a shared expert. EXAONE MoE
 also covers sigmoid routing with scale 2.5 and trailing NextN tensors; MiniMax and Hunyuan
 omit expert-normalization metadata to exercise their mandatory normalization defaults.
+
+Inkling fixtures cover full/sliding NoPE attention, relative bias, learned attention sinks,
+norm clipping, depth residual mixing, static/dynamic short convolutions and sigmoid/SITU MoE.
+Mini's fixed three-pass loop and varying one-pass loop share weights but retain separate
+per-pass cache/state slots. The varying fixture also uses per-layer expert-count metadata
+and zero expert scaling (the upstream no-scaling sentinel), plus squeezed single-query
+residual weights as exported by the real Mini checkpoint.
+All three run state-reset replay. Regenerate only these cases with their pinned oracle:
+
+```sh
+PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_arch_accuracy.py \
+    --oracle ./architecture_oracle --architectures inkling2 inkling2-loop inkling2-loop-varying
+```
 
 Devstral adds three configurations under the existing `llama` and `mistral3` families.
 Small models use unequal embedding/query widths. Devstral Small 2 crosses reduced original-context
@@ -107,7 +122,9 @@ Set `OV_GGUF_ACCURACY_DATA` to that directory and filter the test to that archit
 This performs prefill plus twelve reference-token decode steps, requires the same first
 prediction and at least 90% matching greedy choices, and records per-step normalized MSE.
 It does not claim exact logit agreement for the frontend's lossy quantized-weight path.
-Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
+Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons. A real checkpoint runs on CPU with
+F32 inference by default; `OV_GGUF_ACCURACY_DEVICE=GPU` compiles it on that device with the
+device's default inference precision and records the device in the XML report.
 
 For the embedding checkpoint, put `llama-embed.gguf` and the output of
 `embedding_oracle llama-embed.gguf llama-embed.bin "<prompt>"` in a directory and set
@@ -119,6 +136,14 @@ and random seed 20261014. They cover four hybrid layers, four query/two KV heads
 three/four-tap convolution caches, a two-token attention window, dense leading layers,
 selection bias and normalized softmax/sigmoid expert weights. The sigmoid case includes
 expert-scale metadata that llama.cpp's LFM2 MoE loader ignores.
+
+Noncausal LFM fixtures set `<arch>.attention.causal=false` and use three-tap centered
+convolutions. `lfm2-encoder` returns per-token rows; `lfm2-embed-mean`, `-cls` and `-last`
+pool them, the mean case through a biased `dense_2` projection, and `lfm2-colbert` projects
+every token to `embedding_length_out`. `lfm3-d1` evaluates tokens `1..6` in one batch with
+`architecture_oracle <model> <out> --whole-prompt`, which writes the vocabulary size and every
+token's logits; its sliding-window layers cross the two-token window while full-attention
+layers stay bidirectional.
 
 `afmoe.npz` was extracted from OpenVINO donor `c4a023aeac0302c283295ba241ddee5af5ca4a0b`.
 It covers four layers (one dense, three routed/shared MoE), four query/two KV heads,

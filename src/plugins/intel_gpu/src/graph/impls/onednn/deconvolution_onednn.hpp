@@ -85,6 +85,12 @@ struct DeconvolutionImplementationManager : public ImplementationManager {
             return false;
         }
 
+        // Grouped weights of a 1D deconvolution are 4D ([g, o, i, x], see get_deconvolution_weights_layout()), which are
+        // not described to oneDNN as grouped weights
+        if (prim->grouped_weights_shape && deconv_node.weights().get_output_layout(false).get_rank() == 4) {
+            return false;
+        }
+
         auto spatial_dims_num = input_layout.get_partial_shape().size() - 2;
 
         if (spatial_dims_num > 3) {

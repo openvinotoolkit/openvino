@@ -523,16 +523,17 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     name_probe_outputs(m.model);
     ov::Core core;
     auto request = core.compile_model(m.model, "CPU").create_infer_request();
-    // The second sequence has two left-padding columns and one current token.
-    for (size_t past : {0, 2}) {
+    // The second sequence has two left-padding columns and one current token. One-based
+    // positions, as HF Gemma3 VLMs use, must produce the same masks.
+    for (const auto& [origin, past] : std::vector<std::pair<int64_t, size_t>>{{0, 0}, {0, 2}, {1, 0}, {1, 2}}) {
         ov::Tensor ids(ov::element::i64, {2, 3}), positions(ov::element::i64, {2, 3});
         ov::Tensor attention(ov::element::i64, {2, past + 3}), beams(ov::element::i32, {2});
         std::fill_n(ids.data<int64_t>(), ids.get_size(), 1);
         std::fill_n(attention.data<int64_t>(), attention.get_size(), 1);
         attention.data<int64_t>()[past + 3] = attention.data<int64_t>()[past + 4] = 0;
         for (size_t i = 0; i < 3; ++i) {
-            positions.data<int64_t>()[i] = past + i;
-            positions.data<int64_t>()[3 + i] = std::max<int64_t>(0, int64_t(past + i) - 2);
+            positions.data<int64_t>()[i] = origin + past + i;
+            positions.data<int64_t>()[3 + i] = origin + std::max<int64_t>(0, int64_t(past + i) - 2);
         }
         beams.data<int32_t>()[0] = 0;
         beams.data<int32_t>()[1] = 1;
@@ -1142,6 +1143,7 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
         auto row_out = req.get_tensor(row_result->output(0));
         auto logits = req.get_tensor("logits");
 
+        EXPECT_EQ(row_out.get_shape(), (ov::Shape{1, 1, 1, static_cast<size_t>(hidden)}));
         ASSERT_EQ(row_out.get_size(), (size_t)hidden);
         ASSERT_EQ(logits.get_shape(), (ov::Shape{1, 1, 1}));
         const float* data = row_out.data<float>();
@@ -1164,6 +1166,7 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
         auto row_out = req.get_tensor(row_result->output(0));
         auto logits = req.get_tensor("logits");
 
+        EXPECT_EQ(row_out.get_shape(), (ov::Shape{T, 1, 1, static_cast<size_t>(hidden)}));
         ASSERT_EQ(row_out.get_size(), T * (size_t)hidden);
         ASSERT_EQ(logits.get_shape(), (ov::Shape{T, 1, 1}));
         const float* data = row_out.data<float>();

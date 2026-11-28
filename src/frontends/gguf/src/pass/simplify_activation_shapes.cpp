@@ -31,6 +31,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
@@ -71,7 +72,7 @@ ov::Output<ov::Node> unwrapped(const ov::Output<ov::Node>& value) {
 bool feeds_matmul(const ov::Node& node) {
     const auto targets = node.output(0).get_target_inputs();
     return std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& target) {
-        return ov::is_type<ov::op::v0::MatMul>(target.get_node());
+        return ov::is_type_any_of<ov::op::v0::MatMul, ov::op::internal::GatherMatmul>(target.get_node());
     });
 }
 

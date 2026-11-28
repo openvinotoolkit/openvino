@@ -18,7 +18,7 @@ from pathlib import Path
 import gguf
 import numpy as np
 
-from mmproj_fixtures import TensorWriter, finish, merge_window_order, muse_glimmer_indices, save_npz, split_variants, lfm2_audio_positions
+from mmproj_fixtures import TensorWriter, finish, merge_window_order, muse_glimmer_indices, inkling_vision_indices, save_npz, split_variants, lfm2_audio_positions
 
 SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro", "mlp", "mlp_norm", "mlp_feature",
                "qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma", "qwen2vl_merger",
@@ -27,8 +27,8 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
 GEMMA3NV_FAMILIES = ("gemma3nv", "gemma3nv_uir", "gemma3nv_attention")
-TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
-            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
+TWO_GRID = ("inkling2v", "muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
+            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "minicpm_ocr_1_0_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", "gemma3nv_attention",
             "gemma3nv_uir", *REGRIDDED)
 
@@ -291,6 +291,43 @@ OPS_EXPECTATIONS = {
 }
 
 
+def write_inkling_vision_model(path):
+    w = gguf.GGUFWriter(path, "clip")
+    t = TensorWriter(w, np.random.default_rng(20261124))
+    width, hidden = 32, 48
+    w.add_bool("clip.has_vision_encoder", True)
+    w.add_string("clip.projector_type", "inkling2v")
+    w.add_bool("clip.use_gelu", True)
+    for name, value in {"embedding_length": width, "feed_forward_length": hidden,
+                        "block_count": 2, "projection_dim": 12, "attention.head_count": 4,
+                        "image_size": 6, "patch_size": 2, "spatial_merge_size": 2}.items():
+        w.add_uint32("clip.vision." + name, value)
+    w.add_float32("clip.vision.attention.layer_norm_epsilon", 1e-5)
+    w.add_array("clip.vision.image_mean", [.5, .5, .5])
+    w.add_array("clip.vision.image_std", [.5, .5, .5])
+    t.tensor("v.patch_embd.weight", (width, 3, 2, 2))
+    t.tensor("v.patch_embd.bias", (width,))
+    t.tensor("v.position_embd.weight", (9, width))
+    t.tensor("v.class_embd", (width,))
+    t.tensor("v.class_position_embd.weight", (width,))
+    t.norm("v.pre_ln", width)
+    t.norm("v.post_ln", width)
+    for layer in range(2):
+        p = f"v.blk.{layer}."
+        t.norm(p + "ln1", width)
+        t.norm(p + "ln2", width)
+        for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
+            t.linear(p + name, width, width)
+        t.tensor(p + "ls1.weight", (width,), True)
+        t.tensor(p + "ls2.weight", (width,), True)
+        t.linear(p + "ffn_up", width, hidden)
+        t.linear(p + "ffn_down", hidden, width)
+    t.linear("mm.1", width * 4, 40, False)
+    t.linear("mm.2", 40, 12, False)
+    finish(w)
+    return 12
+
+
 def write_muse_model(path):
     """Muse Glimmer: sparse/global windows, two-axis RoPE and pixel-shuffle merging."""
     w = gguf.GGUFWriter(path, "clip")
@@ -333,6 +370,8 @@ def write_muse_model(path):
 
 
 def write_grid_model(path, family):
+    if family == "inkling2v":
+        return write_inkling_vision_model(path)
     if family == "lfm2a":
         w = gguf.GGUFWriter(path, "clip")
         t = TensorWriter(w, np.random.default_rng(2718))
@@ -495,7 +534,7 @@ def write_grid_model(path, family):
     else:
         w.add_uint32(key + "image_size", 8)
         w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
-        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7"} and "_4x" not in variants else 2)
+        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7", "minicpm_ocr_1_0"} and "_4x" not in variants else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
         w.add_array(key + "image_mean", [.5, .5, .5])
@@ -574,7 +613,7 @@ def write_grid_model(path, family):
                 w.add_uint32(key + "spatial_merge_size", 2)
                 norm("mm.input_norm", width, False)
                 linear("mm.patch_merger", width * 4, width, False)
-        elif family in {"minicpmv4_6", "minicpmv4_7"}:
+        elif family in {"minicpmv4_6", "minicpmv4_7", "minicpm_ocr_1_0"}:
             tensor("v.position_embd.weight", (4900, width))
             w.add_array(key + "wa_layer_indexes", [0])
             p = "v.vit_merger."
@@ -650,6 +689,10 @@ def write_speaker_model(path):
 
 
 def grid_inputs(family, width, height, seed=42):
+    if family == "inkling2v":
+        raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
+        return raw, {"pixel_values": raw.transpose(2, 0, 1)[None],
+                     **inkling_vision_indices(height // 2, width // 2, 2)}
     if family == "lfm2a":
         raw = np.random.default_rng(42).normal(.1, .4, (height, width)).astype(np.float32)
         return raw, {"features": raw.reshape(1, 1, height, width),
@@ -706,7 +749,7 @@ def grid_inputs(family, width, height, seed=42):
     if family.startswith(("pixtral", "gemma4")):
         result.update(position_x=cols.astype(np.int32).reshape(1, 1, 1, -1),
                       position_y=rows.astype(np.int32).reshape(1, 1, 1, -1))
-    if family in {"minicpmv4_6", "minicpmv4_7"}:
+    if family in {"minicpmv4_6", "minicpmv4_7", "minicpm_ocr_1_0"}:
         result["position_ids"] = (70 * (70 * rows // h) + 70 * cols // w).astype(np.int32).reshape(1, 1, 1, -1)
         order = merge_window_order(h, w)
         result["window_indices"] = np.array(order, np.int32).reshape(1, 1, 1, -1)

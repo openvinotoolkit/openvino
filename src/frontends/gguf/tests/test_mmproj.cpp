@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <locale>
 #include <sstream>
 #include <unordered_map>
 
@@ -51,6 +52,24 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace {
+class CommaDecimalPoint : public std::numpunct<char> {
+protected:
+    char do_decimal_point() const override {
+        return ',';
+    }
+};
+
+class ScopedGlobalLocale {
+public:
+    explicit ScopedGlobalLocale(const std::locale& locale) : m_previous(std::locale::global(locale)) {}
+    ~ScopedGlobalLocale() {
+        std::locale::global(m_previous);
+    }
+
+private:
+    std::locale m_previous;
+};
+
 class GGUFMMProj : public ::testing::Test {
 protected:
     ov_gguf_test::GgufWriter writer;
@@ -62,19 +81,25 @@ protected:
     }
     void TearDown() override {
         std::filesystem::remove(path);
+        std::filesystem::remove(path + ".baseline.gguf");
         std::filesystem::remove(path + ".xml");
         std::filesystem::remove(path + ".bin");
     }
     void weight(const std::string& name, const std::vector<uint64_t>& dims, bool norm = false) {
         writer.filled_tensor(name, dims, norm, 0.01f);
     }
-    void encoder(const std::string& modality, const std::string& projector, uint64_t positions = 16) {
+    void encoder(const std::string& modality,
+                 const std::string& projector,
+                 uint64_t positions = 16,
+                 bool legacy_ffn_names = false,
+                 uint32_t ffn_width = 12,
+                 bool zero_ffn_weights = false) {
         const auto meta = "clip." + modality + ".";
         const auto p = modality == "vision" ? std::string("v.") : std::string("a.");
         writer.kv_bool("clip.has_" + modality + "_encoder", true);
         writer.kv_str(meta + "projector_type", projector);
         writer.kv_u32(meta + "embedding_length", 8);
-        writer.kv_u32(meta + "feed_forward_length", 12);
+        writer.kv_u32(meta + "feed_forward_length", ffn_width);
         writer.kv_u32(meta + "block_count", 1);
         writer.kv_u32(meta + "projection_dim", 6);
         writer.kv_u32(meta + "attention.head_count", 2);
@@ -86,8 +111,15 @@ protected:
         }
         for (const auto* n : {"attn_q", "attn_k", "attn_v", "attn_out"})
             weight(p + "blk.0." + n + ".weight", {8, 8});
-        weight(p + "blk.0.ffn_up.weight", {8, 12});
-        weight(p + "blk.0.ffn_down.weight", {12, 8});
+        const auto up = p + "blk.0.ffn_" + (legacy_ffn_names ? "down" : "up") + ".weight";
+        const auto down = p + "blk.0.ffn_" + (legacy_ffn_names ? "up" : "down") + ".weight";
+        if (zero_ffn_weights) {
+            writer.tensor(up, {8, ffn_width});
+            writer.tensor(down, {ffn_width, 8});
+        } else {
+            weight(up, {8, ffn_width});
+            weight(down, {ffn_width, 8});
+        }
         if (modality == "vision") {
             writer.kv_u32(meta + "image_size", 8);
             writer.kv_u32(meta + "patch_size", 2);
@@ -106,10 +138,55 @@ protected:
             weight("mm.a.fc.bias", {6});
         }
     }
-    std::shared_ptr<ov::Model> convert() {
-        EXPECT_TRUE(writer.write(path));
+    std::shared_ptr<ov::Model> convert(const std::string& suffix = {}) {
+        const auto model_path = path + suffix;
+        OPENVINO_ASSERT(writer.write(model_path), "Failed to write GGUF test model: ", model_path);
         ov::frontend::gguf::FrontEnd frontend;
-        return frontend.convert(frontend.load(path));
+        return frontend.convert(frontend.load(model_path));
+    }
+    void add_resampler_weights() {
+        writer.kv_u32("clip.minicpmv_version", 3);
+        writer.kv_u32("clip.minicpmv_query_num", 3);
+        weight("resampler.query", {128, 3});
+        weight("resampler.kv.weight", {8, 128});
+        weight("resampler.proj.weight", {128, 128});
+        for (const auto* name : {"q", "k", "v", "out"}) {
+            weight(std::string("resampler.attn.") + name + ".weight", {128, 128});
+            weight(std::string("resampler.attn.") + name + ".bias", {128});
+        }
+        for (const auto* name : {"q", "kv", "post"}) {
+            weight(std::string("resampler.ln_") + name + ".weight", {128}, true);
+            weight(std::string("resampler.ln_") + name + ".bias", {128});
+        }
+    }
+    std::vector<float> infer_resampler(const std::shared_ptr<ov::Model>& model) {
+        auto request = ov::Core()
+                           .compile_model(model,
+                                          "CPU",
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::hint::dynamic_quantization_group_size(0),
+                                          ov::inference_num_threads(2))
+                           .create_infer_request();
+        ov::Tensor pixels(ov::element::f32, {1, 3, 4, 8});
+        for (size_t i = 0; i < pixels.get_size(); ++i)
+            pixels.data<float>()[i] = .03f * std::sin(float(i));
+        request.set_tensor("vision.pixel_values", pixels);
+        ov::Tensor ids(ov::element::i32, {1, 1, 1, 8});
+        ov::Tensor pos_h(ov::element::f32, {1, 1, 8, 1});
+        ov::Tensor pos_w(ov::element::f32, {1, 1, 8, 1});
+        for (size_t i = 0; i < 8; ++i) {
+            ids.data<int32_t>()[i] = int32_t(i);
+            pos_h.data<float>()[i] = float(i / 4);
+            pos_w.data<float>()[i] = float(i % 4);
+        }
+        request.set_tensor("vision.position_ids", ids);
+        request.set_tensor("vision.position_h", pos_h);
+        request.set_tensor("vision.position_w", pos_w);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        EXPECT_EQ(output.get_shape(), (ov::Shape{1, 1, 3, 128}));
+        const auto* values = output.data<const float>();
+        return std::vector<float>(values, values + output.get_size());
     }
     void gemma3n_vision() {
         writer.kv_bool("clip.has_vision_encoder", true);
@@ -123,6 +200,79 @@ protected:
         weight("mm.input_projection.weight", {8, 6});
     }
 };
+
+TEST_F(GGUFMMProj, SeparatorWeightsPreserveMetadataAndNativeEmbeddings) {
+    encoder("vision", "gemma3");
+    auto baseline = convert(".baseline.gguf");
+    ov::Core core;
+    ov::Tensor pixels(ov::element::f32, {1, 3, 8, 8});
+    for (size_t i = 0; i < pixels.get_size(); ++i)
+        pixels.data<float>()[i] = .03f * std::sin(float(i));
+    const auto infer = [&](const std::shared_ptr<ov::Model>& candidate) {
+        auto request = core.compile_model(candidate,
+                                          "CPU",
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::hint::dynamic_quantization_group_size(0),
+                                          ov::inference_num_threads(2))
+                           .create_infer_request();
+        request.set_input_tensor(pixels);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        const auto* values = output.data<const float>();
+        return std::vector<float>(values, values + output.get_size());
+    };
+    const auto expected = infer(baseline);
+    for (const auto* name : {"v.image_newline", "v.view_seperator", "model.image_newline"})
+        EXPECT_FALSE(baseline->has_rt_info({"gguf_mmproj", name}));
+    writer.tensor("v.image_newline", {6}, {1.f, .5f, -2.f, 0.f, 4.f, -.25f});
+    writer.tensor("model.image_newline", {6}, {2.f, -3.f, .125f, 4.f, 0.f, -.75f});
+    const std::vector<ov::float16> separator{3.f, -1.f, .25f, 2.f, 0.f, -.5f};
+    const auto* bytes = reinterpret_cast<const uint8_t*>(separator.data());
+    constexpr uint32_t ggml_f16 = 1;
+    writer.raw_tensor("v.view_seperator",
+                      {6},
+                      ggml_f16,
+                      std::vector<uint8_t>(bytes, bytes + separator.size() * sizeof(ov::float16)));
+    auto model = convert();
+    ASSERT_EQ(model->inputs().size(), 1);
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->input().get_names(), baseline->input().get_names());
+    EXPECT_EQ(model->input().get_partial_shape(), baseline->input().get_partial_shape());
+    EXPECT_EQ(model->output().get_names(), baseline->output().get_names());
+    EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 1, 4, 6}));
+    EXPECT_EQ(model->get_ordered_ops().size(), baseline->get_ordered_ops().size());
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "v.image_newline"}), "1,0.5,-2,0,4,-0.25");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "v.view_seperator"}), "3,-1,0.25,2,0,-0.5");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "model.image_newline"}), "2,-3,0.125,4,0,-0.75");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = core.read_model(path + ".xml");
+    for (const auto* name : {"v.image_newline", "v.view_seperator", "model.image_newline"})
+        EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", name}),
+                  model->get_rt_info<std::string>({"gguf_mmproj", name}));
+    for (const auto& candidate : {model, restored}) {
+        const auto adapted = ov::frontend::gguf::adapt_to_genai(candidate).at("vision_embeddings");
+        for (const auto* name : {"v.image_newline", "v.view_seperator", "model.image_newline"})
+            EXPECT_EQ(adapted->get_rt_info<std::string>({"gguf_mmproj", name}),
+                      model->get_rt_info<std::string>({"gguf_mmproj", name}));
+    }
+    for (const auto& candidate : {baseline, model, restored}) {
+        const auto values = infer(candidate);
+        ASSERT_EQ(values.size(), expected.size());
+        for (size_t i = 0; i < expected.size(); ++i)
+            EXPECT_NEAR(values[i], expected[i], 1e-6f) << i;
+    }
+}
+
+TEST_F(GGUFMMProj, SeparatorWeightsUseClassicLocale) {
+    encoder("vision", "gemma3");
+    writer.tensor("v.image_newline", {3}, {1.f, .5f, -.25f});
+    std::shared_ptr<ov::Model> model;
+    {
+        ScopedGlobalLocale locale(std::locale(std::locale::classic(), new CommaDecimalPoint));
+        model = convert();
+    }
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "v.image_newline"}), "1,0.5,-0.25");
+}
 
 TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
     encoder("vision", "minicpmv4_7", 4900);
@@ -279,7 +429,10 @@ TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
     for (size_t i = 0; i < output.get_size(); ++i)
         EXPECT_FLOAT_EQ(output.data<float>()[i], 6.0f);
     FrontEnd isolated;
-    OV_EXPECT_THROW(isolated.convert(isolated.load(path)), ov::Exception, testing::HasSubstr("custom-audio"));
+    auto vision_only = isolated.convert(isolated.load(path));
+    ASSERT_EQ(vision_only->outputs().size(), 1);
+    EXPECT_EQ(vision_only->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "custom-audio");
+    EXPECT_EQ(vision_only->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
 }
 
 TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
@@ -1554,11 +1707,90 @@ TEST(GGUFMMProjLayout, RejectsUnexpectedQwenNormalizationWithoutChangingModel) {
     }
 }
 
-TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
+TEST_F(GGUFMMProj, UnsupportedSecondModalityIsSkippedAndRecorded) {
     encoder("vision", "gemma3");
     writer.kv_bool("clip.has_audio_encoder", true);
     writer.kv_str("clip.audio.projector_type", "unsupported_audio");
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
+    auto model = convert();
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "vision.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "unsupported_audio");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
+    const auto components = ov::frontend::gguf::adapt_to_genai(model);
+    ASSERT_EQ(components.size(), 1);
+    EXPECT_EQ(components.count("vision_embeddings"), 1);
+}
+
+TEST_F(GGUFMMProj, FileWithoutSupportedProjectorIsRejected) {
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "unsupported_vision");
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "unsupported_audio");
+    OV_EXPECT_THROW(convert(),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("vision 'unsupported_vision'"),
+                                   testing::HasSubstr("audio 'unsupported_audio'")));
+
+    writer.kv_bool("clip.has_gen_audio_encoder", true);
+    writer.kv_str("clip.gen.audio.projector_type", "unknown_gen");
+    OV_EXPECT_THROW(convert(),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("unsupported generated audio projector 'unknown_gen'"),
+                                   testing::HasSubstr("vision 'unsupported_vision'"),
+                                   testing::HasSubstr("audio 'unsupported_audio'")));
+}
+
+TEST_F(GGUFMMProj, UnmatchedProjectorIsSkippedAndFailingProjectorIsFatal) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "custom-vision");
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "custom-audio");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition vision{"clip.vision.custom",
+                               "clip",
+                               "vision",
+                               "custom-vision",
+                               [](GgufGraphContext&) -> ProjectorResult {
+                                   OPENVINO_THROW("malformed vision projector");
+                               },
+                               [](const GgufMetadata&) {
+                                   return false;
+                               }};
+    const ProjectorDefinition audio{
+        "clip.audio.custom",
+        "clip",
+        "audio",
+        "custom-audio",
+        [](GgufGraphContext& graph) {
+            auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 3});
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}}), {}};
+        },
+        {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(vision));
+    frontend.add_extension(std::make_shared<ProjectorExtension>(audio));
+    auto model = frontend.convert(frontend.load(path));
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.supported"}), "false");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    for (const auto& source : {model, restored}) {
+        const auto components = adapt_to_genai(source->clone());
+        ASSERT_EQ(components.size(), 1);
+        EXPECT_EQ(components.count("audio_embeddings"), 1);
+        EXPECT_EQ(components.count("vision_embeddings"), 0);
+    }
+
+    vision.match = {};
+    FrontEnd failing;
+    failing.add_extension(std::make_shared<ProjectorExtension>(vision));
+    failing.add_extension(std::make_shared<ProjectorExtension>(audio));
+    OV_EXPECT_THROW(failing.convert(failing.load(path)),
+                    ov::Exception,
+                    testing::HasSubstr("malformed vision projector"));
 }
 
 TEST_F(GGUFMMProj, Gemma3nCombinedFileBuildsVisionAndRecordsUnsupportedAudio) {
@@ -1609,20 +1841,6 @@ TEST_F(GGUFMMProj, Gemma3nAudioExtensionTakesPrecedenceOverVisionFallback) {
     EXPECT_NO_THROW(model->output("audio.embeddings"));
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "gemma3na");
     EXPECT_FALSE(model->has_rt_info({"gguf_mmproj", "audio.supported"}));
-}
-
-TEST_F(GGUFMMProj, Gemma3nAudioFallbackRejectsOtherVisionProjectors) {
-    encoder("vision", "gemma3");
-    writer.kv_bool("clip.has_audio_encoder", true);
-    writer.kv_str("clip.audio.projector_type", "gemma3na");
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("gemma3na"));
-}
-
-TEST_F(GGUFMMProj, Gemma3nVisionRejectsOtherUnsupportedAudioProjectors) {
-    gemma3n_vision();
-    writer.kv_bool("clip.has_audio_encoder", true);
-    writer.kv_str("clip.audio.projector_type", "unsupported_audio");
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
 }
 
 TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
@@ -1682,6 +1900,67 @@ TEST_F(GGUFMMProj, ResamplerRequiresQueryNormalization) {
     encoder("vision", "resampler");
     weight("resampler.query", {256, 96});
     OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("resampler.ln_q.weight"));
+}
+
+TEST_F(GGUFMMProj, ResamplerLegacyFFNNamesPreserveEmbeddingsAndBiases) {
+    std::vector<float> unbiased;
+    for (const bool biases : {false, true}) {
+        std::vector<float> canonical;
+        for (const bool legacy_names : {false, true}) {
+            SCOPED_TRACE(biases);
+            SCOPED_TRACE(legacy_names);
+            writer = ov_gguf_test::GgufWriter{};
+            writer.kv_str("general.architecture", "clip");
+            writer.kv_bool("clip.use_gelu", true);
+            encoder("vision", "resampler", 16, legacy_names);
+            if (biases) {
+                weight(std::string("v.blk.0.ffn_") + (legacy_names ? "down" : "up") + ".bias", {12});
+                weight(std::string("v.blk.0.ffn_") + (legacy_names ? "up" : "down") + ".bias", {8});
+            }
+            add_resampler_weights();
+            const auto values = infer_resampler(convert());
+            if (!legacy_names) {
+                canonical = values;
+            } else {
+                ASSERT_EQ(canonical.size(), values.size());
+                for (size_t i = 0; i < canonical.size(); ++i)
+                    EXPECT_NEAR(values[i], canonical[i], 1e-5f) << i;
+            }
+        }
+        if (!biases) {
+            unbiased = canonical;
+        } else {
+            float difference = 0.f;
+            for (size_t i = 0; i < canonical.size(); ++i)
+                difference = std::max(difference, std::abs(canonical[i] - unbiased[i]));
+            EXPECT_GT(difference, 1e-6f);
+        }
+    }
+}
+
+TEST_F(GGUFMMProj, ResamplerSquareFFNPreservesCanonicalOrder) {
+    std::vector<std::vector<float>> outputs;
+    for (int bias = 0; bias < 3; ++bias) {
+        SCOPED_TRACE(bias);
+        writer = ov_gguf_test::GgufWriter{};
+        writer.kv_str("general.architecture", "clip");
+        writer.kv_bool("clip.use_gelu", true);
+        encoder("vision", "resampler", 16, false, 8, true);
+        if (bias != 0)
+            writer.tensor(std::string("v.blk.0.ffn_") + (bias == 1 ? "up" : "down") + ".bias",
+                          {8},
+                          {1.f, -1.f, .75f, -.75f, .5f, -.5f, .25f, -.25f});
+        add_resampler_weights();
+        outputs.push_back(infer_resampler(convert()));
+    }
+    ASSERT_EQ(outputs[0].size(), outputs[1].size());
+    ASSERT_EQ(outputs[0].size(), outputs[2].size());
+    float difference = 0.f;
+    for (size_t i = 0; i < outputs[0].size(); ++i) {
+        EXPECT_NEAR(outputs[0][i], outputs[1][i], 1e-5f) << i;
+        difference = std::max(difference, std::abs(outputs[0][i] - outputs[2][i]));
+    }
+    EXPECT_GT(difference, 1e-6f);
 }
 
 class GGUFMMProjAccuracy : public ::testing::TestWithParam<const char*> {
@@ -2040,6 +2319,7 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
 INSTANTIATE_TEST_SUITE_P(Reference,
                          GGUFMMProjDynamicAccuracy,
                          ::testing::Values("muse-glimmer",
+                                           "inkling2v",
                                            "qwen2.5vl_merger_grids",
                                            "resampler_grids",
                                            "pixtral",
@@ -2056,6 +2336,7 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "minicpmv4_6",
                                            "minicpmv4_7",
                                            "minicpmv4_7_4x",
+                                           "minicpm_ocr_1_0_4x",
                                            "qwen3a",
                                            "qwen3tts_spkenc",
                                            "gemma3nv",

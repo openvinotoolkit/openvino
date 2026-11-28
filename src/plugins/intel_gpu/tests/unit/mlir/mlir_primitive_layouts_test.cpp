@@ -131,3 +131,23 @@ TEST(mlir_primitive_layouts, rank5_bzyxf_required_format_is_delivered) {
     EXPECT_TRUE(node.get_dependency(1).is_constant());
     EXPECT_EQ(node.get_output_layout().format, format::bfzyx);
 }
+
+TEST(mlir_primitive_layouts, format_from_dim_order) {
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({1, 0}), format::fbyx);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 2, 1}), format::byfx);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 2, 3, 1}), format::byxf);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 2, 3, 4, 1}), format::bzyxf);
+
+    // Plain orders give the default format of their rank.
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 1}), format::bfyx);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 1, 2}), format::bfyx);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 1, 2, 3}), format::bfyx);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 1, 2, 3, 4}), format::bfzyx);
+    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 1, 2, 3, 4, 5}), format::bfwzyx);
+
+    // No plain data format with this order: {3, 2, 1, 0} exists only as a weights format, {0, 0, 1} isn't a permutation.
+    EXPECT_THROW(mlir_primitive::format_from_dim_order({3, 2, 1, 0}), ov::Exception);
+    EXPECT_THROW(mlir_primitive::format_from_dim_order({0, 0, 1}), ov::Exception);
+    // The rank comes from the order, so an empty one is rejected.
+    EXPECT_THROW(mlir_primitive::format_from_dim_order({}), ov::Exception);
+}

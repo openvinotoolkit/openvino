@@ -802,6 +802,17 @@ TEST(GGUFOps, SumRows) {
     expect_near(out, expected);
 }
 
+// Mean: reduce-mean over the last axis, keeping rank.
+TEST(GGUFOps, Mean) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_MEAN")
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {2, 1})
+                     .build();
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, {1, 2, 3, 4, 5, 6, 7, 9})}});
+    expect_near(out, {2.5f, 6.75f});
+}
+
 // Concat: join two inputs along a ggml axis (here ggml dim 0 == innermost == OV last axis).
 TEST(GGUFOps, Concat) {
     auto model = SingleOpBuilder()
