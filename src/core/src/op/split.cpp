@@ -91,6 +91,18 @@ bool Split::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
         auto axis = get_tensor_data_as<int64_t>(axis_tensor).front();
         axis = ov::util::normalize(axis, data_tensor.get_shape().size());
 
+        const auto& data_type = data_tensor.get_element_type();
+        if (data_type.bitwidth() < 8) {
+            const std::vector<size_t> split_lengths(m_num_splits, data_tensor.get_shape()[axis] / m_num_splits);
+            ov::reference::split_packed(static_cast<const uint8_t*>(data_tensor.data()),
+                                        data_tensor.get_shape(),
+                                        data_type,
+                                        static_cast<size_t>(axis),
+                                        split_lengths,
+                                        reinterpret_cast<uint8_t**>(outputs_data.data()));
+            return true;
+        }
+
         ov::reference::split(static_cast<const char*>(data_tensor.data()),
                              data_tensor.get_shape(),
                              data_tensor.get_element_type().size(),
