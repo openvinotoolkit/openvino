@@ -3306,9 +3306,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     bool is_cpu = node.get_selected_impl() ? node.get_selected_impl()->is_cpu() : node.get_preferred_impl_type() == impl_types::cpu;
 
     auto total_output_bytes = layout.bytes_count();
+    // Shape infer deps are read on the host, which is a blocking copy for device memory. On a dGPU only small ones are
+    // lockable, as some primitives (e.g. slice) take their data inputs as shape infer deps too.
+    constexpr uint64_t max_dgpu_lockable_shape_infer_dep_bytes = 1024;
+    const bool lockable_shape_infer_dep =
+        node.is_shape_infer_dep() && (device_info.dev_type == device_type::integrated_gpu || total_output_bytes <= max_dgpu_lockable_shape_infer_dep_bytes);
     auto use_lockable_memory = (is_output_buffer && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
                                has_any_cpu_user_not_shape_of(node.get_users()) || !_engine.supports_allocation(allocation_type::usm_device) ||
-                               (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
+                               lockable_shape_infer_dep;
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory || !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;

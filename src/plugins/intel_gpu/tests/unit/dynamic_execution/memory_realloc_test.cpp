@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/slice.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "softmax_inst.h"
@@ -346,7 +347,7 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     ASSERT_EQ(pool.get_non_padded_pool_size(), 3);
 }
 
-TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {
+TEST(dyn_shape_mem_test, shape_infer_dep_mem_type) {
     auto& engine = get_test_engine();
     auto input_lay_1 = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
     auto input_lay_2 = layout{ov::PartialShape::dynamic(2), data_types::i32, format::bfyx};
@@ -379,11 +380,55 @@ TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {
         // for iGPU, allocating shape infer dep mem to usm_host improves shape_infer performance by preventing memcpy b/w device to host mem
         ASSERT_EQ(pattern_mem.get_allocation_type(), allocation_type::usm_host);
     } else {
-        // if allocate shape infer dep mem to host && write result from device && read from host, cache coherence issue occurs
-        ASSERT_EQ(pattern_mem.get_allocation_type(), allocation_type::usm_device);
+        // a small shape infer dep is lockable on dGPU too, so that shape inference does not copy it from the device
+        ASSERT_EQ(pattern_mem.get_allocation_type(), engine.get_lockable_preferred_memory_allocation_type());
     }
     auto expected_layout = layout{ov::PartialShape{3, 2, 1, 1}, data_types::f16, format::bfyx};
     ASSERT_EQ(output.begin()->second.get_memory()->get_layout(), expected_layout);
+
+    // The GPU writes a new pattern on every run, and the host shape inference must read that one.
+    const std::vector<std::vector<int32_t>> shapes = {{6, 1, 1, 1}, {1, 6, 1, 1}, {2, 3, 1, 1}, {3, 2, 1, 1}};
+    for (size_t i = 0; i < 100; ++i) {
+        const auto& s = shapes[i % shapes.size()];
+        set_values<int32_t>(pattern_mem1, {s[0] - 1, s[1] - 1, s[2], s[3] - 1});
+        output = network.execute();
+        ASSERT_EQ(output.begin()->second.get_memory()->get_layout(), (layout{ov::PartialShape{s[0], s[1], s[2], s[3]}, data_types::f16, format::bfyx}))
+            << "run " << i;
+    }
+}
+
+TEST(dyn_shape_mem_test, dgpu_large_shape_infer_dep_mem_type) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type != device_type::discrete_gpu) {
+        GTEST_SKIP();
+    }
+    // slice takes all its inputs as shape infer deps, its data too: a large one stays in device memory on dGPU.
+    auto start = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    set_values<int64_t>(start, {0});
+    set_values<int64_t>(stop, {1});
+    set_values<int64_t>(step, {1});
+    set_values<int64_t>(axes, {0});
+    topology topology(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}),
+                      reorder("reorder", input_info("input"), format::bfyx, data_types::f16),
+                      data("start", start),
+                      data("stop", stop),
+                      data("step", step),
+                      data("axes", axes),
+                      slice("slice", {input_info("reorder"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, 0, {0}, {1}, {0}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{64, 64}, data_types::f32, format::bfyx});
+    set_values<float>(input_mem, std::vector<float>(64 * 64, 1.f));
+    network.set_input_data("input", input_mem);
+    auto output = network.execute();
+    ASSERT_EQ(network.get_primitive("reorder")->output_memory().get_allocation_type(), allocation_type::usm_device);
+    ASSERT_EQ(output.at("slice").get_memory()->get_layout().get_partial_shape(), (ov::PartialShape{1, 64}));
 }
 
 TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
