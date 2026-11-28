@@ -582,6 +582,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8_Bmax,
                                             ::testing::Values(additionalConfig[0])),
                          GatherLayerTestCPU::getTestCaseName);
 
+const std::vector<std::vector<ov::test::InputShape>> sizeOneBatchShapesStat = {
+    // blocked short case: afterAxisSize > 1 -> calcSrcShiftShortBlock
+    {{{}, {{1, 400, 4}}},  // data
+     {{}, {{1}}}},         // indices
+    // elementwise short case: afterAxisSize == 1, fewer indices than a vector -> calcSrcShiftShort
+    {{{}, {{1, 400}}},  // data
+     {{}, {{1, 3}}}}};  // indices
+
+// axis = 1, batchDims = 1
+INSTANTIATE_TEST_SUITE_P(smoke_static_batchDims1_aix1,
+                         GatherLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(sizeOneBatchShapesStat),
+                                            ::testing::Values(std::tuple<int, int>{1, 1}),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(getCPUInfo()),
+                                            ::testing::Values(additionalConfig[0])),
+                         GatherLayerTestCPU::getTestCaseName);
+
 std::vector<std::vector<ov::test::InputShape>> get4DShapesJitDyn(int maxBatchDims) {
     std::vector<std::vector<ov::test::InputShape>> result = {};
     if (ov::with_cpu_x86_avx2()) {

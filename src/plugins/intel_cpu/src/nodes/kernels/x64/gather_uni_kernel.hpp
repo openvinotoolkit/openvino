@@ -218,6 +218,7 @@ protected:
     void calcSrcShiftLongBlock(Vmm* vAuxPool, bool shiftFirst = true);
     void calcSrcShiftShort(Vmm* vAuxPool, bool shiftFirst = true);
     void calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFirst);
+    void calcBatchIdx(Vmm& vBatchIdx, Vmm& vSrcBeforeAxisSum, Vmm& vTmp);
     void process(bool isShortIdx, bool blocked);
     void process32b(bool isShortIdx, bool blocked);
     void process16b(bool isShortIdx, bool blocked);
