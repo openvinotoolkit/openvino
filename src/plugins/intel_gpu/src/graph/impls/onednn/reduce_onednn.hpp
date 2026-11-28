@@ -51,10 +51,15 @@ struct ReduceImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<reduce>());
         const auto& config = node.get_program().get_config();
-        const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
+        if (!config.get_use_onednn()) {
             return false;
         }
+#ifdef OV_GPU_VENDOR_INTEL
+        const auto& info = node.get_program().get_engine().get_device_info();
+        if (!info.supports_immad || info.arch == gpu_arch::unknown) {
+            return false;
+        }
+#endif
 
         const auto& reduce_node = node.as<reduce>();
 
@@ -63,10 +68,50 @@ struct ReduceImplementationManager : public ImplementationManager {
         const auto& out_layout = reduce_node.get_output_layout(0);
         auto in_dt = in_layout.data_type;
         auto out_dt = out_layout.data_type;
-
+#ifdef OV_GPU_VENDOR_INTEL
         if (in_dt == data_types::f32 && out_dt == data_types::f32) {
             return false;
         }
+#endif
+
+#ifdef OV_GPU_VENDOR_NVIDIA
+        // cuDNN reduction only supports f32/f16/s8 inputs and outputs with
+        // default attributes and plain memory descriptors.
+        if (!one_of(in_dt, {data_types::f32, data_types::f16, data_types::i8}) ||
+            !one_of(out_dt, {data_types::f32, data_types::f16, data_types::i8})) {
+            return false;
+        }
+
+        // cudnn_reduction_t::pd_t::check_format() validates only the source
+        // descriptor and accepts canonical plain a/ab/abc/abcd/abcde tags.
+        // In the plugin, these correspond to default plain data layouts only.
+        if (!format::is_default_format(in_layout.format)) {
+            return false;
+        }
+
+        // Plain descriptors use unpadded dimensions, so feature padding would
+        // make their strides disagree with the input or output buffer layout.
+        if (in_layout.data_padding._lower_size[1] != 0 ||
+            in_layout.data_padding._upper_size[1] != 0 ||
+            out_layout.data_padding._lower_size[1] != 0 ||
+            out_layout.data_padding._upper_size[1] != 0) {
+            return false;
+        }
+
+        // Destination must remain plain (no blocked layout), but does not need
+        // to be restricted to nchw/ncdhw-style ordering.
+        if (!format::is_simple_data_format(out_layout.format)) {
+            return false;
+        }
+
+        if (in_layout.format.dimension() > 5 || out_layout.format.dimension() > 5) {
+            return false;
+        }
+
+        if (get_post_ops_count(node) > 0) {
+            return false;
+        }
+#endif
 
         static const std::vector<format::type> supported_formats = {
             format::any,
@@ -103,7 +148,9 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::sum:
             case reduce_mode::prod:
                 break;
+#ifndef OV_GPU_VENDOR_NVIDIA
             case reduce_mode::sum_square:
+#endif
             case reduce_mode::l1:
             case reduce_mode::l2:
                 // modes have a limitation of data type
