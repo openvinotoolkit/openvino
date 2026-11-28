@@ -51,6 +51,11 @@ Type importPrecision(MLIRContext* ctx, const ov::element::Type& precision);
 
 RankedTensorType importTensor(MLIRContext* ctx, const ov::PartialShape& shape, const ov::element::Type& elemType);
 
+// Shape of a ranked tensor value (dynamic dims are ShapedType::kDynamic).
+inline ArrayRef<int64_t> tensor_shape(Value v) {
+    return mlir::cast<RankedTensorType>(v.getType()).getShape();
+}
+
 Location createLocation(MLIRContext* ctx, const NodePtr& node);
 
 template <typename T>
@@ -71,6 +76,8 @@ mlir::arith::ConstantOp getConstant(OpBuilder& builder, const ov::element::Type&
 }
 
 inline arith::ConstantOp getConstant(OpBuilder& builder, const ov::op::v0::Constant* constant, std::optional<Location> loc = std::nullopt) {
+    // Sub-byte types (u4/i4) are packed in OV, while DenseElementsAttr keeps one element per byte
+    OPENVINO_ASSERT(constant->get_element_type().bitwidth() >= 8, "Inlining sub-byte constants is not supported");
     auto tensorTy = dyn_cast<RankedTensorType>(importTensor(builder.getContext(), constant->get_output_partial_shape(0), constant->get_element_type()));
     DenseElementsAttr attr;
     if (constant->get_all_data_elements_bitwise_identical()) {

@@ -57,7 +57,9 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -75,13 +77,28 @@ FloorPattern::FloorPattern() : MarkPattern(wrap_type<v0::Floor>({any_input()}), 
 
 GatherPattern::GatherPattern() : MarkPattern(wrap_type<v8::Gather>({any_input(), any_input(), any_input()}), ConvertGather()) {}
 
-// linalgx.grouped_matmul covers the 2Dx3D (MoE forward pass) case of GroupedMatMul-17 only:
-// its lhs must be rank 2.
+// linalgx.grouped_matmul covers the 2Dx3D (MoE forward pass) case only: lhs must be rank 2.
+// Both GroupedMatMul-17 and the internal GroupedMatMulCompressed are matched.
 GroupedMatMulPattern::GroupedMatMulPattern()
-    : MarkPattern(wrap_type<v17::GroupedMatMul>({any_input(rank_equals(2) && type_matches_any({element::f16, element::bf16})),
-                                                 any_input(shape_matches("E, N, K") && type_matches_any({element::f16, element::bf16})),
-                                                 any_input(shape_matches("E"))}),
-                  ConvertGroupedMatMul()) {}
+    : MarkPattern(
+          [] {
+              using ov::op::internal::GroupedMatMulCompressed;
+              auto lhs = any_input(rank_equals(2) && type_matches_any({element::f16, element::bf16}));
+              auto offsets = any_input(shape_matches("E"));
+              auto weights = any_input(shape_matches("E, N, K") && type_matches_any({element::f16, element::bf16}));
+
+              // decompression::decompress_weights builds static indexing maps, so the weights/scale/zp must be static.
+              auto compressed_weights = any_input(has_static_shape() && shape_matches("E, N, K") && type_matches_any({element::u4, element::i4, element::u8}));
+              auto scale = any_input(has_static_shape() && shape_matches("E, N, G") && type_matches_any({element::f16, element::bf16}));
+              auto zero_point =
+                  any_input(has_static_shape() && shape_matches("E, N, G") && type_matches_any({element::u4, element::i4, element::u8, element::i8}));
+
+              using ov::pass::operator|;
+              return wrap_type<v17::GroupedMatMul>({lhs, weights, offsets}) |
+                     wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale, zero_point}) |
+                     wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale});
+          }(),
+          ConvertGroupedMatMul()) {}
 
 MatMulPattern::MatMulPattern()
     : MarkPattern(wrap_type<v0::MatMul>({any_input(), any_input()},

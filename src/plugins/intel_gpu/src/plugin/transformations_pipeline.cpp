@@ -1125,6 +1125,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
+        } else if (config.get_enable_mlir() && f16_activations_possible) {
+            // Without oneDNN, GroupedMatMulCompressed is executed by MLIR.
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
+                std::vector<ov::element::Type>{ov::element::u4, ov::element::i4, ov::element::u8});
+            pass_config->set_callback<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>([](const std::shared_ptr<const ov::Node>& node) {
+                // MLIR impl only supports 2Dx3D GroupedMatMul
+                return node->get_input_partial_shape(0).rank() != 2;
+            });
         }
 
         register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
