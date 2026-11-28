@@ -35,7 +35,7 @@ env:
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
-  # OV_NPU_LOG_LEVEL: 'LOG_INFO'
+  OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
   NPU_Models_Tests:
