@@ -456,7 +456,9 @@ def parse_path(path, app_input_info):
                     input_files.append(str(input_path))
             else:
                 raise Exception(f"Path '{str(input_path)}' doesn't exist \n {str(input_path)}")
-        num_files, num_inputs = len(input_files), len(app_input_info)
+        has_image_input = any(info.is_image for info in app_input_info)
+        inputs_to_fill = [info.name for info in app_input_info if not (has_image_input and info.is_image_info)]
+        num_files, num_inputs = len(input_files), len(inputs_to_fill)
         if num_inputs > 1:
             logger.warning(f"Model has {num_inputs} inputs. It's recommended to use name mapping to specify parameters for each input.")
         if num_files > num_inputs and num_files % num_inputs != 0:
@@ -464,7 +466,6 @@ def parse_path(path, app_input_info):
             logger.warning(f"Number of provided input files '{num_files}' is not a multiple of the number of "
                                    f"model inputs. Only {len(input_files)} files fill be used.")
         num_files = len(input_files)
-        inputs_to_fill = list(info.name for info in app_input_info if not info.is_image_info)
         for i in range(num_files):
             input_path_mapping[inputs_to_fill[i % len(inputs_to_fill)]].append(input_files[i])
 
