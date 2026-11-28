@@ -44,6 +44,27 @@ static inline bool IsSwappingFX(const std::vector<uint16_t>& order) {
     return false;
 }
 
+// Detect the 4D reverse rotation: cldnn order [0,2,3,1], from ONNX/OV perm [0,3,1,2]
+// (NHWC -> NCHW). For input (b, f, y, x) the output is (b, x, f, y), so the output's
+// innermost axis is the input y, not the input f. The kernel then tiles input y and x
+// (instead of f and x) and loops over input f: the kernel's "f" index walks input-y
+// tiles and its "y" index walks input features. Reads stay coalesced along x and
+// writes along y.
+static inline bool IsReverseRotating4D(const std::vector<uint16_t>& order) {
+    static const std::vector<uint16_t> kOrder4 = {0, 2, 3, 1};
+    return order == kOrder4;
+}
+
+// Smallest input y and x for which the reverse rotation is preferred over permute_ref.
+constexpr size_t kReverseRotationMinY = 32;
+constexpr size_t kReverseRotationMinX = 64;
+
+// Size of the input axis tiled together with x: input y for the reverse rotation,
+// input feature otherwise.
+static inline size_t GetTiledFeatureSize(const permute_params& params) {
+    return IsReverseRotating4D(params.order) ? params.inputs[0].Y().v : params.inputs[0].Feature().v;
+}
+
 ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -77,7 +98,7 @@ ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
 static inline size_t GetTileSize(const permute_params& params) {
     // supports 4x4 or 8x8 tiling
     if (!params.is_shape_agnostic) {
-        if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
+        if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || GetTiledFeatureSize(params) < DEFAULT_TILE_SIZE) {
             return MIN_TILE_SIZE;
         }
     }
@@ -115,7 +136,10 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
     const bool swap_f_x = IsSwappingFX(params.order);
 
     if (dim_diff == 0) {
-        if (swap_f_x) {
+        if (IsReverseRotating4D(params.order)) {
+            // Output (b, x_in, f_in, y_in): kernel f tiles input y, kernel y is input f.
+            order_str = "b, (x * TILE_SIZE + lh), y, (f * TILE_SIZE)";
+        } else if (swap_f_x) {
             // IsSwappingFX patterns: cldnn [0,2,1,3] (4D) / [0,4,1,3,2] (5D) / [0,5,1,3,2,4] (6D).
             // Args 2 and 3 of OUTPUT_GET_INDEX are exchanged vs the is_rotating_except_batch case.
             switch (dim_change.first) {
@@ -188,9 +212,12 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
     return order_str;
 }
 
-static inline std::string GetTiledInputOrder(size_t size) {
+static inline std::string GetTiledInputOrder(const permute_params& params) {
+    if (IsReverseRotating4D(params.order)) {
+        return "b, y, (f * TILE_SIZE + lh), (x * TILE_SIZE)";
+    }
     std::string order_str;
-    switch (size) {
+    switch (params.inputs[0].GetDims().size()) {
         case 4 :
             order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE)";
             break;
@@ -210,7 +237,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     size_t tile_size = GetTileSize(params);
     size_t vector_width = tile_size;
     jit.AddConstant(MakeJitConstant("VEC_WIDTH", vector_width));
-    jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(params.inputs[0].GetDims().size())));
+    jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(params)));
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("N_VECTORS_IN_TILE", tile_size / vector_width));
@@ -222,7 +249,8 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
         // Note: this is default mode and different vector width is not being used now.
         uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
         jit.AddConstant(MakeJitConstant("LWS", total_lws));
-        jit.AddConstant(MakeJitConstant("NFEATURE_TILES", CeilDiv(params.inputs[0].Feature().v, tile_size)));
+        const size_t tiled_f = GetTiledFeatureSize(params);
+        jit.AddConstant(MakeJitConstant("NFEATURE_TILES", CeilDiv(tiled_f, tile_size)));
 
         std::string normal_tile_cond = "true";
         std::string x_remainder_cond = "true";
@@ -236,10 +264,10 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
             x_remainder_cond += " && (x == X_REMAINDER_ITEM)";
             f_remainder_cond += " && (x < X_REMAINDER_ITEM)";
         }
-        if ((params.inputs[0].Feature().v % tile_size) != 0U) {
-            jit.AddConstant(MakeJitConstant("F_REMAINDER_ITEM", params.inputs[0].Feature().v / tile_size));
-            jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", params.inputs[0].Feature().v % tile_size));
-            jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Feature().v % tile_size, vector_width)));
+        if ((tiled_f % tile_size) != 0U) {
+            jit.AddConstant(MakeJitConstant("F_REMAINDER_ITEM", tiled_f / tile_size));
+            jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", tiled_f % tile_size));
+            jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE_AS_VECTOR", CeilDiv(tiled_f % tile_size, vector_width)));
             normal_tile_cond += " && (f < F_REMAINDER_ITEM)";
             x_remainder_cond += " && (f < F_REMAINDER_ITEM)";
             f_remainder_cond += " && (f == F_REMAINDER_ITEM)";
@@ -268,7 +296,9 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
 
 static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_size) {
     std::vector<size_t> lws{1, 1, 1};
-    std::vector<size_t> dims{0, 2, 1};
+    // Reverse rotation: grow the work group along input y tiles first, so that neighbouring work
+    // items write neighbouring parts of the output rows (output x = input y).
+    std::vector<size_t> dims = IsReverseRotating4D(params.order) ? std::vector<size_t>{2, 0, 1} : std::vector<size_t>{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
     const size_t elem_size = params.outputs[0].ElementSize();
@@ -302,7 +332,11 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
         size_t tile_size = GetTileSize(params);
         switch (in.GetLayout()) {
             case DataLayout::bfyx:
-                dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v, CeilDiv(in.Feature().v, tile_size) * in.Batch().v};
+                if (IsReverseRotating4D(params.order)) {
+                    dispatchData.gws = {CeilDiv(in.X().v, tile_size), in.Feature().v, CeilDiv(in.Y().v, tile_size) * in.Batch().v};
+                } else {
+                    dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v, CeilDiv(in.Feature().v, tile_size) * in.Batch().v};
+                }
                 break;
             case DataLayout::bfzyx:
                 dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v * in.Z().v, CeilDiv(in.Feature().v, tile_size) * in.Batch().v};
@@ -342,6 +376,9 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     //   keep their order. For 4D this is ONNX perm [0,3,2,1] (NCHW -> NWHC).
     //   Uses the same tiled read pattern but with output args 2 and 3 exchanged in
     //   OUTPUT_TILED_ORDER so that writes remain coalesced.
+    //
+    // IsReverseRotating4D: cldnn [0,2,3,1] (4D only), from ONNX perm [0,3,1,2] (NHWC -> NCHW).
+    //   Tiles input y and x instead of f and x (see IsReverseRotating4D).
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
         if ((int32_t) order[1] != (int32_t)order.size() - 1) return false;
@@ -353,11 +390,18 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     };
 
     const bool is_swapping_fx = IsSwappingFX(params.order);
-    if (!is_rotating_except_batch(params.order) && !is_swapping_fx) {
+    const bool is_reverse_rotating = IsReverseRotating4D(params.order);
+    if (!is_rotating_except_batch(params.order) && !is_swapping_fx && !is_reverse_rotating) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (is_swapping_fx && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size()) {
+    if ((is_swapping_fx || is_reverse_rotating) && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size()) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    // The reverse rotation remaps the kernel's f/y indices, which the shape-agnostic
+    // (dynamic) path does not handle: it derives feature tiles from INPUT0_FEATURE_NUM.
+    if (is_reverse_rotating && params.has_dynamic_tensors()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
@@ -377,9 +421,10 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     }
 
     // Fused op output indexing is only validated for the is_rotating_except_batch
-    // branch; the f<->spatial swap branch stores through a transposed output index,
-    // so fall back to another implementation when a fused op is present.
-    if (has_fused_op(params) && IsSwappingFX(params.order)) {
+    // branch; the f<->spatial swap and reverse rotation branches store through a
+    // transposed output index, so fall back to another implementation when a fused
+    // op is present.
+    if (has_fused_op(params) && (is_swapping_fx || is_reverse_rotating)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
@@ -389,11 +434,20 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
 KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/) const {
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
+    const size_t tiled_f = GetTiledFeatureSize(newParams);
 
-    if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
+    // The reverse rotation only beats permute_ref on larger planes: with small y or x most tiles
+    // are partial or the kernel is launch-bound. Measured on Xe2 (Arc B580, f16/f32, in-graph
+    // permutes); below these sizes permute_ref, registered first, wins the tie.
+    if (IsReverseRotating4D(newParams.order) &&
+        (newParams.inputs[0].Y().v < kReverseRotationMinY || newParams.inputs[0].X().v < kReverseRotationMinX)) {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    }
+
+    if ((tiled_f >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_1;
     }
-    if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
+    if ((tiled_f >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_2;
     }
     return FORCE_PRIORITY_3;
