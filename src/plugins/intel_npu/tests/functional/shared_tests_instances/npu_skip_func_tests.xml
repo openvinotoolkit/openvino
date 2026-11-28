@@ -427,4 +427,11 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- <skip_config>
+        <message>The NPU compiler fails with "Failed to find BLOCKED" for tensors with more than 5 dimensions</message>
+        <filters>
+            <filter>.*OVInferRequestHighRankTests.*rank=[678]_.*</filter>
+        </filters>
+    </skip_config> -->
+
 </skip_configs>

@@ -30,6 +30,25 @@ namespace {
 size_t calculate_size_with_alignment_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
+
+void expectSameDescriptors(const std::vector<IODescriptor>& actual, const std::vector<IODescriptor>& expected) {
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        SCOPED_TRACE("descriptor " + std::to_string(i) + " " + expected[i].nameFromCompiler);
+        EXPECT_EQ(actual[i].nameFromCompiler, expected[i].nameFromCompiler);
+        EXPECT_EQ(actual[i].precision, expected[i].precision);
+        EXPECT_EQ(actual[i].shapeFromCompiler, expected[i].shapeFromCompiler);
+        EXPECT_EQ(actual[i].isStateInput, expected[i].isStateInput);
+        EXPECT_EQ(actual[i].isStateOutput, expected[i].isStateOutput);
+        EXPECT_EQ(actual[i].isShapeTensor, expected[i].isShapeTensor);
+        EXPECT_EQ(actual[i].relatedDescriptorIndex, expected[i].relatedDescriptorIndex);
+        EXPECT_EQ(actual[i].nodeFriendlyName, expected[i].nodeFriendlyName);
+        EXPECT_EQ(actual[i].outputTensorNames, expected[i].outputTensorNames);
+        EXPECT_EQ(actual[i].shapeFromIRModel, expected[i].shapeFromIRModel);
+        EXPECT_EQ(actual[i].indexUsedByDriver, expected[i].indexUsedByDriver);
+        EXPECT_EQ(actual[i].supportsStridedLayout, expected[i].supportsStridedLayout);
+    }
+}
 }  // namespace
 
 namespace ov::test::behavior {
@@ -189,6 +208,32 @@ TEST_P(ZeroGraphTest, GetNetworkMeta) {
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
 
     OV_ASSERT_NO_THROW(NetworkMetadata meta = zeGraphExt->getNetworkMeta(graphDescriptor));
+}
+
+using ZeroGraphMetadataTests = ZeroGraphTest;
+
+// A stateful model: the states are added by the compiler, so they have no IR metadata and take the older query of 1.20
+TEST_P(ZeroGraphMetadataTests, GetNetworkMetaOfGraphExt1_20MatchesGraphExt1_19) {
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 20);
+    model = createModelWithStates(ov::element::f32, ov::Shape{1, 3, 24, 24});
+    serializeIR();
+
+    const auto getNetworkMeta = [&](const std::shared_ptr<ZeroInitStructsHolder>& initStruct) {
+        ZeGraphExtWrappers wrappers(initStruct);
+        auto descriptor = wrappers.getGraphDescriptor(serializedIR, "", bypassUmdCache());
+        auto metadata = wrappers.getNetworkMeta(descriptor);
+        wrappers.destroyGraph(descriptor);
+        return metadata;
+    };
+
+    const auto graphExt1_19 =
+        std::make_shared<ZeroInitStructsMock>(::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+                                              ZE_GRAPH_EXT_VERSION_1_19);
+    const auto expected = getNetworkMeta(std::reinterpret_pointer_cast<ZeroInitStructsHolder>(graphExt1_19));
+    const auto actual = getNetworkMeta(zeroInitStruct);
+
+    expectSameDescriptors(actual.inputs, expected.inputs);
+    expectSameDescriptors(actual.outputs, expected.outputs);
 }
 
 TEST_P(ZeroGraphTest, QueryGraph) {
@@ -431,8 +476,10 @@ const std::vector<ov::AnyMap> configsGraphCompilationTests = {{},
                                                               {ov::cache_dir("test")},
                                                               {ov::intel_npu::bypass_umd_caching(true)}};
 
-// tested versions interval is [1.5, CURRENT + 1)
-auto graphExtVersions = ::testing::Range(ZE_MAKE_VERSION(1, 5), ZE_GRAPH_EXT_VERSION_CURRENT + 1);
+// tested versions interval is [1.5, TARGET]: the header may be newer than what the plugin asks the driver for
+auto graphExtVersions =
+    ::testing::Range(ZE_MAKE_VERSION(1, 5),
+                     static_cast<int>(::intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION) + 1);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ZeroGraphCompilationTests,
@@ -448,6 +495,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(emptyConfigsTests),
                                             graphExtVersions),
+                         ZeroGraphTest::getTestCaseName);
+
+// Graph ext 1.19 is the reference, so only 1.20 is tested
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         ZeroGraphMetadataTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(emptyConfigsTests),
+                                            ::testing::Values(ZE_GRAPH_EXT_VERSION_1_20)),
                          ZeroGraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
