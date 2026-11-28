@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "json_object.h"
+#include "kv_cache_inst.h"
 #include "primitive_type_base.h"
 #include "qsa_indexer_inst.h"
 #include "to_string_utils.h"
@@ -36,11 +37,12 @@ std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node
     std::vector<layout> layouts = {
         layout{selected_block_indices_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_indices_shape.size())},
         layout{selected_block_count_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_count_shape.size())}};
-    // The updated state has the shape and type of the corresponding state input.
+    // The updated state has the shape and type of the corresponding state input; a block cache updated in place has no
+    // output.
     for (size_t in :
          {qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
         const auto& in_layout = impl_param.get_input_layout(in);
-        const auto shape = in_layout.get<ShapeType>();
+        const auto shape = in == qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE && desc->in_place_block_cache ? ShapeType{0} : in_layout.get<ShapeType>();
         layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));
     }
     return layouts;
@@ -60,6 +62,7 @@ std::string qsa_indexer_inst::to_string(const qsa_indexer_node& node) {
     info.add("indexer_head_dim", desc->indexer_head_dim);
     info.add("indexer_rotary_dim", desc->indexer_rotary_dim);
     info.add("scale", desc->scale);
+    info.add("in_place_block_cache", desc->in_place_block_cache);
     node_info->add("qsa_indexer_info", info);
     node_info->dump(primitive_description);
 
@@ -68,9 +71,19 @@ std::string qsa_indexer_inst::to_string(const qsa_indexer_node& node) {
 
 qsa_indexer_inst::typed_primitive_inst(network& network, const qsa_indexer_node& node) : parent(network, node) {
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason),
-                    "[GPU] Invalid qsa_indexer primitive: ",
-                    reason);
+    OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason), "[GPU] Invalid qsa_indexer primitive: ", reason);
+    if (node.get_primitive()->in_place_block_cache) {
+        // The kernel writes the completed blocks into this input: it must be the variable memory of the kv_cache, not a
+        // copy (e.g. a reorder inserted by a graph pass), whose updates would be lost.
+        const auto [cache, port] = node.get_dependency_with_port(qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE);
+        OPENVINO_ASSERT(cache->is_type<kv_cache>() && port == 0,
+                        "[GPU] qsa_indexer '",
+                        node.id(),
+                        "': the in-place block cache must be output 0 of a kv_cache, got ",
+                        cache->id(),
+                        ":",
+                        port);
+    }
 }
 
 }  // namespace cldnn

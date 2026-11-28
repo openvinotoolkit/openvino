@@ -16,9 +16,15 @@ PrefetchStreamBuf::PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch)
     : m_begin(static_cast<const char*>(tensor.data())),
       m_current(m_begin),
       m_end(m_begin + tensor.get_byte_size()) {
-    if (prefetch && ov::get_memory_hints(tensor)) {
+    if (prefetch && is_supported(tensor)) {
         m_scheduler = std::make_unique<ov::util::SequentialPrefetchScheduler>(tensor);
     }
+}
+
+bool PrefetchStreamBuf::is_supported(const ov::Tensor& tensor) {
+    // The scheduler cuts chunks with a byte ROI, which needs a 1D tensor of 8-bit elements.
+    return tensor.get_shape().size() == 1 && tensor.get_element_type().bitwidth() == 8 &&
+           ov::get_memory_hints(tensor) != nullptr;
 }
 
 PrefetchStreamBuf::int_type PrefetchStreamBuf::underflow() {
@@ -52,7 +58,14 @@ PrefetchStreamBuf::pos_type PrefetchStreamBuf::seekoff(off_type off, std::ios_ba
     if (!(which & std::ios_base::in)) {
         return pos_type(off_type(-1));
     }
-    const off_type base = dir == std::ios_base::beg ? 0 : dir == std::ios_base::cur ? m_current - m_begin : m_end - m_begin;
+    off_type base;
+    if (dir == std::ios_base::beg) {
+        base = 0;
+    } else if (dir == std::ios_base::cur) {
+        base = m_current - m_begin;
+    } else {
+        base = m_end - m_begin;
+    }
     const off_type pos = base + off;
     if (pos < 0 || pos > m_end - m_begin) {
         return pos_type(off_type(-1));

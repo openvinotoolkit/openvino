@@ -31,7 +31,7 @@ namespace {
 // 00->11, 01->00, 10->01.
 // Returns false if a code is 3, which is not ternary.
 bool pack_weights(const uint8_t* src, uint32_t* dst, size_t N, size_t K) {
-    constexpr uint32_t lo = 0x55555555u;
+    constexpr uint32_t lo = 0x55555555U;
     const size_t kblocks = K / kTernoclPackFactor;
     std::atomic<bool> ternary{true};
     ov::parallel_for(kblocks, [&](size_t kb) {
@@ -44,8 +44,9 @@ bool pack_weights(const uint8_t* src, uint32_t* dst, size_t N, size_t K) {
             invalid |= b0 & b1;
             dst[kb * N + n] = (~b0 & lo) | ((~(b0 ^ b1) & lo) << 1);
         }
-        if (invalid != 0)
+        if (invalid != 0) {
             ternary = false;
+        }
     });
     return ternary;
 }
@@ -69,8 +70,8 @@ struct ternocl_int2_weights_reorder : public typed_primitive_impl<reorder> {
         return true;
     }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
-    void update(primitive_inst&, const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*impl_params*/) override {}
+    void update(primitive_inst& /*instance*/, const kernel_impl_params& /*impl_params*/) override {}
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, reorder_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
@@ -106,27 +107,31 @@ struct ternocl_int2_weights_reorder : public typed_primitive_impl<reorder> {
 // so reorders other than the TernOCL weights packing are handed to the next manager of the type.
 static const ImplementationManager& stock_reorder_manager(const ImplementationManager& self, shape_types shape_type) {
     for (const auto& m : ov::intel_gpu::Registry<reorder>::get_implementations()) {
-        if (m->get_impl_type() == self.get_impl_type() && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type)
+        if (m->get_impl_type() == self.get_impl_type() && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type) {
             return *m;
+        }
     }
     OPENVINO_THROW("[GPU] ternocl int2: no reorder implementation to fall back to");
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2WeightsReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
-    if (!validate_impl(node))
+    if (!validate_impl(node)) {
         return stock_reorder_manager(*this, get_shape_type(node)).create_impl(node, params);
+    }
     return std::make_unique<ternocl_int2_weights_reorder>("ternocl_int2_weights_reorder");
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2WeightsReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
-    if (params.get_output_layout().format != format::is_os_yx_isv16_ternary)
+    if (params.get_output_layout().format != format::is_os_yx_isv16_ternary) {
         return stock_reorder_manager(*this, get_shape_type(params)).create_impl(params);
+    }
     return std::make_unique<ternocl_int2_weights_reorder>("ternocl_int2_weights_reorder");
 }
 
 in_out_fmts_t TernoclInt2WeightsReorderImplementationManager::query_formats(const program_node& node) const {
-    if (!validate_impl(node))
+    if (!validate_impl(node)) {
         return stock_reorder_manager(*this, get_shape_type(node)).query_formats(node);
+    }
     return ImplementationManager::query_formats(node);
 }
 

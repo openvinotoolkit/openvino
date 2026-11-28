@@ -56,7 +56,7 @@ public:
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
-    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+    ov::SoPtr<ov::ITensor> create_host_tensor(ov::element::Type type, const ov::Shape& shape) override;
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
     cldnn::engine& get_engine();
@@ -81,14 +81,24 @@ public:
 private:
     std::shared_ptr<RemoteContextImpl> get_this_shared_ptr();
 
-    std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const cldnn::device::ptr current_device) const;
-    std::shared_ptr<ov::IRemoteTensor> reuse_surface(const ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params);
-    std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
-    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_cpu_va(const ov::element::Type type, const ov::Shape& shape, VirtualAddressMemory cpu_va, TensorType tensor_type);
-    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_handle(const ov::element::Type type, const ov::Shape& shape, SharedBufferHandle handle, TensorType tensor_type);
-    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_file(const ov::element::Type type, const ov::Shape& shape, const std::filesystem::path& file_path, size_t offset, ov::intel_gpu::AccessMode access);
-    std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape);
-    std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
+    static std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, cldnn::device::ptr current_device);
+    std::shared_ptr<ov::IRemoteTensor> reuse_surface(ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory(ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_cpu_va(ov::element::Type type,
+                                                                const ov::Shape& shape,
+                                                                VirtualAddressMemory cpu_va,
+                                                                TensorType tensor_type);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_handle(ov::element::Type type,
+                                                                const ov::Shape& shape,
+                                                                SharedBufferHandle handle,
+                                                                TensorType tensor_type);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_file(ov::element::Type type,
+                                                              const ov::Shape& shape,
+                                                              const std::filesystem::path& file_path,
+                                                              size_t offset,
+                                                              ov::intel_gpu::AccessMode access);
+    std::shared_ptr<ov::IRemoteTensor> create_buffer(ov::element::Type type, const ov::Shape& shape);
+    std::shared_ptr<ov::IRemoteTensor> create_usm(ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
 
     void init_properties();

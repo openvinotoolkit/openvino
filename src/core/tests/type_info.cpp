@@ -4,9 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include "openvino/core/type.hpp"
 #include "openvino/opsets/opset.hpp"
-#include "openvino/util/hash_util.hpp"
 
 TEST(type_info, compare_old_type) {
     ov::DiscreteTypeInfo type1("type1");
@@ -50,23 +51,33 @@ TEST(type_info, compare_new_with_old_type) {
     ASSERT_TRUE(type1 == type1_o);
 }
 
+// Expected values are fixed on purpose: recomputing them with the tested algorithm would not detect its changes.
 TEST(type_info, check_hash_value) {
-    const auto& hash_val = [](const char* name, const char* version_id) -> size_t {
-        size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-        size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
-        // don't use parent for hash calculation, it is not a part of type (yet)
-        return ov::util::hash_combine(std::vector<size_t>{name_hash, version_id_hash});
-    };
-    ov::DiscreteTypeInfo type("type1", "version1");
-    ov::DiscreteTypeInfo type_old("type1");
-    ov::DiscreteTypeInfo type_with_version("type1", "version1");
-    ov::DiscreteTypeInfo type_empty_name("");
-    ov::DiscreteTypeInfo type_empty_ver("type", "");
-    EXPECT_EQ(hash_val(type.name, type.version_id), type.hash());
-    EXPECT_EQ(hash_val(type_old.name, type_old.version_id), type_old.hash());
-    EXPECT_EQ(hash_val(type_with_version.name, type_with_version.version_id), type_with_version.hash());
-    EXPECT_EQ(hash_val(type_empty_name.name, type_empty_name.version_id), type_empty_name.hash());
-    EXPECT_EQ(hash_val(type_empty_ver.name, type_empty_ver.version_id), type_empty_ver.hash());
+    EXPECT_EQ(static_cast<size_t>(0x1591723d39f0c6b2ULL), ov::DiscreteTypeInfo("type1", "version1").hash());
+    EXPECT_EQ(static_cast<size_t>(0xf709f69eefe342f2ULL), ov::DiscreteTypeInfo("type1").hash());
+    EXPECT_EQ(static_cast<size_t>(0xe6546b64ULL), ov::DiscreteTypeInfo("").hash());
+    EXPECT_EQ(static_cast<size_t>(0x16ab13a078cd7dbbULL), ov::DiscreteTypeInfo("type", "").hash());
+    EXPECT_EQ(static_cast<size_t>(0x0e3866429f7ecb27ULL), ov::DiscreteTypeInfo("Add", "opset1").hash());
+}
+
+TEST(type_info, hash_properties) {
+    const ov::DiscreteTypeInfo type("type1", "version1");
+    const char* no_version = nullptr;
+
+    EXPECT_EQ(type.hash(), ov::DiscreteTypeInfo("type1", "version1").hash());
+    EXPECT_NE(type.hash(), ov::DiscreteTypeInfo("type2", "version1").hash());
+    EXPECT_NE(type.hash(), ov::DiscreteTypeInfo("type1", "version2").hash());
+    EXPECT_NE(type.hash(), ov::DiscreteTypeInfo("version1", "type1").hash());
+    // parent is not a part of the type identity
+    EXPECT_EQ(type.hash(), ov::DiscreteTypeInfo("type1", "version1", &type).hash());
+    // missing version is the same as empty one, as in operator==
+    EXPECT_EQ(ov::DiscreteTypeInfo("type1", no_version).hash(), ov::DiscreteTypeInfo("type1", "").hash());
+    EXPECT_EQ(ov::DiscreteTypeInfo("type1", no_version).hash(), ov::DiscreteTypeInfo("type1").hash());
+    EXPECT_EQ(type.hash(), std::hash<ov::DiscreteTypeInfo>{}(type));
+
+    constexpr ov::DiscreteTypeInfo constant_type{"type1", "version1"};
+    EXPECT_EQ(type.hash(), constant_type.hash());
+    EXPECT_EQ(type, constant_type);
 }
 
 TEST(type_info, find_in_map) {

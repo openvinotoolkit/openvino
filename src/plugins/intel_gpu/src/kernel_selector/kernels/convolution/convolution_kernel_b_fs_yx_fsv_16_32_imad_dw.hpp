@@ -32,8 +32,8 @@ protected:
     }
 
     bool NeedPaddedInput() const override { return false; }
-    bool HasPaddedInput(const convolution_params& params) const;
-    bool ParamsHavePadding(const convolution_params& params) const;
+    static bool HasPaddedInput(const convolution_params& params);
+    static bool ParamsHavePadding(const convolution_params& params);
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
@@ -49,6 +49,6 @@ protected:
     std::vector<AutoTuneParams> all_tune_params;
 
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
-    bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tparams) const;
+    static bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tparams);
 };
 }  // namespace kernel_selector

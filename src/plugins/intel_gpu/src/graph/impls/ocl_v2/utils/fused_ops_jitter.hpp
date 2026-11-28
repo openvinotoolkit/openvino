@@ -298,7 +298,7 @@ public:
     [[nodiscard]] JitTerm get_idx(size_t input_id, const IndexDesc& idx, bool should_be_safe) const;
     [[nodiscard]] JitTerm get_input_ptr_name(size_t input_id) const;
     [[nodiscard]] JitTerm get_input_var_name(size_t input_id, bool is_shuffled = false, const JitTerm& shuffle_var = {}) const;
-    [[nodiscard]] JitTerm get_output_var_name(const JitTerm& input_var_name, size_t op_id) const;
+    [[nodiscard]] static JitTerm get_output_var_name(const JitTerm& input_var_name, size_t op_id);
     [[nodiscard]] JitTerm convert_to_output_type(const JitTerm& var, size_t vec_size = 1) const;
     [[nodiscard]] JitTerm convert_to_output_type_sat(const JitTerm& var, size_t vec_size = 1) const;
     [[nodiscard]] JitTerm get_output_type(size_t vec_size = 1) const;

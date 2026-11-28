@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/program_builder.hpp"
+
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/loop.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/runtime/properties.hpp"
-
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
@@ -147,6 +146,7 @@ void ProgramBuilder::prepare_build() {
 
 void ProgramBuilder::cleanup_build() {
     m_topology.reset();
+    m_constant_staging.reset();
 #if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
@@ -164,12 +164,7 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         const std::vector<std::shared_ptr<ov::Node>> no_ops;
-#ifdef _WIN32
-        // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
-        const bool use_prefetch = false;
-#else
         const bool use_prefetch = m_config.get_offload_ratio() == 0;
-#endif
         ov::util::OrderedPrefetchScheduler weights_prefetch(use_prefetch ? ops : no_ops);
         for (const auto& op : ops) {
             weights_prefetch.acquire(*op);
@@ -377,6 +372,14 @@ int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value
 
 void ProgramBuilder::register_weight_sharing_source_buffer(std::shared_ptr<ov::AlignedBuffer> source) {
     m_weight_sharing_source_buffers.insert(source);
+}
+
+cldnn::memory::ptr ProgramBuilder::get_constant_staging_buffer(size_t bytes) {
+    if (!m_constant_staging || m_constant_staging->size() < bytes) {
+        const cldnn::layout staging_layout{ov::PartialShape{static_cast<int64_t>(bytes)}, cldnn::data_types::u8, cldnn::format::bfyx};
+        m_constant_staging = m_engine.allocate_memory(staging_layout, cldnn::allocation_type::usm_host, false);
+    }
+    return m_constant_staging;
 }
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count) {

@@ -171,7 +171,7 @@ struct reorder : public primitive_base<reorder> {
     /// @brief Parameters required for reorder weights.
     std::shared_ptr<WeightsReorderParams> weights_reorder_params;
 
-    inline bool has_surface_input() const {
+    bool has_surface_input() const {
         return input.size() == 1 &&
                input_mem_type == memory_type::surface;
     }

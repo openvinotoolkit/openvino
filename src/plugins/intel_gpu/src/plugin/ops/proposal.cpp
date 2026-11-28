@@ -40,13 +40,13 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     bool shift_anchors;
 
     if (framework == "tensorflow") {
-        coordinates_offset = 0.0f;
+        coordinates_offset = 0.0F;
         initial_clip = true;
         shift_anchors = true;
         round_ratios = false;
         swap_xy = true;
     } else {
-        coordinates_offset = 1.0f;
+        coordinates_offset = 1.0F;
         initial_clip = false;
         shift_anchors = false;
         round_ratios = true;

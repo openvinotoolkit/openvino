@@ -641,6 +641,90 @@ TEST_F(OVTensorTest, makeRangeRoiStringTensor) {
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
 }
 
+TEST_F(OVTensorTest, expandRankKeepsStridesRankOnRoiTensor) {
+    ov::Tensor owner{ov::element::i32, {2, 3, 4}};
+    ov::Tensor roi{owner, {0, 1, 1}, {2, 3, 3}};
+
+    roi.set_shape({1, 1, 2, 2, 2});
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1, 2, 2, 2}));
+    ASSERT_EQ(roi.get_strides(), ov::Strides({96, 96, 48, 16, 4}));
+}
+
+TEST_F(OVTensorTest, copyToRoiTensorWithExpandedRank) {
+    ov::Tensor owner{ov::element::i64, {4}};
+    ov::Tensor roi{owner, {2}, {3}};
+    ov::Tensor src{ov::element::i64, {1, 1}};
+    src.data<int64_t>()[0] = 42;
+
+    src.copy_to(roi);
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    ASSERT_EQ(roi.get_strides().size(), roi.get_shape().size());
+    ASSERT_EQ(owner.data<int64_t>()[2], 42);
+}
+
+TEST_F(OVTensorTest, copyStridedRoiTensorWithExpandedRank) {
+    ov::Tensor owner{ov::element::i32, {2, 3, 4}};
+    ov::Tensor roi{owner, {0, 1, 1}, {2, 3, 3}};  // not continuous along the two inner dimensions
+    ov::Tensor src{ov::element::i32, {1, 2, 2, 2}};
+
+    src.copy_to(roi);
+
+    ASSERT_EQ(roi.get_strides().size(), roi.get_shape().size());
+    const auto* expected = src.data<int32_t>();
+    const auto* result = owner.data<int32_t>();
+    std::vector<int32_t> roi_area;
+    for (const size_t idx : {5, 6, 9, 10, 17, 18, 21, 22}) {
+        roi_area.push_back(result[idx]);
+    }
+    ASSERT_EQ(roi_area, std::vector<int32_t>(expected, expected + 8));
+
+    // The expanded ROI must also read back correctly as a copy source.
+    ov::Tensor dst{ov::element::i32, {1, 2, 2, 2}};
+    roi.copy_to(dst);
+    ASSERT_EQ(std::memcmp(dst.data(), src.data(), src.get_byte_size()), 0);
+}
+
+TEST_F(OVTensorTest, expandRankOnScalarRoiTensor) {
+    ov::Tensor owner{ov::element::i32, ov::Shape{}};
+    ov::Tensor roi{owner, {}, {}};
+
+    roi.set_shape({1, 1});
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    ASSERT_EQ(roi.get_strides(), ov::Strides({4, 4}));
+}
+
+TEST_F(OVTensorTest, expandRankOnSubByteRoiTensor) {
+    ov::Tensor owner{ov::element::u4, {2, 8}};
+    ov::Tensor row{owner, {1, 0}, {2, 8}};
+    ov::Tensor vector_owner{ov::element::u4, {8}};
+    ov::Tensor vector{vector_owner, {0}, {8}};
+
+    row.set_shape({1, 1, 8});
+    vector.set_shape({1, 1, 8});
+
+    ASSERT_EQ(row.get_strides(), ov::Strides({4, 4, 1}));
+    ASSERT_EQ(vector.get_strides(), ov::Strides({4, 4, 1}));
+    ASSERT_TRUE(vector.is_continuous());
+}
+
+TEST_F(OVTensorTest, expandRankOnI4RoiKeepsStridesRankMatchedAndContinuityWellDefined) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    ASSERT_EQ(roi.get_strides().size(), 2U);
+
+    roi.set_shape({1, 2, 8});
+    ASSERT_EQ(roi.get_strides(), ov::Strides({8, 4, 1}));
+    ASSERT_TRUE(roi.is_continuous());
+
+    ov::Tensor roi2{owner, {0, 0}, {2, 8}};
+    roi2.set_shape({1, 2, 4});
+    ASSERT_EQ(roi2.get_strides(), ov::Strides({8, 4, 1}));
+    ASSERT_FALSE(roi2.is_continuous());
+}
+
 TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
@@ -966,6 +1050,13 @@ TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStride3DThrows) {
     std::vector<uint8_t> buffer(2 * 4 * row_bytes);
     const ov::Strides bad_strides{4 * row_bytes, row_bytes, 2};  // last stride must be 1, not 2
     OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 4, 8}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewSubByteScalarThrows) {
+    uint8_t data = 0;
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor(ov::element::i4, ov::Shape{}, &data, ov::Strides{1})),
+                                  ov::Exception,
+                                  "Could not create strided access tensor");
 }
 
 TEST_F(OVTensorTest, stridedViewSetShapeRejectsUnalignedSubByteShape) {

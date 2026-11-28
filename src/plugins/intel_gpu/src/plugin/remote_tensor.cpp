@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
-
 #include <cstdint>
 #include <memory>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 template <>
 struct std::hash<ov::intel_gpu::SharedBufferHandle> {
@@ -35,19 +36,8 @@ struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
 namespace ov::intel_gpu {
 
 namespace {
-static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
-    ov::Strides strides{};
-    if (element_type.bitwidth() < 8)
-        return strides;
-
-    if (!shape.empty()) {
-        strides.resize(shape.size());
-        strides.back() = shape.back() == 0 ? 0 : element_type.size();
-        std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
-        std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
-    }
-
-    return strides;
+ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
+    return ov::util::can_compute_byte_strides(element_type, shape) ? ov::util::get_dense_byte_strides(element_type, shape) : ov::Strides{};
 }
 
 struct MemWrapper {
@@ -82,15 +72,15 @@ private:
     void* m_data_ptr = nullptr;
 };
 
-static void copy_roi_recursively(const MemWrapper& src_mem,
-                                 MemWrapper& dst_mem,
-                                 const size_t axis,
-                                 const size_t src_offset,
-                                 const size_t dst_offset,
-                                 const ov::Shape& roi_shape,
-                                 const ov::Strides& src_strides,
-                                 const ov::Strides& dst_strides,
-                                 const ov::Strides& roi_strides) {
+void copy_roi_recursively(const MemWrapper& src_mem,
+                          MemWrapper& dst_mem,
+                          const size_t axis,
+                          const size_t src_offset,
+                          const size_t dst_offset,
+                          const ov::Shape& roi_shape,
+                          const ov::Strides& src_strides,
+                          const ov::Strides& dst_strides,
+                          const ov::Strides& roi_strides) {
     if (axis == roi_shape.size() - 1) {
         // Copy the innermost dimension
         const auto size = roi_strides[axis] * roi_shape[axis];
@@ -118,23 +108,21 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
     }
 }
 
-static void copy_roi(const MemWrapper& src_mem,
-                     MemWrapper& dst_mem,
-                     const size_t src_offset,
-                     const size_t dst_offset,
-                     const ov::Strides& src_strides,
-                     const ov::Strides& dst_strides,
-                     const ov::Strides& roi_strides,
-                     const ov::Shape& src_shape,
-                     const ov::Shape& dst_shape,
-                     const ov::Shape& roi_shape) {
+void copy_roi(const MemWrapper& src_mem,
+              MemWrapper& dst_mem,
+              const size_t src_offset,
+              const size_t dst_offset,
+              const ov::Strides& src_strides,
+              const ov::Strides& dst_strides,
+              const ov::Strides& roi_strides,
+              const ov::Shape& src_shape,
+              const ov::Shape& dst_shape,
+              const ov::Shape& roi_shape) {
     const size_t start_axis = 0;
     copy_roi_recursively(src_mem, dst_mem, start_axis, src_offset, dst_offset, roi_shape, src_strides, dst_strides, roi_strides);
 }
 
-static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src,
-                                      const std::shared_ptr<ov::ITensor>& dst,
-                                      const ov::Shape& roi_shape) {
+void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, const std::shared_ptr<ov::ITensor>& dst, const ov::Shape& roi_shape) {
     OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
                     "[GPU] Tensor element types are not equal. (src: ",
                     src->get_element_type(),
@@ -191,6 +179,20 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
     OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
 #endif
+    if (m_mem_type == TensorType::BT_CPU_VA && m_va_mem.size < 0) {
+        // Resolve the "derive from tensor shape" size (-1) before the cache key is computed, so that the cache key,
+        // the imported host buffer and the reported cpu_va_size always agree. Otherwise re-wrapping the memory with
+        // the reported (explicit) size would miss the cache and import the same host memory into a second buffer.
+        // Zero dimensions are counted as 1, in the same way allocate() imports empty tensors.
+        auto import_shape = m_shape;
+        for (auto& dim : import_shape) {
+            if (dim == 0) {
+                dim = 1;
+            }
+        }
+        const cldnn::layout import_layout{ov::PartialShape{import_shape}, m_element_type, m_layout.format};
+        m_va_mem.size = static_cast<int64_t>(import_layout.bytes_count());
+    }
     update_hash();
     allocate();
 }
@@ -225,8 +227,8 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
-    // Sub-byte types use flat contiguous copy
-    if (m_element_type.bitwidth() < 8) {
+    // Sub-byte types and scalars use a flat contiguous copy.
+    if (m_element_type.bitwidth() < 8 || shape.empty()) {
         const auto byte_size = get_byte_size();
         if (dst_remote_tensor != nullptr) {
             auto src_mem = MemWrapper(stream, get_memory(), nullptr);
@@ -275,8 +277,8 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
 
-    // Sub-byte types use flat contiguous copy
-    if (m_element_type.bitwidth() < 8) {
+    // Sub-byte types and scalars use a flat contiguous copy.
+    if (m_element_type.bitwidth() < 8 || shape.empty()) {
         const auto byte_size = get_byte_size();
         if (src_remote_tensor != nullptr) {
             auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
@@ -403,7 +405,8 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
+        // The size was resolved in the constructor if the tensor was created with size -1.
+        const auto buffer_size = static_cast<size_t>(m_va_mem.size);
         if (m_va_mem.access == ov::intel_gpu::AccessMode::READ) {
             // host_read_only is set for the file-mmap case, since the host side will never write it either.
             m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
@@ -446,8 +449,9 @@ void RemoteTensorImpl::allocate() {
     update_strides();
 
     // update_properties() already asserts that m_memory_object is allocated
-    if (enable_caching)
+    if (enable_caching) {
         context->add_to_cache(m_hash, m_memory_object);
+    }
 }
 
 const std::string& RemoteTensorImpl::get_device_name() const {
@@ -557,14 +561,21 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
-    case TensorType::BT_CPU_VA:
+    case TensorType::BT_CPU_VA: {
+        // Report the size and access mode together with the pointer so that the properties returned by
+        // get_properties() are sufficient to re-wrap the same memory with create_tensor(), which requires
+        // cpu_va_size. This is the size the host buffer was imported with (resolved in the constructor for size -1),
+        // so it is also correct for tensors that were found in the memory cache.
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
             ov::intel_gpu::cpu_va(m_va_mem.ptr),
+            ov::intel_gpu::cpu_va_size(m_va_mem.size),
+            ov::intel_gpu::cpu_va_access(m_va_mem.access),
         };
         break;
+    }
     case TensorType::BT_USM_HOST_INTERNAL:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),

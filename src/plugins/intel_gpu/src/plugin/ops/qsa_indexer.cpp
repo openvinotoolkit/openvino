@@ -2,33 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 
+#include "intel_gpu/op/qsa_indexer_in_place.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/qsa_indexer.hpp"
 
 namespace ov::op::internal {
-using QSAIndexer = ov::intel_gpu::op::QSAIndexer;
+using QSAIndexerInPlace = ov::intel_gpu::op::QSAIndexerInPlace;
 }  // namespace ov::op::internal
 
 namespace ov::intel_gpu {
 
-static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::QSAIndexer>& op) {
-    validate_inputs_count(op, {ov::intel_gpu::op::QSAIndexer::InputIdx::COUNT});
+namespace {
+
+/// Lowers QSAIndexer and QSAIndexerInPlace, which share inputs and attributes; the latter writes its block cache in place.
+template <typename Op>
+void create_qsa_indexer(ProgramBuilder& p, const std::shared_ptr<Op>& op, bool in_place_block_cache) {
+    validate_inputs_count(op, {ov::op::internal::QSAIndexer::InputIdx::COUNT});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
+    const auto& config = op->get_config();
 
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::QSAIndexer::validate_config(op->get_config(), reason), "[GPU] Cannot lower QSAIndexer op '", layer_name, "': ", reason);
+    OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(config, reason), "[GPU] Cannot lower QSAIndexer op '", layer_name, "': ", reason);
 
-    using In = ov::intel_gpu::op::QSAIndexer::InputIdx;
-    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
+    using In = ov::op::internal::QSAIndexer::InputIdx;
+    OPENVINO_ASSERT(config.query_norm && config.query_rope,
+                    "[GPU] QSAIndexer '",
+                    layer_name,
+                    "': only query_norm == true and query_rope == true are supported");
+    OPENVINO_ASSERT(config.num_selection_heads == 1,
                     "[GPU] QSAIndexer '",
                     layer_name,
                     "': only num_selection_heads == 1 is supported, got ",
-                    op->get_config().num_selection_heads);
-    OPENVINO_ASSERT(op->get_index_key_heads() == 1, "[GPU] QSAIndexer '", layer_name, "': only H_ik == 1 is supported, got ", op->get_index_key_heads());
+                    config.num_selection_heads);
+    const auto& raw_keys_shape = op->get_input_partial_shape(In::RAW_INDEX_KEYS);
+    OPENVINO_ASSERT(raw_keys_shape.rank().is_static() && raw_keys_shape.size() == 4 && raw_keys_shape[2] == 1,
+                    "[GPU] QSAIndexer '",
+                    layer_name,
+                    "': only H_ik == 1 is supported, got raw_index_keys ",
+                    raw_keys_shape);
     for (size_t idx : {In::INDEX_QUERY,
                        In::RAW_INDEX_KEYS,
                        In::ROPE_COS,
@@ -47,11 +62,23 @@ static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
                         op->get_input_element_type(idx));
     }
 
-    cldnn::qsa_indexer prim(layer_name, inputs, op->get_config());
+    cldnn::qsa_indexer prim(layer_name, inputs, config);
+    prim.in_place_block_cache = in_place_block_cache;
     prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
 }
 
+void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::QSAIndexer>& op) {
+    create_qsa_indexer(p, op, false);
+}
+
+void CreateQSAIndexerInPlaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::QSAIndexerInPlace>& op) {
+    create_qsa_indexer(p, op, true);
+}
+
+}  // namespace
+
 REGISTER_FACTORY_IMPL(internal, QSAIndexer);
+REGISTER_FACTORY_IMPL(internal, QSAIndexerInPlace);
 
 }  // namespace ov::intel_gpu

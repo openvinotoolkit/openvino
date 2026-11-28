@@ -219,6 +219,13 @@ void validate_closure_metadata_sizes(std::size_t closure_size,
     NPUW_ASSERT(is_remote_size == closure_size && "Malformed ORC blob: is_remote size does not match closure size");
     NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
 }
+
+std::shared_ptr<ov::weight_sharing::Context> extract_model_sharing_context(ov::AnyMap& config) {
+    if (auto it = config.find(ov::internal::model_sharing_context.name()); it != config.end()) {
+        return it->second.as<std::shared_ptr<ov::weight_sharing::Context>>();
+    }
+    return nullptr;
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -373,11 +380,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
 }
 
 namespace {
-bool is_partitioned_orc(std::istream& stream) {
-    const auto header = ov::npuw::orc::is_orc(stream);
-    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
-}
-
 bool has_npuw_indicator(std::istream& stream) {
     const auto start = stream.tellg();
     ov::npuw::s11n::IndicatorType indicator;
@@ -390,7 +392,7 @@ bool has_npuw_indicator(std::istream& stream) {
 }  // anonymous namespace
 
 bool ov::npuw::ICompiledModel::is_npuw_blob(std::istream& stream) {
-    return is_partitioned_orc(stream) || has_npuw_indicator(stream);
+    return ov::npuw::orc::is_orc(stream).has_value() || has_npuw_indicator(stream);
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
@@ -400,10 +402,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     LOG_INFO("Choosing which NPUW CompiledModel to import");
     LOG_BLOCK();
 
-    // The partitioned CompiledModel is a plain ORC container with no indicator
-    // header of its own.
-    if (is_partitioned_orc(stream)) {
-        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+    const auto orc_header = orc::is_orc(stream);
+    if (orc_header.has_value()) {
+        if (orc_header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA) {
+            return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+        }
+        if (orc_header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+            return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        }
+        NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
     }
 
     const auto stream_start_pos = stream.tellg();
@@ -419,19 +426,25 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     stream.clear();
     stream.seekg(stream_start_pos);
 
+    std::string legacy_kind_cmod;
     if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
-    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
         // Properties are required for ov::weights_path
         return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-        // The flat CompiledModel moved to the ORC container above; its old
+        // The flat CompiledModel and GQACompiledModel moved to the ORC container above; its old
         // indicator-headed layout has no reader anymore.
-        OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+        legacy_kind_cmod = "CompiledModel";
+    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+        legacy_kind_cmod = "GQACompiledModel";
+    }
+    if (!legacy_kind_cmod.empty()) {
+        OPENVINO_THROW("Legacy flat NPUW ",
+                       legacy_kind_cmod,
+                       " blobs are no longer supported. Re-export the model with "
                        "the current ORC serializer.");
     }
     OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
@@ -504,7 +517,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
     const std::string wbank_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
-    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core(), wbank_alloc);
+    m_shared_ctx_ptr = extract_model_sharing_context(m_non_npuw_props);
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core(), wbank_alloc, m_shared_ctx_ptr);
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
@@ -1486,6 +1500,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
     serializable_props.erase(ov::cache_encryption_callbacks.name());
+    serializable_props.erase(ov::internal::model_sharing_context.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
     auto write_children = [&](std::ostream& body_stream) {
@@ -2413,6 +2428,10 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            if (hfa->_masked_tile_model_to_compile) {
+                hfa->set_compiled_masked_tile_model(
+                    make_wrapped(hfa->_masked_tile_model_to_compile, "/hfa_masked_tile", devices));
+            }
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 
@@ -3101,10 +3120,20 @@ void ov::npuw::CompiledModel::implement_properties() {
           [&](const ::intel_npu::Config&) {
               GET_PLUGIN_PROP(ov::hint::inference_precision);
           }}},
+        // The NPU plugin no longer exposes enable_cpu_pinning, so it cannot be queried from there. NPUW still accepts
+        // it (it is forwarded to the submodels on devices which support it, e.g. CPU), so report the value given by
+        // the user and fall back to the property default otherwise.
         {ov::hint::enable_cpu_pinning.name(),
          {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-              GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
+          [&](const ::intel_npu::Config&) -> ov::Any {
+              {
+                  std::lock_guard<std::mutex> lock(m_props_mutex);
+                  if (auto it = m_non_npuw_props.find(ov::hint::enable_cpu_pinning.name());
+                      it != m_non_npuw_props.end()) {
+                      return it->second.as<bool>();
+                  }
+              }
+              return false;
           }}},
         // clang-format off
         {ov::hint::model_priority.name(),

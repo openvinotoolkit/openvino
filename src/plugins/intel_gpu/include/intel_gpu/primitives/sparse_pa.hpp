@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#include "intel_gpu/op/sparse_pa.hpp"
+#include "intel_gpu/op/sparse_pa_config.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Paged-cache sparse attention consumer primitive: Q0 (K/V cache write) + Q3
 /// (selected-block attention with automatically-derived causal tail). Lowered from
-/// ov::intel_gpu::op::SparsePA.
+/// ov::op::internal::PagedSparseAttention by CreatePagedSparseAttentionOp; see ov::intel_gpu::op::SparsePAConfig.
 struct sparse_pa : public primitive_base<sparse_pa> {
     CLDNN_DECLARE_PRIMITIVE(sparse_pa)
 
@@ -35,10 +35,10 @@ struct sparse_pa : public primitive_base<sparse_pa> {
         static constexpr size_t COUNT = 11;
     };
 
-    using Config = ov::intel_gpu::op::SparsePA::Config;
+    using Config = ov::intel_gpu::op::SparsePAConfig;
 
     static bool validate_config(const Config& c, std::string& reason) {
-        return ov::intel_gpu::op::SparsePA::validate_config(c, reason);
+        return c.validate(reason);
     }
 
     sparse_pa() : primitive_base("", {}) {}
@@ -66,7 +66,7 @@ struct sparse_pa : public primitive_base<sparse_pa> {
     size_t v_head_size = 0;
     size_t key_block_size = 0;
     size_t query_block_size = 1;
-    float scale = 0.0f;
+    float scale = 0.0F;
     bool causal = true;
     size_t page_size = 0;  ///< 0 = key_cache dim 2 (f16 caches)
     ov::intel_gpu::op::KVQuant key_quant{};
@@ -110,8 +110,9 @@ struct sparse_pa : public primitive_base<sparse_pa> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto r = downcast<const sparse_pa>(rhs);
         return num_heads == r.num_heads && num_kv_heads == r.num_kv_heads && num_selection_heads == r.num_selection_heads && k_head_size == r.k_head_size &&
                v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size && scale == r.scale &&

@@ -45,11 +45,18 @@ size_t getSortSize(const arg_max_min_params& params) {
             throw std::invalid_argument("Unsupported axis");
     }
 }
+
+bool useParallelValueSort(const arg_max_min_params& params) {
+    // A single BF16 result needs no value ordering, and the linear scan avoids per-candidate ranking.
+    return params.argMaxMinSortType == ArgMaxMinSortType::VALUE &&
+           (params.inputs[0].GetDType() != Datatype::BF16 || params.topK != 1);
+}
 }  // namespace
 
 ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -92,7 +99,6 @@ bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
     }
 
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
-
     if (params.inputs.size() > 1) {
         if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims()) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -108,7 +114,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
     if (!params.has_dynamic_tensors()) {
         size_t ops_size = getOperationNumber(params);
         ops_size = ops_size > 1 ? Align(ops_size, 32) : 1;
-        size_t sort_size = params.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(params) : 1;
+        size_t sort_size = useParallelValueSort(params) ? getSortSize(params) : 1;
 
         dispatchData.gws = { ops_size, sort_size, 1 };
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -120,7 +126,8 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
 namespace {
 std::vector<InternalBuffer> get_internal_buffer_sizes(const arg_max_min_params& params) {
     const size_t elem_size = params.inputs[0].ElementSize();
-    const size_t iav_type_size = Align(elem_size + 4, 4);
+    const size_t value_size = params.inputs[0].GetDType() == Datatype::BF16 ? sizeof(float) : elem_size;
+    const size_t iav_type_size = Align(value_size + sizeof(uint32_t), sizeof(uint32_t));
     const size_t sort_size = getSortSize(params);
     const size_t ops_size = getOperationNumber(params);
     const size_t group_size = params.topK >= 8 ? params.topK : 8;
@@ -208,7 +215,7 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
         const size_t operation_num = getOperationNumber(params);
         jit.AddConstant(MakeJitConstant("OPERATION_NUM", operation_num));
     }
-    if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE) {
+    if (useParallelValueSort(params)) {
         jit.AddConstant(MakeJitConstant("SORT_BY_VALUE", 1));
     } else {
         jit.AddConstant(MakeJitConstant("SORT_BY_INDEX", 1));

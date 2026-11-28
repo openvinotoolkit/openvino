@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,10 +48,7 @@ public:
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
     std::vector<std::string> autoTuneOptions = {EXE_MODE_DEFAULT, EXE_MODE_NO_PRERA_SCH, EXE_MODE_AGE_BASED};
     using WeightBiasKernelBase::GetTunedKernelsDataByIndex;
-    virtual KernelsData GetTunedKernelsDataByIndex(const Params &params,
-                                                   DataLayout dl,
-                                                   WeightsLayout wl,
-                                                   const int autoTuneIndex = -1) const;
+    virtual KernelsData GetTunedKernelsDataByIndex(const Params& params, DataLayout dl, WeightsLayout wl, int autoTuneIndex = -1) const;
 
 protected:
     using WeightBiasKernelBase::GetJitConstants;
@@ -66,7 +63,7 @@ protected:
 
     // Fused ops
     virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
-    Datatype GetAccumulatorType(const fully_connected_params& params) const;
+    static Datatype GetAccumulatorType(const fully_connected_params& params);
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,10 @@ bool LRNKernelBase::Validate(const Params& p) const {
 
     const lrn_params& params = static_cast<const lrn_params&>(p);
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -41,7 +41,7 @@ JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNK
     // auto pad = (np.localSize) / 2;
     auto alpha = params.alpha;
     auto alpha_div_by_size = alpha / params.localSize;
-    auto alpha_sign = std::signbit(alpha) ? -1.0f : 1.0f;
+    auto alpha_sign = std::signbit(alpha) ? -1.0F : 1.0F;
     // When used FP16 the value cannot be scaled afterwards by alpha (it must be scaled before computing sum of
     // squares).
     auto alpha_abs_sqrt = std::sqrt(std::abs(alpha));
@@ -50,8 +50,8 @@ JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNK
     mem_consts.AddConstants({
         MakeJitConstant("ALPHA_AFTER_FACTORED", params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha),
         MakeJitConstant("ALPHA_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha_div_by_size),
-        MakeJitConstant("ALPHA_VAL_FACTOR", params.inputs[0].GetDType() == Datatype::F16 ? alpha_abs_sqrt : 1.0f),
-        MakeJitConstant("ALPHA_VAL_FACTOR_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_div_by_size_abs_sqrt : 1.0f),
+        MakeJitConstant("ALPHA_VAL_FACTOR", params.inputs[0].GetDType() == Datatype::F16 ? alpha_abs_sqrt : 1.0F),
+        MakeJitConstant("ALPHA_VAL_FACTOR_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_div_by_size_abs_sqrt : 1.0F),
     });
 
     return mem_consts;

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -43,13 +44,10 @@ struct CTCLoss : public ImplementationManager {
             return false;
         }
 
-        for (const auto& out_l : node.get_output_layouts()) {
-            if (!one_of(out_l.format, supported_fmts) || !one_of(out_l.data_type, supported_types)) {
-                return false;
-            }
-        }
-
-        return true;
+        const auto& output_layouts = node.get_output_layouts();
+        return std::all_of(output_layouts.begin(), output_layouts.end(), [](const auto& out_l) {
+            return one_of(out_l.format, supported_fmts) && one_of(out_l.data_type, supported_types);
+        });
     }
 };
 

@@ -20,6 +20,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/convert_sparse_attention_to_dense.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
@@ -54,6 +55,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
@@ -151,80 +153,26 @@ bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
     return model->get_rt_info<std::string>(rt_info_path).find("int8") != std::string::npos;
 }
 
-struct NPUDesc {
-    std::string arch;
-    int64_t max_tiles = 0;
-    bool compiler_dq = false;
-    bool compiler_matmul_gate = false;
-    int64_t compiler_ver = 0;
-    bool support_flash_attention_tile = false;
-};
-
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
-                                              const ov::AnyMap& config) {
-    if (!plugin->get_core()) {
-        return std::nullopt;
-    }
-    std::vector<std::string> all_devices;
-    try {
-        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
-    } catch (const ov::Exception& ex) {
-        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
-        return std::nullopt;
-    }
-    if (all_devices.empty()) {
-        return std::nullopt;
-    }
-    NPUDesc desc;
-    desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
-    desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
-
-    // Don't use reference here!
-    const auto supported_properties =
-        plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
-    if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
-        supported_properties.end()) {
-        desc.compiler_dq = true;
-    }
-
-    // Get compiler version based on NPU_COMPILER_TYPE configuration
-    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
-    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
-    if (compiler_type_it == config.end()) {
-        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
-        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
-    } else {
-        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
-        auto target_compiler_type = compiler_type_it->second.as<std::string>();
-        desc.compiler_ver = plugin
-                                ->get_property(ov::intel_npu::compiler_version.name(),
-                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
-                                .as<int64_t>();
-    }
-    LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "."
-                                  << ONEAPI_VERSION_MINOR(desc.compiler_ver));
-
-    constexpr std::string_view compiler_gate_support_msg =
-        "Compiler: accurate gated matmul (MatMul -> Divide -> Tanh -> Multiply -> Result) : ";
-
-    if (desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 28)) {
-        // accuracy for gated matmul fixed at 7.28
-        desc.compiler_matmul_gate = true;
-        LOG_INFO(compiler_gate_support_msg << "supported");
-    } else {
-        LOG_WARN(compiler_gate_support_msg << "unsupported");
-    }
-
-    static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
-        ov::intel_npu::Platform::NPU5010,
-        ov::intel_npu::Platform::NPU6010};
-
-    // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
-    desc.support_flash_attention_tile =
-        flash_attention_tile_supported_platforms.count(desc.arch) && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
-
-    return std::make_optional(std::move(desc));
+// Zero point decomposition for weights-as-inputs dequantization, where the zero point and the scale are
+// also model inputs (DynamicDequantize becomes Dequantize). Supported starting from compiler 8.5
+// (EISW-229457).
+bool compiler_supports_dynamic_zp_decomposition(const int64_t compiler_ver) {
+    return compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
 }
+
+// NPU37XX (Meteor Lake) compiles the weights-as-inputs LM head with an asymmetric vocabulary to SHAVE-only
+// DynamicDequantize: its zero point decomposition does not handle the 3D MatMul the head becomes there, regardless
+// of the compiler version (about 1300 ms instead of about 30 ms per token with the shared vocabulary).
+bool platform_supports_shared_vocab(const std::string& arch) {
+    const auto platform =
+        arch != ov::intel_npu::Platform::AUTO_DETECT ? ov::intel_npu::Platform::standardize(arch) : arch;
+    return platform != ov::intel_npu::Platform::NPU3720;
+}
+
+using ov::npuw::util::extract_npu_descriptor;
+using ov::npuw::util::get_default_common_config;
+using ov::npuw::util::NPUDesc;
+using ov::npuw::util::query_compiler_version;
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
     if (auto it = config.find(option_name); it != config.end()) {
@@ -235,99 +183,31 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
-void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
+std::pair<bool, std::string> apply_weights_bank_name_if_not_exist(ov::AnyMap& config, const std::string& bank_name) {
     auto it = config.find("NPUW_WEIGHTS_BANK");
     if (it != config.end()) {
         if (it->second.as<std::string>().empty()) {
             NPUW_ASSERT(false && "NPUW_WEIGHTS_BANK is empty in the provided config! Please use non-empty name to "
                                  "share the model weights.");
         }
+        return {false, it->second.as<std::string>()};
     } else {
         config["NPUW_WEIGHTS_BANK"] = bank_name;
     }
+    return {true, bank_name};
 }
 
-ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
-    ov::AnyMap config = {
-        {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
-        {"NPUW_DEVICES", "NPU"},
-        {"NPU_USE_NPUW", "YES"},
-        {"NPUW_FOLD", "YES"},
-        {"NPUW_DCOFF_TYPE", "f16"},
-        {"NPUW_DCOFF_SCALE", "YES"},
-        {"NPUW_SLICE_OUT", "YES"},
-        {"NPUW_FUNCALL_ASYNC", "YES"}};
-    // FIXME: this config logic is getting more and more complex
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ", "YES");
-        config.emplace("NPUW_DQ_FULL", "NO");
-        config.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
-        config.erase("NPUW_DCOFF_TYPE");
-        config.erase("NPUW_DCOFF_SCALE");
+void assign_model_sharing_context_for_bank(
+    ov::AnyMap& config,
+    const std::string& bank_name,
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>>& shared_ctxs) {
+    if (shared_ctxs.count(bank_name) == 0) {
+        shared_ctxs[bank_name] = std::make_shared<ov::weight_sharing::Context>();
+        LOG_INFO("Created an OV Weight Sharing Context for weights bank: " << bank_name << ", total contexts count: "
+                                                                           << shared_ctxs.size());
     }
 
-    // default value is ON
-    // for compiler versions >= 7.28 value is ON
-    // for other compiler versions value is OFF
-    if (npudesc.has_value()) {
-        config.emplace("NPUW_MM_GATED", (npudesc->compiler_matmul_gate ? "YES" : "NO"));
-    }
-    return config;
-}
-
-ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
-    // FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
-    auto config = get_baseline_common_config(npudesc);
-    const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
-    if (npu_l0 && std::atoi(npu_l0) == 1) {
-        config.emplace("NPUW_WEIGHTS_BANK_ALLOC", "CPU");
-    } else {
-        config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
-    }
-    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
-        if (!npudesc.has_value()) {
-            return;
-        }
-        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
-                                                << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
-
-        // Platform parameter has a higher priority than deviceID
-        std::string npu_platform;
-        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
-            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
-        } else {
-            npu_platform = npudesc->arch;
-        }
-
-        bool set_npu_tiles = false;
-        std::string arch_added_compilation_param;
-        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
-            // Keep baseline settings
-        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
-            set_npu_tiles = true;
-            arch_added_compilation_param = "optimization-level=3";
-        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
-                   npu_platform == ov::intel_npu::Platform::NPU5020) {
-            set_npu_tiles = true;
-        } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
-            arch_added_compilation_param = "performance-hint-override=latency";
-        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
-            // Keep baseline settings
-        } else {
-            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
-        }
-
-        if (set_npu_tiles) {
-            config["NPU_TILES"] = npudesc->max_tiles;
-        }
-
-        if (!arch_added_compilation_param.empty()) {
-            config["NPU_COMPILATION_MODE_PARAMS"] =
-                config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>() + " " + arch_added_compilation_param;
-        }
-    };
-    set_max_tiles_based_on_arch();
-    return config;
+    config[ov::internal::model_sharing_context.name()] = shared_ctxs[bank_name];
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
@@ -457,6 +337,29 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
         result.emplace(value.first, value.second.as<std::string>());
     }
     return result;
+}
+
+// Partitioning turns the Sub128 shifts of a shared vocabulary into one i8 closure only in function
+// subgraphs that go through Partitioner::optimize(): NPUW_FOLD and NPUW_FUNCALL_FOR_ALL, with
+// NPUW_HOST_GATHER on. NPUW_CWAI is not enough: it is used only without NPUW_FOLD, and its pipeline does not
+// run optimize(), so the shifts would stay in the function body. Without a closure the shifts reach the
+// compiler as they are: no memory is saved, and the LM head becomes several times slower.
+// The options are read with the option set of the stage itself, to get the same defaults and values.
+bool vocab_is_closure(const ov::AnyMap& stage_config) {
+    ov::AnyMap selected;
+    for (const auto key : {::intel_npu::NPUW_FOLD::key(),
+                           ::intel_npu::NPUW_FUNCALL_FOR_ALL::key(),
+                           ::intel_npu::NPUW_HOST_GATHER::key()}) {
+        if (const auto it = stage_config.find(std::string(key)); it != stage_config.end()) {
+            selected.insert(*it);
+        }
+    }
+    auto options_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*options_desc);
+    ::intel_npu::Config stage_cfg(options_desc);
+    stage_cfg.update(any_copy(selected));
+    return stage_cfg.get<::intel_npu::NPUW_FOLD>() && stage_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>() &&
+           stage_cfg.get<::intel_npu::NPUW_HOST_GATHER>();
 }
 
 // Detect Gemma-4 E2B/E4B by a consumed "per_layer_inputs" input with nonzero PLE dim.
@@ -884,12 +787,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-        // Shared vocabulary handling makes the decoding of INT4 Whisper models several times slower
-        // in the default (not folded) configuration, so it is not used for Whisper.
-        if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is not used for Whisper and is turned off.");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        }
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -980,17 +877,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
+    // Sharing is detected on the whole model, before the LM head is cut off. The Sub128 shifts are
+    // inserted later, when the stage configs are known.
+    bool shared_vocab = false;
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-        bool shared_vocab = false;
-        ov::npuw::DetectVocabSharing detect_vocab_sharing(shared_vocab);
-        detect_vocab_sharing.run_on_model(kvcache_model);
-        if (shared_vocab) {
-            ov::npuw::InsertVocabSub128 pass;
-            if (!pass.run_on_model(kvcache_model)) {
-                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
-                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
-            }
-        }
+        ov::npuw::DetectVocabSharing(shared_vocab).run_on_model(kvcache_model);
     }
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
@@ -1063,6 +954,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
+
+    // QSA layers reuse the lincache path; however, the prefix cache only stores and restores
+    // per-token KV blocks and never restores lincache states, so a prefix hit would leave the
+    // QSA states out of sync with the restored KV. Hence QSA models are rejected with prefix caching.
+    const bool converted_qsa =
+        ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
+    if (converted_qsa && m_enable_prefix_caching) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("QSA models do not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
+    }
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
@@ -1383,8 +1283,29 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
-    apply_weights_bank_name(prefill_config, weights_bank_name);
-    apply_weights_bank_name(generate_config, weights_bank_name);
+
+    // Associate each weights bank name with an ov::weight_sharing::Context and pass it
+    // to the corresponding submodels through their configs. Submodels using the same
+    // bank name receive the same context, while different bank names get separate contexts.
+    // Use the generated bank name by default and preserve explicitly configured bank names.
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
+    LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
+    shared_weight_ctx_per_bank[weights_bank_name] = std::make_shared<ov::weight_sharing::Context>();
+    // Each submodel config may have a bank name preconfigured by the user. To preserve
+    // the association above, assign contexts by the resolved bank name, sharing a context
+    // only between submodels with matching bank names, whether generated or user-provided.
+    auto [prefill_applied, prefill_bank_name] = apply_weights_bank_name_if_not_exist(prefill_config, weights_bank_name);
+    LOG_INFO("Prefill config accepts the unique weights bank: " << (prefill_applied ? "yes" : "no")
+                                                                << ", bank name: " << prefill_bank_name);
+    assign_model_sharing_context_for_bank(prefill_config, prefill_bank_name, shared_weight_ctx_per_bank);
+
+    // Do the same for the generate config to ensure consistent context assignment across submodels.
+    auto [generate_applied, generate_bank_name] =
+        apply_weights_bank_name_if_not_exist(generate_config, weights_bank_name);
+    LOG_INFO("Generate config accepts the unique weights bank: " << (generate_applied ? "yes" : "no")
+                                                                 << ", bank name: " << generate_bank_name);
+    assign_model_sharing_context_for_bank(generate_config, generate_bank_name, shared_weight_ctx_per_bank);
+    LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
 
     // Handle attention hints. FIXME: Maybe it makes sense to make those
     // mutually exclusive with the precise configuration sections as well
@@ -1529,7 +1450,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             return found;
         };
-        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc && npudesc->arch == "5010" &&
+        const auto device_routed_platform =
+            npudesc && (npudesc->arch == ov::intel_npu::Platform::NPU5010 ||
+                        ov::intel_npu::Platform::standardize(npudesc->arch) == ov::intel_npu::Platform::NPU6010);
+        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && device_routed_platform &&
             npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
             m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1 && !generate_model_variants.empty() &&
             std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
@@ -1644,6 +1568,66 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    ov::AnyMap lm_head_config;
+    if (lm_head_model) {
+        lm_head_config = get_default_lm_head_config(npudesc);
+        merge_config_with(lm_head_config, other_props);
+        auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
+        merge_config_with(lm_head_config, lm_head_config_addition_value);
+    }
+
+    if (shared_vocab) {
+        // The shared vocabulary makes the LM head dequantize the weights with the zero point and the scale as
+        // inputs. Without the compiler zero point decomposition for this case the LM head becomes several times
+        // slower, so the default is turned off. The compiler is the one selected by the final LM head config,
+        // which can differ from the top-level one. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept.
+        const bool set_by_user = npuw_llm_props.count(std::string(::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED::key())) > 0;
+        const auto head_compiler_ver = lm_head_model && npudesc.has_value() && !set_by_user
+                                           ? query_compiler_version(plugin, lm_head_config)
+                                           : int64_t{0};
+        const bool compiler_supports =
+            !npudesc.has_value() || set_by_user || compiler_supports_dynamic_zp_decomposition(head_compiler_ver);
+        const bool platform_supports =
+            !npudesc.has_value() || set_by_user || platform_supports_shared_vocab(npudesc->arch);
+        const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
+                                                    vocab_is_closure(generate_config) &&
+                                                    (lm_head_model && vocab_is_closure(lm_head_config));
+        if (!lm_head_model) {
+            // Without a separate LM head model the embedding and the LM head are in one model. If the embedding
+            // matches the quantized host gather (hidden size 2048 or more), the partitioner uses it for the whole
+            // model and does not run ConvertDQVocab, so the Sub128 shifts of the LM head reach the compiler.
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_LLM_SHARED_HEAD.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!platform_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: the NPU37XX compiler keeps the LM head dequantization "
+                     "on SHAVE.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!compiler_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer for the LM head, "
+                     "the compiler is "
+                     << ONEAPI_VERSION_MAJOR(head_compiler_ver) << "." << ONEAPI_VERSION_MINOR(head_compiler_ver)
+                     << ".");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!vocab_is_closure_in_all_stages) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
+                     "NPUW_HOST_GATHER in every stage.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else {
+            std::vector<ov::npuw::Vocab> lm_head_vocabs;
+            if (!ov::npuw::InsertVocabSub128(lm_head_vocabs).run_on_model(lm_head_model)) {
+                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
+                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
+            } else {
+                // The LM head model has its own copy of the dequantization nodes, so the embedding Gather in the
+                // other models is shifted separately: both readers must use the same i8 table to share it.
+                for (const auto& embedding_model : generate_model_variants) {
+                    ov::npuw::InsertEmbeddingSub128(lm_head_vocabs).run_on_model(embedding_model);
+                }
+                ov::npuw::InsertEmbeddingSub128(lm_head_vocabs).run_on_model(prefill_model);
+            }
+        }
+    }
+
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1656,13 +1640,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
     }
     if (lm_head_model) {
-        auto lm_head_config = get_default_lm_head_config(npudesc);
-        merge_config_with(lm_head_config, other_props);
-        auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-        merge_config_with(lm_head_config, lm_head_config_addition_value);
-
-        apply_weights_bank_name(lm_head_config, weights_bank_name);
-
+        auto [lm_head_applied, lm_head_bank_name] =
+            apply_weights_bank_name_if_not_exist(lm_head_config, weights_bank_name);
+        LOG_INFO("LM Head config accepts the unique weights bank: " << (lm_head_applied ? "yes" : "no")
+                                                                    << ", bank name: " << lm_head_bank_name);
+        assign_model_sharing_context_for_bank(lm_head_config, lm_head_bank_name, shared_weight_ctx_per_bank);
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }
@@ -1875,14 +1857,19 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     bool is_weightless = true;
     read(stream, is_weightless);
 
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         auto stream = Stream::reader(model_stream);
         std::string bank_name;
         stream & bank_name;
 
+        shared_weight_ctx_per_bank[bank_name] = std::make_shared<ov::weight_sharing::Context>();
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            auto bank = ov::npuw::weights::bank(bank_name,
+                                                compiled->get_plugin()->get_core(),
+                                                "",
+                                                shared_weight_ctx_per_bank[bank_name]);
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);
@@ -1897,7 +1884,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            auto bank = ov::npuw::weights::bank(bank_name,
+                                                compiled->get_plugin()->get_core(),
+                                                "",
+                                                shared_weight_ctx_per_bank[bank_name]);
             stream&* bank;
 
             // Encoder embedding models are prefill-only: no kvcache/generate compiled models.
@@ -1953,7 +1943,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
     read_and_finalize_banks(stream, compiled_model);
 
-    LOG_INFO("Done.");
+    if (!shared_weight_ctx_per_bank.empty()) {
+        LOG_INFO("Done with shared weight contexts: " << shared_weight_ctx_per_bank.size());
+    } else {
+        LOG_INFO("Done.");
+    }
 
     return compiled_model;
 }
@@ -2177,6 +2171,9 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
         // A port can carry several names, so every one of them must clear the
         // exclusions; get_any_name() could return one that hides a match.
         for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_qsa_state(name)) {
+                return false;  // QSA state has no generate->prefill path
+            }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
                 return false;  // linear/hybrid state has no generate->prefill path
             }

@@ -15,7 +15,7 @@ template <>
 struct typed_program_node<mutable_data> : public typed_program_node_base<mutable_data> {
     using parent = typed_program_node_base<mutable_data>;
 
-    typed_program_node(const std::shared_ptr<mutable_data> prim, program& prog);
+    typed_program_node(std::shared_ptr<mutable_data> prim, program& prog);
 
     memory& get_attached_memory() const { return *mem; }
     memory::ptr get_attached_memory_ptr() const { return mem; }

@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "intel_npu/utils/vm/npu_vm_runtime.hpp"
+#include "vm_runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/itensor.hpp"

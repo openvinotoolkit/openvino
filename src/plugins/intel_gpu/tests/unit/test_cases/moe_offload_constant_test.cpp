@@ -4,15 +4,35 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+#include <numeric>
+#include <optional>
+
 #include "test_utils.h"
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
 
 using namespace ov::intel_gpu;
+
+// A constant viewing a weights file, as produced by reading a model with mmap
+static std::shared_ptr<ov::op::v0::Constant> make_file_backed_const(ov::element::Type type, const ov::Shape& shape) {
+    const auto byte_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+    auto weights_file = std::make_shared<ov::AlignedBuffer>(byte_size);
+    auto view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(weights_file->get_ptr<char>(),
+                                                                                       byte_size,
+                                                                                       weights_file,
+                                                                                       ov::create_base_descriptor(1, 0, weights_file));
+    return std::make_shared<ov::op::v0::Constant>(type, shape, view);
+}
 
 // Helper: build a minimal MOECompressed node with 22 inputs (indices 0..21).
 // Inputs 0-2 are Parameters (hidden_states, routing_weights, topk_indices).
@@ -28,7 +48,8 @@ struct MoETestGraph {
                               size_t hidden_size = 128,
                               size_t inter_size = 256,
                               size_t group_size = 128,
-                              ov::op::internal::MOE::Expert_type expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
+                              ov::op::internal::MOE::Expert_type expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU,
+                              bool file_backed_weights = true) {
         MoETestGraph g;
 
         const size_t top_k = 2;
@@ -68,16 +89,19 @@ struct MoETestGraph {
         auto make_const = [](ov::element::Type type, const ov::Shape& shape) {
             return std::make_shared<ov::op::v0::Constant>(type, shape, 0);
         };
+        auto make_weight = [&](ov::element::Type type, const ov::Shape& shape) {
+            return file_backed_weights ? make_file_backed_const(type, shape) : make_const(type, shape);
+        };
 
         // Inputs 3-11: routed expert weights (gate/up/down × weight/scale/zp)
         // gate_w [E, inter, group_size, group_num]
-        g.constants.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_size, group_num}));   // 3: w0_weight
+        g.constants.push_back(make_weight(ov::element::u8, {num_experts, inter_size, group_size, group_num}));  // 3: w0_weight
         g.constants.push_back(make_const(ov::element::f16, {num_experts, inter_size, group_num, 1}));           // 4: w0_scale
         g.constants.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_num, 1}));            // 5: w0_zp
-        g.constants.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_size, group_num}));   // 6: w1_weight
+        g.constants.push_back(make_weight(ov::element::u8, {num_experts, inter_size, group_size, group_num}));  // 6: w1_weight
         g.constants.push_back(make_const(ov::element::f16, {num_experts, inter_size, group_num, 1}));           // 7: w1_scale
         g.constants.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_num, 1}));            // 8: w1_zp
-        g.constants.push_back(make_const(ov::element::u8, {num_experts, hidden_size, group_size, group_num2})); // 9: w2_weight
+        g.constants.push_back(make_weight(ov::element::u8, {num_experts, hidden_size, group_size, group_num2}));  // 9: w2_weight
         g.constants.push_back(make_const(ov::element::f16, {num_experts, hidden_size, group_num2, 1}));         // 10: w2_scale
         g.constants.push_back(make_const(ov::element::u8, {num_experts, hidden_size, group_num2, 1}));          // 11: w2_zp
 
@@ -337,4 +361,175 @@ TEST(moe_offload_constant, shared_routed_weights_propagate_resident_fallback) {
     EXPECT_FALSE(is_moe_constant_offloadable(first.constants[1]));
     EXPECT_FALSE(is_moe_constant_offloadable(second.constants[1]));
     EXPECT_EQ(get_model_resident_constant_bytes(model, 75), get_model_resident_constant_bytes(model, 0));
+}
+
+namespace {
+PartialUploadDesc prepare_partial_upload(const std::shared_ptr<ov::op::v0::Constant>& constant, size_t offload_ratio) {
+    auto& engine = tests::get_test_engine();
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::offload_ratio(offload_ratio));
+    const auto shape = constant->get_output_shape(0);
+    const auto layout =
+        cldnn::layout(shape, cldnn::element_type_to_data_type(constant->get_output_element_type(0)), cldnn::format::get_default_format(shape.size()));
+    return try_prepare_partial_upload(engine, config, constant, shape, layout.data_type, layout.format, layout);
+}
+}  // namespace
+
+TEST(moe_offload_constant, slot_count_of_file_backed_weights) {
+    auto graph = MoETestGraph::build(/*num_experts=*/8);
+
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 0), 0U);
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 25), 6U);
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 99), 1U);
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 100), 1U);
+}
+
+// Weights recomputed by the transformations (converted, transposed, ...) have no weights file to be streamed from
+TEST(moe_offload_constant, no_offload_of_weights_not_backed_by_file) {
+    auto graph = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, /*file_backed_weights=*/false);
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
+
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 50), 0U);
+    EXPECT_FALSE(prepare_partial_upload(graph.constants[0], 50).enabled);
+    EXPECT_EQ(get_model_resident_constant_bytes(model, 50), get_model_resident_constant_bytes(model, 0));
+}
+
+// Only the routed weights are offloaded: scales, zero points and shared experts stay fully resident
+TEST(moe_offload_constant, partial_upload_only_for_routed_weights) {
+    auto graph = MoETestGraph::build();
+
+    for (size_t i = 0; i < graph.constants.size(); i++) {
+        const auto input_index = i + 3;
+        const bool is_routed_weight = input_index == 3 || input_index == 6 || input_index == 9;
+        EXPECT_EQ(prepare_partial_upload(graph.constants[i], 50).enabled, is_routed_weight) << "MOECompressed input " << input_index;
+    }
+}
+
+// NNCF int3 models share one scalar zero point among all the layers: only the routed weights are streamed,
+// so the resident scales and zero points may have any other consumer
+TEST(moe_offload_constant, zero_point_shared_with_other_layers_does_not_block_offload) {
+    auto graph = MoETestGraph::build(/*num_experts=*/8);
+    auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{}, 4);
+    for (const size_t index : {5, 8, 11}) {
+        graph.moe_node->input(index).replace_source_output(zp);
+    }
+    auto other_layer = std::make_shared<ov::op::v0::Relu>(zp);
+
+    EXPECT_TRUE(is_moe_otd_eligible(graph.moe_node.get()));
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 50), 4U);
+    EXPECT_TRUE(prepare_partial_upload(graph.constants[0], 50).enabled);
+    EXPECT_FALSE(is_moe_constant_offloadable(zp));
+}
+
+// The slots copy each expert's slice of a scale / zero point: one shared by the experts but not a scalar cannot be sliced,
+// so the layer stays resident at compilation instead of failing at the first inference
+TEST(moe_offload_constant, scale_without_expert_slices_keeps_layer_resident) {
+    auto graph = MoETestGraph::build();
+    graph.moe_node->input(4).replace_source_output(std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 256, 1, 1}, 0));
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
+
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 50), 0U);
+    EXPECT_FALSE(prepare_partial_upload(graph.constants[0], 50).enabled);
+    EXPECT_EQ(get_model_resident_constant_bytes(model, 50), get_model_resident_constant_bytes(model, 0));
+}
+
+// OFFLOAD_RATIO that cannot offload any MoE layer of the model is an error, not a silent full residency
+TEST(moe_offload_constant, no_offloadable_moe_layer_is_rejected) {
+    auto in_memory = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, /*file_backed_weights=*/false);
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(in_memory.moe_node)}, in_memory.parameters);
+    OV_EXPECT_THROW(validate_model_resident_constant_memory(model, 50, 0),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("no MoE layer can be offloaded"), testing::HasSubstr("not unmodified views of the weights file")));
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 0));
+
+    // One offloadable layer is enough
+    auto file_backed = MoETestGraph::build();
+    auto parameters = in_memory.parameters;
+    parameters.insert(parameters.end(), file_backed.parameters.begin(), file_backed.parameters.end());
+    ov::Model mixed(ov::ResultVector{std::make_shared<ov::op::v0::Result>(in_memory.moe_node), std::make_shared<ov::op::v0::Result>(file_backed.moe_node)},
+                    parameters);
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(mixed, 50, 0));
+}
+
+// The slices are streamed from ov::weights_path: it must hold the data of the constant at its offset
+TEST(moe_offload_constant, weights_file_offset_is_checked_against_the_file) {
+    const auto path = std::filesystem::temp_directory_path() / "moe_offload_constant_weights_file_offset.bin";
+    const auto write_file = [&](const std::vector<char>& data) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(data.data(), static_cast<std::streamsize>(data.size()));
+    };
+    std::vector<char> file_data(256);
+    std::iota(file_data.begin(), file_data.end(), char{0});
+    write_file(file_data);
+
+    // Bytes 64..191 of the file, viewed as read with mmap
+    constexpr size_t offset = 64, size = 128;
+    auto weights_file = std::make_shared<ov::AlignedBuffer>(file_data.size());
+    std::copy(file_data.begin(), file_data.end(), weights_file->get_ptr<char>());
+    auto view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(weights_file->get_ptr<char>() + offset,
+                                                                                       size,
+                                                                                       weights_file,
+                                                                                       ov::create_base_descriptor(1, 0, weights_file));
+    const ov::op::v0::Constant constant(ov::element::u8, ov::Shape{size}, view);
+    EXPECT_EQ(get_weights_file_offset(constant, path), offset);
+
+    // The same bytes read without mmap into a buffer of their own: the offset is in the IR attribute
+    auto region = std::make_shared<ov::AlignedBuffer>(size);
+    std::copy_n(file_data.begin() + offset, size, region->get_ptr<char>());
+    auto region_view =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(region->get_ptr<char>(), size, region, ov::create_base_descriptor(2, 0, region));
+    ov::op::v0::Constant read_constant(ov::element::u8, ov::Shape{size}, region_view);
+    OV_EXPECT_THROW(get_weights_file_offset(read_constant, path), ov::Exception, testing::HasSubstr("cannot be located"));
+    read_constant.get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = ov::WeightlessCacheAttribute(size, offset, ov::element::u8);
+    EXPECT_EQ(get_weights_file_offset(read_constant, path), offset);
+
+    const ov::op::v0::Constant in_memory(ov::element::u8, ov::Shape{size}, 0);
+    OV_EXPECT_THROW(get_weights_file_offset(in_memory, path), ov::Exception, testing::HasSubstr("cannot be located"));
+
+    // Another file of the same size
+    write_file(std::vector<char>(file_data.size(), 0));
+    OV_EXPECT_THROW(get_weights_file_offset(constant, path), ov::Exception, testing::HasSubstr("does not contain the data of constant"));
+    std::filesystem::remove(path);
+}
+
+// The estimate keeps the scales and zero points fully resident and adds their slot copies: slots x bytes per expert
+TEST(moe_offload_constant, resident_estimate_counts_scale_and_zero_point_slots) {
+    for (const bool scalar_zp : {false, true}) {
+        SCOPED_TRACE(scalar_zp);
+        auto graph = MoETestGraph::build(/*num_experts=*/4);
+        if (scalar_zp) {
+            auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{}, 4);
+            for (const size_t index : {5, 8, 11}) {
+                graph.moe_node->input(index).replace_source_output(zp);
+            }
+        }
+        ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
+        uint64_t weights = 0;
+        uint64_t params = 0;
+        for (size_t index = 3; index <= 11; ++index) {
+            const auto* constant = ov::as_type<ov::op::v0::Constant>(graph.moe_node->get_input_node_ptr(index));
+            ((index % 3 == 0) ? weights : params) += ov::shape_size(constant->get_shape()) > 1 ? constant->get_byte_size() : 0;
+        }
+        // Ratio 50 keeps 2 of the 4 experts: half of the weights go, half of the per-expert scales and zero points come as slots
+        EXPECT_EQ(get_model_resident_constant_bytes(model, 0) - get_model_resident_constant_bytes(model, 50), weights / 2 - params / 2);
+    }
+}
+
+// Layers sharing a routed weight read the same partially uploaded constant: one that stays resident keeps the other resident too
+TEST(moe_offload_constant, layer_sharing_weights_with_a_resident_layer_stays_resident) {
+    auto first = MoETestGraph::build();
+    auto second = MoETestGraph::build();
+    second.moe_node->input(3).replace_source_output(first.constants[0]);
+    const auto& up_weight = second.constants[3];
+    second.moe_node->input(6).replace_source_output(std::make_shared<ov::op::v0::Constant>(up_weight->get_element_type(), up_weight->get_shape(), 0));
+
+    std::string reason;
+    EXPECT_FALSE(is_moe_otd_eligible(first.moe_node.get(), &reason));
+    EXPECT_EQ(reason, "the routed weights are not unmodified views of the weights file");
+    EXPECT_EQ(get_moe_offload_slot_count(*first.moe_node, 50), 0U);
+    EXPECT_EQ(get_moe_offload_slot_count(*second.moe_node, 50), 0U);
+    for (const auto& constant : {first.constants[0], first.constants[3], second.constants[6]}) {
+        EXPECT_FALSE(is_moe_constant_offloadable(constant));
+        EXPECT_FALSE(prepare_partial_upload(constant, 50).enabled);
+    }
 }

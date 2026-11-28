@@ -25,7 +25,7 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
 
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::os_is_yx_osv16_isv4;
     }
 
@@ -45,7 +45,7 @@ protected:
 
     std::vector<AutoTuneParams> all_tune_params;
 
-    bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const;
+    static bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params);
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
                                            int autoTuneIndex = -1) const override;

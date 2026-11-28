@@ -50,9 +50,11 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_clamp_and_fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gated_residual_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/group_normalization_fusion.cpp
@@ -83,6 +85,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_vllm_rope.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/optimize_strided_slice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pack_multi_head_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pad_fusion.cpp
@@ -163,6 +166,7 @@ set(OP_CONVERSIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_embedding_bag_packed15_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_quantized_legacy.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gated_residual_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_0d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_matmul_to_compressed.cpp
@@ -254,7 +258,9 @@ set(PAGED_ATTENTION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_qsa_indexer_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_selective_ssm_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_sparse_attention_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.cpp

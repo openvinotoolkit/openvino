@@ -306,7 +306,7 @@ cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
     return ret->first;
 }
 
-int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(const cldnn::layout& l, const dnnl::memory::desc& desc) {
     int64_t offset = 0;
     auto b_padding = l.data_padding._lower_size[0];
     auto f_padding = l.data_padding._lower_size[1];
@@ -752,7 +752,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
             for (size_t idx = 0; idx < candidate_trait.block_sizes.size(); idx++) {
                 auto block_idx = static_cast<dnnl_dim_t>(candidate_trait.block_sizes[idx].first);
                 auto block_size = static_cast<dnnl_dim_t>(candidate_trait.block_sizes[idx].second);
-                if (is_grouped && candidate_trait.is_group_char(candidate_trait.internal_order[block_idx])) {
+                if (is_grouped && format_traits::is_group_char(candidate_trait.internal_order[block_idx])) {
                     // inner_idx gets the index of group dimension in mem::desc when blocked axis is group
                     auto inner_idx = candidate_trait.order.find_first_of(candidate_trait.internal_order[block_idx]);
                     if (desc.get_inner_blks()[idx] != block_size || desc.get_inner_idxs()[idx] != static_cast<dnnl_dim_t>(inner_idx)) {
@@ -849,29 +849,6 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     }
 }
 
-template <typename T>
-bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
-    auto ptr = node.get_attached_memory_ptr();
-    auto* engine = ptr->get_engine();
-    auto& stream = engine->get_service_stream();
-    auto num_elems = node.get_output_layout().count();
-    mem_lock<T, mem_lock_type::read> old_data{ptr, stream};
-    auto val = old_data[0];
-    for (size_t i = 1; i < num_elems; i++) {
-        if (val != old_data[i]) {
-            zp_val = DNNL_RUNTIME_S32_VAL;
-            return false;
-        }
-    }
-
-    zp_val = val;
-    return true;
-}
-
-template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
-template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
-template bool is_per_tensor<int32_t>(cldnn::data_node& node, int32_t& zp_val);
-
 static std::string get_external_order(const std::vector<size_t>& order, bool is_weights, bool is_grouped) {
     cldnn::format default_fmt = format::get_default_format(order.size(), is_weights, is_grouped);
     const auto& default_order = default_fmt.order();
@@ -920,7 +897,12 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     const int group_num = is_grouped ? 1 : 0;
     const int spatial_size = std::max<int>(ndims - batch_num - feature_num - group_num, 0);
 
-    std::string internal_order = is_weights ? (is_grouped ? "oixyz???g" : "oixyz") : "bfxyzwuv";
+    std::string internal_order = [is_weights, is_grouped]() {
+        if (!is_weights) {
+            return "bfxyzwuv";
+        }
+        return is_grouped ? "oixyz???g" : "oixyz";
+    }();
 
     const size_t max_spatial = 2 + (is_weights ? 3 : 6);
     const size_t last_spatial_offset = 2 + spatial_size;
@@ -1026,18 +1008,18 @@ bool is_supported_post_ops(const program_node& node) {
         return false;
     }
 
-    for (const auto& fo : node.get_fused_primitives()) {
-        if (fo.is_type<activation>()) {
+    const auto& fused_primitives = node.get_fused_primitives();
+    return std::all_of(fused_primitives.begin(), fused_primitives.end(), [](const auto& fo) {
+        if (fo.template is_type<activation>()) {
             // Some activations aren't implemented in oneDNN
-            auto activation_prim = fo.typed_desc<activation>();
+            auto activation_prim = fo.template typed_desc<activation>();
             if (activation_prim->activation_function == activation_func::negative || activation_prim->activation_function == activation_func::negation ||
                 activation_prim->activation_function == activation_func::sign) {
                 return false;
             }
         }
-    }
-
-    return true;
+        return true;
+    });
 }
 
 bool is_supported_pad(const layout& layout) {

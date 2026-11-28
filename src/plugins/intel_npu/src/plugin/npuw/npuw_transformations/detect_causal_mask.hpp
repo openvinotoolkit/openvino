@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
+
+#include "openvino/core/node.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov::npuw {
@@ -45,5 +48,14 @@ static constexpr const char* NPUW_SDPA_MASK_RT_KEY = "npuw_sdpa_mask_type";
 
 // Sentinel value written for the Causal case -- see NPUW_SDPA_MASK_RT_KEY above.
 static constexpr int64_t NPUW_SDPA_MASK_CAUSAL = -1;
+
+// True for an SDPA or decomposed SDPA node carrying a detected sliding-window
+// annotation. SDPA decomposition propagates this rt_info to replacement nodes,
+// so callers that inspect the post-decomposition graph can use the same helper.
+inline bool has_sliding_window_mask_annotation(const ov::Node& node) {
+    const auto& rt_info = node.get_rt_info();
+    const auto it = rt_info.find(NPUW_SDPA_MASK_RT_KEY);
+    return it != rt_info.end() && it->second.as<int64_t>() >= 0;
+}
 
 }  // namespace ov::npuw

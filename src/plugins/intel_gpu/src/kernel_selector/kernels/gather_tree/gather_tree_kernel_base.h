@@ -25,7 +25,7 @@ public:
 
     protected:
         JitConstants GetJitConstants(const gather_tree_params& params) const;
-        DispatchData SetDefault(const gather_tree_params& params) const;
+        static DispatchData SetDefault(const gather_tree_params& params);
         KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

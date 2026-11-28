@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <tuple>
+
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
@@ -16,6 +18,10 @@ namespace ov {
 namespace op::util {
 class FrameworkNode;
 }  // namespace op::util
+
+namespace op::v0 {
+class Parameter;
+}  // namespace op::v0
 
 namespace frontend::pytorch {
 
@@ -88,6 +94,23 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
 op::PadType convert_pad(const std::string& pt_pad);
+
+struct ConvPadConfig {
+    op::PadType pad_type;
+    CoordinateDiff pads_begin;
+    CoordinateDiff pads_end;
+    bool dynamic_same_padding = false;
+};
+
+// Resolves convolution padding where possible; dynamic SAME kernels are padded at runtime before the convolution.
+ConvPadConfig convert_conv_pad(const std::string& pt_pad,
+                               const Output<Node>& weight,
+                               const Strides& strides,
+                               const Strides& dilations);
+Output<Node> apply_dynamic_same_padding(const NodeContext& context,
+                                        const Output<Node>& input,
+                                        const Output<Node>& weight,
+                                        const Strides& dilations);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
 
@@ -234,6 +257,18 @@ Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size
 
 // Decomposition of aten::meshgrid, indexing must be "ij" or "xy".
 OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing);
+
+/// \brief Side-channel Parameter named `tag`, registered as an external parameter of the converted model.
+std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& context,
+                                                             const std::string& tag,
+                                                             const element::Type& et,
+                                                             const PartialShape& ps);
+
+/// \brief Get-or-create side-channel Parameter `tag`, shared by every op of the conversion session.
+std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                                   const std::string& tag,
+                                                                   const element::Type& et,
+                                                                   const PartialShape& ps);
 
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,

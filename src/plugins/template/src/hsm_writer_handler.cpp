@@ -135,15 +135,15 @@ private:
 
 // Cache-relevant options plus the weights path, which a weightless blob needs on import; restored through
 // Configuration.
-ov::AnyMap get_compiled_options(const Configuration& cfg, ov::AnyMap cache_options) {
+ov::AnyMap get_compile_options(const Configuration& cfg, ov::AnyMap cache_options) {
     if (!cfg.weights_path.empty()) {
         cache_options.emplace(ov::weights_path.name(), cfg.weights_path.string());
     }
     return cache_options;
 }
 
-// One `key=value` per line; inverse of decode_compiled_options() in hsm_reader_handler.cpp.
-std::string encode_compiled_options(const ov::AnyMap& options) {
+// One `key=value` per line; inverse of decode_compile_options() in hsm_reader_handler.cpp.
+std::string encode_compile_options(const ov::AnyMap& options) {
     std::string encoded;
     for (const auto& [key, value] : options) {
         encoded.append(key).append(1, '=').append(value.as<std::string>()).append(1, '\n');
@@ -199,9 +199,9 @@ HsmWriterHandler::HsmWriterHandler(const std::shared_ptr<ov::Model>& model,
         hsm::section_key(hsm::runtime_requirements),
         Slot{hsm::runtime_requirements, std::make_shared<BytesEncoder>(std::string(runtime_requirements))});
     m_encoders.emplace(
-        hsm::section_key(hsm::compiled_options),
-        Slot{hsm::compiled_options,
-             std::make_shared<BytesEncoder>(encode_compiled_options(get_compiled_options(cfg, cache_options)))});
+        hsm::section_key(hsm::compile_options),
+        Slot{hsm::compile_options,
+             std::make_shared<BytesEncoder>(encode_compile_options(get_compile_options(cfg, cache_options)))});
 
     const auto serializer = std::make_shared<ModelSerializer>(model);
     m_encoders.emplace(hsm::section_key(hsm::model_struct),

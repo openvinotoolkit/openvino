@@ -51,8 +51,9 @@ JitConstants GemmKernelMMADslmInt8::GetJitConstants(const gemm_params& params) c
     jit.Merge(MakeTypeJitConstants(params.inputs[1].GetDType() == Datatype::INT8 ? Datatype::INT32 : Datatype::UINT32, "PACKED_INPUT1"));
     jit.AddConstant(MakeJitConstant("SLM_TILE_SIZE", td.slm_tile_size));
     jit.AddConstant(MakeJitConstant("SLM_DECIMATION_FACTOR", td.slm_decimation_factor));
-    if (td.size_k <= td.max_slm_preloading_size)
+    if (td.size_k <= td.max_slm_preloading_size) {
         jit.AddConstant(MakeJitConstant("PRELOADING_SLM", 1));
+    }
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
@@ -79,7 +80,7 @@ GemmKernelBase::DispatchData GemmKernelMMADslmInt8::SetDefault(const gemm_params
     return dispatchData;
 }
 
-GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::InitGemmTuningData(const gemm_params& params) const {
+GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::InitGemmTuningData(const gemm_params& params) {
     GemmTuningData tuning_data;
 
     tuning_data.size_m = params.outputs[0].Y().v;
@@ -89,16 +90,16 @@ GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::InitGemmTuningData(
     return tuning_data;
 }
 
-inline size_t GemmKernelMMADslmInt8::GetMmadOperationsNumber(const GemmTuningData& tuning_data) const {
+inline size_t GemmKernelMMADslmInt8::GetMmadOperationsNumber(const GemmTuningData& tuning_data) {
     return tuning_data.size_m * tuning_data.size_n * tuning_data.size_k;
 }
 
-inline bool GemmKernelMMADslmInt8::HasLeftovers(const GemmTuningData& tuning_data) const {
-    return ((tuning_data.size_m % tuning_data.slm_tile_size) != 0u) || ((tuning_data.size_n % tuning_data.slm_tile_size) != 0u) ||
-           ((tuning_data.size_k % (tuning_data.slm_tile_size * tuning_data.slm_decimation_factor)) != 0u);
+inline bool GemmKernelMMADslmInt8::HasLeftovers(const GemmTuningData& tuning_data) {
+    return ((tuning_data.size_m % tuning_data.slm_tile_size) != 0U) || ((tuning_data.size_n % tuning_data.slm_tile_size) != 0U) ||
+           ((tuning_data.size_k % (tuning_data.slm_tile_size * tuning_data.slm_decimation_factor)) != 0U);
 }
 
-GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::SetTuningParams(const gemm_params& params) const {
+GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::SetTuningParams(const gemm_params& params) {
     GemmTuningData tuning_data = InitGemmTuningData(params);
 
     tuning_data.slm_decimation_factor = tuning_data.size_k <= tuning_data.max_slm_preloading_size ? tuning_data.size_k / tuning_data.slm_tile_size : 2;

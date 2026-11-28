@@ -51,7 +51,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         if (!params.scale_all_sizes) {
             // mxnet-like PriorBox
             if (step == -1) {
-                step = 1.f * image_height / height;
+                step = 1.F * image_height / height;
             } else {
                 step *= image_height;
             }
@@ -63,8 +63,8 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.min_max_aspect_ratios_order = primitive->min_max_aspect_ratios_order;
         params.aspect_ratio = primitive->aspect_ratios;
         params.variance = primitive->variance;
-        params.reverse_image_width = 1.0f / image_width;
-        params.reverse_image_height = 1.0f / image_height;
+        params.reverse_image_width = 1.0F / image_width;
+        params.reverse_image_height = 1.0F / image_height;
         params.width = static_cast<uint32_t>(width);
         params.height = static_cast<uint32_t>(height);
         if (step == 0) {

@@ -295,10 +295,16 @@ KERNEL(sdpa_ref)(
 #if IS_CAUSAL
             #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
                 const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
-                OUTPUT_COMPUTE_T attn_mask_val = s > target_seq_idx + causal_offset ? OUTPUT_COMPUTE_VAL_MIN : OUTPUT_COMPUTE_VAL_ZERO;
             #else
-                OUTPUT_COMPUTE_T attn_mask_val = s > target_seq_idx ? OUTPUT_COMPUTE_VAL_MIN : OUTPUT_COMPUTE_VAL_ZERO;
+                const uint causal_offset = 0;
             #endif
+            #if SLIDING_WINDOW_SIZE != 0
+                const bool masked = s > target_seq_idx + causal_offset ||
+                                    (target_seq_idx + causal_offset >= SLIDING_WINDOW_SIZE && s < target_seq_idx + causal_offset - SLIDING_WINDOW_SIZE + 1);
+            #else
+                const bool masked = s > target_seq_idx + causal_offset;
+            #endif
+            OUTPUT_COMPUTE_T attn_mask_val = masked ? OUTPUT_COMPUTE_VAL_MIN : OUTPUT_COMPUTE_VAL_ZERO;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
             OUTPUT_COMPUTE_T attn_mask_val = LOAD_INPUT3(attn_mask[attn_mask_offset]);

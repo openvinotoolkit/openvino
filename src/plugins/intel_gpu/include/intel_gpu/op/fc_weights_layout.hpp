@@ -68,12 +68,15 @@ inline const char* to_string(FcWeightsLayout layout) {
 }
 
 inline FcWeightsLayout fc_weights_layout_from_string(const std::string& s) {
-    if (s == "NK")
+    if (s == "NK") {
         return FcWeightsLayout::NK;
-    if (s == "KN")
+    }
+    if (s == "KN") {
         return FcWeightsLayout::KN;
-    if (s == "GNK")
+    }
+    if (s == "GNK") {
         return FcWeightsLayout::GNK;
+    }
     OPENVINO_THROW("[GPU] Unknown FullyConnected weights layout: ", s);
 }
 

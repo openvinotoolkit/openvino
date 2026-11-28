@@ -168,6 +168,7 @@ REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);
 REGISTER_IMPLS(reshape);
 REGISTER_IMPLS(range);
+REGISTER_IMPLS(rms);
 REGISTER_IMPLS(rope);
 REGISTER_IMPLS(select);
 REGISTER_IMPLS(scaled_dot_product_attention);
@@ -195,11 +196,11 @@ REGISTER_IMPLS(gather_matmul);
 REGISTER_IMPLS(mlir_primitive);
 #endif
 REGISTER_IMPLS(grouped_matmul);
+REGISTER_IMPLS(gated_residual);
 REGISTER_IMPLS(paged_qsa_indexer);
 REGISTER_IMPLS(qsa_indexer);
 REGISTER_IMPLS(sparse_pa);
 REGISTER_IMPLS(sparse_sdpa);
-
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(condition, COMMON_S, COMMON_D);
@@ -240,7 +241,6 @@ REGISTER_DEFAULT_IMPLS(region_yolo, OCL_S);
 REGISTER_DEFAULT_IMPLS(reorg_yolo, OCL_S);
 REGISTER_DEFAULT_IMPLS(reverse, OCL_S);
 REGISTER_DEFAULT_IMPLS(reverse_sequence, OCL_S);
-REGISTER_DEFAULT_IMPLS(rms, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(roi_align, OCL_S);
 REGISTER_DEFAULT_IMPLS(roi_pooling, OCL_S);
 REGISTER_DEFAULT_IMPLS(roll, OCL_S);

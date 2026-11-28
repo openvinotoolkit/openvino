@@ -37,10 +37,10 @@ protected:
     bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const gemm_params& params) const override;
     DispatchData SetDefault(const gemm_params& params) const override;
-    GemmTuningData InitGemmTuningData(const gemm_params& params) const;
-    GemmTuningData SetTuningParams(const gemm_params& params) const;
-    size_t GetMmadOperationsNumber(const GemmTuningData& tuning_data) const;
-    bool HasLeftovers(const GemmTuningData& tuning_data, int tile_size) const;
+    static GemmTuningData InitGemmTuningData(const gemm_params& params);
+    static GemmTuningData SetTuningParams(const gemm_params& params);
+    static size_t GetMmadOperationsNumber(const GemmTuningData& tuning_data);
+    static bool HasLeftovers(const GemmTuningData& tuning_data, int tile_size);
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 };
 }  // namespace kernel_selector

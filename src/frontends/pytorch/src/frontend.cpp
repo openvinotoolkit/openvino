@@ -26,6 +26,7 @@
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
+#include "transforms/canonicalize_float_precision.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
@@ -294,6 +295,27 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         // make validation after previously non-validated passes
         if (is_changed)
             model->validate_nodes_and_infer_types();
+    }
+
+    // A narrow default float type: f32 activations, weights kept narrow; the type stays in rt_info for the caller.
+    bool narrow_default_float_type = false;
+    if (model->has_rt_info("default_float_type")) {
+        const auto type_name = model->get_rt_info()["default_float_type"].as<std::string>();
+        const auto default_float_type = element::Type(type_name);
+        FRONT_END_GENERAL_CHECK(default_float_type.is_real(),
+                                "default_float_type must be a floating-point type, got ",
+                                type_name);
+        narrow_default_float_type = default_float_type != element::f32;
+    }
+    if (narrow_default_float_type) {
+        ov::pass::Manager manager("Frontend:Pytorch:normalize::default_float_type");
+        manager.register_pass<ov::frontend::pytorch::pass::CanonicalizeFloatPrecision>();
+        // Marks the Converts the canonicalization added.
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        // Re-enable folding of the decompression Converts, as for a model read from IR (the flag isn't
+        // serialized), so the plugin decides which to keep.
+        manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
+        manager.run_passes(model);
     }
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter

@@ -21,8 +21,8 @@ public:
     FullyConnected(const ov::Output<Node>& A,
                    const ov::Output<Node>& B,
                    const ov::Output<Node>& bias,
-                   const ov::element::Type output_type = ov::element::dynamic,
-                   const bool transpose_b = true,
+                   ov::element::Type output_type = ov::element::dynamic,
+                   bool transpose_b = true,
                    const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;

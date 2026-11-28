@@ -116,7 +116,7 @@ protected:
         const size_t k_head_dims = q_shape[2].get_length();
         const size_t v_head_nums = v_shape[1].get_length();
         const size_t v_head_dims = v_shape[2].get_length();
-        const float scale_factor = 1.0f / std::sqrt(static_cast<float>(k_head_dims));
+        const float scale_factor = 1.0F / std::sqrt(static_cast<float>(k_head_dims));
 
         jit.make("K_HEAD_NUM", k_head_nums);
         jit.make("V_HEAD_NUM", v_head_nums);

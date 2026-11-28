@@ -22,7 +22,7 @@ public:
     DecomposeReduceForFalseKeepDims();
 
     // Returns true if reduction axes includes one of blocked axis and all spatial axes
-    bool need_transformation_for_reordered_axes(std::vector<int64_t> reduce_axes, size_t num_dim, size_t num_spatial);
+    static bool need_transformation_for_reordered_axes(std::vector<int64_t> reduce_axes, size_t num_dim, size_t num_spatial);
 };
 
 }  // namespace ov::intel_gpu

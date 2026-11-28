@@ -73,3 +73,41 @@ class TestVarMean(PytorchLayerTest):
     def test_op(self, unbiased, dim, keepdim, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, op_type=op_type), ie_device, precision, ir_version,
                    trace_model=True)
+
+
+class TestVarMeanDefaultCorrection(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(2, 3, 5, 7),)
+
+    def create_model(self, op_type, dim):
+        import torch
+
+        ops = {
+            "var": torch.var,
+            "var_mean": torch.var_mean,
+            "std": torch.std,
+            "std_mean": torch.std_mean
+        }
+
+        class aten_var_default(torch.nn.Module):
+            def __init__(self, op, dim):
+                super().__init__()
+                self.op = op
+                self.dim = dim
+
+            def forward(self, x):
+                # No unbiased/correction argument: PyTorch applies Bessel correction.
+                # torch.export records this as aten.<op>.correction without a correction value.
+                if self.dim is None:
+                    return self.op(x)
+                return self.op(x, self.dim, keepdim=True)
+
+        return aten_var_default(ops[op_type], dim), f"aten::{op_type}"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("op_type", ["var", "var_mean", "std", "std_mean"])
+    @pytest.mark.parametrize("dim", [None, 1, (0, 2)])
+    def test_op_default_correction(self, op_type, dim, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type, dim), ie_device, precision, ir_version, trace_model=True)

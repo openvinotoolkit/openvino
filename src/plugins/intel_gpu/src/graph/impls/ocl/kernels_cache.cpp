@@ -48,7 +48,7 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/fuser.hpp"
+#include "gemmstone/microkernel/fuser.hpp"
 #endif
 
 namespace {
@@ -127,6 +127,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
             bool is_cm = kernel_string->language == kernel_language::CM;
+
+            if (!is_cm && options.find("-cl-uniform-work-group-size") == std::string::npos) {
+                options += " -cl-uniform-work-group-size";
+            }
 
             // Order matters for cm options
             if (batch_compilation && !is_cm) {
@@ -231,16 +235,18 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 }
             };
 
-            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
+            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM) {
                 process_batch_includes(b);
+            }
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
             // Partition the kernel cache per runtime: OCL and ZE store incompatible native
             // binaries, so their .cl_cache files must never share a hash (wrong-format load).
             full_code += get_runtime_cache_tag();
-            for (auto& ss : b.source)
+            for (auto& ss : b.source) {
                 full_code += ss;
+            }
 
             b.hash_value = std::hash<std::string>()(full_code);
 
@@ -251,8 +257,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
             if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
-                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/') {
                     current_dump_file_name += '/';
+                }
 
                 current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(b.bucket_id)
                                         + "_part_" + std::to_string(b.batch_id) + "_" + std::to_string(b.hash_value) + ".cl";
@@ -315,8 +322,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     std::string current_dump_file_name;
     if (dump_sources) {
         current_dump_file_name = std::move(dump_sources_dir);
-        if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+        if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/') {
             current_dump_file_name += '/';
+        }
 
         // Use .cm extension for CM kernels, .cl for OpenCL kernels
         std::string ext = (batch.language == kernel_language::CM) ? ".cm" : ".cl";
@@ -328,8 +336,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     if (dump_sources) {
         dump_file.open(current_dump_file_name);
         if (dump_file.good()) {
-            for (const auto& s : batch.source)
+            for (const auto& s : batch.source) {
                 dump_file << s;
+            }
         }
     }
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
@@ -433,8 +442,9 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
 
 void kernels_cache::build_all() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
-    if (!_pending_compilation)
+    if (!_pending_compilation) {
         return;
+    }
 
     std::vector<batch_program> batches;
     {
@@ -629,8 +639,9 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
                                             const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                             bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::compile");
-    if (kernel_sources.empty())
+    if (kernel_sources.empty()) {
         return {};
+    }
 
     kernels_code t_kernels_code;
 

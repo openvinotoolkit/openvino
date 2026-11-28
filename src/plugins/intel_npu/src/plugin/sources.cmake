@@ -128,6 +128,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_sparse_attention_to_dense.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_sparse_attention_to_dense.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.cpp
@@ -138,6 +140,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/fold_scalar_dq.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/fold_scalar_dq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/right_align_mask_slice_for_conv.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/right_align_mask_slice_for_conv.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_axes_position.hpp
@@ -253,6 +257,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/subgraph_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/variable_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weight_sharing_context_adapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weight_sharing_context_adapter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/prepare_whisper_model.cpp

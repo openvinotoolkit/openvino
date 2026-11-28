@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,10 +22,14 @@ struct border_params : public base_params {
     ArgType end_type;
     ArgType pad_value_type;
 
-
-    border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT),
-                      border_value(0.0f), allow_negative_pad(false),
-                      begin_type(ArgType::Constant), end_type(ArgType::Constant), pad_value_type(ArgType::Constant) {}
+    border_params()
+        : base_params(KernelType::BORDER),
+          b_type(BorderType::CONSTANT),
+          border_value(0.0F),
+          allow_negative_pad(false),
+          begin_type(ArgType::Constant),
+          end_type(ArgType::Constant),
+          pad_value_type(ArgType::Constant) {}
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
@@ -45,9 +49,9 @@ public:
 
 protected:
     JitConstants GetJitConstants(const border_params& params) const;
-    DispatchData SetDefault(const border_params& params) const;
+    static DispatchData SetDefault(const border_params& params);
     KernelsData GetCommonKernelsData(const Params& params) const;
-    bool SkipKernelExecution(const border_params& params) const;
+    static bool SkipKernelExecution(const border_params& params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

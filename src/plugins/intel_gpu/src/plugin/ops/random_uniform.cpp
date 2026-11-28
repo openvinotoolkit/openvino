@@ -23,7 +23,7 @@ void CreateRandomUniformOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v8::
         auto output_shape = output_pshape.get_shape();
         if (output_shape.size() < 4) {
             // Extend to 4D shape
-            output_shape.insert(output_shape.end(), 4 - output_shape.size(), 1ul);
+            output_shape.insert(output_shape.end(), 4 - output_shape.size(), 1UL);
         }
 
         auto random_uniform_prim = cldnn::random_uniform(layer_type_name_ID(op),

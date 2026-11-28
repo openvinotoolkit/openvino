@@ -6,23 +6,27 @@
 
 #include <vector>
 
-#include "intel_gpu/op/qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Non-paged (dense, functional-state) QSA Indexer primitive: Q1 (prepare) +
 /// Q2 (score/top-k). Outputs: selected_block_indices, selected_block_count, and the updated block_index_keys_cache,
-/// past_incomplete_raw_k and past_incomplete_rope state. See ov::intel_gpu::op::QSAIndexer.
+/// past_incomplete_raw_k and past_incomplete_rope state. See ov::op::internal::QSAIndexer.
+///
+/// With in_place_block_cache (ov::intel_gpu::op::QSAIndexerInPlace), input BLOCK_INDEX_KEYS_CACHE is the [B, blocks, D_idx]
+/// output of the kv_cache holding the cache variable, padded along the block axis by its preallocation: the completed
+/// blocks are written into it, and output BLOCK_INDEX_KEYS_CACHE is empty.
 struct qsa_indexer : public primitive_base<qsa_indexer> {
     CLDNN_DECLARE_PRIMITIVE(qsa_indexer)
 
-    using InputIdx = ov::intel_gpu::op::QSAIndexer::InputIdx;
-    using OutputIdx = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    using InputIdx = ov::op::internal::QSAIndexer::InputIdx;
+    using OutputIdx = ov::op::internal::QSAIndexer::OutputIdx;
 
     qsa_indexer() : primitive_base("", {}) {}
 
-    qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::QSAIndexer::Config& config)
+    qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::op::internal::QSAIndexer::Config& config)
         : primitive_base(
               id,
               inputs,
@@ -41,11 +45,12 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
     size_t num_selection_heads = 1;
     size_t indexer_rotary_dim = 0;
     size_t indexer_head_dim = 0;
-    float epsilon = 1e-6f;
-    float scale = 0.0f;
+    float epsilon = 1e-6F;
+    float scale = 0.0F;
+    bool in_place_block_cache = false;
 
-    ov::intel_gpu::op::QSAIndexer::Config get_config() const {
-        ov::intel_gpu::op::QSAIndexer::Config config;
+    ov::op::internal::QSAIndexer::Config get_config() const {
+        ov::op::internal::QSAIndexer::Config config;
         config.key_block_size = key_block_size;
         config.block_topk = block_topk;
         config.num_selection_heads = num_selection_heads;
@@ -65,25 +70,28 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
         seed = hash_combine(seed, indexer_head_dim);
         seed = hash_combine(seed, epsilon);
         seed = hash_combine(seed, scale);
+        seed = hash_combine(seed, in_place_block_cache);
         return seed;
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto r = downcast<const qsa_indexer>(rhs);
         return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads &&
-               indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
+               indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale &&
+               in_place_block_cache == r.in_place_block_cache;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<qsa_indexer>::save(ob);
-        ob << key_block_size << block_topk << num_selection_heads << indexer_rotary_dim << indexer_head_dim << epsilon << scale;
+        ob << key_block_size << block_topk << num_selection_heads << indexer_rotary_dim << indexer_head_dim << epsilon << scale << in_place_block_cache;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<qsa_indexer>::load(ib);
-        ib >> key_block_size >> block_topk >> num_selection_heads >> indexer_rotary_dim >> indexer_head_dim >> epsilon >> scale;
+        ib >> key_block_size >> block_topk >> num_selection_heads >> indexer_rotary_dim >> indexer_head_dim >> epsilon >> scale >> in_place_block_cache;
     }
 };
 

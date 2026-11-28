@@ -50,7 +50,7 @@ layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params
 }
 
 template <typename ShapeType>
-inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, const kernel_impl_params& impl_param) {
+inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node& /*unused*/, const kernel_impl_params& impl_param) {
     std::vector<ShapeType> input_shapes{impl_param.input_layouts[0].get<ShapeType>()};
     std::unordered_map<size_t, ov::Tensor> const_data;
     // The tensors in const_data point into the locked memory, so the locks must outlive shape_infer(): for a usm_device

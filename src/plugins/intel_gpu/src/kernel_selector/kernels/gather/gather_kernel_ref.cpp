@@ -75,7 +75,7 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
         auto shape = shape_raw;
         int shape_idx = 0;
         for (size_t i = 0; i < DataTensor::max_rank(); i++) {
-            int shape_raw_idx = data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
+            int shape_raw_idx = DataTensor::Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
             if (shape_raw_idx >= 0) {
                 shape[shape_idx++] = shape_raw[shape_raw_idx];
             }
@@ -255,10 +255,6 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
 
 JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    // Flag fp8 input so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
-    // (see gather_ref.cl).
-    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));

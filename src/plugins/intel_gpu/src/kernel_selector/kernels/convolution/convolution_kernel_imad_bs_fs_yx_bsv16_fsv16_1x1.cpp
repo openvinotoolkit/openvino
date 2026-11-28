@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ ParamsKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetSupportedKey() co
     return k;
 }
 
-DeviceFeaturesKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::get_required_device_features_key(const Params&) const {
+DeviceFeaturesKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::get_required_device_features_key(const Params& /*params*/) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -72,7 +72,8 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetJitConstants(c
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::SetDefault(const convolution_params& params,
+                                                                                                 int /*autoTuneIndex*/) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
 

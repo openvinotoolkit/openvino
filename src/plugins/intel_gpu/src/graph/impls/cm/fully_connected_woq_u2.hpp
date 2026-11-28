@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -97,12 +98,9 @@ inline WoqU2Epilogue woq_u2_epilogue(const std::vector<fused_primitive_desc>& fu
         if (prim->mode != mode || !prim->stride.empty()) {
             return false;
         }
-        for (auto c : prim->coefficients) {
-            if (c != 1.0f) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(prim->coefficients.begin(), prim->coefficients.end(), [](auto c) {
+            return c == 1.0F;
+        });
     };
     if (fused.size() == 1 && is_binary(fused[0], eltwise_mode::sum)) {
         e.mode = 1;
@@ -112,7 +110,7 @@ inline WoqU2Epilogue woq_u2_epilogue(const std::vector<fused_primitive_desc>& fu
     if (fused.size() == 2 && fused[0].is_type<activation>() && !fused[0].has_outer_dep() && is_binary(fused[1], eltwise_mode::prod)) {
         const auto act = fused[0].typed_desc<activation>();
         // The kernel's swish is x / (1 + exp(-x)): beta must be 1 and constant.
-        if (act->activation_function == activation_func::swish && !act->additional_params_input.is_valid() && act->additional_params.a == 1.0f) {
+        if (act->activation_function == activation_func::swish && !act->additional_params_input.is_valid() && act->additional_params.a == 1.0F) {
             e.mode = 2;
             e.dep = fused[1].outer_dep_start_idx;
             return e;
@@ -327,7 +325,7 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
 
         // Weights [N, K] or GNK [K/64, N, 64] (static even when M is dynamic).
         const auto wshape = wei.get_shape();
-        if (wshape.size() != (gnk ? 3u : 2u)) {
+        if (wshape.size() != (gnk ? 3U : 2U)) {
             CM_FC_LOG_AND_RETURN_FALSE(node, "weight shape rank " << wshape.size() << " does not match weights_layout");
         }
         const auto dims = ov::intel_gpu::op::fc_weight_dims(wei.get_partial_shape(), prim->weights_layout);

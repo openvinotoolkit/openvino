@@ -80,15 +80,17 @@ public:
     }
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        if (get_primitive()->has_cur_len())
+        if (get_primitive()->has_cur_len()) {
             return {2, 3};
+        }
         return {2};
     }
 
     std::vector<layout> get_shape_info_input_layouts() const override {
         auto layouts = parent::get_shape_info_input_layouts();
-        if (get_primitive()->has_pos_idx)
+        if (get_primitive()->has_pos_idx) {
             return layouts;
+        }
 
         OPENVINO_ASSERT(layouts.size() == get_primitive()->input.size());
         const auto rank = layouts.front().get_rank();
@@ -106,7 +108,7 @@ public:
         layouts[0] = get_dynamic_layout(layouts[0]);
         // only the first new_seq_len tokens of input1 are copied
         layouts[1] = get_dynamic_layout(layouts[1]);
-        if (get_primitive()->window_size != 0) {
+        if (get_primitive()->sliding_window_cache) {
             layouts.push_back(layouts[0]);
             layouts.push_back(is_valid_output_layout(1) ? get_dynamic_layout(get_output_layout(1)) : layouts[0]);
         }
@@ -146,7 +148,7 @@ public:
                                                                            const stateless_kv& desc);
     void update_shape_info_tensor(const kernel_impl_params& params) override;
 
-    typed_primitive_inst(network& network, const stateless_kv_node& desc);
+    typed_primitive_inst(network& network, const stateless_kv_node& node);
     typed_primitive_inst(network& network) : parent(network) {}
 
 private:
