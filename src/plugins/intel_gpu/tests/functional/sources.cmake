@@ -326,6 +326,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/prelu_nan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/sign_nan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
