@@ -32,6 +32,10 @@
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_conv.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/jit/oc1_dot_convolution.hpp"
+#    include "nodes/executors/jit/u8_oc16_dot_convolution.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -97,6 +101,26 @@ struct CreateOptimalConfigAclLowp {
 
     LayoutConfig layoutConfig;
 };
+
+#if defined(OPENVINO_ARCH_ARM64)
+static std::optional<ConvConfig> createSdotOptimalConfig(const ConvConfig& config) {
+    const auto& creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
+    auto descs = config.descs;
+    bool changed = false;
+    for (const auto arg : {ARG_SRC, ARG_WEI, ARG_DST}) {
+        auto& desc = descs.at(arg);
+        const auto dense = creator->createSharedDesc(desc->getPrecision(), desc->getShape());
+        if (!dense->isCompatible(*desc)) {
+            desc = dense;
+            changed = true;
+        }
+    }
+    if (!changed) {
+        return {};
+    }
+    return ConvConfig{std::move(descs), config.attrs};
+}
+#endif
 
 [[maybe_unused]] static inline bool isQuantized(const ConvConfig& config) {
     return any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
@@ -252,10 +276,36 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
+        OV_CPU_INSTANCE_ARM64(
+            "convolution_sdot_u8_oc16", ExecutorType::Jit, OperationType::Convolution,
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(aarch64::U8Oc16DotConvolution::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return MatchesMemoryFormatFilter(config.descs,
+                                                 LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc},
+                                                 memoryFormatFilter, dnnlConvolutionMappingNotation);
+            },
+            createSdotOptimalConfig,
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDefault<aarch64::U8Oc16DotConvolution, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_ARM64(
+            "convolution_sdot_oc1", ExecutorType::Jit, OperationType::Convolution,
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(aarch64::Oc1DotConvolution::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return MatchesMemoryFormatFilter(config.descs,
+                                                 LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc},
+                                                 memoryFormatFilter, dnnlConvolutionMappingNotation);
+            },
+            createSdotOptimalConfig,
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDefault<aarch64::Oc1DotConvolution, ConvAttrs>{}
+            )
         OV_CPU_INSTANCE_ACL(
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(config.attrs.inputZeroPointsType != ZeroPointsType::PerTensorUnsignedOc1Jit,
+                       UNSUPPORTED_BY_EXECUTOR);
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
                 VERIFY(ACLConvolutionExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
@@ -269,6 +319,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(config.attrs.inputZeroPointsType != ZeroPointsType::PerTensorUnsignedOc1Jit,
+                       UNSUPPORTED_BY_EXECUTOR);
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
                 return true;

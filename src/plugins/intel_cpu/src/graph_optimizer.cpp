@@ -28,6 +28,9 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "onednn/dnnl.h"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/jit/oc1_dot_convolution.hpp"
+#endif
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -88,6 +91,59 @@ namespace ov::intel_cpu {
 
 GraphOptimizer::GraphOptimizer() = default;
 
+#if defined(OPENVINO_ARCH_ARM64)
+void GraphOptimizer::FuseUnsignedOc1ConvolutionZeroPoint(Graph& graph) {
+    for (const auto& node : graph.GetNodes()) {
+        const auto conv = std::dynamic_pointer_cast<Convolution>(node);
+        if (!conv || conv->getAlgorithm() != Algorithm::ConvolutionCommon || conv->isDynamicNode() ||
+            conv->getParentEdges().size() != 2 || conv->getChildEdges().size() != 1 ||
+            conv->getChildEdgeAt(0)->getChild()->getType() != Type::Subgraph ||
+            conv->getOriginalInputPrecisionAtPort(1) != ov::element::i8 ||
+            !conv->getParentEdgeAt(1)->getParent()->isConstant() ||
+            conv->getOriginalOutputPrecisionAtPort(0) != ov::element::f32 || !conv->memoryFormatFilter.input.empty() ||
+            !aarch64::Oc1DotConvolution::supportsGeometry(conv->getInputShapeAtPort(0).getStaticDims(),
+                                                         conv->getInputShapeAtPort(1).getStaticDims(),
+                                                         conv->getOutputShapeAtPort(0).getStaticDims(),
+                                                         conv->getStride(),
+                                                         conv->getDilation(),
+                                                         conv->getPaddingL(),
+                                                         conv->getPaddingR())) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndZeroPoints_ConvNode);
+        const auto subtract = conv->getParentEdgeAt(0)->getParent();
+        if (subtract->getType() != Type::Eltwise || subtract->getAlgorithm() != Algorithm::EltwiseSubtract ||
+            !subtract->getFusedWith().empty() || subtract->getParentEdges().size() != 2 ||
+            subtract->getChildEdges().size() != 1 || subtract->getOriginalInputPrecisionAtPort(0) != ov::element::u8 ||
+            subtract->getOriginalOutputPrecisionAtPort(0) != ov::element::f32 ||
+            subtract->getInputShapeAtPort(0) != subtract->getOutputShapeAtPort(0)) {
+            continue;
+        }
+
+        const auto zpEdge = subtract->getParentEdgeAt(1);
+        const auto zpNode = std::dynamic_pointer_cast<node::Input>(zpEdge->getParent());
+        if (!zpNode || !zpNode->isConstant() || zpNode->getOriginalOutputPrecisionAtPort(0) != ov::element::u8) {
+            continue;
+        }
+        const auto memory = zpNode->getMemoryPtr();
+        OPENVINO_ASSERT(memory && memory->getData(), "zero point blob not allocated");
+        const auto count = subtract->getInputShapeAtPort(1).getElementsCount();
+        const auto* zeroPoints = static_cast<const uint8_t*>(memory->getData());
+        if (count == 0 ||
+            !std::all_of(zeroPoints, zeroPoints + count, [zeroPoints](uint8_t zp) { return zp == zeroPoints[0]; })) {
+            continue;
+        }
+
+        // The compiled epilogue remains separate; the JIT returns the unscaled accumulator in FP32.
+        conv->initializeUnsignedOc1JitZeroPoint(zeroPoints[0]);
+        conv->setOriginalInputPrecisionAtPort(0, ov::element::u8);
+        graph.RemoveEdge(zpEdge);
+        graph.DropNode(subtract);
+    }
+}
+#endif
+
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // For conv with input zp, canBeExecutedInInt8() check has dependency on input zero point check.
     // Also zero point node is the input of computing-intensive nodes. Most others fusing are the output of
@@ -99,6 +155,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
                        "FuseConvolutionAndZeroPoints");
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
+#if defined(OPENVINO_ARCH_ARM64)
+    FuseUnsignedOc1ConvolutionZeroPoint(graph);
+    graph.RemoveDroppedNodes();
+#endif
 
 // The order of applying scales and shifts is different for ARM to get specific postops order:
 // postops order on ARM: bias, scale, fq

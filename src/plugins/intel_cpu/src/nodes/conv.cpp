@@ -640,6 +640,14 @@ bool Convolution::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+void Convolution::initializeUnsignedOc1JitZeroPoint(uint8_t zeroPoint) {
+    CPU_NODE_ASSERT(m_attrs.inputZeroPointsType == ZeroPointsType::None, "input zero points are already set");
+    m_attrs.inputZeroPoint = zeroPoint;
+    m_attrs.inputZeroPointsType = ZeroPointsType::PerTensorUnsignedOc1Jit;
+}
+#endif
+
 ov::element::Type Convolution::getRuntimePrecision() const {
     std::vector<ov::element::Type> inputPrecisions;
     // Don't take bias precision into account

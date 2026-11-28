@@ -13,7 +13,7 @@
 
 namespace ov::intel_cpu {
 
-enum class ZeroPointsType : uint8_t { None, PerTensor, PerChannel };
+enum class ZeroPointsType : uint8_t { None, PerTensor, PerChannel, PerTensorUnsignedOc1Jit };
 enum class AutoPaddingType : uint8_t { None, SAME_UPPER, SAME_LOWER };
 /**
  * @todo only attributes necessary for 1x1 convlution as fullyconnected fallback
@@ -38,6 +38,8 @@ struct ConvAttrs {
     std::vector<float> dqScales;
 
     PostOps postOps;
+
+    int32_t inputZeroPoint = 0;  // per-tensor activation zero point
 };
 
 using ConvConfig = executor::Config<ConvAttrs>;

@@ -1001,6 +1001,12 @@ set(CPU_PLUGIN_TPP_AARCH64_SRCS
 )
 
 set(CPU_PLUGIN_AARCH64_SRCS
+    ${CPU_SRC_DIR}/nodes/executors/jit/oc1_dot_convolution.cpp
+    ${CPU_SRC_DIR}/nodes/executors/jit/oc1_dot_convolution.hpp
+    ${CPU_SRC_DIR}/nodes/executors/jit/u8_oc16_dot_convolution.cpp
+    ${CPU_SRC_DIR}/nodes/executors/jit/u8_oc16_dot_convolution.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/aarch64/jit_sdot_convolution.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/aarch64/jit_sdot_convolution.hpp
     ${CPU_SRC_DIR}/emitters/snippets/aarch64/cpu_generator.cpp
     ${CPU_SRC_DIR}/emitters/snippets/aarch64/cpu_generator.hpp
     ${CPU_SRC_DIR}/emitters/snippets/aarch64/jit_binary_call_emitter.cpp
