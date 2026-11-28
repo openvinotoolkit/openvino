@@ -6,6 +6,10 @@
 
 #include "single_op_tests/mat_mul.hpp"
 #include "internal_properties.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/runtime/core.hpp"
 
 namespace {
 using ov::test::MatMulLayerTest;
@@ -156,5 +160,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Model_Distribution_MatMul_BothTranspose, MatMulLa
                 ::testing::Values(model_distribution_config)),
         MatMulLayerTest::getTestCaseName);
 
-} // namespace
+// MatMul with constant inputs and transpose_b becomes a FullyConnected whose inputs are all constants,
+// including the empty bias placeholder of dynamic type; compiling it used to fail in constant folding.
+TEST(smoke_MatMul_CPU, ConstantInputsTransposeB) {
+    for (const auto type : {ov::element::i8, ov::element::u8}) {
+        const auto a = ov::op::v0::Constant::create(type, ov::Shape{2, 3}, {1, 2, 3, 4, 5, 6});
+        const auto b = ov::op::v0::Constant::create(type, ov::Shape{4, 3}, {1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1});
+        const auto matmul = std::make_shared<ov::op::v0::MatMul>(a, b, false, true);
+        const auto convert = std::make_shared<ov::op::v0::Convert>(matmul, ov::element::i32);
+        const auto model = std::make_shared<ov::Model>(convert, ov::ParameterVector{});
 
+        ov::Core core;
+        auto request = core.compile_model(model, ov::test::utils::DEVICE_CPU).create_infer_request();
+        request.infer();
+
+        const auto output = request.get_output_tensor();
+        const std::vector<int32_t> expected = {1, 2, 3, 6, 4, 5, 6, 15};
+        ASSERT_EQ(std::vector<int32_t>(output.data<const int32_t>(), output.data<const int32_t>() + 8), expected);
+    }
+}
+} // namespace
