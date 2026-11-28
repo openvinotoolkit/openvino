@@ -7,6 +7,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/random_uniform.hpp"
@@ -1384,4 +1386,214 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
+}
+
+TEST(TransformationTests, MarkSqrtOfReduceWithEpsToKeepInMixedPrecision_WeightedStdWithClip) {
+    const float eps_value = 1.e-12f;
+    const float max_value = std::numeric_limits<float>::max();
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto weights = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto mul = std::make_shared<Multiply>(weights, pow);
+        auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum = std::make_shared<ReduceSum>(mul, axes_const);
+        auto eps_const = Constant::create(element::f32, Shape{}, {eps_value});
+        auto max = std::make_shared<Maximum>(eps_const, reduce_sum);
+        auto max_const = Constant::create(element::f32, Shape{}, {max_value});
+        auto min = std::make_shared<Minimum>(max_const, max);
+        auto sqrt = std::make_shared<Sqrt>(min);
+
+        model = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input, weights});
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto weights = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto mul = std::make_shared<Multiply>(weights, pow);
+        auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum = std::make_shared<ReduceSum>(mul, axes_const);
+        auto eps_const = Constant::create(element::f32, Shape{}, {eps_value});
+        auto max = std::make_shared<Maximum>(eps_const, reduce_sum);
+        auto max_const = Constant::create(element::f32, Shape{}, {max_value});
+        auto min = std::make_shared<Minimum>(max_const, max);
+        auto sqrt = std::make_shared<Sqrt>(min);
+
+        disable_conversion(exp, ov::element::f16);
+        disable_conversion(pow, ov::element::f16);
+        disable_conversion(mul, ov::element::f16);
+        disable_conversion(reduce_sum, ov::element::f16);
+        disable_conversion(eps_const, ov::element::f16);
+        disable_conversion(max, ov::element::f16);
+        disable_conversion(max_const, ov::element::f16);
+        disable_conversion(min, ov::element::f16);
+        disable_conversion(sqrt, ov::element::f16);
+
+        model_ref = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input, weights});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkSqrtOfReduceWithEpsToKeepInMixedPrecision_StdWithAdd) {
+    const float eps_value = 1.e-12f;
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_mean = std::make_shared<ReduceMean>(pow, axes_const);
+        auto eps_const = Constant::create(element::f32, Shape{}, {eps_value});
+        auto add = std::make_shared<Add>(reduce_mean, eps_const);
+        auto sqrt = std::make_shared<Sqrt>(add);
+
+        model = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input});
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_mean = std::make_shared<ReduceMean>(pow, axes_const);
+        auto eps_const = Constant::create(element::f32, Shape{}, {eps_value});
+        auto add = std::make_shared<Add>(reduce_mean, eps_const);
+        auto sqrt = std::make_shared<Sqrt>(add);
+
+        disable_conversion(exp, ov::element::f16);
+        disable_conversion(pow, ov::element::f16);
+        disable_conversion(reduce_mean, ov::element::f16);
+        disable_conversion(eps_const, ov::element::f16);
+        disable_conversion(add, ov::element::f16);
+        disable_conversion(sqrt, ov::element::f16);
+
+        model_ref = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkSqrtOfReduceWithEpsToKeepInMixedPrecision_StdWithClamp) {
+    const float eps_value = 1.e-12f;
+    const float max_value = std::numeric_limits<float>::max();
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum = std::make_shared<ReduceSum>(pow, axes_const);
+        auto clamp = std::make_shared<Clamp>(reduce_sum, eps_value, max_value);
+        auto sqrt = std::make_shared<Sqrt>(clamp);
+
+        model = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input});
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum = std::make_shared<ReduceSum>(pow, axes_const);
+        auto clamp = std::make_shared<Clamp>(reduce_sum, eps_value, max_value);
+        auto sqrt = std::make_shared<Sqrt>(clamp);
+
+        disable_conversion(exp, ov::element::f16);
+        disable_conversion(pow, ov::element::f16);
+        disable_conversion(reduce_sum, ov::element::f16);
+        disable_conversion(clamp, ov::element::f16);
+        disable_conversion(sqrt, ov::element::f16);
+
+        model_ref = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkSqrtOfReduceWithEpsToKeepInMixedPrecision_LargeEpsUnchanged) {
+    const float eps_value = 1.e-3f;
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto exp = Constant::create(element::f32, Shape{}, {2.f});
+    auto pow = std::make_shared<Power>(input, exp);
+    auto axes_const = Constant::create(element::i64, Shape{1}, {2});
+    auto reduce_sum = std::make_shared<ReduceSum>(pow, axes_const);
+    auto eps_const = Constant::create(element::f32, Shape{}, {eps_value});
+    auto max = std::make_shared<Maximum>(reduce_sum, eps_const);
+    auto sqrt = std::make_shared<Sqrt>(max);
+
+    model = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input});
+    model_ref = model->clone();
+
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkSqrtOfReduceWithEpsToKeepInMixedPrecision_WithoutReduceUnchanged) {
+    const float eps_value = 1.e-12f;
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{}, {eps_value});
+    auto max = std::make_shared<Maximum>(input, eps_const);
+    auto sqrt = std::make_shared<Sqrt>(max);
+
+    model = std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{input});
+    model_ref = model->clone();
+
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
 }
