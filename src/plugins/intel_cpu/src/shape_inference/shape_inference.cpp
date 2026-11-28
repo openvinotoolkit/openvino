@@ -192,6 +192,7 @@
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/roi_pooling.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -249,6 +250,7 @@
 #include "rms_norm_shape_inference.hpp"
 #include "rnn_cell_shape_inference.hpp"
 #include "rnn_sequence_shape_inference.hpp"
+#include "roi_align_rotated_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roi_pooling_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
@@ -608,6 +610,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::ScatterNDUpdate, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::SliceScatter, ShapeInferTA, util::bit::mask(2, 3, 4, 5)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::STFT, ShapeInferTA, util::bit::mask(2, 3)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v15::ROIAlignRotated, ShapeInferTA, util::bit::mask()),
     // opset14
     OV_OP_SHAPE_INFER_MASK_REG(op::v14::Inverse, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(op::v14::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
