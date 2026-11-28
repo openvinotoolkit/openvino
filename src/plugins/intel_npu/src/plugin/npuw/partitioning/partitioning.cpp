@@ -2167,14 +2167,15 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
     };
-    auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
-        for (auto&& p : ctx.closures_to_f16) {
+    auto do_convert = [&](const std::set<ov::npuw::patterns::opt::Context::PPtr>& closures,
+                          const ov::element::Type& type) {
+        for (auto&& p : closures) {
             auto param_idx = f._model->get_parameter_index(p);
             NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f16);
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(type);
             });
         }
     };
@@ -2324,7 +2325,7 @@ void Partitioner::optimize(const std::string& func_name) {
         }
 
         // Convert parameters to f16 where required
-        do_cvtf16(ctx);
+        do_convert(ctx.closures_to_f16, ov::element::f16);
 
         // Replace the u8 sources with lazy Sub128 parameters. A Sub128 closure shares the data of its
         // source, which the weights bank detaches after the first evaluation, so the source is always
@@ -2495,7 +2496,7 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::pass::Validate().run_on_model(f._model);
 
     do_permute(ctx);
-    do_cvtf16(ctx);
+    do_convert(ctx.closures_to_f16, ov::element::f16);
 
     LOG_VERB("Done");
 }
