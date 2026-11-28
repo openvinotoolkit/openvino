@@ -5,7 +5,19 @@
 #include "openvino/op/sparse_attention_indexer.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/reference/sparse_attention.hpp"
 #include "sparse_attention_indexer_shape_inference.hpp"
+
+// Named (not anonymous) so the helpers of the two ops do not collide in unity builds.
+namespace ov::op::sparse_attention_indexer {
+std::vector<int64_t> key_lengths(const ov::Tensor& t) {
+    std::vector<int64_t> v(t.get_size());
+    for (size_t i = 0; i < v.size(); i++)
+        v[i] = t.get_element_type() == ov::element::i32 ? t.data<const int32_t>()[i] : t.data<const int64_t>()[i];
+    return v;
+}
+}  // namespace ov::op::sparse_attention_indexer
 
 namespace ov::op::v17 {
 
@@ -92,6 +104,47 @@ std::shared_ptr<Node> SparseAttentionIndexer::clone_with_new_inputs(const Output
     OV_OP_SCOPE(v17_SparseAttentionIndexer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<SparseAttentionIndexer>(new_args, m_key_block_size, m_token_budget, m_num_selection_heads);
+}
+
+bool SparseAttentionIndexer::has_evaluate() const {
+    const auto et = get_input_element_type(0);
+    return m_num_selection_heads == 1 && (et == element::f32 || et == element::f16);
+}
+
+bool SparseAttentionIndexer::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v17_SparseAttentionIndexer_evaluate);
+    if (!has_evaluate())
+        return false;
+    const auto& qs = inputs[0].get_shape();  // [N, Hi, L, Di]
+    const auto& ks = inputs[1].get_shape();  // [N, B, Di]
+    const size_t N = qs[0], Hi = qs[1], L = qs[2], Di = qs[3], B = ks[1];
+    const size_t R = static_cast<size_t>(m_key_block_size);
+    const size_t KB = static_cast<size_t>(m_token_budget / m_key_block_size);
+    outputs[0].set_shape({N, 1, L, KB});
+    outputs[1].set_shape({N, 1, L});
+    const auto kl = ov::op::sparse_attention_indexer::key_lengths(inputs[2]);
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        ov::reference::sparse_attention_indexer<T>(inputs[0].data<const T>(),
+                                                   inputs[1].data<const T>(),
+                                                   kl.data(),
+                                                   kl.size(),
+                                                   inputs.size() > 3 ? inputs[3].data<const T>() : nullptr,
+                                                   outputs[0].data<int32_t>(),
+                                                   outputs[1].data<int32_t>(),
+                                                   N,
+                                                   Hi,
+                                                   L,
+                                                   Di,
+                                                   B,
+                                                   R,
+                                                   KB);
+    };
+    if (inputs[0].get_element_type() == element::f32)
+        run(float{});
+    else
+        run(ov::float16{});
+    return true;
 }
 
 }  // namespace ov::op::v17
