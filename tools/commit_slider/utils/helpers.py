@@ -534,14 +534,34 @@ def stripCliBoolOption(tokens, options):
     return filtered
 
 
+def stripCliTokenQuotes(token):
+    # shlex.split(posix=False) keeps the double quotes around a token, while the
+    # Windows command line parser consumes them
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        return token[1:-1]
+    return token
+
+
+def splitCliCommand(appCmd, windows):
+    if windows:
+        return [stripCliTokenQuotes(token) for token in shlex.split(appCmd, posix=False)]
+    return shlex.split(appCmd, posix=True)
+
+
+def joinCliTokens(tokens, windows):
+    if windows:
+        return subprocess.list2cmdline(tokens)
+    return " ".join(shlex.quote(t) for t in tokens)
+
+
 def prepareBenchmarkMetricCommand(appCmd, reportDir):
-    posix = (os.name != 'nt')
-    tokens = shlex.split(appCmd, posix=posix)
+    windows = (os.name == 'nt')
+    tokens = splitCliCommand(appCmd, windows)
     tokens = stripCliOptionWithValue(tokens, {"-report_type", "--report_type"})
     tokens = stripCliOptionWithValue(tokens, {"-report_folder", "--report_folder"})
     tokens = stripCliBoolOption(tokens, {"-json_stats", "--json_stats"})
     tokens.extend(["-report_type", "no_counters", "-report_folder", reportDir])
-    return " ".join(shlex.quote(t) for t in tokens) if posix else subprocess.list2cmdline(tokens)
+    return joinCliTokens(tokens, windows)
 
 
 def getBenchmarkMetricReportPath(cfg, commit):

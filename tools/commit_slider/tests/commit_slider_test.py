@@ -56,6 +56,32 @@ class CommitSliderTest(TestCase):
         self.assertNotIn("detailed_counters", command)
         self.assertNotIn("-json_stats", command)
 
+    def testBmMetricCommandWindowsKeepsQuotedPaths(self):
+        from unittest import mock
+        from utils import helpers
+
+        appCmd = '"C:\\Program Files\\ov\\benchmark_app.exe" -m "C:\\my models\\m.xml" -niter 2'
+        with mock.patch.object(helpers.os, "name", "nt"):
+            command = helpers.prepareBenchmarkMetricCommand(appCmd, "C:\\tmp\\bench reports")
+
+        self.assertEqual(
+            command,
+            '"C:\\Program Files\\ov\\benchmark_app.exe" -m "C:\\my models\\m.xml" -niter 2 '
+            '-report_type no_counters -report_folder "C:\\tmp\\bench reports"')
+
+    def testBmMetricCommandWindowsStripsExistingReportArgs(self):
+        from unittest import mock
+        from utils import helpers
+
+        appCmd = '"C:\\Program Files\\ov\\benchmark_app.exe" -m m.xml "-report_folder=C:\\old dir" -json_stats'
+        with mock.patch.object(helpers.os, "name", "nt"):
+            command = helpers.prepareBenchmarkMetricCommand(appCmd, "C:\\tmp\\reports")
+
+        self.assertEqual(
+            command,
+            '"C:\\Program Files\\ov\\benchmark_app.exe" -m m.xml '
+            '-report_type no_counters -report_folder C:\\tmp\\reports')
+
     @skip_commit_slider_devtest
     def testFirstValidVersion(self):
         breakCommit, updatedData = getExpectedCommit(
