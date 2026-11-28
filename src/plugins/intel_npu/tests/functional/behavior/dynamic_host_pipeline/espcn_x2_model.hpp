@@ -117,10 +117,10 @@ struct DynamicModelConfig {
 
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
     static const std::map<std::string, DynamicModelConfig> configs = {
-        {"ESPCN_x2_DynHW_H512xW768", {ov::Dimension(1), ov::Dimension(10, 512), ov::Dimension(10, 768), true}},
-        {"ESPCN_x2_DynNHW_H512xW768", {ov::Dimension(1, 10), ov::Dimension(1, 512), ov::Dimension(10, 768), true}},
-        {"ESPCN_x2_DynNHW_H512xW768_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 512), ov::Dimension(10, 768), false}},
-        {"ESPCN_x2_DynN_H512xW768_NCHW", {ov::Dimension(1, 10), ov::Dimension(512), ov::Dimension(768), false}},
+        {"ESPCN_x2_DynHW_H600xW800", {ov::Dimension(1), ov::Dimension(10, 600), ov::Dimension(10, 800), true}},
+        {"ESPCN_x2_DynNHW_H600xW800", {ov::Dimension(1, 10), ov::Dimension(1, 600), ov::Dimension(10, 800), true}},
+        {"ESPCN_x2_DynNHW_H600xW800_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 600), ov::Dimension(10, 800), false}},
+        {"ESPCN_x2_DynN_H600xW800_NCHW", {ov::Dimension(1, 10), ov::Dimension(600), ov::Dimension(800), false}},
     };
     return configs;
 }
