@@ -19,6 +19,7 @@
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/broadcast_u2_zero_point.hpp"
+#include "npuw_transformations/canonicalize_lm_head_dq_layout.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/convert_sparse_attention_to_dense.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
@@ -1148,6 +1149,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
+        // WebNN/ORT exports wrap the LM-head dequantize chain in extra Reshape/Transpose ops that
+        // keep the tail-vocab matchers from firing; bring it to the canonical [OC,IC] layout so the
+        // weight can stay Const.
+        // NB: only the shared (cut) LM head is handled here. With NPUW_LLM_SHARED_HEAD=NO, for Whisper
+        // (shared head is forced off), or when CutLMHead fails, the vocab MatMul stays in the
+        // prefill/generate models and keeps the original layout, so the weight is still lifted to a
+        // Parameter there.
+        {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<ov::npuw::CanonicalizeLMHeadDQLayout>();
+            if (rewr.run_on_model(lm_head_model)) {
+                LOG_INFO("CanonicalizeLMHeadDQLayout applied to the LM head model");
+            }
+        }
     }
 
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();

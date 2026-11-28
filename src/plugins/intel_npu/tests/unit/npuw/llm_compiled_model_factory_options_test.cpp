@@ -22,6 +22,7 @@
 #include "llm_test_helpers.hpp"
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -31,7 +32,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "serialization.hpp"
@@ -44,6 +47,53 @@ using MoEHint = intel_npu::npuw::llm::MoEHint;
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+// Replaces the LM head of the test LLM with the dequantize chain emitted by the WebNN/ORT export:
+//   u8 W[V,1,H] -> Convert -+
+//   u8 Z[V] -> Convert -> Reshape[V,1,1] -+-> Subtract -> Multiply(S[V] -> Reshape[V,1,1])
+//     -> Reshape[V,H] -> Transpose{1,0} -> MatMul(transpose_b=false) -> logits
+// (the test builder's own LM head uses transpose_b=true, so the chain has to be built by hand).
+std::shared_ptr<ov::Model> build_llm_model_with_webnn_lm_head() {
+    auto model = ov::test::npuw::build_llm_test_model();
+
+    std::shared_ptr<ov::op::v0::MatMul> lm_head;
+    for (const auto& result : model->get_results()) {
+        if (result->output(0).get_names().count("logits") > 0) {
+            lm_head = ov::as_type_ptr<ov::op::v0::MatMul>(result->input_value(0).get_node_shared_ptr());
+        }
+    }
+    OPENVINO_ASSERT(lm_head != nullptr, "The test LLM is expected to end with MatMul -> logits");
+
+    const auto hidden = lm_head->input_value(0);
+    const auto dq_type = hidden.get_element_type();
+    const auto H = static_cast<size_t>(hidden.get_partial_shape()[-1].get_length());
+    const auto V = static_cast<size_t>(lm_head->get_output_partial_shape(0)[-1].get_length());
+
+    const auto reshape = [](const ov::Output<ov::Node>& in, const std::vector<int64_t>& shape) {
+        return std::make_shared<ov::op::v1::Reshape>(
+            in,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape),
+            true);
+    };
+
+    auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{V, 1, H}, 3);
+    auto zero_point = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{V}, 1);
+    auto scale = std::make_shared<ov::op::v0::Constant>(dq_type, ov::Shape{V}, 0.5f);
+
+    auto weight_f = std::make_shared<ov::op::v0::Convert>(weight, dq_type);
+    auto zero_point_f = reshape(std::make_shared<ov::op::v0::Convert>(zero_point, dq_type), {0, 1, 1});
+    auto sub = std::make_shared<ov::op::v1::Subtract>(weight_f, zero_point_f);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(sub, reshape(scale, {0, 1, 1}));
+    auto weight_2d = reshape(mul, {static_cast<int64_t>(V), static_cast<int64_t>(H)});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(
+        weight_2d,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0}));
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(hidden, transpose, false, false);
+
+    OPENVINO_ASSERT(ov::replace_output_update_name(lm_head->output(0), matmul->output(0)));
+    model->validate_nodes_and_infer_types();
+    return model;
+}
 
 std::string make_llm_header(const std::size_t claimed_version_size, const std::string& version) {
     std::ostringstream stream;
@@ -492,6 +542,47 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, SharedHeadEnabledBuildsPrefillGenerat
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, SharedHeadWebNNDequantizeChainIsCanonicalized) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model_with_webnn_lm_head(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // CanonicalizeLMHeadDQLayout must run on the LM-head model before it is compiled; otherwise the
+    // weight is lifted to a weights-bank Parameter and the LM head weight is dequantized at runtime (~4x slower).
+    const auto& head = require_call(recorder, "_lm_head");
+
+    std::shared_ptr<ov::op::v0::MatMul> matmul;
+    size_t transposes = 0;
+    for (const auto& op : head.model->get_ordered_ops()) {
+        if (auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
+            ASSERT_EQ(matmul, nullptr) << "More than one MatMul in the LM-head model";
+            matmul = mm;
+        }
+        transposes += ov::is_type<ov::op::v1::Transpose>(op) ? 1 : 0;
+    }
+    ASSERT_NE(matmul, nullptr);
+    EXPECT_FALSE(matmul->get_transpose_a());
+    EXPECT_TRUE(matmul->get_transpose_b());
+    EXPECT_EQ(transposes, 0u);
+
+    // The weight is a u8 Constant [V,H] (the canonical layout), not [V,1,H].
+    const auto weight_shape = matmul->get_input_shape(1);
+    ASSERT_EQ(weight_shape.size(), 2u);
+    const auto has_u8_weight = [&] {
+        for (const auto& op : head.model->get_ordered_ops()) {
+            const auto cnst = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (cnst && cnst->get_element_type() == ov::element::u8 && cnst->get_shape() == weight_shape) {
+                return true;
+            }
+        }
+        return false;
+    };
+    EXPECT_TRUE(has_u8_weight());
+}
 TEST_F(LLMCompiledModelFactoryOptionsTest, GeneratePyramidBuildsExpectedGenerateStageCount) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
