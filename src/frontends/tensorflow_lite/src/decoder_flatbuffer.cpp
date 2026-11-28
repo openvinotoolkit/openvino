@@ -226,7 +226,7 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
     } else if (name == "align_corners" && m_type == "RESIZE_NEAREST_NEIGHBOR") {
         return this->get_attribute(&tflite::ResizeNearestNeighborOptions::align_corners);
     } else if (name == "half_pixel_centers" && m_type == "RESIZE_NEAREST_NEIGHBOR") {
-        return false;
+        return this->get_attribute(&tflite::ResizeNearestNeighborOptions::half_pixel_centers);
     } else if (name == "seq_dim" && m_type == "REVERSE_SEQUENCE") {
         return static_cast<int64_t>(this->get_attribute(&tflite::ReverseSequenceOptions::seq_dim));
     } else if (name == "batch_dim" && m_type == "REVERSE_SEQUENCE") {
