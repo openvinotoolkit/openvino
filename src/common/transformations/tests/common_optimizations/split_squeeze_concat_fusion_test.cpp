@@ -239,6 +239,7 @@ struct SplitReshapeConcatFusionParam {
     int concat_axis;
     std::vector<int> transpose_order;
     bool can_fuse;
+    bool use_shapes = true;
 };
 
 class SplitReshapeConcatFusion : public TransformationTestsF,
@@ -257,11 +258,15 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
         auto reshaped_shape_node =
             opset7::Constant::create(element::i32, Shape{params.reshaped_shape.size()}, params.reshaped_shape);
         for (int i = 0; i < params.num_splits; i++) {
-            squeeze_vec.push_back(std::make_shared<opset7::Reshape>(split->output(i), reshaped_shape_node, true));
+            if (params.use_shapes) {
+                squeeze_vec.push_back(std::make_shared<opset7::Reshape>(split->output(i), reshaped_shape_node, true));
+            } else {
+                squeeze_vec.push_back(std::make_shared<opset7::Squeeze>(split->output(i), split_axis_node));
+            }
         }
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, params.concat_axis);
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(true);
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(params.use_shapes);
     }
 
     if (!params.can_fuse) {
@@ -273,7 +278,11 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
         auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order_node);
         auto reshape_shape = params.input_shape;
         reshape_shape.erase(reshape_shape.begin() + params.split_axis);
-        reshape_shape[params.concat_axis] *= params.num_splits;
+        auto concat_axis = params.concat_axis;
+        if (concat_axis < 0) {
+            concat_axis += reshape_shape.size();
+        }
+        reshape_shape[concat_axis] *= params.num_splits;
         auto reshape_shape_node = opset7::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape);
         auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape_node, false);
 
@@ -291,6 +300,10 @@ static std::vector<SplitReshapeConcatFusionParam> split_reshape_concat_fusion_pa
     {2, 2, Shape{3, 1, 4, 5}, {3, 2, 5}, 1, {0, 2, 1, 3}, false},
     {2, 1, Shape{3, 2, 3, 4, 5}, {3, 3, 5, 4}, 1, {0, 2, 1, 3, 4}, false},
     {4, 2, Shape{3, 1, 4, 1, 5}, {3, 1, 5}, 1, {0, 2, 1, 3, 4}, false},
+    {2, 0, Shape{2, 3, 4}, {3, 4}, -1, {1, 0, 2}, true, false},
+    {2, 0, Shape{2, 3, 4}, {3, 4}, -2, {0, 1, 2}, true, false},
+    {2, 0, Shape{2, 3, 4}, {3, 4}, -1, {1, 0, 2}, true},
+    {2, 0, Shape{2, 3, 4}, {3, 4}, -2, {0, 1, 2}, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
