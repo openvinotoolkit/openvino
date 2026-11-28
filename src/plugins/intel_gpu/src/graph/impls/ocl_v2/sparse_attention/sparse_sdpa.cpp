@@ -282,12 +282,9 @@ bool SparseSDPAImplementationManager::validate_impl(const cldnn::program_node& n
         }
     }
     static constexpr std::array i32_inputs = {SparseSDPAIn::SELECTED_BLOCK_INDICES, SparseSDPAIn::SELECTED_BLOCK_COUNT, SparseSDPAIn::KEY_LENGTH};
-    for (auto idx : i32_inputs) {
-        if (node.get_input_layout(idx).data_type != ov::element::i32) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(i32_inputs.begin(), i32_inputs.end(), [&node](auto idx) {
+        return node.get_input_layout(idx).data_type == ov::element::i32;
+    });
 }
 
 std::unique_ptr<cldnn::primitive_impl> SparseSDPAImplementationManager::create_impl(const cldnn::program_node& node,

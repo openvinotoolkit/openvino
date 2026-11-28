@@ -1,7 +1,7 @@
 # Running converted GGUF models
 
-`convert()` returns a stateless graph with llama.cpp-style inputs. A caller-registered `GenAIExtension`
-turns a language model into a stateful model with the OpenVINO GenAI interface. Multimodal projector
+`convert()` returns a stateless graph with llama.cpp-style inputs. `adapt_to_genai()` turns a
+converted model into the stateful models with the OpenVINO GenAI interface. Multimodal projector
 files use their own [encoder contract](mmproj.md#graph-boundary).
 
 ## Split GGUF files
@@ -71,40 +71,54 @@ below have no Python bindings, and `DecoderTransformationExtension` cannot be co
 
 ## Stateful and GenAI conversion
 
-Register `GenAIExtension` before `convert()`. The frontend creates stateful caches before
-stateless cache lowering, completes normalization (including recurrent-operation fusion), then
-adapts the normalized graph to GenAI. Callers do not register or order individual passes.
+Convert without GenAI-specific extensions, then pass the result to
+[`adapt_to_genai()`](../include/openvino/frontend/gguf/adapt_to_genai.hpp). It returns the named
+models GenAI uses; callers do not register or order individual passes. The same call adapts a
+[projector file](mmproj.md#using-the-encoders-and-a-language-model).
 
 ```cpp
-#include <openvino/frontend/gguf/extension/genai.hpp>
+#include <openvino/frontend/gguf/adapt_to_genai.hpp>
 #include <openvino/frontend/manager.hpp>
 
 using namespace ov::frontend::gguf;
 ov::frontend::FrontEndManager manager;
 auto frontend = manager.load_by_framework("gguf");
-frontend->add_extension(std::make_shared<GenAIExtension>());
-auto model = frontend->convert(frontend->load("model.gguf"));
+auto models = adapt_to_genai(frontend->convert(frontend->load("model.gguf")));
+auto language = models.at("language");
 ```
 
+`adapt_to_genai()` modifies and returns the converted decoder as `language`, and throws for a
+model that is already adapted. `GenAIExtension` is deprecated: it calls `adapt_to_genai()` at
+the end of `convert()` and returns `language`.
+
 Internally, [`GGUFMakeStateful`](../include/openvino/frontend/gguf/make_stateful.hpp) replaces each KV cache
-Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. Sliding-window
+Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. It accepts both
+the frontend's cache-write operation and its lowered stateless form, so it runs on a converted model. Sliding-window
 caches can be left stateless with `skip_caches`. Recurrent states are declared through the
 `gguf_recurrent_states` rt_info key.
 
-[`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) requires a stateful model and
-exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
+[`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) then exposes GenAI's
+interface. Select the mode with `GenAIAdaptOptions::input`:
 
 | Mode | Inputs | Output |
 |---|---|---|
-| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
-| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
-| `EMBEDS_TO_LOGITS_TEXT` | Text embeddings `[B,T,D]`, with text `position_ids [B,T]` even for M-RoPE models | `logits [B,T,vocab]` |
+| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,N,vocab]` |
+| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,N,vocab]` |
+| `EMBEDS_TO_LOGITS_TEXT` | Text embeddings `[B,T,D]`, with text `position_ids [B,T]` even for M-RoPE models | `logits [B,N,vocab]` |
 
+Both embedding modes also return the token lookup as `text_embeddings` and, for architectures with
+per-layer token embeddings, `text_embeddings_per_layer`.
+
+- The number of output rows `N` depends on the model and attention backend. Standard SDPA decoders
+  generally select the last token per sequence; PagedAttention can expose a row for each token.
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
+  A scalar output scale is moved to the activation input when the head has no other consumers;
+  softcap output chains remain recognizable without expanding compressed weights.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
+  Noncausal sliding-window attention is not supported by GenAI adaptation.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
   (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
   left padding. `qwen4exp` states follow `beam_idx` as well, and left-padded positions read as the
@@ -117,60 +131,53 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
   `ngram_embeddings`; the caller keeps the history, resets it per sequence and reorders it for beams.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
 
-### Embedded Qwen3.5 MTP
+### Multi-token prediction (MTP)
 
-A `qwen35` GGUF with `qwen35.nextn_predict_layers=1` can supply both a target
-decoder and its single NextN draft block. Ordinary conversion excludes the
-NextN block and returns logits only. Select `"mtp_target"` to export the hidden
-states needed by speculative decoding, and `"mtp"` to convert only the draft:
+Some checkpoints store NextN draft blocks after the target layers
+(`<arch>.nextn_predict_layers`). Ordinary conversion excludes these blocks and returns
+logits only. Request MTP at load time to convert the target and its draft in one call:
 
 ```cpp
-auto target_frontend = manager.load_by_framework("gguf");
-auto target_extension = std::make_shared<GenAIExtension>(
-    GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp_target");
-target_frontend->add_extension(target_extension);
-auto target = target_frontend->convert(target_frontend->load("model-with-mtp.gguf"));
-auto text_embeddings = target_extension->get_embedding_model();
-
-auto draft_frontend = manager.load_by_framework("gguf");
-auto draft_extension = std::make_shared<GenAIExtension>(
-    GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
-draft_frontend->add_extension(draft_extension);
-auto draft = draft_frontend->convert(draft_frontend->load("model-with-mtp.gguf"));
+auto combined = frontend->convert(frontend->load("model-with-mtp.gguf", LoadOptions{true}));
+auto models = adapt_to_genai(combined, {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS_TEXT});
+auto target = models.at("language");
+auto text_embeddings = models.at("text_embeddings");
+auto draft = models.find("mtp_draft");  // absent when the file has no NextN block
 ```
 
-Use separate frontend/extension instances for the target and draft. The component
-is read when `convert()` runs, so the extension may be registered before or after
-`load()`. The `"mtp_target"` component also works for a compatible target without an
-embedded NextN block when the draft is supplied separately. Both selected graphs return
-`last_hidden_state [B,T,D]` for every token after final
-normalization, before any output-head Hadamard transform. The draft also takes
-`hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of
-token `t+1`. The draft owns the embedding, hidden-state normalization, EH projection,
-full-attention block and output head. Its head is the checkpoint's NextN head when
-present, otherwise the target `output.weight` or, for a tied checkpoint, the latent
-`token_embd.weight` with its forward Hadamard transform. Target and draft caches are
-independent. Missing NextN metadata for the draft, a separate `nextn.embed_tokens.weight`
-table or an unsupported component fails conversion.
+The conversion returns one model; `adapt_to_genai()` splits and adapts it. Registered
+`DecoderTransformationExtension` passes run separately on the target and draft before the default
+stateless cache lowering. Their sinks, variables, and model metadata are preserved when the
+components are combined and split. Without such an extension the combined model is stateless.
+Draft input/output and variable names use an `mtp.` prefix in the combined model, repeated if
+needed to avoid collisions; their original names are restored when the components are split.
+Both models return `last_hidden_state [B,T,D]` for every token, after final
+normalization and before any output-head Hadamard transform. The draft also takes
+`hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of token
+`t+1`. In the embeddings modes the draft takes the same text embeddings as the target, so
+`text_embeddings` serves both. A file without NextN blocks still converts as a target that
+exports hidden states, for a draft supplied from another file.
+MTP conversion requires a native GGUF file and cannot be combined with `GenAIExtension`;
+use `adapt_to_genai()` for GenAI-compatible models. Registered transformations must comply
+with the chosen adaptation's input/output contract. On CPU, distinct output names for multiple
+Results sharing one tensor can be lost during compilation.
 
-Per-layer KV-head, recurrent and sliding-window metadata may describe the target
-layers or all stored layers. When the draft KV-head count is omitted, it is inferred
-from the NextN key projection.
+The draft owns the hidden-state normalization, EH projection, NextN block and output head.
+Its head is the NextN head when present, otherwise the target `output.weight` or, for a tied
+checkpoint, `token_embd.weight`. Target and draft caches are independent. The draft reuses
+the target's weight nodes, so tensors read by both models, such as the token embedding or a
+shared output head, are unpacked once and share host buffers. Per-layer KV-head, recurrent
+and sliding-window metadata may describe the target layers or all stored layers; when the
+draft KV-head count is omitted, it is inferred from the NextN key projection.
 
-The frontend supplies graphs, not an MTP sampler. OpenVINO GenAI's
-`speculative_type="mtp"` option (llama.cpp `--spec-type draft-mtp`) converts both
-components from the same file and connects them to its existing greedy MTP strategy.
-PrismML's `Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf` (tied, Hadamard v2) and
-`Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf` (untied, Hadamard v1) follow this layout: PQ2_0
-target weights plus a Q8_0 NextN block. A plain Bonsai GGUF without the embedded NextN
-weights cannot be used as an MTP draft.
+The frontend supplies graphs, not a sampler. A consumer must connect the target and draft
+models to its MTP strategy (llama.cpp calls its equivalent option `--spec-type draft-mtp`).
 
-Other llama.cpp NextN families use the same draft prologue and head fallbacks, and
-the target conversion already excludes their NextN blocks. The draft is limited to
-the families accepted by `has_mtp_draft()` in `decoder_builder.cpp`. Before adding a
-family, check that its NextN block builds as a regular layer of that family and compare
-the draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table
-(GLM-4.5) and chained multi-block drafts (`step35`) are not supported yet.
+Drafts are built only for the families accepted by `has_mtp_draft()` in
+`decoder_builder.cpp`, currently `qwen35`; other families reject the MTP load option. To add
+a family, check that its NextN block builds as a regular layer of that family and compare the
+draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table (GLM-4.5) and
+chained multi-block drafts (`step35`) are not supported yet.
 
 ### Qwen3.8-Flash-Next MTP
 
@@ -203,6 +210,14 @@ model's rt_info as [`GGUFTokenizerMetadata`](../include/openvino/frontend/gguf/t
 under `gguf_tokenizer_metadata_key()`, when the decoder provides them. Values are strings, string vectors or tensors. A consumer such
 as GenAI can build the tokenizer from it without reopening the file. The attribute is intentionally
 in-memory only: it is dropped on `clone()` and not written to IR, so read it from the converted model.
+
+## Recommended sampling
+
+When the file has `general.sampling.*` keys, conversion stores them in the model's rt_info under
+`generation_config`, using Hugging Face `generation_config.json` names: `top_k`, `top_p`, `min_p`,
+`temperature` (from `temp`) and `repetition_penalty` (from `penalty_repeat`). `do_sample` is `false`
+only when `temp` is zero or negative, which matches llama.cpp. Values are strings and survive IR
+serialization. GenAI uses them as the default generation config.
 
 ## Internal operations and serialization
 

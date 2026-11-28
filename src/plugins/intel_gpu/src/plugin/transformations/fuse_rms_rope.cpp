@@ -20,8 +20,9 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     for (const auto& node : model->get_ordered_ops()) {
         auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(node);
-        if (!rope)
+        if (!rope) {
             continue;
+        }
 
         const auto& config = rope->get_config();
 
@@ -33,13 +34,15 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         // Full-head RotateHalf only: the fused kernel normalizes exactly the rotated elements.
         const auto& rope_shape = rope->get_input_partial_shape(0);
-        if (rope_shape.rank().is_dynamic() || rope_shape.rank().get_length() != 4 || !rope_shape[3].is_static())
+        if (rope_shape.rank().is_dynamic() || rope_shape.rank().get_length() != 4 || !rope_shape[3].is_static()) {
             continue;
+        }
         const auto head_size = static_cast<size_t>(rope_shape[3].get_length());
         // rope_opt reduces the head only on its 16-wide f16 path: f16 cos/sin and head_size % 32 == 0.
         if (head_size != config.rotary_ndims || head_size % 32 != 0 || rope->get_input_element_type(1) != ov::element::f16 ||
-            rope->get_input_element_type(2) != ov::element::f16)
+            rope->get_input_element_type(2) != ov::element::f16) {
             continue;
+        }
 
         // The RMSNorm either feeds RoPE directly (transpose already absorbed) or through a single view.
         const auto producer = rope->get_input_node_shared_ptr(0);
@@ -60,8 +63,9 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
 
         const auto gamma_shape = rms->get_input_partial_shape(1);
-        if (!gamma_shape.is_static() || ov::shape_size(gamma_shape.to_shape()) != head_size)
+        if (!gamma_shape.is_static() || ov::shape_size(gamma_shape.to_shape()) != head_size) {
             continue;
+        }
 
         const ov::Output<ov::Node> rope_data = view ? view->output(0) : rms->input_value(0);
         ov::OutputVector inputs{rope_data, rope->input_value(1), rope->input_value(2), rms->input_value(1)};

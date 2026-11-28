@@ -365,9 +365,10 @@ bool SparsePAImplementationManager::validate_impl(const cldnn::program_node& nod
     }
 
     const auto& key_cache_ps = node.get_input_layout(SparsePAIn::KEY_CACHE).get_partial_shape();
-    const size_t page = desc->page_size != 0
-                            ? desc->page_size
-                            : (key_cache_ps.size() == 4 && key_cache_ps[2].is_static() ? static_cast<size_t>(key_cache_ps[2].get_length()) : 0);
+    size_t page = desc->page_size;
+    if (page == 0 && key_cache_ps.size() == 4 && key_cache_ps[2].is_static()) {
+        page = static_cast<size_t>(key_cache_ps[2].get_length());
+    }
     if (key_cache_ps.size() != 4 || page == 0 || page % desc->key_block_size != 0) {
         return false;
     }

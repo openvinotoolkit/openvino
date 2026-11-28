@@ -13,6 +13,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 # convert white-space separated string to list
 string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
+# Add the SYCL target flags for the GPU vendor.
+if(GPU_VENDOR STREQUAL "NVIDIA")
+    list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
+endif()
+
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
@@ -127,6 +132,9 @@ if(APPLE)
     add_definitions(-DCL_HPP_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 endif()
 
+# GPU vendor the plugin is built for (not the vendor of the device found at runtime)
+add_compile_definitions(OV_GPU_VENDOR_${GPU_VENDOR})
+
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -197,6 +205,9 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
                   # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
                   ADD_CLANG_TIDY
                   ${ARGN})
+
+    # VERSION_DEFINES_FOR moves plugin.cpp into a separate target.
+    ov_apply_clang_tidy(TARGET ${MODULE_NAME}_version)
 
     target_compile_options(${MODULE_NAME} PRIVATE
         $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)

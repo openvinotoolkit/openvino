@@ -40,7 +40,7 @@ public:
         return desc->shape_constant == 0;
     }
 
-    typed_primitive_inst(network& network, space_to_batch_node const& desc);
+    typed_primitive_inst(network& network, const space_to_batch_node& node);
 };
 
 using space_to_batch_inst = typed_primitive_inst<space_to_batch>;

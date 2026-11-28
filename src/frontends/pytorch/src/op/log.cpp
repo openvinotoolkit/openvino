@@ -10,9 +10,13 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -114,7 +118,17 @@ OutputVector translate_log1p(const NodeContext& context) {
     one = context.mark_node(std::make_shared<v1::ConvertLike>(one, x));
     auto x_plus_one = context.mark_node(std::make_shared<v1::Add>(x, one));
     auto log = context.mark_node(std::make_shared<v0::Log>(x_plus_one));
-    return {log};
+    // log(1 + x) loses all precision for small x, because 1 + x rounds to 1. Compensate the rounding error of
+    // u = 1 + x as log(u) * (x / (u - 1)), and return x itself where u rounds to exactly 1.
+    auto u_minus_one = context.mark_node(std::make_shared<v1::Subtract>(x_plus_one, one));
+    auto scale = context.mark_node(std::make_shared<v1::Divide>(x, u_minus_one));
+    Output<Node> log1p = context.mark_node(std::make_shared<v1::Multiply>(log, scale));
+    auto u_is_one = context.mark_node(std::make_shared<v1::Equal>(x_plus_one, one));
+    log1p = context.mark_node(std::make_shared<v1::Select>(u_is_one, x, log1p));
+    // log1p(+inf) = +inf, while the formula above gives inf / inf = nan.
+    auto x_is_pos_inf = context.mark_node(std::make_shared<v10::IsInf>(x, v10::IsInf::Attributes(false, true)));
+    log1p = context.mark_node(std::make_shared<v1::Select>(x_is_pos_inf, x, log1p));
+    return {log1p};
 };
 
 }  // namespace ov::frontend::pytorch::op

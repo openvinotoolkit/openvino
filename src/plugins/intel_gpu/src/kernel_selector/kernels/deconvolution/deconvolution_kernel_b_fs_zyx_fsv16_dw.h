@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ protected:
         return WeightsLayout::gs_oizyx_gsv16;
     }
     bool Validate(const Params& p) const override;
-    CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
+    CommonDispatchData SetDefault(const deconvolution_params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
@@ -40,7 +40,7 @@ protected:
         weights_preload preload_weights;
     };
     dispatch_params GetDispatchParams(const deconvolution_params& params) const;
-    float EstimateRegPressure(const deconvolution_params& params, const dispatch_params& disp_params) const;
+    float EstimateRegPressure(const deconvolution_params& params, const dispatch_params& d_params) const;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};

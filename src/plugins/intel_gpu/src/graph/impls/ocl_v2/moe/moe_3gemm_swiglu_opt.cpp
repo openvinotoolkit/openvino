@@ -12,13 +12,17 @@
 #include "expert_weight_providers.hpp"
 // clang-format on
 
+using ov::intel_gpu::ocl::moe::get_slot_layout;
+using ov::intel_gpu::ocl::moe::has_contiguous_expert_slices;
 using ov::intel_gpu::ocl::moe::IExpertWeightProvider;
+using ov::intel_gpu::ocl::moe::is_per_expert;
 using ov::intel_gpu::ocl::moe::OffloadExpertWeightProvider;
 using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
+using ov::intel_gpu::ocl::moe::RoutedWeightViews;
 
 #define DEBUG_MOE_LOG 0
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #    include <algorithm>
 #    include <array>
 #    include <chrono>
@@ -161,7 +165,7 @@ protected:
     }
 };
 
-static size_t get_seq_len(cldnn::layout& layout) {
+size_t get_seq_len(cldnn::layout& layout) {
     auto shape = layout.get_shape();
     size_t seq_len = static_cast<size_t>(shape[0]);
     if (shape.size() >= 3) {
@@ -170,7 +174,7 @@ static size_t get_seq_len(cldnn::layout& layout) {
     return seq_len;
 }
 
-static size_t get_vec_size(const RuntimeParams& params) {
+size_t get_vec_size(const RuntimeParams& params) {
     const auto& input = params.get_input_layout(0);
     size_t vec_size = 1;
     switch (input.data_type) {
@@ -195,7 +199,7 @@ static size_t get_vec_size(const RuntimeParams& params) {
     return vec_size;
 }
 
-static auto calc_thread_count(RuntimeParams& params, const size_t vector_size, const size_t hidden_size) {
+auto calc_thread_count(RuntimeParams& params, const size_t vector_size, const size_t hidden_size) {
     auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
     const uint64_t threads_needed = (hidden_size + vector_size - 1) / vector_size;
     size_t local_threads_needed = std::min(threads_needed, max_wgs);
@@ -436,28 +440,59 @@ protected:
 #    define SUBGROUP_NUM 8
 
 // group_size == SIZE_MAX means per-channel compression: a single group spans the whole K
-static size_t get_group_size(const MOECompressed::Config& config, size_t k) {
+size_t get_group_size(const MOECompressed::Config& config, size_t k) {
     return config.group_size == std::numeric_limits<size_t>::max() ? k : config.group_size;
 }
 
-// Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
-// Smaller values have no kernel branch and would silently produce wrong results.
-static void check_gemv_group_size(const RuntimeParams& params) {
+// Validate the shape for the batched GEMV kernels (moe_3gemm_swiglu_mlp.cl). The constraints come from the kernels,
+// and they also keep the dispatch uniform (no non-uniform work-group).
+void check_gemv_shape(const RuntimeParams& params) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-    const auto gate_up_group_size = get_group_size(config, config.hidden_size);
-    const size_t sg = (params.get_device_info().arch >= gpu_arch::xe2) ? 32u : 16u;
-    const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
-    OPENVINO_ASSERT(fake_gs >= 2 * sg,
-                    "MoE GEMV kernel does not support group_size=",
+    const size_t hidden_size = config.hidden_size;
+    const size_t inter_size = config.inter_size;
+    const size_t gate_up_group_size = get_group_size(config, hidden_size);
+    const size_t down_group_size = get_group_size(config, inter_size);
+    const size_t sg = (params.get_device_info().arch >= gpu_arch::xe2) ? 32U : 16U;
+    const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
+
+    // The kernels have block-read branches for ELEMS_PER_LANE 2, 4 and 8 only.
+    OPENVINO_ASSERT(fake_gs % sg == 0 && one_of(fake_gs / sg, {size_t{2}, size_t{4}, size_t{8}}),
+                    "MoE GEMV kernel does not support gate_up_group_size=",
                     gate_up_group_size,
+                    ", down_group_size=",
+                    down_group_size,
                     " on this hardware (SUBGROUP_SIZE=",
                     sg,
-                    "). Minimum supported group_size is ",
-                    2 * sg,
-                    ". Use a larger quantization group size.");
+                    "): min(group sizes, 128)=",
+                    fake_gs,
+                    " must be 2, 4 or 8 times SUBGROUP_SIZE.");
+    // A chunk must not cross a quantization group, and K must be a whole number of chunks.
+    OPENVINO_ASSERT(gate_up_group_size % fake_gs == 0 && down_group_size % fake_gs == 0 && hidden_size % fake_gs == 0 && inter_size % fake_gs == 0,
+                    "MoE GEMV kernel does not support hidden_size=",
+                    hidden_size,
+                    ", inter_size=",
+                    inter_size,
+                    ", gate_up_group_size=",
+                    gate_up_group_size,
+                    ", down_group_size=",
+                    down_group_size,
+                    ": all of them must be multiples of ",
+                    fake_gs,
+                    ".");
+    // Implied by the checks above (fake_gs >= 2 * SUBGROUP_SIZE >= 32). The batched GEMV dispatch
+    // {.., SG, N / N_BLOCK} / {1, SG, SUBGROUP_NUM} is uniform only for N a multiple of N_BLOCK * SUBGROUP_NUM.
+    constexpr size_t n_align = N_BLOCK * SUBGROUP_NUM;
+    OPENVINO_ASSERT(hidden_size % n_align == 0 && inter_size % n_align == 0,
+                    "MoE GEMV kernel requires hidden_size=",
+                    hidden_size,
+                    " and inter_size=",
+                    inter_size,
+                    " to be multiples of ",
+                    n_align,
+                    ".");
 }
 
-static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
+void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
@@ -486,21 +521,48 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 0);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
     } else if (weight_dt == ov::element::u8 || weight_dt == ov::element::i8) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 1);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
     } else if (weight_dt == ov::element::f16) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 2);
         jit.make("MOE_WEI_DT", "half");
         jit.make("MOE_SCALE_DT", "half");  // not use
         jit.make("MOE_ZP_DT", "half");     // not use
     }
+
+    // Per-GEMM weight dtype codes: gate, up and down may differ under NNCF mixed precision, and
+    // each is decoded with its own. Codes: 0=u4/i4, 1=u8/i8, 2=f16.
+    const auto moe_weight_code = [](ov::element::Type dt) -> int {
+        if (dt == ov::element::u4 || dt == ov::element::i4) {
+            return 0;
+        }
+        if (dt == ov::element::f16) {
+            return 2;
+        }
+        return 1;  // u8/i8 (byte) path
+    };
+    const auto gate_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    const auto up_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type;
+    const auto down_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+    jit.make("GATE_WEIGHT_DT", moe_weight_code(gate_wdt));
+    jit.make("UP_WEIGHT_DT", moe_weight_code(up_wdt));
+    jit.make("DOWN_WEIGHT_DT", moe_weight_code(down_wdt));
+
+    // Zero points are packed only when they are 4-bit themselves: GGUF Q4_1/Q4_K pair u4 weights with u8 zero points.
+    const auto zp_int4 = [&](MOE3GemmInputIndex zp_idx) {
+        if (!desc->_config.has_zp) {
+            return false;
+        }
+        const auto zp_dt = params.get_input_layout(static_cast<size_t>(zp_idx)).data_type;
+        return zp_dt == ov::element::u4 || zp_dt == ov::element::i4;
+    };
+    jit.make("GATE_ZP_INT4", zp_int4(MOE3GemmInputIndex::ZP_0) ? 1 : 0);
+    jit.make("UP_ZP_INT4", zp_int4(MOE3GemmInputIndex::ZP_1) ? 1 : 0);
+    jit.make("DOWN_ZP_INT4", zp_int4(MOE3GemmInputIndex::ZP_2) ? 1 : 0);
 }
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
@@ -513,7 +575,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
@@ -553,7 +614,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
@@ -619,12 +679,12 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 
 // Returns the byte count for `element_count` elements of the given layout's data type.
 // Handles sub-byte types (u4/i4) that pack two elements per byte.
-static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layout) {
+int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layout) {
     return static_cast<int64_t>(ov::element::Type(layout.data_type).bitwidth()) * element_count / 8;
 }
 
 // A zero point shared by all the experts is not sliced per expert
-static dnnl::memory convert_zp2dnnl(const memory::ptr& zp, int64_t groups, int64_t oc, int64_t expert_slot) {
+dnnl::memory convert_zp2dnnl(const memory::ptr& zp, int64_t groups, int64_t oc, int64_t expert_slot) {
     if (zp->get_layout().count() == 1) {
         return convert2dnnl(zp, {1}, dnnl::memory::format_tag::a);
     }
@@ -632,7 +692,7 @@ static dnnl::memory convert_zp2dnnl(const memory::ptr& zp, int64_t groups, int64
 }
 
 // A single zero point shared by all the experts, as a OneDNN host scalar
-static dnnl::memory make_host_scalar_zp(const memory::ptr& zp_mem, cldnn::stream& stream) {
+dnnl::memory make_host_scalar_zp(const memory::ptr& zp_mem, cldnn::stream& stream) {
     const auto dt = zp_mem->get_layout().data_type;
     OPENVINO_ASSERT(one_of(dt, {data_types::u8, data_types::i8}), "moe_3gemm: unsupported host scalar zero point type ", dt);
     cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(zp_mem, stream);
@@ -747,17 +807,56 @@ public:
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
-    void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
+    static RoutedWeightViews get_routed_inputs(const typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        RoutedWeightViews inputs;
+        for (size_t i = 0; i < 3; i++) {
+            const auto weight_input = static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0) + 3 * i;
+            inputs.weight[i] = instance.input_memory_ptr(weight_input);
+            inputs.scale[i] = instance.input_memory_ptr(weight_input + 1);
+            inputs.zp[i] = instance.input_memory_ptr(weight_input + 2);
+        }
+        return inputs;
+    }
+
+    // Weights: the partially uploaded constants bound at the first execution. Scales / zero points: the internal slot buffers,
+    // none for one shared by all the experts. Read per execution, the engine may re-allocate an internal buffer.
+    static RoutedWeightViews get_slot_views(const typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        const auto& intermediates = instance.get_intermediates_memories();
+        OPENVINO_ASSERT(intermediates.size() >= MOE_INTERNAL_BUFFER_OTD_END, "OTD: the slot buffers of ", instance.id(), " are not allocated");
+        const auto num_expert = static_cast<size_t>(instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.num_expert);
         const auto& w = instance._weights;
-        scratch.moe_fusion_wei_addr.weight[0] = w.gate_w;
-        scratch.moe_fusion_wei_addr.scale[0] = w.gate_s;
-        scratch.moe_fusion_wei_addr.zp[0] = w.gate_z;
-        scratch.moe_fusion_wei_addr.weight[1] = w.up_w;
-        scratch.moe_fusion_wei_addr.scale[1] = w.up_s;
-        scratch.moe_fusion_wei_addr.zp[1] = w.up_z;
-        scratch.moe_fusion_wei_addr.weight[2] = w.down_w;
-        scratch.moe_fusion_wei_addr.scale[2] = w.down_s;
-        scratch.moe_fusion_wei_addr.zp[2] = w.down_z;
+        const auto per_expert = [&](size_t input) {
+            const auto& mem = instance.input_memory_ptr(input);
+            return mem && is_per_expert(mem->get_layout(), num_expert);
+        };
+        RoutedWeightViews slots;
+        slots.weight[0] = w.gate_w;
+        slots.weight[1] = w.up_w;
+        slots.weight[2] = w.down_w;
+        for (size_t i = 0; i < 3; i++) {
+            const auto scale_input = static_cast<size_t>(MOE3GemmInputIndex::SCALE_0) + 3 * i;
+            if (per_expert(scale_input)) {
+                slots.scale[i] = intermediates[MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS + i];
+            }
+            if (per_expert(scale_input + 1)) {
+                slots.zp[i] = intermediates[MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS + i];
+            }
+        }
+        return slots;
+    }
+
+    static void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
+        OPENVINO_ASSERT(instance._weights.gate_w,
+                        "MoE offload (OFFLOAD_RATIO) supports a single stream only: the expert slots of ",
+                        instance.id(),
+                        " are bound to another network");
+        const auto inputs = get_routed_inputs(instance);
+        const auto slots = get_slot_views(instance);
+        for (size_t i = 0; i < 3; i++) {
+            scratch.moe_fusion_wei_addr.weight[i] = slots.weight[i];
+            scratch.moe_fusion_wei_addr.scale[i] = slots.scale[i] ? slots.scale[i] : inputs.scale[i];
+            scratch.moe_fusion_wei_addr.zp[i] = slots.zp[i] ? slots.zp[i] : inputs.zp[i];
+        }
     }
 
     size_t resident_slot_count() const {
@@ -830,7 +929,7 @@ public:
         std::vector<uint32_t> expert_ids(topk_count);
         scratch.topk_id->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
 
-        auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, stream);
+        auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, get_routed_inputs(instance), get_slot_views(instance), stream);
         if (!lease) {
             if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->batched_fallbacks.fetch_add(1, std::memory_order_relaxed);
@@ -871,7 +970,7 @@ public:
         std::vector<uint32_t> expert_ids(topk_count);
         batch_mem_ptr->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
 
-        auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, stream);
+        auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, get_routed_inputs(instance), get_slot_views(instance), stream);
         if (!lease) {
             if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
@@ -896,7 +995,10 @@ public:
         needs_fallback = false;
     }
 
-    bool on_load_expert_weights(size_t expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, dnnl::stream& dnn_stream) {
+    bool on_load_expert_weights(size_t expert_no,
+                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                const moe_fusion_weights_base_addr& addr,
+                                dnnl::stream& dnn_stream) {
         if (!_weight_provider->is_offloaded()) {
             return false;
         }
@@ -905,25 +1007,25 @@ public:
 
         auto& stream = instance.get_network().get_stream();
         auto& dnnl_weights = _dnnl_weights[expert_no];
-        auto lru_expert_no = static_cast<int64_t>(_weight_provider->acquire_one(static_cast<uint32_t>(expert_no), stream));
-        auto& params = instance._weights;
+        auto lru_expert_no = static_cast<int64_t>(
+            _weight_provider->acquire_one(static_cast<uint32_t>(expert_no), get_routed_inputs(instance), get_slot_views(instance), stream));
         const bool has_zp = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.has_zp;
 
-#    define CONVERT_DNNL_OTD(name, i)                                                                                                                     \
-        int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());                  \
-        int64_t scale_offset##i =                                                                                                                         \
-            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());      \
-        dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i);    \
-        dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                             \
-                                             {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
-                                             dnnl::memory::format_tag::ab,                                                                                \
-                                             scale_offset##i);                                                                                            \
-        if (has_zp) {                                                                                                                                     \
-            dnnl_weights[i].zp = convert_zp2dnnl(params.name##_z, dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc, lru_expert_no); \
+#    define CONVERT_DNNL_OTD(i)                                                                                                                       \
+        int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, addr.weight[i]->get_layout());               \
+        int64_t scale_offset##i =                                                                                                                     \
+            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, addr.scale[i]->get_layout());    \
+        dnnl_weights[i].weight = convert2dnnl(addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
+        dnnl_weights[i].scale = convert2dnnl(addr.scale[i],                                                                                           \
+                                             {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                \
+                                             dnnl::memory::format_tag::ab,                                                                            \
+                                             scale_offset##i);                                                                                        \
+        if (has_zp) {                                                                                                                                 \
+            dnnl_weights[i].zp = convert_zp2dnnl(addr.zp[i], dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc, lru_expert_no);  \
         }
-        CONVERT_DNNL_OTD(gate, 0)
-        CONVERT_DNNL_OTD(up, 1)
-        CONVERT_DNNL_OTD(down, 2)
+        CONVERT_DNNL_OTD(0)
+        CONVERT_DNNL_OTD(1)
+        CONVERT_DNNL_OTD(2)
 #    undef CONVERT_DNNL_OTD
         return true;
     }
@@ -951,13 +1053,13 @@ public:
 
         stream.finish();  // ensure routing kernel has written topk_ids
 
-        size_t topk_count = static_cast<size_t>(token_num) * max_topk;
+        size_t topk_count = token_num * max_topk;
         std::vector<uint32_t> raw_topk_ids(topk_count);
         batch_mem_ptr->copy_to(stream, raw_topk_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
 
         // Use lease API for capacity-safe simultaneous acquisition.
         // If unique experts exceed resident capacity, returns nullopt → caller falls back.
-        auto lease = _weight_provider->try_acquire_simultaneous(raw_topk_ids, stream);
+        auto lease = _weight_provider->try_acquire_simultaneous(raw_topk_ids, get_routed_inputs(instance), get_slot_views(instance), stream);
         if (!lease) {
             GPU_DEBUG_TRACE_DETAIL << "exec_grouped_gemm_cpu_mask_gen OTD: unique experts exceed resident_slots=" << resident_slot_count()
                                    << ", falling back to per-expert onednn loop" << std::endl;
@@ -1125,6 +1227,10 @@ public:
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
         decode_impl = select_decode_impl(params, weight_dt);
         prefill_impl = select_prefill_impl(config, weight_dt, params.prog->get_engine().get_device_info().arch);
+        // The micro-GEMM reads the scales and zero points of every expert, not of the expert slots
+        if (prefill_impl == MoeGemmImpl::micro_gemm && node.as<moe_3gemm_fused_compressed>().get_primitive()->_otd.lru_expert_num > 0) {
+            prefill_impl = MoeGemmImpl::per_expert_onednn;
+        }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
                                << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
@@ -1151,12 +1257,34 @@ public:
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
+        // The slot buffers of a dynamic model are laid out at the first inference: check their layouts at compilation
+        if (_weight_provider->is_offloaded()) {
+            const auto num_expert = static_cast<size_t>(cur_moe->_config.num_expert);
+            for (const auto input : {MOE3GemmInputIndex::SCALE_0,
+                                     MOE3GemmInputIndex::ZP_0,
+                                     MOE3GemmInputIndex::SCALE_1,
+                                     MOE3GemmInputIndex::ZP_1,
+                                     MOE3GemmInputIndex::SCALE_2,
+                                     MOE3GemmInputIndex::ZP_2}) {
+                const auto& layout = params.get_input_layout(static_cast<size_t>(input));
+                OPENVINO_ASSERT(!is_per_expert(layout, num_expert) || has_contiguous_expert_slices(layout, num_expert),
+                                "MoE offload of ",
+                                node.id(),
+                                ": the expert slices of input ",
+                                static_cast<size_t>(input),
+                                " (",
+                                layout.to_short_string(),
+                                ") are not contiguous");
+            }
+        }
 
         // Don't change the order of stages
         add_stage(gather, params);
         add_stage(scatter, params);
         // The batched GEMV kernels have no code path for this weight type, so they are not built
         if (decode_impl == MoeGemmImpl::batched_gemv) {
+            // Checked here: add_stage() swallows exceptions from kernel generation and drops the stage.
+            check_gemv_shape(params);
             add_stage(mlp_gate_up, params);
             add_stage(mlp_down, params);
             add_stage(mlp_reduce, params);
@@ -1531,6 +1659,29 @@ public:
             internal_buffers.emplace_back(layout_grouped_offsets, false);  // 12: grouped end-offsets
             internal_buffers.emplace_back(layout_token_idx, false);        // 13: row_lut
         }
+
+        if (_weight_provider->is_offloaded()) {
+            // The slots keep the loaded experts between the executions, so they have fixed indices whatever the other buffers are
+            const layout layout_unused(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
+            OPENVINO_ASSERT(internal_buffers.size() <= MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS, "MoE buffers overflow into the reserved OTD slot indices");
+            while (internal_buffers.size() < MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS) {
+                internal_buffers.emplace_back(layout_unused, false);
+            }
+            // Not shareable: the engine must neither pool the slots with other buffers nor free them between the executions
+            const auto slots = [&](size_t input) {
+                const auto& input_layout = params.input_layouts[input];
+                if (!is_per_expert(input_layout, expert_num)) {
+                    return BufferDescriptor(layout_unused, false, false);
+                }
+                return BufferDescriptor(get_slot_layout(input_layout, _weight_provider->resident_capacity(), expert_num), false, false);
+            };
+            for (size_t i = 0; i < 3; i++) {
+                internal_buffers.push_back(slots(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0) + 3 * i));  // 14-16: scales
+            }
+            for (size_t i = 0; i < 3; i++) {
+                internal_buffers.push_back(slots(static_cast<size_t>(MOE3GemmInputIndex::ZP_0) + 3 * i));  // 17-19: zero points
+            }
+        }
         return internal_buffers;
     }
 
@@ -1559,7 +1710,7 @@ public:
         prepare_weight_pointers(instance, scratch);
     }
 
-    void prepare_expert_masks(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
+    static void prepare_expert_masks(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto& engine = instance.get_network().get_engine();
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
@@ -1574,7 +1725,11 @@ public:
         }
     }
 
-    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask, size_t actual_token_num) {
+    static void get_expert_mask_from_gpu(const MOECompressed::Config& config,
+                                         memory::ptr mem,
+                                         stream& stream,
+                                         expert_mask_cpu& expert_mask,
+                                         size_t actual_token_num) {
         // shape: [token_num, topk]
         auto layout = mem->get_layout();
 
@@ -1624,7 +1779,7 @@ public:
         }
     }
 
-    void copy_expert_mask_to_gpu(stream& stream, const expert_mask_cpu& expert_mask, size_t expert_no, expert_mask_gpu& expert_mask_mem) {
+    static void copy_expert_mask_to_gpu(stream& stream, const expert_mask_cpu& expert_mask, size_t expert_no, expert_mask_gpu& expert_mask_mem) {
         auto size = expert_mask.batch[expert_no].size() * sizeof(int);
         expert_mask_mem.batch->copy_from(stream, expert_mask.batch[expert_no].data(), 0, 0, size, true);
         expert_mask_mem.topk->copy_from(stream, expert_mask.topk[expert_no].data(), 0, 0, size, true);
@@ -1690,7 +1845,7 @@ public:
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
-    auto get_input_info(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, int idx) {
+    static auto get_input_info(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, int idx) {
         auto mem = instance.input_memory_ptr(idx);
         auto dep = instance.dependencies()[idx];
         auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
@@ -1827,7 +1982,7 @@ public:
                                                  scratch_buffers& scratch,
                                                  size_t token_num) {
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        final_hidden_states_mem_ptr->fill(stream, 0u);
+        final_hidden_states_mem_ptr->fill(stream, 0U);
         for (const auto& ev : events) {
             if (ev) {
                 ev->wait();
@@ -1853,7 +2008,7 @@ public:
     cldnn::event::ptr exec_batched_gemv_reduce(cldnn::event::ptr dep,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                scratch_buffers& scratch,
-                                               size_t token_num) {
+                                               size_t token_num) const {
         const auto& info = instance.get_impl_params()->get_device_info();
         const size_t subgroup_size = info.arch >= gpu_arch::xe2 ? 32 : 16;
         // The local size must divide hidden_size: drivers may reject non-uniform work-groups (-54).
@@ -1976,7 +2131,7 @@ public:
             bool needs_fallback = false;
             on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count, needs_fallback);
             if (needs_fallback) {
-                instance.output_memory_ptr(0)->fill(stream, 0u);
+                instance.output_memory_ptr(0)->fill(stream, 0U);
                 return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
         }
@@ -2399,12 +2554,17 @@ public:
 
         // Use the model config to determine ZP presence (symmetric vs asymmetric quantization)
         bool has_zp = config.has_zp;
-        // All the zero points share one dtype, which may differ from the weight dtype (u3 weights have u8 zp)
-        const auto zp_dt = has_zp ? convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0))->get_layout().data_type)
-                                  : dnnl::memory::data_type::undef;
+        // The zero point dtype may differ from the weight dtype (u3 weights have u8 zp) and, in a mixed-dtype layer, from GEMM
+        // to GEMM (u4 gate/up with u8 down), so it is taken per GEMM.
+        const std::array<MOE3GemmInputIndex, 3> zp_inputs{MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2};
+        std::array<dnnl::memory::data_type, 3> zp_dts{dnnl::memory::data_type::undef, dnnl::memory::data_type::undef, dnnl::memory::data_type::undef};
+        if (has_zp) {
+            for (size_t i = 0; i < zp_inputs.size(); i++) {
+                zp_dts[i] = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(zp_inputs[i]))->get_layout().data_type);
+            }
+        }
         // The zero points are constants, so a shared one is read to the host only once
         if (has_zp) {
-            const std::array<MOE3GemmInputIndex, 3> zp_inputs{MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2};
             for (size_t i = 0; i < zp_inputs.size(); i++) {
                 const auto& zp_mem = instance.input_memory_ptr(static_cast<size_t>(zp_inputs[i]));
                 if (!_grouped_zp_host_scalars[i] && zp_mem->get_layout().count() == 1) {
@@ -2431,17 +2591,17 @@ public:
                 // per-expert(0) x per-K-group(1) x per-N-channel(2)
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, dnnl::memory::data_type::f16);
                 if (has_zp && !zp_host_scalar) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, zp_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, zp_dts[gemm_idx]);
                 }
             } else {
                 // per-expert(0) x per-N-channel(2), no K-grouping
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, dnnl::memory::data_type::f16);
                 if (has_zp && !zp_host_scalar) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dts[gemm_idx]);
                 }
             }
             if (zp_host_scalar) {
-                attr.set_host_zero_point(DNNL_ARG_WEIGHTS, zp_dt);
+                attr.set_host_zero_point(DNNL_ARG_WEIGHTS, zp_dts[gemm_idx]);
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
@@ -2472,7 +2632,7 @@ public:
             // Post-ops: eltwise(activation) + binary_mul(up_output as grouped tensor)
             dnnl::post_ops gate_po;
             auto activation_algo = moe_activation_to_dnnl_algo(_activation_type);
-            gate_po.append_eltwise(activation_algo, 1.0f, 0.0f);
+            gate_po.append_eltwise(activation_algo, 1.0F, 0.0F);
             // binary_mul with grouped descriptor matching dst layout
             auto bin_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N_gu}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
             gate_po.append_binary(dnnl::algorithm::binary_mul, bin_md);
@@ -2484,21 +2644,21 @@ public:
         }
         gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
         if (has_zp) {
-            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dt);
+            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dts[0]);
         }
 
         gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt, 1, dnnl::post_ops());
         gk->up_prim = dnnl::matmul(gk->up_pd);
         gk->up_scale_md = gk->gate_scale_md;
         if (has_zp) {
-            gk->up_zp_md = gk->gate_zp_md;
+            gk->up_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dts[1]);
         }
 
         gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt, 2, dnnl::post_ops());
         gk->down_prim = dnnl::matmul(gk->down_pd);
         gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
         if (has_zp) {
-            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, zp_dt);
+            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, zp_dts[2]);
         }
         gk->hint_mem = dnnl::memory(dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32), int32_t{0});
 
@@ -2570,7 +2730,7 @@ public:
                 continue;
             }
 
-            on_load_expert_weights(expert_no, instance, dnn_stream);
+            on_load_expert_weights(expert_no, instance, scratch.moe_fusion_wei_addr, dnn_stream);
             auto& dnnl_weights = _dnnl_weights[expert_no];
 
             // expert_mask
@@ -2614,7 +2774,7 @@ public:
                                 n_token,
                                 convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.y, {static_cast<int64_t>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {static_cast<int64_t>(routing_weights_size)}, dnnl::memory::format_tag::a));
+                                convert2dnnl(scratch.routing_weights, {routing_weights_size}, dnnl::memory::format_tag::a));
             // index_add
             result_event = execute_stage({result_event},
                                          instance,
@@ -2677,7 +2837,7 @@ public:
         // ----------------------------------------------------------------
         cldnn::event::ptr ret_event = events.empty() ? nullptr : events[0];
         // Flat list of source token indices per expert – input for prefill_gather
-        std::vector<int32_t> tokens_per_expert_cpu(static_cast<size_t>(token_num) * max_topk, -1);
+        std::vector<int32_t> tokens_per_expert_cpu(token_num * max_topk, -1);
         // Per-activated-expert token counts, reduced to the OneDNN max-group-size dispatch hint
         std::vector<int32_t> tokens_lens_per_expert_cpu(num_grouped_experts, 0);
         // int32_t cumulative end-offsets per expert/slot for OneDNN grouped GEMM
@@ -2686,7 +2846,7 @@ public:
         std::vector<int32_t> grouped_offsets_cpu(num_grouped_experts, 0);
         // Inverse of tokens_per_expert: row_lut[token * max_topk + k] is the gathered row that
         // holds that expert output, or -1 when the pair is unused. Filled by the mask loops below.
-        std::vector<int32_t> row_lut_cpu(static_cast<size_t>(token_num) * max_topk, -1);
+        std::vector<int32_t> row_lut_cpu(token_num * max_topk, -1);
 
         if (!build_grouped_mask_otd(stream,
                                     instance,
@@ -2874,7 +3034,7 @@ public:
                               *prefill_scatter_reduce_row_lut,
                               {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], routing_mem_ptr, intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]},
                               {final_hidden_states_mem_ptr},
-                              {static_cast<size_t>(token_num) * local_threads_count, 1, 1},
+                              {token_num * local_threads_count, 1, 1},
                               {local_threads_count, 1, 1},
                               true /*needs_completion_event*/);
         }
@@ -2971,7 +3131,7 @@ public:
         // fallback to exec_per_expert_onednn_linear (when unique_experts > lru slots)
         // also accumulates via index_add.
         if (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output()) {
-            final_hidden_states_mem_ptr->fill(stream, 0u);
+            final_hidden_states_mem_ptr->fill(stream, 0U);
         }
         const bool use_gpu_mask_gen = should_use_gpu_mask_gen(impl, token_num);
         if (!use_gpu_mask_gen) {

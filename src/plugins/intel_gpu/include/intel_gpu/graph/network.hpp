@@ -118,7 +118,7 @@ public:
     program::ptr get_program() { return _program; }
     engine& get_engine() const { return _engine; }
 
-    void reset_execution(bool wait = true);
+    void reset_execution(bool wait = true) const;
     event::ptr set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set = true);
     std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem, bool is_remote = false);
 
@@ -190,13 +190,11 @@ public:
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
-    ov::intel_gpu::mlir::MLIRGpuRuntime* gc_runtime() const {
 #ifdef ENABLE_MLIR_FOR_GPU
+    ov::intel_gpu::mlir::MLIRGpuRuntime* gc_runtime() const {
         return _gc_runtime.get();
-#else
-        return nullptr;
-#endif
     }
+#endif
     bool is_internal() const { return _internal; }
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
@@ -242,7 +240,9 @@ public:
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
     void set_reuse_variable_mem(bool reuse = false);
-    bool is_reuse_variable_mem() { return _reuse_variable_mem; }
+    bool is_reuse_variable_mem() const {
+        return _reuse_variable_mem;
+    }
 
     const ExecutionConfig& get_config() const { return _program->get_config(); }
 

@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "normalize_kernel_base.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "kernel_selector_utils.h"
@@ -16,7 +17,7 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
         MakeJitConstant("SCALE_TABLE", np.scaleTable),
         MakeJitConstant("EPSILON", np.epsilon),
         MakeJitConstant(toString(np.normMode), ""),
-        MakeJitConstant("THRESHOLD", 0.0001f),
+        MakeJitConstant("THRESHOLD", 0.0001F),
     });
 
     auto activation_dt = GetActivationType(np);
@@ -30,7 +31,7 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
     return jit;
 }
 
-NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normalize_params& params) const {
+NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normalize_params& params) {
     const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
@@ -72,16 +73,16 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params) cons
 bool NormalizeKernelBase::Validate(const Params& params) const {
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
 
-    for (const auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(params.layerID);
-        }
+    if (std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
 }
 
-Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) const {
+Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) {
     if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
     }

@@ -46,7 +46,7 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
     bool causal = true;
     /// Resolved at lowering time: either the op's default (1/sqrt(k_head_size)) or a
     /// constant-folded value of the optional SCALE input.
-    float scale = 0.0f;
+    float scale = 0.0F;
     ov::intel_gpu::op::KVQuant key_quant{};
     ov::intel_gpu::op::KVQuant value_quant{};
 
@@ -90,8 +90,9 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto r = downcast<const sparse_sdpa>(rhs);
         return num_heads == r.num_heads && num_kv_heads == r.num_kv_heads && num_selection_heads == r.num_selection_heads && k_head_size == r.k_head_size &&
                v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size && causal == r.causal &&

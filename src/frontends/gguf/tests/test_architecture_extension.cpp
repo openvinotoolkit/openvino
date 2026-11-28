@@ -11,17 +11,23 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "builder/api/metadata_store.hpp"
+#include "builder/arch_registry.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
+#include "op_test_utils.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -30,7 +36,16 @@
 #include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/set_rows_op.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/op/util/variable_extension.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -61,6 +76,7 @@ struct MtpFixture {
     bool explicit_untied_hadamard = false;
     bool inverse_embedding_hadamard = false;
     bool separate_embedding = false;
+    uint32_t nextn_layers = 1;
 };
 
 // Remove the generated files even when a test fails.
@@ -113,7 +129,7 @@ std::string write_decoder_gguf(const std::string& dir,
     writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
     writer.kv_f32(arch + ".rope.scaling.factor", 4.f);
     if (mtp) {
-        writer.kv_u32(arch + ".nextn_predict_layers", 1);
+        writer.kv_u32(arch + ".nextn_predict_layers", fixture.nextn_layers);
         writer.kv_u32(arch + ".full_attention_interval", 1);
         writer.kv_u32(arch + ".ssm.conv_kernel", 4);
         writer.kv_u32(arch + ".ssm.state_size", 4);
@@ -181,6 +197,16 @@ std::string write_decoder_gguf(const std::string& dir,
     return writer.write(path) ? path : std::string{};
 }
 
+std::string write_qwen3vl_gguf(const std::string& dir, const std::vector<std::string>& tags) {
+    const auto path = ov::util::path_join({dir, "qwen3vl.gguf"}).string();
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3vl");
+    writer.kv_str_array("general.tags", tags);
+    writer.kv_u32("qwen3vl.n_deepstack_layers", 0);
+    writer.filled_tensor("token_embd.weight", {8, 16});
+    return writer.write(path) ? path : std::string{};
+}
+
 constexpr const char* kUnknownArch = "my-qwen3";
 
 std::shared_ptr<ov::Model> convert_with(const std::string& path,
@@ -210,6 +236,70 @@ TEST(GGUFArchitectureExtension, UnknownArchitectureIsRejectedWithoutAnExtension)
                     ov::Exception,
                     testing::AllOf(testing::HasSubstr("does not support architecture"),
                                    testing::HasSubstr("ArchitectureExtension")));
+}
+
+TEST(GGUFArchitectureExtension, DeferredArchitecturesAreRejectedWithoutAnExtension) {
+    for (const auto* architecture : {"qwen3next"}) {
+        SCOPED_TRACE(architecture);
+        ScratchDir scratch;
+        const auto path = write_decoder_gguf(scratch.path(), architecture);
+        ASSERT_FALSE(path.empty());
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.load(path),
+                        ov::Exception,
+                        testing::AllOf(testing::HasSubstr("native GGUF builder does not support architecture"),
+                                       testing::HasSubstr(architecture)));
+        frontend.add_extension(std::make_shared<ArchitectureExtension>(architecture, RopeMode::Neox));
+        EXPECT_NO_THROW(frontend.load(path));
+    }
+}
+
+TEST(GGUFArchitectureExtension, BuiltInDecodersAcceptSupportedTensorTypes) {
+    using namespace ov::frontend::gguf;
+    ov::Core core;
+    for (const auto* architecture : {"afmoe", "qwen3tts", "qwen3vlmoe"}) {
+        SCOPED_TRACE(architecture);
+        const auto arrays = cnpy::npz_load(test_data_dir() + "/arch_accuracy/" + architecture + ".npz");
+        const TemporaryGguf fixture(npz_array(arrays, "model"));
+        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q8_0}) {
+            SCOPED_TRACE(type);
+            auto loaded = get_gguf_data(fixture.path);
+            auto& weights = std::get<1>(loaded);
+            quantize_weight(weights, "token_embd.weight", type);
+            const detail::MetadataStore meta_store{std::get<0>(loaded)};
+            const GgufMetadata meta(meta_store);
+            const auto definition = ArchRegistry{}.find(meta);
+            ASSERT_TRUE(definition);
+            detail::WeightStore store{weights};
+            const auto builder = definition->factory(BuildContext{meta, architecture, &store});
+            std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(builder->build());
+            FrontEnd frontend;
+            frontend.add_extension(std::make_shared<GenAIExtension>(GenAIExtension::InputMode::IDS_TO_LOGITS));
+            const auto model = frontend.convert(frontend.load(decoder));
+            EXPECT_NO_THROW(core.compile_model(model,
+                                               "CPU",
+                                               ov::hint::inference_precision(ov::element::f32),
+                                               ov::hint::dynamic_quantization_group_size(0)));
+        }
+    }
+}
+
+TEST(GGUFArchitectureExtension, Qwen3ASRTaskTagRemainsRegistered) {
+    ScratchDir scratch;
+    const auto path = write_qwen3vl_gguf(scratch.path(), {"automatic-speech-recognition"});
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    EXPECT_NO_THROW(frontend.load(path));
+}
+
+TEST(GGUFArchitectureExtension, Qwen3VLDenseWithoutDeepStackRemainsRegistered) {
+    for (const auto& tags : {std::vector<std::string>{}, std::vector<std::string>{"image-text-to-text"}}) {
+        ScratchDir scratch;
+        const auto path = write_qwen3vl_gguf(scratch.path(), tags);
+        ASSERT_FALSE(path.empty());
+        ov::frontend::gguf::FrontEnd frontend;
+        EXPECT_NO_THROW(frontend.load(path));
+    }
 }
 
 TEST(GGUFArchitectureExtension, UnsupportedDiagnosticIncludesRegisteredArchitectures) {
@@ -291,12 +381,12 @@ TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
 }
 
 TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+    using namespace ov::frontend::gguf;
     // Target-only arrays must match the explicit full-layer reference; the second case infers
     // two NextN KV heads from a projection using the smaller sliding-window head size.
     const std::vector<std::pair<MtpFixture, MtpFixture>> cases{
-        {MtpFixture{{0}, {1}, {0}}, MtpFixture{{0, 1}, {1, 0}, {0, 0}}},
-        {MtpFixture{{0}, {1}, {0, 1}, 2, 2}, MtpFixture{{0, 2}, {1, 0}, {0, 1}, 2, 2}},
+        {MtpFixture{{1}, {0}, {0}}, MtpFixture{{1, 1}, {0, 1}, {0, 0}}},
+        {MtpFixture{{1}, {0}, {0, 1}, 2, 2}, MtpFixture{{1, 2}, {0, 1}, {0, 1}, 2, 2}},
     };
     for (const auto& [target_only, all_layers] : cases) {
         SCOPED_TRACE(target_only.nextn_swa_head_size);
@@ -304,8 +394,9 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
         ScratchDir all_layers_dir;
         const auto load = [&](const std::string& dir, const MtpFixture& fixture) {
             const auto path = write_decoder_gguf(dir, "qwen35", 2, false, fixture);
-            auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
-            return convert_with(path, {extension});
+            FrontEnd frontend;
+            auto models = adapt_to_genai(frontend.convert(frontend.load(path, LoadOptions{true})));
+            return models.at("mtp_draft");
         };
         const auto target_only_model = load(target_only_dir.path(), target_only);
         const auto all_layers_model = load(all_layers_dir.path(), all_layers);
@@ -354,8 +445,8 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
     }
 }
 
-TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamardWeights) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+TEST(GGUFGenAIExtension, MtpLoadOptionFiltersUnusedHadamardWeights) {
+    using namespace ov::frontend::gguf;
     // The draft uses its NextN head, so output.weight (or the tied token_embd head) is unused;
     // target-only names leave nothing rotated.
     struct HadamardCase {
@@ -382,16 +473,393 @@ TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamard
         fixture.inverse_embedding_hadamard = test_case.inverse_embedding;
         const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
         ov::frontend::gguf::FrontEnd frontend;
-        const auto input = frontend.load(path);
-        frontend.add_extension(std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp"));
-        const auto model = frontend.convert(input);
-        EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
-        EXPECT_EQ(model->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
+        const auto input = frontend.load(path, LoadOptions{true});
+        auto models = adapt_to_genai(frontend.convert(input), {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS_TEXT});
+        const auto model = models.at("language");
+        EXPECT_NO_THROW(model->output("last_hidden_state"));
+        const auto draft = models.at("mtp_draft");
+        ASSERT_TRUE(draft);
+        EXPECT_EQ(draft->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        EXPECT_EQ(draft->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
     }
 }
 
+TEST(GGUFGenAIExtension, MtpIsOptionalAndSurvivesModelClone) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    FrontEnd frontend;
+    ASSERT_TRUE(frontend.supported(path, LoadOptions{true}));
+    auto ordinary = adapt_to_genai(frontend.convert(frontend.load(path)));
+    EXPECT_EQ(ordinary.count("mtp_draft"), 0);
+    EXPECT_THROW(ordinary.at("language")->output("last_hidden_state"), ov::Exception);
+
+    auto combined = frontend.convert(frontend.load(path, LoadOptions{true}));
+    EXPECT_TRUE(combined->has_rt_info("gguf_mtp_components"));
+    EXPECT_NO_THROW(combined->input("mtp.inp_tokens"));
+    std::set<size_t> offsets;
+    for (const auto& operation : combined->get_ops()) {
+        const auto& info = operation->get_rt_info();
+        const auto it = info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (it != info.end()) {
+            EXPECT_TRUE(offsets.insert(it->second.as<ov::WeightlessCacheAttribute>().bin_offset).second);
+        }
+    }
+    EXPECT_GT(offsets.size(), 1);
+    auto models = adapt_to_genai(combined->clone());
+    ASSERT_EQ(models.count("language"), 1);
+    ASSERT_EQ(models.count("mtp_draft"), 1);
+    EXPECT_NO_THROW(models.at("language")->output("last_hidden_state"));
+    EXPECT_NO_THROW(models.at("mtp_draft")->input("hidden_states"));
+
+    auto legacy = combined->clone();
+    auto& info = legacy->get_rt_info().at("gguf_mtp_components").as<ov::AnyMap>();
+    info.erase("target_sinks");
+    info.erase("target_variables");
+    info.erase("draft_variable_prefix");
+    info.erase("draft_io_prefix");
+    info.erase("draft_name");
+    EXPECT_EQ(adapt_to_genai(legacy).count("mtp_draft"), 1);
+}
+
+TEST(GGUFGenAIExtension, MtpWithoutNextNExposesOnlyTarget) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    MtpFixture fixture;
+    fixture.nextn_layers = 0;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
+    FrontEnd frontend;
+    const auto models = adapt_to_genai(frontend.convert(frontend.load(path, LoadOptions{true})));
+    EXPECT_EQ(models.count("mtp_draft"), 0);
+    EXPECT_NO_THROW(models.at("language")->output("last_hidden_state"));
+}
+
+TEST(GGUFGenAIExtension, MtpLoadOptionsSupportPathListsAndTrailingMmap) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    FrontEnd frontend;
+    const std::vector<std::string> paths{path};
+    ASSERT_TRUE(frontend.supported(paths, LoadOptions{true}, false));
+    const auto input = frontend.load(paths, LoadOptions{true}, false);
+    for (size_t i = 0; i < 2; ++i) {
+        const auto models = adapt_to_genai(frontend.convert(input));
+        ASSERT_EQ(models.count("language"), 1);
+        ASSERT_EQ(models.count("mtp_draft"), 1);
+    }
+    EXPECT_FALSE(frontend.supported(path, LoadOptions{true}, LoadOptions{true}));
+}
+
+TEST(GGUFGenAIExtension, MtpLoadOptionsRejectLegacyGenAIExtension) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    FrontEnd legacy;
+    legacy.add_extension(std::make_shared<GenAIExtension>());
+    OV_EXPECT_THROW(legacy.convert(legacy.load(path, LoadOptions{true})),
+                    ov::Exception,
+                    testing::HasSubstr("MTP conversion requires adapt_to_genai"));
+}
+
+TEST(GGUFGenAIExtension, MtpTransformationRunsBeforeLoweringOnEachComponent) {
+    using namespace ov::frontend::gguf;
+    for (const bool has_draft : {false, true}) {
+        SCOPED_TRACE(has_draft);
+        ScratchDir scratch;
+        MtpFixture fixture;
+        fixture.nextn_layers = has_draft ? 1 : 0;
+        const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
+        std::vector<bool> saw_set_rows;
+        FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+            [&](const std::shared_ptr<ov::Model>& model) {
+                const auto nodes = model->get_ops();
+                saw_set_rows.push_back(std::any_of(nodes.begin(), nodes.end(), [](const auto& node) {
+                    return ov::is_type<SetRows>(node);
+                }));
+                const auto index = static_cast<int64_t>(saw_set_rows.size());
+                model->set_friendly_name("extension_component_" + std::to_string(index));
+                model->get_rt_info()["extension_component"] = index;
+                for (const auto* name : {"extra", "mtp.extra"}) {
+                    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+                    parameter->set_friendly_name(name);
+                    parameter->output(0).set_names({name});
+                    model->add_parameters({parameter});
+                    auto result = std::make_shared<ov::op::v0::Result>(parameter);
+                    result->set_friendly_name(std::string{name} + ".result");
+                    model->add_results({result});
+                    if (std::string{name} == "extra")
+                        model->add_results({std::make_shared<ov::op::v0::Result>(parameter)});
+                }
+                auto contract = read_model_contract(model);
+                contract.genai->preserved_inputs.insert(contract.genai->preserved_inputs.end(), {"extra", "mtp.extra"});
+                write_model_contract(model, contract);
+                return true;
+            }));
+        const auto combined = frontend.convert(frontend.load(path, LoadOptions{true}));
+        ASSERT_EQ(saw_set_rows.size(), has_draft ? 2 : 1);
+        EXPECT_TRUE(std::all_of(saw_set_rows.begin(), saw_set_rows.end(), [](bool found) {
+            return found;
+        }));
+        EXPECT_EQ(combined->get_friendly_name(), "extension_component_1");
+        if (has_draft) {
+            EXPECT_NO_THROW(combined->input("mtp.extra"));
+            EXPECT_NO_THROW(combined->input("mtp.mtp.extra"));
+            EXPECT_NO_THROW(combined->input("mtp.mtp.mtp.extra"));
+        }
+        const auto models = adapt_to_genai(combined->clone());
+        ASSERT_EQ(models.count("language"), 1);
+        EXPECT_EQ(models.at("language")->get_friendly_name(), "extension_component_1");
+        EXPECT_EQ(models.at("language")->get_rt_info().at("extension_component").as<int64_t>(), 1);
+        EXPECT_NO_THROW(models.at("language")->input("extra"));
+        EXPECT_NO_THROW(models.at("language")->input("mtp.extra"));
+        EXPECT_EQ(models.count("mtp_draft"), has_draft ? 1 : 0);
+        if (has_draft) {
+            EXPECT_EQ(models.at("mtp_draft")->get_friendly_name(), "extension_component_2");
+            EXPECT_EQ(models.at("mtp_draft")->get_rt_info().at("extension_component").as<int64_t>(), 2);
+            EXPECT_NO_THROW(models.at("mtp_draft")->input("extra"));
+            EXPECT_NO_THROW(models.at("mtp_draft")->input("mtp.extra"));
+            const auto draft_results = models.at("mtp_draft")->get_results();
+            EXPECT_EQ(std::count_if(draft_results.begin(),
+                                    draft_results.end(),
+                                    [](const auto& result) {
+                                        return result->input_value(0).get_names().count("extra") != 0;
+                                    }),
+                      2);
+            const auto cloned_draft = models.at("mtp_draft")->clone();
+            EXPECT_NO_THROW(cloned_draft->input("extra"));
+            EXPECT_NO_THROW(cloned_draft->input("mtp.extra"));
+        } else {
+            FrontEnd stateful;
+            stateful.add_extension(
+                std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+            const auto converted = stateful.convert(stateful.load(path, LoadOptions{true}));
+            EXPECT_EQ(converted->get_sinks().size(), 4);
+            EXPECT_EQ(adapt_to_genai(converted).count("language"), 1);
+        }
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpTransformationAddedOutputNamesSurviveSplitAndClone) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    size_t visits = 0;
+    FrontEnd frontend;
+    frontend.add_extension(
+        std::make_shared<ov::frontend::DecoderTransformationExtension>([&](const std::shared_ptr<ov::Model>& model) {
+            const bool draft = ++visits == 2;
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+            input->set_friendly_name("extension_input");
+            input->output(0).set_names({"extension_input"});
+            model->add_parameters({input});
+            auto value =
+                std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f}));
+            if (draft)
+                value->output(0).set_names({"extension_output", "draft_alias", "mtp.draft_alias"});
+            else
+                value->output(0).set_names({"extension_output"});
+            model->add_output(value->output(0));
+            auto passthrough = std::make_shared<ov::op::v0::Result>(input);
+            passthrough->output(0).set_names({"extension_passthrough"});
+            model->add_results({passthrough});
+            auto contract = read_model_contract(model);
+            contract.genai->preserved_inputs.push_back("extension_input");
+            write_model_contract(model, contract);
+            return true;
+        }));
+    const auto combined = frontend.convert(frontend.load(path, LoadOptions{true}));
+    ASSERT_EQ(visits, 2);
+    const auto prefix =
+        combined->get_rt_info().at("gguf_mtp_components").as<ov::AnyMap>().at("draft_io_prefix").as<std::string>();
+    EXPECT_EQ(prefix, "mtp.");
+    EXPECT_NO_THROW(combined->output("extension_output"));
+    EXPECT_NO_THROW(combined->output(prefix + "extension_output"));
+    EXPECT_NO_THROW(combined->output(prefix + "extension_passthrough"));
+    EXPECT_NO_THROW(combined->output(prefix + "draft_alias"));
+    EXPECT_NO_THROW(combined->output(prefix + "mtp.draft_alias"));
+    EXPECT_TRUE(combined->output(prefix + "extension_output").get_names().count(prefix + "extension_output"));
+    EXPECT_FALSE(combined->output(prefix + "extension_output").get_names().count("extension_output"));
+
+    const auto models = adapt_to_genai(combined);
+    ov::Core core;
+    for (const auto& name : {std::string{"language"}, std::string{"mtp_draft"}}) {
+        SCOPED_TRACE(name);
+        const auto cloned = models.at(name)->clone();
+        EXPECT_NO_THROW(cloned->input("extension_input"));
+        EXPECT_NO_THROW(cloned->output("extension_output"));
+        EXPECT_NO_THROW(cloned->output("extension_passthrough"));
+        EXPECT_TRUE(cloned->output("extension_output").get_names().count("extension_output"));
+        if (name == "mtp_draft") {
+            EXPECT_NO_THROW(cloned->output("draft_alias"));
+            EXPECT_NO_THROW(cloned->output("mtp.draft_alias"));
+            const auto compiled = core.compile_model(models.at(name), "CPU");
+            EXPECT_NO_THROW(compiled.input("extension_input"));
+            EXPECT_NO_THROW(compiled.output("extension_output"));
+            EXPECT_NO_THROW(compiled.output("extension_passthrough"));
+            EXPECT_NO_THROW(compiled.output("draft_alias"));
+            EXPECT_NO_THROW(compiled.output("mtp.draft_alias"));
+        }
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpStatefulTransformationsPreserveIndependentStates) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    const auto first = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{1}, ov::element::f32, "custom_state"});
+    const auto second = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{1}, ov::element::f32, "mtp.custom_state"});
+    size_t visits = 0;
+    FrontEnd frontend;
+    frontend.add_extension(
+        std::make_shared<ov::frontend::DecoderTransformationExtension>([&](const std::shared_ptr<ov::Model>& model) {
+            const auto scale = ++visits == 1 ? 1.f : 10.f;
+            for (const auto& [variable, increment] :
+                 std::vector<std::pair<ov::op::util::Variable::Ptr, float>>{{first, scale}, {second, 2.f * scale}}) {
+                const auto init = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.f});
+                const auto read = std::make_shared<ov::op::v6::ReadValue>(init, variable);
+                const auto delta = ov::op::v0::Constant::create(ov::element::f32, {1}, {increment});
+                model->add_sinks(
+                    {std::make_shared<ov::op::v6::Assign>(std::make_shared<ov::op::v1::Add>(read, delta), variable)});
+            }
+            const auto init = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.f});
+            const auto read = std::make_shared<ov::op::v3::ReadValue>(init, "legacy_state");
+            const auto delta = ov::op::v0::Constant::create(ov::element::f32, {1}, {3.f * scale});
+            model->add_sinks(
+                {std::make_shared<ov::op::v3::Assign>(std::make_shared<ov::op::v1::Add>(read, delta), "legacy_state")});
+            return true;
+        }));
+    frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+    const auto combined = frontend.convert(frontend.load(path, LoadOptions{true}));
+    ASSERT_EQ(visits, 2);
+    EXPECT_EQ(first->get_info().variable_id, "custom_state");
+    EXPECT_EQ(second->get_info().variable_id, "mtp.custom_state");
+    ASSERT_EQ(combined->get_sinks().size(), 10);
+    ASSERT_EQ(combined->get_variables().size(), 10);
+    std::set<std::string> ids;
+    for (const auto& variable : combined->get_variables())
+        EXPECT_TRUE(ids.insert(variable->get_info().variable_id).second);
+    const auto& info = combined->get_rt_info().at("gguf_mtp_components").as<ov::AnyMap>();
+    const auto& prefix = info.at("draft_variable_prefix").as<std::string>();
+    EXPECT_NE(prefix, "mtp.");
+    EXPECT_EQ(ids.count(prefix + "custom_state"), 1);
+    EXPECT_EQ(ids.count(prefix + "mtp.custom_state"), 1);
+    EXPECT_EQ(ids.count(prefix + "legacy_state"), 1);
+
+    ov::Core core;
+    const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+        return core
+            .compile_model(model,
+                           "CPU",
+                           ov::hint::inference_precision(ov::element::f32),
+                           ov::hint::dynamic_quantization_group_size(0),
+                           ov::hint::kv_cache_precision(ov::element::f32))
+            .create_infer_request();
+    };
+    auto combined_request = compile(combined->clone());
+    EXPECT_EQ(combined_request.query_state().size(), 10);
+    const auto models = adapt_to_genai(combined->clone());
+    FrontEnd reference_frontend;
+    const auto reference = adapt_to_genai(reference_frontend.convert(reference_frontend.load(path, LoadOptions{true})));
+    struct Requests {
+        std::string name;
+        ov::InferRequest actual;
+        ov::InferRequest reference;
+    };
+    std::vector<Requests> requests;
+    for (const auto& name : {std::string{"language"}, std::string{"mtp_draft"}}) {
+        const auto model = models.at(name);
+        ASSERT_EQ(model->get_sinks().size(), 5);
+        ASSERT_EQ(model->get_variables().size(), 5);
+        for (const auto& variable_id : {"custom_state", "mtp.custom_state", "legacy_state"})
+            EXPECT_TRUE(model->get_variable_by_id(variable_id));
+        for (const auto& node : model->get_ordered_ops()) {
+            if (const auto variable_op = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(node)) {
+                EXPECT_EQ(variable_op->get_variable_id(), variable_op->get_variable()->get_info().variable_id);
+            }
+        }
+        requests.push_back({name, compile(model->clone()), compile(reference.at(name))});
+    }
+    const auto custom_states = [](ov::InferRequest& request) {
+        std::map<std::string, float> values;
+        for (const auto& state : request.query_state()) {
+            if (state.get_name() == "custom_state" || state.get_name() == "mtp.custom_state" ||
+                state.get_name() == "legacy_state")
+                values[state.get_name()] = state.get_state().data<const float>()[0];
+        }
+        return values;
+    };
+
+    size_t past = 0;
+    for (const size_t tokens : {3u, 1u}) {
+        ov::Tensor ids_tensor(ov::element::i64, {1, tokens}), positions(ov::element::i64, {1, tokens});
+        ov::Tensor mask(ov::element::i64, {1, past + tokens}), beam(ov::element::i32, {1});
+        ov::Tensor hidden(ov::element::f32, {1, tokens, 8});
+        std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+        *beam.data<int32_t>() = 0;
+        for (size_t i = 0; i < tokens; ++i) {
+            ids_tensor.data<int64_t>()[i] = static_cast<int64_t>(past + i + 1);
+            positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+        }
+        for (size_t i = 0; i < hidden.get_size(); ++i)
+            hidden.data<float>()[i] = 0.1f * std::sin(static_cast<float>(i + past));
+        for (auto& pair : requests) {
+            SCOPED_TRACE(pair.name);
+            for (auto* request : {&pair.actual, &pair.reference}) {
+                request->set_tensor("input_ids", ids_tensor);
+                request->set_tensor("position_ids", positions);
+                request->set_tensor("attention_mask", mask);
+                request->set_tensor("beam_idx", beam);
+                if (pair.name == "mtp_draft")
+                    request->set_tensor("hidden_states", hidden);
+                request->infer();
+            }
+            for (const auto* name : {"logits", "last_hidden_state"}) {
+                const auto actual = pair.actual.get_tensor(name);
+                const auto expected = pair.reference.get_tensor(name);
+                ASSERT_EQ(actual.get_shape(), expected.get_shape());
+                for (size_t i = 0; i < actual.get_size(); ++i)
+                    EXPECT_NEAR(actual.data<const float>()[i], expected.data<const float>()[i], 1e-5f);
+            }
+            const auto values = custom_states(pair.actual);
+            ASSERT_EQ(values.size(), 3);
+            const float scale = pair.name == "language" ? 1.f : 10.f;
+            const float steps = past == 0 ? 1.f : 2.f;
+            EXPECT_FLOAT_EQ(values.at("custom_state"), scale * steps);
+            EXPECT_FLOAT_EQ(values.at("mtp.custom_state"), 2.f * scale * steps);
+            EXPECT_FLOAT_EQ(values.at("legacy_state"), 3.f * scale * steps);
+        }
+        past += tokens;
+    }
+    requests.front().actual.reset_state();
+    const auto draft_states = custom_states(requests.back().actual);
+    ASSERT_EQ(draft_states.size(), 3);
+    EXPECT_FLOAT_EQ(draft_states.at("custom_state"), 20.f);
+    EXPECT_FLOAT_EQ(draft_states.at("mtp.custom_state"), 40.f);
+    EXPECT_FLOAT_EQ(draft_states.at("legacy_state"), 60.f);
+    ov::Tensor ids_tensor(ov::element::i64, {1, 1}), positions(ov::element::i64, {1, 1});
+    ov::Tensor mask(ov::element::i64, {1, 1}), beam(ov::element::i32, {1});
+    *ids_tensor.data<int64_t>() = 1;
+    *positions.data<int64_t>() = 0;
+    *mask.data<int64_t>() = 1;
+    *beam.data<int32_t>() = 0;
+    auto& target = requests.front().actual;
+    target.set_tensor("input_ids", ids_tensor);
+    target.set_tensor("position_ids", positions);
+    target.set_tensor("attention_mask", mask);
+    target.set_tensor("beam_idx", beam);
+    target.infer();
+    const auto reset_target_states = custom_states(target);
+    ASSERT_EQ(reset_target_states.size(), 3);
+    EXPECT_FLOAT_EQ(reset_target_states.at("custom_state"), 1.f);
+    EXPECT_FLOAT_EQ(reset_target_states.at("mtp.custom_state"), 2.f);
+    EXPECT_FLOAT_EQ(reset_target_states.at("legacy_state"), 3.f);
+}
+
 TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+    using namespace ov::frontend::gguf;
     MtpFixture separate_embedding;
     separate_embedding.separate_embedding = true;
     struct Case {
@@ -403,10 +871,9 @@ TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
     };
     const std::string per_layer = "per-layer settings must describe every decoder layer";
     const std::vector<Case> cases{
-        {"qwen3", 2, std::nullopt, "mtp", "exactly one NextN block"},
-        {"qwen3", 2, std::nullopt, "mtp_target", "MTP is not supported for architecture"},
+        {"qwen3", 2, std::nullopt, "mtp", "MTP is not supported for architecture"},
         {"qwen35", 0, MtpFixture{}, "mtp", "qwen35.block_count"},
-        {"qwen35", 1, MtpFixture{}, "mtp", "at least one target layer"},
+        {"qwen35", 1, MtpFixture{}, "mtp", "invalid number of NextN blocks"},
         {"qwen35", 2, separate_embedding, "mtp", "shared token embeddings"},
         {"qwen35", 2, MtpFixture{{0, 1, 1}}, "mtp", per_layer},
         {"qwen35", 2, MtpFixture{{}, {1, 0, 0}}, "mtp", per_layer},
@@ -416,9 +883,10 @@ TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
         SCOPED_TRACE(test_case.error);
         ScratchDir scratch;
         const auto path = write_decoder_gguf(scratch.path(), test_case.arch, test_case.layers, false, test_case.mtp);
-        const auto extension =
-            std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, test_case.component);
-        OV_EXPECT_THROW(convert_with(path, {extension}), ov::Exception, testing::HasSubstr(test_case.error));
+        FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(path, LoadOptions{test_case.component == "mtp"})),
+                        ov::Exception,
+                        testing::HasSubstr(test_case.error));
     }
 }
 
@@ -489,11 +957,9 @@ TEST(GGUFArchitectureExtension, ExternalBuilderCanAcknowledgeSelectedComponent) 
                                    return std::make_shared<Qwen3Builder>(context);
                                }},
         RegistrationMode::Replace));
-    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
-        ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS,
-        "external-component"));
-
-    const auto model = frontend.convert(frontend.load(path));
+    const auto model =
+        ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(path, ov::frontend::gguf::LoadOptions{true})))
+            .at("language");
     ASSERT_TRUE(model);
     EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
 }

@@ -5,12 +5,17 @@
 #include "include/auto_unit_test.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/compilation_context.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <condition_variable>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -122,6 +127,33 @@ public:
 
 private:
     std::shared_ptr<std::atomic<int>> m_failures;
+};
+
+// Runs a hook right before the request is started on the device.
+class HookedStartAsyncRequest : public ov::IAsyncInferRequest {
+public:
+    HookedStartAsyncRequest(const std::shared_ptr<ov::IInferRequest>& request,
+                            const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                            std::function<void()> on_start)
+        : ov::IAsyncInferRequest(request, task_executor, nullptr),
+          m_on_start(std::move(on_start)) {}
+
+    void start_async() override {
+        m_on_start();
+        ov::IAsyncInferRequest::start_async();
+    }
+
+private:
+    std::function<void()> m_on_start;
+};
+
+struct OnDestruction {
+    std::function<void()> callback;
+    ~OnDestruction() {
+        if (callback) {
+            callback();
+        }
+    }
 };
 
 // Carries nothing but the name of the device it was created on.
@@ -1129,5 +1161,435 @@ TEST_F(AutoDynamicDeviceSelectionTest, streams_are_not_forced_without_the_per_in
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     EXPECT_EQ(recorder.streams("GPU.0"), -100);
+}
+
+class AutoDynamicInactiveDeviceReleaseTest : public AutoDynamicDeviceSelectionTest {
+public:
+    void SetUp() override {
+        AutoDynamicDeviceSelectionTest::SetUp();
+        m_cache_dir = std::filesystem::temp_directory_path() /
+                      ("ov_auto_inactive_device_release_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        std::filesystem::create_directories(m_cache_dir);
+        ON_CALL(*core, get_property(_, StrEq(ov::cache_dir.name()), _))
+            .WillByDefault(Return(ov::Any(m_cache_dir.string())));
+        ON_CALL(*core, get_property(_, StrEq(ov::cache_path.name()), _))
+            .WillByDefault(Return(ov::Any(std::filesystem::path())));
+        ON_CALL(*core, create_compile_config(_, _))
+            .WillByDefault([this](const std::string& device, const ov::AnyMap& compile_config) {
+                if (device == "CPU") {
+                    ++m_cpu_cache_key_compute_count;
+                }
+                // as in Core, different devices never share a cache blob
+                ov::AnyMap key{{"TEST_CACHE_KEY_DEVICE", device}};
+                if (const auto id = compile_config.find(ov::device::id.name()); id != compile_config.end()) {
+                    key.emplace(*id);
+                }
+                return key;
+            });
+        ON_CALL(*core, device_supports_model_caching(_)).WillByDefault(Return(true));
+        config.erase(ov::device::priorities.name());
+        config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+        config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&) {
+                ++m_gpu0_compile_count;
+                return mockExeNetworkActual;
+            });
+        // GPU.1 is only a warmup candidate, but warmup dereferences the compiled model it gets back
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _))
+            .WillByDefault(Return(mockExeNetworkActual));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>& compiled_model,
+                                  const std::string&,
+                                  const ov::AnyMap& compile_config) {
+                ++m_cpu_compile_count;
+                // what was compiled for CPU before must be gone by now, nothing but AUTO holds it
+                if (m_expect_released_before_recompile) {
+                    EXPECT_TRUE(m_cpu_model.expired());
+                    EXPECT_TRUE(m_cpu_worker_request.expired());
+                }
+                if (m_write_cpu_cache_blob) {
+                    write_cache_blob("CPU", compiled_model, compile_config);
+                }
+                return make_tracked_cpu_model();
+            });
+    }
+
+    // mirrors the cache key AUTO probes: the device ID goes into the config of the base device name
+    void write_cache_blob(const std::string& device_name,
+                          const std::shared_ptr<const ov::Model>& compiled_model,
+                          const ov::AnyMap& compile_config) {
+        const ov::DeviceIDParser parser(device_name);
+        auto key_config = core->get_supported_property(device_name, compile_config, true);
+        if (!parser.get_device_id().empty()) {
+            key_config.emplace(ov::device::id.name(), parser.get_device_id());
+        }
+        const auto cache_key_config = core->create_compile_config(parser.get_device_name(), key_config);
+        const auto blob_id = ov::ModelCache::compute_hash(compiled_model, cache_key_config);
+        std::ofstream(m_cache_dir / (blob_id + ".blob"), std::ios::binary).put('\0');
+    }
+
+    // GPU.0 writes a cache blob and returns a fresh model, so the initial device becomes releasable
+    void track_gpu0_with_cache_blob() {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>& compiled_model,
+                                  const std::string&,
+                                  const ov::AnyMap& compile_config) {
+                ++m_gpu0_compile_count;
+                if (m_expect_released_before_recompile) {
+                    EXPECT_TRUE(m_gpu0_model.expired());
+                }
+                write_cache_blob("GPU.0", compiled_model, compile_config);
+                auto gpu_model = std::make_shared<NiceMock<ov::MockICompiledModel>>(model, mock_plugin_gpu);
+                const std::weak_ptr<ov::MockICompiledModel> weak_model = gpu_model;
+                ON_CALL(*gpu_model, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+                ON_CALL(*gpu_model, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+                ON_CALL(*gpu_model, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+                    .WillByDefault(Return(optimalNum));
+                ON_CALL(*gpu_model, get_property(StrEq(ov::supported_properties.name())))
+                    .WillByDefault(Return(ov::Any(std::vector<ov::PropertyName>{})));
+                ON_CALL(*gpu_model, create_sync_infer_request()).WillByDefault([weak_model]() {
+                    return std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(weak_model.lock());
+                });
+                ON_CALL(*gpu_model, create_infer_request()).WillByDefault([weak_model]() {
+                    return weak_model.lock()->ICompiledModel::create_infer_request();
+                });
+                m_gpu0_model = gpu_model;
+                return ov::SoPtr<ov::ICompiledModel>{gpu_model, {}};
+            });
+    }
+
+    void TearDown() override {
+        AutoDynamicDeviceSelectionTest::TearDown();
+        std::error_code error;
+        std::filesystem::remove_all(m_cache_dir, error);
+    }
+
+    ov::SoPtr<ov::ICompiledModel> make_tracked_cpu_model() {
+        auto cpu_model = std::make_shared<NiceMock<ov::MockICompiledModel>>(model, mock_plugin_cpu);
+        const std::weak_ptr<ov::MockICompiledModel> weak_model = cpu_model;
+        ON_CALL(*cpu_model, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+        ON_CALL(*cpu_model, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+        ON_CALL(*cpu_model, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+            .WillByDefault(Return(optimalNum));
+        ON_CALL(*cpu_model, get_property(StrEq(ov::supported_properties.name())))
+            .WillByDefault(Return(ov::Any(std::vector<ov::PropertyName>{})));
+        ON_CALL(*cpu_model, create_sync_infer_request()).WillByDefault([this, weak_model]() {
+            auto request = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(weak_model.lock());
+            m_cpu_worker_request = request;
+            if (m_cpu_profiling_info) {
+                ON_CALL(*request, get_profiling_info()).WillByDefault([this]() {
+                    return m_cpu_profiling_info();
+                });
+            }
+            return request;
+        });
+        ON_CALL(*cpu_model, create_infer_request()).WillByDefault([weak_model]() {
+            return weak_model.lock()->ICompiledModel::create_infer_request();
+        });
+        m_cpu_model = cpu_model;
+        return ov::SoPtr<ov::ICompiledModel>{cpu_model, {}};
+    }
+
+    // GPU.0 is the initial device; CPU is the one that goes inactive and is never warmed up
+    void switch_between_devices(bool compile_for_all, std::shared_ptr<ov::ICompiledModel>* result = nullptr) {
+        if (compile_for_all) {
+            config.insert(ov::intel_auto::compile_for_all(true));
+        }
+        expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU"});
+        std::shared_ptr<ov::ICompiledModel> compiled_model;
+        OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+        run_inferences(compiled_model, 3);
+        if (result) {
+            *result = std::move(compiled_model);
+        }
+    }
+
+    std::atomic<int> m_gpu0_compile_count{0};
+    std::atomic<int> m_cpu_compile_count{0};
+    std::atomic<int> m_cpu_cache_key_compute_count{0};
+    std::filesystem::path m_cache_dir;
+    bool m_write_cpu_cache_blob = true;
+    // a concurrent model level query may hold the released model a little longer
+    bool m_expect_released_before_recompile = true;
+    std::weak_ptr<ov::MockICompiledModel> m_cpu_model;
+    std::weak_ptr<ov::MockICompiledModel> m_gpu0_model;
+    std::weak_ptr<ov::mock_auto_plugin::MockISyncInferRequest> m_cpu_worker_request;
+    std::function<std::vector<ov::ProfilingInfo>()> m_cpu_profiling_info;
+
+    // returns the request that ran on CPU, after CPU was released by a request that ran on GPU.0
+    std::shared_ptr<ov::IAsyncInferRequest> infer_then_release_cpu() {
+        const std::vector<ov::PropertyName> supported_properties = {ov::compilation_num_threads,
+                                                                    ov::enable_profiling};
+        ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+            .WillByDefault(Return(ov::Any(supported_properties)));
+        config.insert(ov::enable_profiling(true));
+        config.insert(ov::intel_auto::compile_for_all(true));
+        expect_selected_devices({"GPU.0", "CPU", "GPU.0"});
+        auto compiled_model = plugin->compile_model(model, config);
+        // the first request ran on CPU and is kept alive without running again
+        auto cpu_request = compiled_model->create_infer_request();
+        cpu_request->infer();
+        EXPECT_FALSE(m_cpu_model.expired());
+        // a second request switches to GPU.0, which releases CPU
+        auto gpu_request = compiled_model->create_infer_request();
+        gpu_request->infer();
+        EXPECT_TRUE(wait_until([this] {
+            return m_cpu_model.expired() && m_cpu_worker_request.expired();
+        }));
+        return cpu_request;
+    }
+
+    // the previous device is released on the dispatch thread after the inference has already been started
+    static bool wait_until(const std::function<bool()>& condition) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        while (!condition()) {
+            if (std::chrono::steady_clock::now() > deadline) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return true;
+    }
+};
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_compiled_again_when_selected_again) {
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_warmup_candidate) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,CPU"));
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_kept_when_cache_blob_was_not_written) {
+    m_write_cpu_cache_blob = false;
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    switch_between_devices(true, &compiled_model);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_FALSE(m_cpu_model.expired());
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_cache_key_is_computed_once_across_releases) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,CPU"));
+    config.insert(ov::intel_auto::compile_for_all(true));
+    expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU", "GPU.0"});
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 4);
+
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
+    // Two CPU compiles write the mock cache entry; the release probe computes the key only once.
+    EXPECT_EQ(m_cpu_cache_key_compute_count.load(), 3);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
+    m_cpu_profiling_info = [] {
+        ov::ProfilingInfo info;
+        info.status = ov::ProfilingInfo::Status::EXECUTED;
+        info.real_time = std::chrono::microseconds(7);
+        info.cpu_time = std::chrono::microseconds(5);
+        info.node_name = "cpu_node";
+        info.exec_type = "cpu_exec";
+        info.node_type = "cpu_type";
+        return std::vector<ov::ProfilingInfo>{info};
+    };
+    auto cpu_request = infer_then_release_cpu();
+    std::vector<ov::ProfilingInfo> profiling;
+    OV_ASSERT_NO_THROW(profiling = cpu_request->get_profiling_info());
+    ASSERT_EQ(profiling.size(), 1u);
+    EXPECT_EQ(profiling[0].status, ov::ProfilingInfo::Status::EXECUTED);
+    EXPECT_EQ(profiling[0].real_time, std::chrono::microseconds(7));
+    EXPECT_EQ(profiling[0].cpu_time, std::chrono::microseconds(5));
+    EXPECT_EQ(profiling[0].node_name, "cpu_node");
+    EXPECT_EQ(profiling[0].exec_type, "cpu_exec");
+    EXPECT_EQ(profiling[0].node_type, "cpu_type");
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_error_is_deferred_to_the_profiling_query) {
+    m_cpu_profiling_info = []() -> std::vector<ov::ProfilingInfo> {
+        OPENVINO_THROW("backend profiling failure");
+    };
+    // infer() succeeds even though the backend fails to build the profiling report
+    auto cpu_request = infer_then_release_cpu();
+    try {
+        cpu_request->get_profiling_info();
+        FAIL() << "the captured profiling error must be rethrown";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("backend profiling failure"), std::string::npos);
+    }
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_of_a_failed_inference_does_not_return_the_previous_one) {
+    m_cpu_profiling_info = [] {
+        ov::ProfilingInfo info;
+        info.node_name = "cpu_node";
+        return std::vector<ov::ProfilingInfo>{info};
+    };
+    auto request = infer_then_release_cpu();
+    EXPECT_EQ(request->get_profiling_info().size(), 1u);
+
+    // remote tensors of different devices make the request fail before it reaches any device
+    const auto input = request->get_inputs().at(0);
+    const auto output = request->get_outputs().at(0);
+    auto remote_input =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.0", input.get_element_type(), input.get_shape());
+    auto remote_output =
+        std::make_shared<DeviceTaggedRemoteTensor>("CPU", output.get_element_type(), output.get_shape());
+    OV_ASSERT_NO_THROW(request->set_tensor(input, ov::SoPtr<ov::ITensor>{remote_input, nullptr}));
+    OV_ASSERT_NO_THROW(request->set_tensor(output, ov::SoPtr<ov::ITensor>{remote_output, nullptr}));
+    OV_ASSERT_NO_THROW(request->start_async());
+    EXPECT_THROW(request->wait(), ov::Exception);
+
+    EXPECT_THROW(request->get_profiling_info(), ov::Exception);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {
+    // The mock Core handles nested device properties, not the DEVICE_PROPERTIES_CPU shorthand.
+    config.insert(ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::cache_dir("")}}}));
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_caching_support_is_kept) {
+    ON_CALL(*core, device_supports_model_caching(StrEq(ov::test::utils::DEVICE_CPU))).WillByDefault(Return(false));
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_new_device_fails_to_compile) {
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault([](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&)
+                           -> ov::SoPtr<ov::ICompiledModel> {
+            OPENVINO_THROW("mock GPU.1 compile failure");
+        });
+    config.insert(ov::intel_auto::compile_for_all(true));
+    // GPU.1 fails on the switch away from CPU, and the fallback selects CPU again
+    expect_selected_devices({"GPU.0", "CPU", "GPU.1", "CPU"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 2);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_FALSE(m_cpu_model.expired());
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_kept_without_cache_blob) {
+    switch_between_devices(true);
+    EXPECT_EQ(m_gpu0_compile_count.load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_released_when_it_has_cache_blob) {
+    track_gpu0_with_cache_blob();
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    // GPU.0 is released on the switch to CPU, compiled again on the way back and released again
+    switch_between_devices(true, &compiled_model);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_EQ(m_gpu0_compile_count.load(), 2);
+    EXPECT_TRUE(wait_until([this] {
+        return m_gpu0_model.expired();
+    }));
+
+    // the ports and the model level queries outlive the initial device
+    ASSERT_EQ(compiled_model->inputs().size(), model->inputs().size());
+    ASSERT_EQ(compiled_model->outputs().size(), model->outputs().size());
+    EXPECT_EQ(compiled_model->inputs()[0].get_element_type(), model->inputs()[0].get_element_type());
+    EXPECT_EQ(compiled_model->outputs()[0].get_partial_shape(), model->outputs()[0].get_partial_shape());
+    ov::Any device_properties;
+    OV_ASSERT_NO_THROW(device_properties = compiled_model->get_property(ov::device::properties.name()));
+    EXPECT_EQ(device_properties.as<ov::AnyMap>().count("CPU"), 1u);
+    OV_ASSERT_NO_THROW(compiled_model->get_property(ov::model_name.name()));
+    OV_ASSERT_NO_THROW(compiled_model->get_property(ov::loaded_from_cache.name()));
+    run_inferences(compiled_model, 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, model_level_queries_run_concurrently_with_the_initial_device_release) {
+    track_gpu0_with_cache_blob();
+    m_expect_released_before_recompile = false;
+    config.insert(ov::intel_auto::compile_for_all(true));
+    expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    std::atomic<bool> done{false};
+    std::thread querier([&] {
+        while (!done) {
+            EXPECT_NO_THROW(compiled_model->get_property(ov::model_name.name()));
+            EXPECT_NO_THROW(compiled_model->get_property(ov::loaded_from_cache.name()));
+            EXPECT_NO_THROW(compiled_model->get_property(ov::device::properties.name()));
+            EXPECT_EQ(compiled_model->inputs().size(), model->inputs().size());
+        }
+    });
+    run_inferences(compiled_model, 8);
+    done = true;
+    querier.join();
+    EXPECT_GE(m_gpu0_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_released_after_the_inference_is_started) {
+    auto gpu0_started = std::make_shared<std::atomic<bool>>(false);
+    ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault([this, gpu0_started]() {
+        return std::static_pointer_cast<ov::IAsyncInferRequest>(std::make_shared<HookedStartAsyncRequest>(
+            inferReqInternalActual,
+            std::make_shared<ov::threading::ImmediateExecutor>(),
+            [gpu0_started] {
+                *gpu0_started = true;
+            }));
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+    expect_selected_devices({"GPU.0", "CPU", "GPU.0"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    std::shared_ptr<ov::IAsyncInferRequest> request;
+    OV_ASSERT_NO_THROW(request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(request->infer());
+    ASSERT_FALSE(gpu0_started->load());
+
+    // -1: CPU not released yet, 0: released before GPU.0 was started, 1: released after it
+    auto release_order = std::make_shared<std::atomic<int>>(-1);
+    {
+        auto cpu_model = m_cpu_model.lock();
+        ASSERT_TRUE(cpu_model);
+        // the action, and so the sentinel, dies together with the CPU compiled model
+        auto sentinel = std::make_shared<OnDestruction>();
+        sentinel->callback = [release_order, gpu0_started] {
+            *release_order = *gpu0_started ? 1 : 0;
+        };
+        ON_CALL(*cpu_model, get_property(StrEq("TEST_RELEASE_SENTINEL")))
+            .WillByDefault([sentinel](const std::string&) {
+                return ov::Any();
+            });
+    }
+    // switches to GPU.0, which releases CPU
+    OV_ASSERT_NO_THROW(request->infer());
+    EXPECT_TRUE(wait_until([release_order] {
+        return *release_order != -1;
+    }));
+    EXPECT_EQ(release_order->load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_kept_without_compile_for_all) {
+    switch_between_devices(false);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_EQ(m_gpu0_compile_count.load(), 1);
 }
 }  // namespace ov::test

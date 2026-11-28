@@ -86,7 +86,6 @@ std::optional<float> extract_utilization(const nlohmann::json& performance,
     }
     float value = metric_it->get<float>();
     const std::string value_as_string = std::to_string(value);
-    LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s", value_as_string.c_str(), device_name.c_str());
     if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
         LOG_WARNING_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
                         value_as_string.c_str(),
@@ -186,7 +185,6 @@ public:
             LOG_DEBUG_TAG("TelemetryClient::fetch_utilization_snapshot: client not initialized");
             return {};
         }
-        LOG_DEBUG_TAG("TelemetryClient::fetch_utilization_snapshot: querying IPF for AISelector snapshot");
         return get_node("Platform.Features.AISelector");
     }
 
@@ -220,7 +218,10 @@ public:
             return std::nullopt;
         }
         const bool low_power = is_low_power_gear(gear);
-        LOG_DEBUG_TAG("TelemetryClient: EPO gear=%d, low_power_mode=%s", gear, low_power ? "true" : "false");
+        // called for every device selection, so only a change is worth a log line
+        if (m_last_logged_gear.exchange(gear) != gear) {
+            LOG_DEBUG_TAG("TelemetryClient: EPO gear=%d, low_power_mode=%s", gear, low_power ? "true" : "false");
+        }
         return low_power;
     }
 
@@ -387,6 +388,7 @@ private:
 
     void* m_handle = nullptr;
     std::atomic<bool> m_gear_tracking_initialized{false};
+    std::atomic<int> m_last_logged_gear{-1};
     bool m_gear_event_registered = false;
     std::mutex m_low_power_init_mutex;
     std::shared_ptr<std::atomic<int>> m_shared_gear;

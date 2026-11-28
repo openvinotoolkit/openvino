@@ -1,13 +1,15 @@
-// Copyright (C) 2020-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
-#include "ocl_wrapper.hpp"
-#include "ocl/ocl_device_detector.hpp"
-#include "openvino/core/except.hpp"
-
+#include <algorithm>
 #include <vector>
+
+#include "ocl/ocl_device_detector.hpp"
+#include "ocl_wrapper.hpp"
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -24,15 +26,10 @@ public:
                                 std::to_string(error.err()) + " " + std::string(cldnn::ocl::convert_cl_err_to_str(error.err())))
 
 inline bool is_device_available(const device_info& info) {
-    ocl_device_detector detector;
-    auto devices = detector.get_available_devices(nullptr, nullptr);
-    for (auto& device : devices) {
-        if (device.second->get_info().uuid.uuid == info.uuid.uuid) {
-            return true;
-        }
-    }
-
-    return false;
+    auto devices = ocl_device_detector::get_available_devices(nullptr, nullptr);
+    return std::any_of(devices.begin(), devices.end(), [&info](const auto& device) {
+        return device.second->get_info().uuid.uuid == info.uuid.uuid;
+    });
 }
 
 inline void rethrow(std::string message, cl_int error, const device_info& info) {

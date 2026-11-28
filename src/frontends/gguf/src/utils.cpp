@@ -11,7 +11,12 @@
 #include <memory>
 #include <numeric>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -32,6 +37,7 @@
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
@@ -42,10 +48,109 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/topk_base.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/op/util/variable_extension.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::frontend::gguf {
+
+namespace {
+
+class VariableIdVisitor : public ov::AttributeVisitor {
+public:
+    explicit VariableIdVisitor(std::string id) : m_id(std::move(id)) {}
+
+    using ov::AttributeVisitor::on_adapter;
+    void on_adapter(const std::string&, ov::ValueAccessor<void>&) override {}
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
+        if (name == "variable_id")
+            adapter.set(m_id);
+    }
+
+private:
+    std::string m_id;
+};
+
+}  // namespace
+
+void namespace_model_variables(const std::shared_ptr<ov::Model>& model, const std::string& prefix, bool restore) {
+    OPENVINO_ASSERT(!prefix.empty(), "[GGUF] empty MTP variable prefix");
+    const auto variables = model->get_variables();
+    ov::op::util::VariableVector renamed_variables;
+    std::unordered_map<ov::op::util::Variable::Ptr, ov::op::util::Variable::Ptr> replacements;
+    for (const auto& variable : variables) {
+        auto info = variable->get_info();
+        if (restore) {
+            OPENVINO_ASSERT(info.variable_id.rfind(prefix, 0) == 0,
+                            "[GGUF] invalid MTP variable ID: ",
+                            info.variable_id);
+            info.variable_id = info.variable_id.substr(prefix.size());
+        } else {
+            info.variable_id = prefix + info.variable_id;
+        }
+        auto renamed = std::make_shared<ov::op::util::Variable>(info);
+        OPENVINO_ASSERT(replacements.emplace(variable, renamed).second, "[GGUF] duplicate MTP variable");
+        renamed_variables.push_back(std::move(renamed));
+    }
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto variable_op = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(node);
+        if (!variable_op)
+            continue;
+        const auto found = replacements.find(variable_op->get_variable());
+        OPENVINO_ASSERT(found != replacements.end(), "[GGUF] MTP operation references an unregistered variable");
+        variable_op->set_variable(found->second);
+        const auto& id = found->second->get_info().variable_id;
+        if (variable_op->get_variable_id() != id) {
+            // Older state operations keep the ID in an attribute rather than in the Variable.
+            VariableIdVisitor visitor(id);
+            node->visit_attributes(visitor);
+        }
+        OPENVINO_ASSERT(variable_op->get_variable_id() == id, "[GGUF] cannot rename MTP variable ID: ", id);
+    }
+    for (const auto& variable : variables)
+        model->remove_variable(variable);
+    model->add_variables(renamed_variables);
+}
+
+void namespace_model_boundaries(const std::shared_ptr<ov::Model>& model, const std::string& prefix, bool restore) {
+    OPENVINO_ASSERT(!prefix.empty(), "[GGUF] empty MTP boundary prefix");
+    const auto rename = [&](const std::string& name) {
+        if (!restore)
+            return prefix + name;
+        OPENVINO_ASSERT(name.rfind(prefix, 0) == 0, "[GGUF] invalid MTP boundary name: ", name);
+        return name.substr(prefix.size());
+    };
+    using Names = std::unordered_set<std::string>;
+    const auto rename_names = [&](const Names& names) {
+        Names renamed;
+        for (const auto& name : names)
+            renamed.insert(rename(name));
+        return renamed;
+    };
+    std::unordered_set<const ov::descriptor::Tensor*> seen;
+    std::vector<std::pair<ov::Output<ov::Node>, Names>> tensors;
+    std::vector<std::pair<ov::Output<ov::Node>, Names>> results;
+    const auto save_tensor = [&](const ov::Output<ov::Node>& output) {
+        if (seen.insert(&output.get_tensor()).second)
+            tensors.emplace_back(output, rename_names(output.get_names()));
+    };
+    for (const auto& parameter : model->get_parameters())
+        save_tensor(parameter->output(0));
+    for (const auto& result : model->get_results()) {
+        save_tensor(result->input_value(0));
+        auto output = result->output(0);
+        results.emplace_back(output, rename_names(ov::descriptor::get_assigned_names(output.get_tensor())));
+    }
+    for (const auto& [output, names] : results)
+        output.get_tensor().set_names(names);
+    for (const auto& [output, names] : tensors)
+        output.get_tensor().set_names(names);
+    for (const auto& parameter : model->get_parameters())
+        parameter->set_friendly_name(rename(parameter->get_friendly_name()));
+    for (const auto& result : model->get_results())
+        result->set_friendly_name(rename(result->get_friendly_name()));
+}
 
 bool has_nonnegative_indices(const ov::Output<ov::Node>& output) {
     auto current = output;

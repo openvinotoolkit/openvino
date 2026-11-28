@@ -33,7 +33,7 @@ public:
     std::shared_ptr<ov::AlignedBuffer> m_model;
     std::shared_ptr<ov::AlignedBuffer> m_weights;
     std::optional<hsm::BlobInfo> m_blob_info;
-    ov::AnyMap m_compiled_options;
+    ov::AnyMap m_compile_options;
 
 private:
     using Decoder = void (*)(HsmReaderHandler&, const runtime::hsm::Section&);

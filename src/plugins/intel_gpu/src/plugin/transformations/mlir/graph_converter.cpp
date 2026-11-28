@@ -70,12 +70,13 @@ void GraphConverter::set_convertor(const NodePtr& node, const Convertor& convert
 
 Value GraphConverter::get_dimension_value(const Dimension& d) {
     auto symbol = d.get_symbol();
-    assert(symbol);
+    OPENVINO_ASSERT(symbol, "Dimension ", d, " has no symbol and cannot be converted to an MLIR value");
     symbol = ov::symbol::ancestor_of(symbol);
     // Suppose all dimensions are known and the map is populated
     // FIXME: Add dimensions on demand to avoid unnecessary operations in the produced MLIR
-    assert(dimension_map.count(symbol));
-    return dimension_map.at(symbol);
+    const auto it = dimension_map.find(symbol);
+    OPENVINO_ASSERT(it != dimension_map.end(), "Symbol of dimension ", d, " is not present in the dimension map");
+    return it->second;
 }
 
 const std::string& subgraph_mark() {

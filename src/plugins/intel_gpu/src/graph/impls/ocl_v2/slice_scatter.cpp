@@ -3,6 +3,7 @@
 //
 #include "slice_scatter.hpp"
 
+#include <algorithm>
 #include <numeric>
 
 #include "common_utils/jitter.hpp"
@@ -18,17 +19,17 @@ namespace ov::intel_gpu::ocl {
 
 namespace {
 
-static constexpr size_t MAX_SUPPORTED_DIM = 5;
-static constexpr size_t VEC_SIZE = 8;
-static constexpr size_t SIMD_SIZE = 16;
+constexpr size_t MAX_SUPPORTED_DIM = 5;
+constexpr size_t VEC_SIZE = 8;
+constexpr size_t SIMD_SIZE = 16;
 
 // SliceScatter input port indices
-static constexpr size_t kData = 0;
-static constexpr size_t kUpdates = 1;
-static constexpr size_t kStart = 2;
+constexpr size_t kData = 0;
+constexpr size_t kUpdates = 1;
+constexpr size_t kStart = 2;
 // kStop = 3 (not used by kernel)
-static constexpr size_t kStep = 4;
-static constexpr size_t kAxes = 5;
+constexpr size_t kStep = 4;
+constexpr size_t kAxes = 5;
 
 enum KernelsTypes {
     UPDATE_REF = 0,
@@ -338,12 +339,9 @@ private:
         if (m_config.compile_time_step.empty()) {
             return false;
         }
-        for (auto s : m_config.compile_time_step) {
-            if (s != 1) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(m_config.compile_time_step.begin(), m_config.compile_time_step.end(), [](auto s) {
+            return s == 1;
+        });
     }
 };
 

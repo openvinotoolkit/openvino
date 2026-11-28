@@ -83,6 +83,15 @@ TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
     model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape, need_weights_adjustment);
 }
 
+TEST_P(QDQStrippingTest, FQOnModelOutputIsReplacedWithIdentity) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 3, 8, 8};
+    model = QDQStrippingFunction::build_fq_on_model_output_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_fq_on_model_output_pattern_ref(input_shape);
+    // Other consumers of the replaced FQ (Relu) must use Identity as well
+    comparator.enable(FunctionsComparator::CmpValues::CONSUMERS_COUNT);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest,
                          Combine(Bool(), Values(ov::element::u16, ov::element::i16)),

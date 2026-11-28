@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/frontend/gguf/model_adapter.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -53,8 +54,7 @@ public:
     /// embeddings (Gemma4 E2B/E4B) move to a separate lookup model and become the
     /// per_layer_inputs [B,T,layers,width] input; Gemma3 and other Gemma4 models take
     /// token_type_ids [B,T] for bidirectional attention within each image. M-RoPE models
-    /// receive position_ids [4,B,T], containing GenAI's sequence/time/height/width sections;
-    /// callers supply all sections.
+    /// receive position_ids [3,B,T] or [4,B,T], depending on the model's layout.
     /// EMBEDS_TO_LOGITS_TEXT uses scalar text position_ids [B,T], including for M-RoPE models.
     enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS, EMBEDS_TO_LOGITS_TEXT };
 
@@ -62,7 +62,7 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
-    /// Raw token lookup extracted by EMBEDS_TO_LOGITS, sharing the original weight buffers.
+    /// Raw token lookup extracted by either embedding mode, sharing the original weight buffers.
     /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D].
     const std::shared_ptr<ov::Model>& get_embedding_model() const {
         return m_embedding_model;
@@ -89,3 +89,39 @@ private:
 };
 
 }  // namespace ov::frontend::gguf::pass
+
+namespace ov::frontend::gguf {
+
+struct GenAIAdaptOptions {
+    /// Input contract of a decoder's language model; ignored for an mmproj.
+    pass::AdaptToGenAI::InputMode input = pass::AdaptToGenAI::InputMode::IDS_TO_LOGITS;
+};
+
+/// \brief Adapt a model returned by FrontEnd::convert to the models used by OpenVINO GenAI.
+///
+/// Convert without GenAI-specific extensions, then call this once per converted file:
+///
+///     ov::frontend::gguf::FrontEnd fe;
+///     auto models = ov::frontend::gguf::adapt_to_genai(fe.convert(fe.load(gguf_path)));
+///     auto language = models.at("language");
+///
+/// A decoder is made stateful (GGUFMakeStateful) and adapted (AdaptToGenAI). It returns
+/// "language" and, for either embedding mode, "text_embeddings" plus "text_embeddings_per_layer"
+/// when the architecture has per-layer token embeddings.
+/// A decoder loaded with LoadOptions::include_mtp_draft also returns "mtp_draft" when
+/// the file contains a supported NextN block. The returned models share weight buffers.
+///
+/// An mmproj returns one entry per encoder:
+///  - "vision_embeddings" with the GenAI vision encoder inputs, plus "vision_embeddings_pos" and
+///    "vision_embeddings_merger" for split-merger projectors; projector callbacks name their own
+///    models. A vision projector without a GenAI layout keeps the native encoder inputs.
+///  - "audio_embeddings"; Gemma4 encoders take GenAI input_features, other encoders keep their
+///    native inputs.
+///  - "audio_generation_<component>" for each declared audio-generation component.
+///
+/// The supplied model is consumed: the returned models may reuse or modify it, and share its
+/// weights. Throws if the model is neither a converted GGUF decoder nor an mmproj.
+GGUF_FRONTEND_API ModelMap adapt_to_genai(const std::shared_ptr<ov::Model>& model,
+                                          const GenAIAdaptOptions& options = {});
+
+}  // namespace ov::frontend::gguf

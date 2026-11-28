@@ -264,6 +264,11 @@ void GraphEmitter::emit_weight(const std::string& name, const GgufWeight& source
     if (m_emitted_weights.count(name)) {
         return;
     }
+    if (m_weight_source && m_weight_source->m_emitted_weights.count(name)) {
+        (*m_graph->values)[name] = m_weight_source->value(name);
+        m_emitted_weights.insert(name);
+        return;
+    }
     add_op("GGML_OP_NONE", name, {}, 0, {{"gguf_source", source}});
     m_emitted_weights.insert(name);
 }

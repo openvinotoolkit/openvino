@@ -42,6 +42,7 @@ struct GgufOp {
 struct GgufGraph {
     std::string architecture;
     std::string component;
+    ov::AnyMap model_rt_info;
     ModelContract model_contract;
     ModelAdapters model_adapters;
     std::vector<GgufOp> nodes;
@@ -82,6 +83,10 @@ struct GgufGraph {
     ov::AnyMap tokenizer_config;
     // Serializable strings containing the full clip.* keys and resolved graph contracts.
     ov::AnyMap mmproj_config;
+
+    // MTP draft built with this graph. It reuses this graph's weight leaves, which
+    // TranslateSession materializes once for both models.
+    std::shared_ptr<GgufGraph> mtp_draft;
 };
 
 }  // namespace ov::frontend::gguf

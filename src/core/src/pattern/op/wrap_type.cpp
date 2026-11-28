@@ -17,6 +17,11 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         return false;
     }
 
+    if (get_input_size() != 0 && get_input_size() != graph_value.get_node()->get_input_size()) {
+        OPENVINO_LOG_WRAPTYPE5(matcher, get_input_size(), graph_value.get_node()->get_input_size());
+        return false;
+    }
+
     if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(), [&](const NodeTypeInfo& type_info) {
             return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
         })) {

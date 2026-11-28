@@ -60,7 +60,10 @@ public:
         }
         /// Inputs between the core ones and the optional SCALE: scales, plus zero points unless symmetric.
         size_t param_input_count() const {
-            return !kv_compressed() ? 0 : key_quant.symmetric ? 2 : 4;
+            if (!kv_compressed()) {
+                return 0;
+            }
+            return key_quant.symmetric ? 2 : 4;
         }
         /// Optional scalar or 1-element tensor.
         size_t scale_input_idx() const {
@@ -73,7 +76,7 @@ public:
     };
 
     SparseSDPA() = default;
-    SparseSDPA(const ov::OutputVector& args, const Config& config, const ov::element::Type output_type = ov::element::dynamic);
+    SparseSDPA(const ov::OutputVector& args, const Config& config, ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -93,7 +96,7 @@ public:
         return !m_config.kv_compressed() && get_input_size() > m_config.sinks_input_idx();
     }
 
-    static bool validate_config(const Config& config, std::string& reason);
+    static bool validate_config(const Config& c, std::string& reason);
 
 private:
     Config m_config{};

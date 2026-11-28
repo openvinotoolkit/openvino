@@ -175,13 +175,116 @@ std::shared_ptr<Model> TranslateSession::get_converted_model() {
 }
 
 std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputModel::Ptr& input_model) {
+    const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
+    const auto& decoder = gguf_model->get_model_decoder();
+    auto model = assemble_model(decoder);
+    const auto builder = std::dynamic_pointer_cast<GgufBuilderDecoder>(decoder);
+    if (!builder)
+        return finalize_model(model, *decoder);
+    if (const auto& draft_graph = builder->mtp_draft()) {
+        const auto draft_decoder = std::make_shared<GgufBuilderDecoder>(draft_graph);
+        auto draft = assemble_model(draft_decoder);
+        // The draft reuses the target's weight leaves; materializing both graphs in one pass makes
+        // each shared leaf one Constant, and cloning each model below keeps its buffer shared.
+        auto results = model->get_results();
+        auto params = model->get_parameters();
+        const auto& draft_results = draft->get_results();
+        const auto& draft_params = draft->get_parameters();
+        results.insert(results.end(), draft_results.begin(), draft_results.end());
+        params.insert(params.end(), draft_params.begin(), draft_params.end());
+        pass::MaterializeGGUFWeights().run_on_model(std::make_shared<Model>(results, params));
+        model = finalize_model(model->clone(), *decoder);
+        draft = finalize_model(draft->clone(), *draft_decoder);
+        std::unordered_set<std::string> target_variable_ids;
+        std::unordered_set<std::string> draft_variable_ids;
+        for (const auto& variable : model->get_variables()) {
+            const auto& id = variable->get_info().variable_id;
+            OPENVINO_ASSERT(target_variable_ids.insert(id).second, "[GGUF] duplicate target variable ID: ", id);
+        }
+        for (const auto& variable : draft->get_variables()) {
+            const auto& id = variable->get_info().variable_id;
+            OPENVINO_ASSERT(draft_variable_ids.insert(id).second, "[GGUF] duplicate MTP draft variable ID: ", id);
+        }
+        std::string variable_prefix = "mtp.";
+        const auto has_variable_collision = [&]() {
+            return std::any_of(draft_variable_ids.begin(), draft_variable_ids.end(), [&](const std::string& id) {
+                return target_variable_ids.count(variable_prefix + id) != 0;
+            });
+        };
+        while (has_variable_collision())
+            variable_prefix += "mtp.";
+        if (!draft_variable_ids.empty())
+            namespace_model_variables(draft, variable_prefix, false);
+
+        const auto boundary_names = [](const std::shared_ptr<Model>& component) {
+            std::unordered_set<std::string> names;
+            for (const auto& parameter : component->get_parameters()) {
+                names.insert(parameter->get_friendly_name());
+                const auto& tensor_names = parameter->output(0).get_names();
+                names.insert(tensor_names.begin(), tensor_names.end());
+            }
+            for (const auto& result : component->get_results()) {
+                names.insert(result->get_friendly_name());
+                const auto& tensor_names = result->input_value(0).get_names();
+                names.insert(tensor_names.begin(), tensor_names.end());
+                const auto& output_names = result->output(0).get_names();
+                names.insert(output_names.begin(), output_names.end());
+            }
+            return names;
+        };
+        const auto target_names = boundary_names(model);
+        const auto draft_names = boundary_names(draft);
+        std::string io_prefix = "mtp.";
+        const auto has_boundary_collision = [&]() {
+            return std::any_of(draft_names.begin(), draft_names.end(), [&](const std::string& name) {
+                return target_names.count(io_prefix + name) != 0;
+            });
+        };
+        while (has_boundary_collision())
+            io_prefix += "mtp.";
+        namespace_model_boundaries(draft, io_prefix, false);
+        results = model->get_results();
+        params = model->get_parameters();
+        auto sinks = model->get_sinks();
+        auto variables = model->get_variables();
+        const auto target_results = results.size();
+        const auto target_params = params.size();
+        const auto target_sinks = sinks.size();
+        const auto target_variables = variables.size();
+        results.insert(results.end(), draft->get_results().begin(), draft->get_results().end());
+        params.insert(params.end(), draft->get_parameters().begin(), draft->get_parameters().end());
+        sinks.insert(sinks.end(), draft->get_sinks().begin(), draft->get_sinks().end());
+        variables.insert(variables.end(), draft->get_variables().begin(), draft->get_variables().end());
+        auto combined = std::make_shared<Model>(results, sinks, params, variables, model->get_friendly_name());
+        combined->get_rt_info() = model->get_rt_info();
+        combined->get_rt_info()["gguf_mtp_components"] =
+            ov::AnyMap{{"target_results", static_cast<int64_t>(target_results)},
+                       {"target_parameters", static_cast<int64_t>(target_params)},
+                       {"target_sinks", static_cast<int64_t>(target_sinks)},
+                       {"target_variables", static_cast<int64_t>(target_variables)},
+                       {"draft_variable_prefix", variable_prefix},
+                       {"draft_io_prefix", io_prefix},
+                       {"draft_name", draft->get_friendly_name()},
+                       {"draft_rt_info", draft->get_rt_info()}};
+        size_t offset = 0;
+        for (const auto& node : combined->get_ordered_ops()) {
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+                constant && constant->get_element_type().size() > 0 &&
+                constant->get_byte_size() / constant->get_element_type().size() >= 16) {
+                constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                    ov::WeightlessCacheAttribute(constant->get_byte_size(), offset++, constant->get_element_type());
+            }
+        }
+        return combined;
+    }
+    return finalize_model(model->clone(), *decoder);
+}
+
+std::shared_ptr<Model> TranslateSession::assemble_model(const std::shared_ptr<GgufDecoder>& gguf_model_decoder) {
     ov::ParameterVector params;
     ov::ResultVector results;
     auto tensor_map = std::make_shared<TensorMap>();
     std::shared_ptr<Model> resulting_model;
-
-    const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
-    const auto& gguf_model_decoder = gguf_model->get_model_decoder();
 
     // Auxiliary input Parameters may only get a consumer from a later normalization pass, after
     // the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
@@ -297,6 +400,11 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     write_model_contract(resulting_model, gguf_model_decoder->get_model_contract());
     if (const auto architecture = gguf_model_decoder->get_architecture(); !architecture.empty())
         resulting_model->get_rt_info()["gguf_architecture"] = architecture;
+    if (builder) {
+        const auto info = builder->get_attribute("model_rt_info");
+        for (const auto& [key, value] : info.as<ov::AnyMap>())
+            resulting_model->get_rt_info()[key] = value;
+    }
     if (!gguf_model_decoder->get_mmproj_config().empty()) {
         resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
     }
@@ -312,10 +420,11 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
         OPENVINO_ASSERT(found, "[GGUF] model adapter has no output ", output);
     }
+    return resulting_model;
+}
 
-    if (builder) {
-        resulting_model = resulting_model->clone();
-    }
+std::shared_ptr<Model> TranslateSession::finalize_model(std::shared_ptr<Model> resulting_model,
+                                                        const GgufDecoder& gguf_model_decoder) {
     resulting_model = apply_transformations(resulting_model);
 
     // Auxiliary Parameters are kept through normalization in case a transformation extension
@@ -335,7 +444,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // Attach GGUF tokenizer metadata (the file's tokenizer.* keys) to the model's rt_info as a
     // non-serializable attribute, so a downstream consumer (OpenVINO GenAI) can build the
     // tokenizer without reopening the .gguf. Empty when the decoder carries no tokenizer config.
-    const auto& tok_cfg = gguf_model_decoder->get_tokenizer_config();
+    const auto& tok_cfg = gguf_model_decoder.get_tokenizer_config();
     if (!tok_cfg.empty()) {
         resulting_model->get_rt_info()[gguf_tokenizer_metadata_key()] =
             std::make_shared<GGUFTokenizerMetadata>(tok_cfg);

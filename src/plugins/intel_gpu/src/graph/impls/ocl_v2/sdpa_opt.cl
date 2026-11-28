@@ -184,6 +184,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 // Scale always occupies the fixed SCALE input slot (index 4) of the SDPA primitive,
 // regardless of whether the attention-mask input is actually used at runtime
 // (a placeholder attn_mask input is still present whenever scale is provided).
+// bf16 scales are stored as ushort: read them with DECODE_INPUT4_COMPUTE_TYPE.
 #define SCALE_TYPE INPUT4_TYPE
 #endif
 
@@ -283,12 +284,13 @@ KERNEL(sdpa_opt)(
 
         {
             // Gemm1 calculation
+            // The scale applies to the f32 score: Q * scale stored as half overflows for large valid scales
 #if HAS_SCALE_INPUT
-            const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(*scale);
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #elif defined(STATIC_SCALE_VALUE)
-            const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(STATIC_SCALE_VALUE);
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(STATIC_SCALE_VALUE);
 #else
-            const OUTPUT_COMPUTE_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_COMPUTE_TYPE(V_HEAD_SIZE));
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = SOFTMAX_ACCUMULATOR_VAL_ONE / sqrt(TO_SOFTMAX_ACCUMULATOR_TYPE(V_HEAD_SIZE));
 #endif
             #if K_HEAD_SIZE > V_HEAD_SIZE
             for (uint block_idx = sgid; block_idx < K_HEAD_SIZE / SUBGROUP_SIZE; block_idx++)
@@ -317,7 +319,7 @@ KERNEL(sdpa_opt)(
                         #define QUERY_BLOCK_SIZE 1
 
                         INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, QUERY_BLOCK_SIZE, query_input, query_offset);
-                        query_local[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
+                        query_local[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val);
                         query_local_offset += QUERY_STEP_LOCAL;
                         query_offset += query_pitch;
                     }
@@ -570,7 +572,7 @@ KERNEL(sdpa_opt)(
                     // Iterate over all values QK values in SLM and apply scale and attention mask
                     for (uint seq_len = sgid * SUBGROUP_SIZE + sglid; seq_len < partition_seq_len; seq_len += (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) {
                         // Read value from SLM and apply scale
-                        qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
+                        qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len] * scale_val;
 
                         // Apply attention mask
 #if IS_CAUSAL
@@ -586,18 +588,17 @@ KERNEL(sdpa_opt)(
                         #else
                             if (start_partition_idx + seq_len > abs_q_pos)
                         #endif
-                            qk_val[seq_idx] += INPUT0_VAL_MIN;
+                            qk_val[seq_idx] = SOFTMAX_ACCUMULATOR_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
-                        const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
-                        INPUT3_COMPUTE_TYPE mask_val = DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]);
-#ifdef CLAMP_ATTN_MASK_INPUT
-                        // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
-                        mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
-#endif
-                        qk_val[seq_idx] += mask_val;
+                        // _SAFE index macro doesn't parenthesize its arguments, so the modulo for a broadcast mask needs the whole sum
+                        const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, (target_seq_idx + seq_idx), (start_partition_idx + seq_len));
+                        qk_val[seq_idx] += TO_SOFTMAX_ACCUMULATOR_TYPE(DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]));
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
+                        // Exclude masked keys in the f32 score range (an f16 -65504 can stay above unmasked scores); a partition
+                        // of masked keys keeps a finite maximum, so its softmax has no NaN and finalization gives it zero weight
+                        qk_val[seq_idx] = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_val[seq_idx], SOFTMAX_ACCUMULATOR_VAL_MIN);
 
                         // Update qk_max value
                         qk_max[seq_idx] = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max[seq_idx], TO_SOFTMAX_ACCUMULATOR_TYPE(qk_val[seq_idx]));
@@ -1051,7 +1052,36 @@ KERNEL(sdpa_opt)(
 #define APPLY_SCALES_TO_QUERY 1
 #endif
 
-#define MASK_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+// Q*K^T score type: f32 until SoftMax, since f16 loses the differences between large scores. FlashAttention-2 rounds
+// the scores to OUTPUT_COMPUTE_TYPE in SLM anyway and keeps INPUT0_COMPUTE_TYPE.
+#if IS_FLASHATTEN_V2
+#define QK_ACC_TYPE INPUT0_COMPUTE_TYPE
+#define TO_QK_ACC_TYPE(val) TO_INPUT0_COMPUTE_TYPE(val)
+#define QK_ACC_VAL_ZERO INPUT0_VAL_ZERO
+#define QK_ACC_VAL_MIN INPUT0_VAL_MIN
+#define QK_ACC_VAL_MAX INPUT0_VAL_MAX
+#define QK_ACC_MIN_FUNC INPUT0_MIN_FUNC
+#define QK_ACC_MAX_FUNC INPUT0_MAX_FUNC
+#define QK_ACC_MAD(key, lane, query, acc) mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key, lane)), query, acc)
+#define QK_SCALE_TYPE OUTPUT_COMPUTE_TYPE
+#define TO_QK_SCALE_TYPE(val) TO_OUTPUT_COMPUTE_TYPE(val)
+#define QK_SCALE_VAL_ONE OUTPUT_VAL_ONE
+#else
+#define QK_ACC_TYPE SOFTMAX_ACCUMULATOR_TYPE
+#define TO_QK_ACC_TYPE(val) TO_SOFTMAX_ACCUMULATOR_TYPE(val)
+#define QK_ACC_VAL_ZERO SOFTMAX_ACCUMULATOR_VAL_ZERO
+#define QK_ACC_VAL_MIN SOFTMAX_ACCUMULATOR_VAL_MIN
+#define QK_ACC_VAL_MAX SOFTMAX_ACCUMULATOR_VAL_MAX
+#define QK_ACC_MIN_FUNC SOFTMAX_ACCUMULATOR_MIN_FUNC
+#define QK_ACC_MAX_FUNC SOFTMAX_ACCUMULATOR_MAX_FUNC
+// Convert before the broadcast: once per key row instead of once per multiply-add.
+#define QK_ACC_MAD(key, lane, query, acc) mad(sub_group_broadcast(TO_SOFTMAX_ACCUMULATOR_TYPE(key), lane), TO_SOFTMAX_ACCUMULATOR_TYPE(query), acc)
+#define QK_SCALE_TYPE SOFTMAX_ACCUMULATOR_TYPE
+#define TO_QK_SCALE_TYPE(val) TO_SOFTMAX_ACCUMULATOR_TYPE(val)
+#define QK_SCALE_VAL_ONE SOFTMAX_ACCUMULATOR_VAL_ONE
+#endif
+#define QK_ACC_VEC_TYPE MAKE_VECTOR_TYPE(QK_ACC_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+#define MASK_VECTOR_TYPE QK_ACC_VEC_TYPE
 
 inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
                                              uint b0_idx,
@@ -1065,10 +1095,13 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
     MASK_VECTOR_TYPE mask_vec = STATIC_SCALAR_ATTN_MASK_VALUE;
 #else
-    MASK_VECTOR_TYPE mask_vec = INPUT0_VAL_ZERO;
+    MASK_VECTOR_TYPE mask_vec = QK_ACC_VAL_ZERO;
 #endif
 #if !IS_CAUSAL && HAS_ATTN_MASK_INPUT
     const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx, source_seq_idx);
+    // A mask broadcast over the keys (e.g. a scalar mask) has a single element along X; the _SAFE index above wraps
+    // to it, so the following keys must not step past it.
+    const uint mask_key_pitch = INPUT3_SIZE_X == 1 ? 0 : 1;
     if (target_seq_idx >= (uint)TARGET_SEQ_LEN) {
         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
             mask_vec[i] = NAN;
@@ -1076,8 +1109,8 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
     } else {
         if (source_seq_idx + SUBGROUP_SIZE <= (uint)SOURCE_SEQ_LEN) {
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
-                mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
+                const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i * mask_key_pitch];
+                mask_vec[i] = TO_QK_ACC_TYPE(DECODE_INPUT3_COMPUTE_TYPE(mask_val));
             }
         } else {
             // NOTE: do not assign the float literal NAN into an INPUT3_TYPE (e.g. ushort for bf16)
@@ -1087,8 +1120,8 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 if (source_seq_idx + i < max_mask_offset) {
-                    const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
-                    mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
+                    const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i * mask_key_pitch];
+                    mask_vec[i] = TO_QK_ACC_TYPE(DECODE_INPUT3_COMPUTE_TYPE(mask_val));
                 } else {
                     mask_vec[i] = NAN;
                 }
@@ -1134,14 +1167,17 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_SCALE_INPUT
-    const OUTPUT_COMPUTE_TYPE scale_val = OUTPUT_VAL_ONE / TO_OUTPUT_COMPUTE_TYPE(*scale);
+    const QK_SCALE_TYPE scale_val = QK_SCALE_VAL_ONE / TO_QK_SCALE_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
-    const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(STATIC_SCALE_VALUE_INV);
+    const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(STATIC_SCALE_VALUE_INV);
 #endif
 
     // Apply scale to attn_mask
 #if IS_CAUSAL || HAS_ATTN_MASK_INPUT || defined(STATIC_SCALAR_ATTN_MASK_VALUE)
-    mask_vec *= scale_val;
+    // Per element: an f16 vector cannot be multiplied by an f32 scalar.
+    unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+        mask_vec[i] = TO_QK_ACC_TYPE(mask_vec[i] * scale_val);
+    }
 #endif
 
     return mask_vec;
@@ -1525,7 +1561,7 @@ KERNEL(sdpa_opt)(
 
 #if APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-        const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(*scale);
+        const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
         const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(STATIC_SCALE_VALUE);
 #endif
@@ -1676,7 +1712,7 @@ KERNEL(sdpa_opt)(
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
 #endif
 
-        MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
+        QK_ACC_VEC_TYPE qk_acc = QK_ACC_VAL_ZERO;
 #if IS_CAUSAL
         if (seq_len <= this_work_item_seq_range_temp.subgroup_max) { // keep tril i.e. m >= n
 #endif
@@ -1763,8 +1799,8 @@ KERNEL(sdpa_opt)(
                             KEY_COMPRESSION_SCALE_COMPUTE_TYPE key_lo = DEQUANTIZE_KV(TO_KV_DEQUANT_TYPE(DECODE_INT4_NIBBLE(unpacked.s0)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             KEY_COMPRESSION_SCALE_COMPUTE_TYPE key_hi = DEQUANTIZE_KV(TO_KV_DEQUANT_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_lo, i, qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_hi, i, qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1795,8 +1831,8 @@ KERNEL(sdpa_opt)(
                             key_lo *= lo_mask;
                             key_hi *= hi_mask;
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_lo, i, qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_hi, i, qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1832,7 +1868,7 @@ KERNEL(sdpa_opt)(
 #endif
 
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_vals, i)), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = QK_ACC_MAD(key_vals, i, queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 }
@@ -1857,7 +1893,7 @@ KERNEL(sdpa_opt)(
                         INPUT1_COMPUTE_TYPE key_vals = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
                         unroll_for (uint i = 0; i < K_HEAD_SIZE_LEFTOVER; i++) {
-                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_vals, i)), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = QK_ACC_MAD(key_vals, i, queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 #endif
@@ -1896,8 +1932,8 @@ KERNEL(sdpa_opt)(
                                 key_hi = DEQUANTIZE_KV(TO_KV_DEQUANT_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             }
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_lo, i, qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_hi, i, qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1932,8 +1968,8 @@ KERNEL(sdpa_opt)(
                             key_lo *= lo_mask;
                             key_hi *= hi_mask;
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_lo, i, qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = QK_ACC_MAD(key_hi, i, qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1998,7 +2034,7 @@ KERNEL(sdpa_opt)(
                         #define key_vals key_vec[key_row_idx]
 #endif  // !defined(LOAD_KEY_LEFTOVERS_IN_CALC_LOOP)
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_vals, i)), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = QK_ACC_MAD(key_vals, i, queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 }
@@ -2023,7 +2059,7 @@ KERNEL(sdpa_opt)(
                         INPUT1_COMPUTE_TYPE key_val = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
                         unroll_for (uint i = 0; i < K_HEAD_SIZE_LEFTOVER; i++) {
-                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_val, i)), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = QK_ACC_MAD(key_val, i, queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 #endif // K_HEAD_SIZE_LEFTOVER
@@ -2043,9 +2079,9 @@ KERNEL(sdpa_opt)(
 
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-                        const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(*scale);
+                        const QK_SCALE_TYPE scale_val = TO_QK_SCALE_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
-                        const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(STATIC_SCALE_VALUE);
+                        const QK_SCALE_TYPE scale_val = TO_QK_SCALE_TYPE(STATIC_SCALE_VALUE);
 #endif
                         qk_acc[i] *= scale_val;
 #endif // !APPLY_SCALES_TO_QUERY
@@ -2055,15 +2091,16 @@ KERNEL(sdpa_opt)(
                         qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
 #endif
 
-                        qk_acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(qk_acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
+                        // Also turns the NaN mask of keys past the sequence end into the minimum.
+                        qk_acc[i] = QK_ACC_MIN_FUNC(QK_ACC_MAX_FUNC(qk_acc[i], QK_ACC_VAL_MIN), QK_ACC_VAL_MAX);
 #if IS_CAUSAL
                     } else {
-                        qk_acc[i] = INPUT0_VAL_MIN;
+                        qk_acc[i] = QK_ACC_VAL_MIN;
                     }
 #endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
 #if IS_FLASHATTEN_V2
-                    slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
+                    slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = TO_OUTPUT_COMPUTE_TYPE(qk_acc[i]);
 #endif
                 } // unroll_for
                 {
@@ -2233,7 +2270,7 @@ KERNEL(sdpa_opt)(
             }
 
             for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
-                slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
+                slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = TO_OUTPUT_COMPUTE_TYPE(qk_acc[i]);
             }
 
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -2815,6 +2852,20 @@ KERNEL(sdpa_opt)(
     }
 }
 
+#undef MASK_VECTOR_TYPE
+#undef QK_ACC_MAD
+#undef QK_SCALE_VAL_ONE
+#undef TO_QK_SCALE_TYPE
+#undef QK_SCALE_TYPE
+#undef QK_ACC_VEC_TYPE
+#undef QK_ACC_MAX_FUNC
+#undef QK_ACC_MIN_FUNC
+#undef QK_ACC_VAL_MAX
+#undef QK_ACC_VAL_MIN
+#undef QK_ACC_VAL_ZERO
+#undef TO_QK_ACC_TYPE
+#undef QK_ACC_TYPE
+
 #endif // TARGET_SEQ_LEN_BLOCK_SIZE != 1
 
 #endif  // SDPA_STAGE_0
@@ -2843,8 +2894,6 @@ KERNEL(sdpa_opt)(
 // exp_sums      [batch, heads_num, q_len, partition_idx]
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
-
-#define MAX_PARTITIONS_NUM 128
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt_finalization_stage)(
@@ -2933,15 +2982,7 @@ KERNEL(sdpa_opt_finalization_stage)(
 #endif
             acc += out_val_f * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
     }
-    const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * V_HEAD_SIZE) +
-#ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
-                            target_seq_idx * (NUM_HEADS * V_HEAD_SIZE) +
-                            b1_idx * (V_HEAD_SIZE) +
-#else
-                            b1_idx * (TARGET_SEQ_LEN * V_HEAD_SIZE) +
-                            target_seq_idx * (V_HEAD_SIZE) +
-#endif
-                            local_id;
+    const uint out_offset = SDPA_OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx, local_id);
 
     output[out_offset] = TO_OUTPUT_TYPE(acc / global_exp_sum);
 }

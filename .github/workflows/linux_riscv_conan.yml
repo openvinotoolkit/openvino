@@ -1,9 +1,9 @@
-name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+name: Linux RISC-V with Conan (Ubuntu 24.04, Python 3.12)
 on:
   workflow_dispatch:
     inputs:
       target-branch:
-        description: 'Target branch for the build; taken from event context by default'
+        description: 'Retained for compatibility; remote ccache is shared across branches'
         type: string
         required: false
   pull_request:
@@ -24,9 +24,6 @@ concurrency:
 
 permissions: read-all
 
-env:
-  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
-
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -35,7 +32,6 @@ jobs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
-      target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
       - name: checkout action
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,13 +51,6 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-      
-      - name: Get target branch
-        id: set_target_branch
-        run: |
-          echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
-        shell: bash
-
   Docker:
     needs: Smart_CI
     runs-on: aks-linux-4-cores-16gb-docker-build
@@ -75,7 +64,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_22_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -87,7 +76,7 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_riscv
+            ov_build/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -101,7 +90,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_riscv }}
       volumes:
         - /mount:/mount
     env:
@@ -112,11 +101,11 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu24_riscv64_master_release/.conan
       CCACHE_DIR: /__w/openvino/openvino/ccache
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 2G
+      CCACHE_SECONDARY_STORAGE: "file:///mount/caches/ccache/shared/ubuntu24/riscv64/conan|umask=002|update-mtime=true"
+      CCACHE_MAXSIZE: 10G
+      CCACHE_COMPILERCHECK: content
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
@@ -137,18 +126,10 @@ jobs:
         uses: ./openvino/.github/actions/system_info
 
       - name: Setup ccache
-        id: ccache_restore
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-size: 10
-          max-cache-size: 50
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+        run: |
+          ccache --version
+          test "$(ccache --get-config secondary_storage)" = "$CCACHE_SECONDARY_STORAGE"
+          ccache --show-config
 
       - name: Init submodules for non-Conan dependencies
         run: |
@@ -202,6 +183,7 @@ jobs:
             -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
             -s:h arch=riscv64 \
             -s:h build_type=${CMAKE_BUILD_TYPE} \
+            -s:h compiler.cppstd=20 \
             -o:h onetbb/*:tbbbind=False \
             -of ${OPENVINO_BUILD_DIR}/dependencies \
             -b missing
@@ -247,7 +229,8 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        if: ${{ !cancelled() }}
+        run: ccache --show-stats --verbose
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --target install -- --quiet

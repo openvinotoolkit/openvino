@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "data_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -169,7 +171,7 @@ void propagate_constants::run(program& p) {
             auto dep_users = dep.first->get_users();
             for (auto& dep_user : dep_users) {
                 if (dep_user == &curr_node) {
-                    p.remove_connection(*dep.first, curr_node);
+                    program::remove_connection(*dep.first, curr_node);
                 }
             }
         }
@@ -222,16 +224,14 @@ void propagate_constants::run(program& p) {
     }
 }
 
-bool propagate_constants::has_non_const_user(program_node& node) const {
+bool propagate_constants::has_non_const_user(program_node& node) {
     if (!node.is_constant()) {
         return true;
     }
-    for (const auto& user : node.get_users()) {
-        if (!user->is_constant()) {
-            return true;
-        }
-    }
-    return false;
+    const auto& users = node.get_users();
+    return std::any_of(users.begin(), users.end(), [](const auto& user) {
+        return !user->is_constant();
+    });
 }
 
 using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;

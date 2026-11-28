@@ -6,7 +6,9 @@
 
 #include "gguf_builder.hpp"
 
+#include <cmath>
 #include <memory>
+#include <sstream>
 #include <type_traits>
 
 #include "builder/api/metadata_store.hpp"
@@ -48,6 +50,37 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
+// The model's recommended sampling (`general.sampling.*`), in Hugging Face generation_config
+// names. Values are strings so the entry survives IR serialization unchanged.
+ov::AnyMap extract_generation_config(const GgufMetadata& metadata) {
+    ov::AnyMap config;
+    const auto put = [&](const std::string& name, double value) {
+        if (!std::isfinite(value))
+            return;
+        std::ostringstream text;
+        text << value;
+        config[name] = text.str();
+    };
+    if (const auto top_k = metadata.get_int("general.sampling.top_k"))
+        put("top_k", double(*top_k));
+    for (const auto& [key, name] : {std::pair<const char*, const char*>{"top_p", "top_p"},
+                                    {"min_p", "min_p"},
+                                    {"temp", "temperature"},
+                                    {"penalty_repeat", "repetition_penalty"}}) {
+        if (const auto value = metadata.get_float(std::string("general.sampling.") + key))
+            put(name, *value);
+    }
+    if (config.empty())
+        return config;
+    // llama.cpp samples unless the temperature is zero or negative.
+    const auto temperature = metadata.get_float("general.sampling.temp");
+    const bool do_sample = !temperature || *temperature > 0;
+    config["do_sample"] = std::string(do_sample ? "true" : "false");
+    if (!do_sample)
+        config.erase("temperature");
+    return config;
+}
+
 GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
     auto& metadata = std::get<0>(*data);
@@ -62,6 +95,9 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
     // Family detection is only a diagnostic fallback; it must not reject a registered family.
     const auto definition = registry.find(meta_view);
     if (!definition) {
+        OPENVINO_ASSERT(!is_qwen3_asr(meta_view),
+                        "[GGUF] native GGUF builder does not support the Qwen3 ASR subtype tagged "
+                        "'automatic-speech-recognition'. Register an ArchitectureExtension.");
         const auto kind = detect_model_kind(metadata);
         OPENVINO_ASSERT(kind == ModelKind::DECODER,
                         "[GGUF] no builder for ",
@@ -93,7 +129,11 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
                         component,
                         "'");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
+        if (auto generation_config = extract_generation_config(meta_view); !generation_config.empty())
+            graph->model_rt_info.emplace("generation_config", std::move(generation_config));
         graph->architecture = meta_view.architecture();
+        if (graph->mtp_draft)
+            graph->mtp_draft->architecture = graph->architecture;
         return graph;
     };
 }

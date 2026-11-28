@@ -29,7 +29,8 @@ class CacheWarmupManager;
 //     object to CacheWarmupManager (once per object).
 //  2. The manager's single worker thread calls run(), which handles the devices one by one:
 //     - caching disabled for the device (no cache dir/path) -> skip;
-//     - the blob for this model/config is already in the cache -> skip;
+//     - a single-file cache (*.bin) -> skip with a warning, its writes are not safe to run in the background;
+//     - an existing blob is not probed for: Core decides whether it is still usable, so a stale one is rewritten;
 //     - otherwise call core->compile_model() with a low-priority, reduced-thread config that keeps the cache key
 //       unchanged, so Core itself writes the blob; the resulting compiled model is dropped immediately.
 //     A failure on one device is logged and does not affect the other devices or the user's compiled model.
@@ -105,6 +106,12 @@ public:
     static std::filesystem::path get_cache_location(const ov::ICore& core,
                                                     const ov::AnyMap& config,
                                                     const std::string& device_name = {});
+    static std::string get_blob_id(const ov::ICore& core,
+                                   const std::string& device_name,
+                                   const ov::AnyMap& config,
+                                   const std::shared_ptr<const ov::Model>& model,
+                                   const std::filesystem::path& model_path);
+    static bool is_blob_cached(const std::filesystem::path& cache_location, const std::string& blob_id);
     static bool is_blob_cached(const ov::ICore& core,
                                const std::string& device_name,
                                const ov::AnyMap& config,

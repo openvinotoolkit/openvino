@@ -42,6 +42,43 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
     return roi_shape;
 }
 
+// Extends strides to the rank of shape (which must be greater), which adds leading dimensions to the strides' shape.
+// Strides of a scalar are empty, so then the innermost added dimension is set to the element size.
+// The innermost stride of a sub-byte type is not a byte step, so a dimension added above it gets the packed row size.
+Strides extend_strides(const Strides& strides, const Shape& shape, const element::Type& element_type) {
+    auto dim = shape.size() - strides.size();
+    Strides extended;
+    extended.reserve(shape.size());
+    extended.resize(dim);
+    extended.insert(extended.end(), strides.begin(), strides.end());
+    if (strides.empty()) {
+        extended[--dim] = element_type.size();
+    } else if (strides.size() == 1 && element_type.bitwidth() < 8) {
+        extended[dim - 1] = util::get_dense_byte_strides(element_type, Shape{1, shape.back()}).front();
+        --dim;
+    }
+    while (dim-- > 0) {
+        extended[dim] = shape[dim + 1] * extended[dim + 1];
+    }
+    return extended;
+}
+
+// Computes the byte offset of a ROI inside its owner tensor.
+size_t compute_roi_offset(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) {
+    const auto& element_type = owner->get_element_type();
+    if (element_type.bitwidth() < 8) {
+        // sub-byte types: only the innermost dimension must be taken in full - every other dimension's
+        // byte stride is always whole, so it may be an arbitrary sub-range
+        const auto& shape = owner->get_shape();
+        const auto is_inner_dim_full = !shape.empty() && begin.back() == 0 && end.back() == shape.back();
+        OPENVINO_ASSERT(is_inner_dim_full, "ROI cannot slice the innermost dimension of a sub-byte tensor");
+    }
+
+    const auto& strides = owner->get_strides();
+    return std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
+}
+}  // namespace
+
 // Hints for the [offset, offset + size) range of a file mapping.
 class MappedRangeHints final : public util::IMemoryHints {
 public:
@@ -63,7 +100,6 @@ private:
     size_t m_offset;
     size_t m_size;
 };
-}  // namespace
 
 /**
  * @brief View tensor to external memory
@@ -137,9 +173,14 @@ public:
     }
 
     const Strides& get_strides() const override {
-        OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
-                        "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
-                        m_element_type);
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(m_element_type, m_shape);
+        OPENVINO_ASSERT(can_compute_byte_strides,
+                        "Could not get strides for tensor type: ",
+                        m_element_type,
+                        ", shape: ",
+                        m_shape,
+                        " - byte strides are only representable when the element bitwidth evenly divides a byte "
+                        "and the last dimension is byte-aligned");
         std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
     }
@@ -168,18 +209,8 @@ protected:
     }
 
     void update_strides() const {
-        if (m_element_type.bitwidth() < 8)
-            return;
-
-        auto& shape = get_shape();
-        if (m_strides.empty() && !shape.empty()) {
-            m_strides.resize(shape.size());
-            m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
-            std::transform(shape.crbegin(),
-                           shape.crend() - 1,
-                           m_strides.rbegin(),
-                           m_strides.rbegin() + 1,
-                           std::multiplies<size_t>());
+        if (m_strides.empty() && util::can_compute_byte_strides(m_element_type, get_shape())) {
+            m_strides = util::get_dense_byte_strides(m_element_type, get_shape());
         }
     }
 
@@ -248,16 +279,25 @@ class StridedViewTensor : public ViewTensor {
 public:
     StridedViewTensor(const element::Type element_type, const Shape& shape, void* ptr, const Strides& strides)
         : ViewTensor{element_type, shape, ptr} {
-        OPENVINO_ASSERT(
-            get_element_type().bitwidth() >= 8,
-            "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
-            get_element_type());
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(get_element_type(), shape);
+        OPENVINO_ASSERT(can_compute_byte_strides,
+                        "Could not create strided access tensor for tensor type: ",
+                        get_element_type(),
+                        ", shape: ",
+                        shape,
+                        " - byte strides are only representable when the element bitwidth evenly divides a byte "
+                        "and the last dimension is byte-aligned");
         // Save default strides
         auto shape_strides = get_strides();
         // Change strides
         m_strides = strides;
         OPENVINO_ASSERT(m_shape.size() == m_strides.size());
 
+        const auto is_sub_byte = get_element_type().bitwidth() < 8;
+        const auto has_dense_inner_stride = !is_sub_byte || m_strides.back() == shape_strides.back();
+        OPENVINO_ASSERT(has_dense_inner_stride,
+                        "Sub-byte tensor must keep the default innermost byte stride, got: ",
+                        m_strides);
         for (size_t i = 0; i < m_strides.size(); ++i) {
             OPENVINO_ASSERT(shape_strides[i] <= m_strides[i],
                             "shape stride: ",
@@ -269,13 +309,17 @@ public:
                             shape_strides[i],
                             ", stride: ",
                             m_strides[i]);
-            if (i) {
-                OPENVINO_ASSERT(m_strides[i - 1] >= m_strides[i] * shape[i],
-                                "Strides: ",
-                                m_strides,
-                                " are incompatible with shapes: ",
-                                m_shape);
-            }
+        }
+
+        // for sub-byte types the last dimension's stride is not addressable placeholder (already validated above),
+        // so it is excluded from the overlap check between neighboring dimensions
+        const auto overlap_check_end = is_sub_byte ? m_strides.size() - 1 : m_strides.size();
+        for (size_t i = 1; i < overlap_check_end; ++i) {
+            OPENVINO_ASSERT(m_strides[i - 1] >= m_strides[i] * shape[i],
+                            "Strides: ",
+                            m_strides,
+                            " are incompatible with shapes: ",
+                            m_shape);
         }
     }
 
@@ -292,6 +336,8 @@ public:
                             i,
                             " is not compatible.");
         }
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(get_element_type(), new_shape);
+        OPENVINO_ASSERT(can_compute_byte_strides, "Byte strides are not representable for shape: ", new_shape);
         m_shape = std::move(new_shape);
     }
 };
@@ -470,12 +516,7 @@ public:
         : m_owner{owner},
           m_shape{make_roi_shape(owner->get_shape(), begin, end)},
           m_capacity{m_shape},
-          m_offset{
-              std::inner_product(begin.begin(), begin.end(), m_owner->get_strides().begin(), static_cast<size_t>(0))} {
-        OPENVINO_ASSERT(m_owner->get_element_type().bitwidth() >= 8,
-                        "ROI Tensor for types with bitwidths less than 8 bit is not implemented. Tensor type: ",
-                        m_owner->get_element_type());
-    }
+          m_offset{compute_roi_offset(owner, begin, end)} {}
 
     void set_shape(ov::Shape new_shape) {
         OPENVINO_ASSERT(new_shape.size() >= m_shape.size());
@@ -499,8 +540,11 @@ public:
             new_shape,
             " for ROI tensor! The expanding rank dimension(s) of ROI must be ones, but it is not at index: ",
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(m_owner->get_element_type(), new_shape);
+        OPENVINO_ASSERT(can_compute_byte_strides, "Byte strides are not representable for shape: ", new_shape);
 
         m_shape = std::move(new_shape);
+        update_strides();
     }
 
     size_t get_offset() const {
@@ -512,10 +556,26 @@ public:
     }
 
 protected:
+    const Strides& get_roi_strides() const {
+        return m_strides.empty() ? m_owner->get_strides() : m_strides;
+    }
+
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
+
+private:
+    void update_strides() {
+        const auto& owner_strides = m_owner->get_strides();
+        if (m_shape.size() > owner_strides.size()) {
+            m_strides = extend_strides(owner_strides, m_shape, m_owner->get_element_type());
+        } else {
+            m_strides.clear();
+        }
+    }
+
+    Strides m_strides;
 };
 
 /**
@@ -532,7 +592,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
@@ -582,7 +642,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {

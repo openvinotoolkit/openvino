@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
 }
 
 ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Direct_10_10_12::SetDefault(const convolution_params& arg,
-                                                                                                        int) const {
+                                                                                                        int /*autoTuneIndex*/) const {
     DispatchData dispatchData = Parent::SetDefault(arg);
 
     constexpr uint32_t TILE_N = 16;

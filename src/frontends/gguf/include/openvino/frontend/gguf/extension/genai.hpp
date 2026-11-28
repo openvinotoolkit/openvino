@@ -11,14 +11,13 @@ namespace ov::frontend::gguf {
 
 /// Prepare a decoder for GenAI during convert(): stateful caches, then normalized GenAI IO.
 /// Register before convert(), without separate GGUFMakeStateful or AdaptToGenAI passes.
+/// \deprecated Call ov::frontend::gguf::adapt_to_genai on the converted model instead.
 class GGUF_FRONTEND_API GenAIExtension : public ov::Extension {
 public:
     OPENVINO_RTTI("gguf::GenAIExtension", "", ov::Extension);
     using InputMode = pass::AdaptToGenAI::InputMode;
 
-    explicit GenAIExtension(InputMode mode = InputMode::IDS_TO_LOGITS, std::string component = {})
-        : m_mode(mode),
-          m_component(std::move(component)) {}
+    explicit GenAIExtension(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}
 
     /// Extracted lookup models from the latest successful conversion in EMBEDS_TO_LOGITS mode.
     const std::shared_ptr<ov::Model>& get_embedding_model() const {
@@ -34,7 +33,6 @@ public:
 private:
     friend class FrontEnd;
     InputMode m_mode;
-    std::string m_component;
     std::shared_ptr<ov::Model> m_embedding_model;
     std::shared_ptr<ov::Model> m_per_layer_embedding_model;
     std::shared_ptr<ov::Model> m_ngram_embedding_model;

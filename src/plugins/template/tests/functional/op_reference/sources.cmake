@@ -77,6 +77,7 @@ set(OV_TEMPLATE_TESTS_OP_REFERENCE_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/experimental_detectron_topkrois.cpp
     ${CMAKE_CURRENT_LIST_DIR}/extract_image_patches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eye.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/floor_mod.cpp
@@ -138,6 +139,7 @@ set(OV_TEMPLATE_TESTS_OP_REFERENCE_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mvn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/negative.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nonzero.cpp

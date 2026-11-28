@@ -24,18 +24,22 @@ ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& 
     : ov::ICompiledModel(model, plugin, remote_context),
       m_context(schedule_context),
       m_scheduler(scheduler) {
-    m_inputs_outputs_from_hardware = (model == nullptr);
+    m_inputs_outputs_from_hardware = (model == nullptr) && m_context->m_hw_compiled_model;
+    if (m_inputs_outputs_from_hardware) {
+        m_hw_inputs = m_context->m_hw_compiled_model->inputs();
+        m_hw_outputs = m_context->m_hw_compiled_model->outputs();
+    }
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::outputs() const {
-    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
-        return m_context->m_hw_compiled_model->outputs();
+    if (m_inputs_outputs_from_hardware)
+        return m_hw_outputs;
     return ov::ICompiledModel::outputs();
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::inputs() const {
-    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
-        return m_context->m_hw_compiled_model->inputs();
+    if (m_inputs_outputs_from_hardware)
+        return m_hw_inputs;
     return ov::ICompiledModel::inputs();
 }
 
@@ -58,16 +62,21 @@ std::string ov::auto_plugin::CompiledModel::get_log_tag() const noexcept {
 }
 
 ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoCompileContext& context) {
-     ov::AnyMap all_devices;
+    return get_device_supported_properties(context.m_device_info.device_name, context.m_compiled_model);
+}
+
+ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(const std::string& device_name,
+                                                                            const SoCompiledModel& compiled_model) {
+    ov::AnyMap all_devices;
     ov::AnyMap device_properties = {};
-    OPENVINO_ASSERT(context.m_compiled_model);
-    auto device_supported_properties = context.m_compiled_model->get_property(ov::supported_properties.name());
+    OPENVINO_ASSERT(compiled_model);
+    auto device_supported_properties = compiled_model->get_property(ov::supported_properties.name());
     for (auto&& property_name : device_supported_properties.as<std::vector<ov::PropertyName>>()) {
         // For LTO issue, explicitly do the conversion here
         std::string query_name = property_name;
-        device_properties[property_name] = context.m_compiled_model->get_property(query_name);
+        device_properties[property_name] = compiled_model->get_property(query_name);
     }
-    all_devices[context.m_device_info.device_name] = device_properties;
+    all_devices[device_name] = device_properties;
     return all_devices;
 }
 

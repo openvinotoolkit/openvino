@@ -13,12 +13,18 @@ namespace kernel_selector {
 // non_max_suppression_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct non_max_suppression_params : public base_params {
-    non_max_suppression_params() : base_params(KernelType::NON_MAX_SUPPRESSION),
-    box_encoding(BoxEncodingType::BOX_ENCODING_CORNER), sort_result_descending(true),
-    num_select_per_class_type(base_params::ArgType::Constant), num_select_per_class(0),
-    iou_threshold_type(base_params::ArgType::Constant), iou_threshold(0.0f),
-    score_threshold_type(base_params::ArgType::Constant), score_threshold(0.0f),
-    soft_nms_sigma_type(base_params::ArgType::Constant), soft_nms_sigma(0.0f) {}
+    non_max_suppression_params()
+        : base_params(KernelType::NON_MAX_SUPPRESSION),
+          box_encoding(BoxEncodingType::BOX_ENCODING_CORNER),
+          sort_result_descending(true),
+          num_select_per_class_type(base_params::ArgType::Constant),
+          num_select_per_class(0),
+          iou_threshold_type(base_params::ArgType::Constant),
+          iou_threshold(0.0F),
+          score_threshold_type(base_params::ArgType::Constant),
+          score_threshold(0.0F),
+          soft_nms_sigma_type(base_params::ArgType::Constant),
+          soft_nms_sigma(0.0F) {}
 
     BoxEncodingType box_encoding;
     bool sort_result_descending;
@@ -33,7 +39,7 @@ struct non_max_suppression_params : public base_params {
     bool reuse_internal_buffer = false;
     NMSRotationType rotation = NMSRotationType::NONE;
 
-    uint32_t GetIndexNumSelectPerClass() const {
+    static uint32_t GetIndexNumSelectPerClass() {
         uint32_t input_idx = 2;
         return input_idx;
     }
@@ -70,10 +76,10 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    Datatype GetAccumulatorType(const non_max_suppression_params& params) const;
+    static Datatype GetAccumulatorType(const non_max_suppression_params& params);
     virtual JitConstants GetJitConstants(const non_max_suppression_params& params) const;
     bool Validate(const Params& p) const override;
-    void SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx) const;
+    static void SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx);
 };
 
 }  // namespace kernel_selector

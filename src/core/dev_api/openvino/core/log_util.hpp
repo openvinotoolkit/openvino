@@ -577,6 +577,18 @@ bool is_verbose_logging();
                                   "  NODES' TYPE MATCHED, but PREDICATE FAILED"); \
         } while (0);
 
+#    define OPENVINO_LOG_WRAPTYPE5(matcher, pattern_arg_size, graph_arg_size)        \
+        do {                                                                         \
+            OPENVINO_LOG_MATCHING(matcher,                                           \
+                                  ov::util::LevelString::get(),                      \
+                                  OPENVINO_BLOCK_END,                                \
+                                  OPENVINO_RED,                                      \
+                                  "  NUMBER OF ARGUMENTS DOESN'T MATCH. EXPECTED: ", \
+                                  pattern_arg_size,                                  \
+                                  ". OBSERVED: ",                                    \
+                                  graph_arg_size);                                   \
+        } while (0);
+
 #    define OPENVINO_LOG_WRAPTYPE3(matcher, num_arguments)                                                       \
         do {                                                                                                     \
             bool _non_empty_args = num_arguments != 0;                                                           \
@@ -807,6 +819,9 @@ bool is_verbose_logging();
         do {                            \
         } while (0)
 #    define OPENVINO_LOG_WRAPTYPE4(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_WRAPTYPE5(...) \
         do {                            \
         } while (0)
 

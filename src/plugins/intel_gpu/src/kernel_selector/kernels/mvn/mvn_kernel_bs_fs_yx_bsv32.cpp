@@ -69,7 +69,7 @@ bool MVNKernel_bs_fs_yx_bsv32::Validate(const Params& p) const {
     return true;
 }
 
-Datatype MVNKernel_bs_fs_yx_bsv32::GetAccumulatorType(const mvn_params& params) const {
+Datatype MVNKernel_bs_fs_yx_bsv32::GetAccumulatorType(const mvn_params& params) {
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
@@ -112,7 +112,7 @@ JitConstants MVNKernel_bs_fs_yx_bsv32::GetJitConstants(const mvn_params& params,
     return jits;
 }
 
-std::vector<size_t> MVNKernel_bs_fs_yx_bsv32::GetFinalKernelLws(const std::vector<size_t>& gws, uint64_t max_wg) const {
+std::vector<size_t> MVNKernel_bs_fs_yx_bsv32::GetFinalKernelLws(const std::vector<size_t>& gws, uint64_t max_wg) {
     std::vector<size_t> lws(3);
     lws[0] = 1;
     lws[1] = gws[1];
@@ -131,8 +131,7 @@ std::vector<size_t> MVNKernel_bs_fs_yx_bsv32::GetFinalKernelLws(const std::vecto
     return lws;
 }
 
-MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefaultForMulti(const mvn_params& params,
-                                                                                                    bool has_enough_data) const {
+MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefaultForMulti(const mvn_params& params, bool has_enough_data) {
     MultiDispatchData dispatchData;
 
     auto items_num = params.outputs[0].X().v * params.outputs[0].Y().v;

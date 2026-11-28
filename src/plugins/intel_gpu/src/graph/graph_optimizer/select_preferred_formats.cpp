@@ -16,6 +16,11 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "to_string_utils.h"
+#include "fully_connected_inst.h"
+#include "registry/registry.hpp"
+#if OV_GPU_WITH_CM
+#include "impls/cm/fully_connected_woq_u2.hpp"
+#endif
 #include <iostream>
 #include <sstream>
 #include <intel_gpu/primitives/fully_connected.hpp>
@@ -42,7 +47,7 @@ void print_selected_formats(const program_node& n) {
     GPU_DEBUG_LOG << ss.str() << std::endl;
 }
 
-static void optimize_conv_permute(program_node& node) {
+void optimize_conv_permute(program_node& node) {
     // In conv-permute pattern, sets the output format of conv to byxf so that permute can be optimized.
     // ex) oneDNN convolution -> (byxf) -> permute -> (bfyx) -> output
     //     output layout of convolution: byxf [b:1, f:128, y:2, x:2]
@@ -65,7 +70,7 @@ static void optimize_conv_permute(program_node& node) {
     }
 }
 
-static void optimize_permute_conv(program_node& node) {
+void optimize_permute_conv(program_node& node) {
     // Goal: Eliminate the Reorder by aligning connection to byxf
     if (node.get_dependencies().empty()) {
         return;
@@ -123,45 +128,54 @@ static void optimize_permute_conv(program_node& node) {
     }
 }
 
-static void optimize_conv_reshape_reorder(program_node& node) {
+void optimize_conv_reshape_reorder(program_node& node) {
     // A rank-changing ov::Reshape is lowered to "reorder(planar) -> reshape" at plugin build time
     // (see CreateCommonReshapeOp in plugin/ops/reshape.cpp), because cldnn reshape assumes a planar
     // input. If the producing convolution emits that planar format itself, the reorder becomes a
     // pure buffer reinterpret and remove_redundant_reorders drops it.
     // ex) conv (b_fs_yx_fsv16 [b:6, f:256, y:108, x:108]) -> reorder (bfyx [b:6, f:256, y:11664, x:1]) -> reshape
     //     becomes conv (bfyx) -> (reorder optimized out) -> reshape
-    if (node.is_output() || node.get_users().size() != 1)
+    if (node.is_output() || node.get_users().size() != 1) {
         return;
+    }
 
     auto& user = *node.get_users().front();
-    if (!user.is_type<reorder>() || user.is_output() || user.get_users().size() != 1)
+    if (!user.is_type<reorder>() || user.is_output() || user.get_users().size() != 1) {
         return;
+    }
 
     auto& r_node = user.as<reorder>();
-    if (!r_node.is_simple_reorder() || !r_node.get_users().front()->is_type<reshape>())
+    if (!r_node.is_simple_reorder() || !r_node.get_users().front()->is_type<reshape>()) {
         return;
+    }
 
     const auto& conv_layout = node.get_output_layout(false);
     const auto& reorder_layout = r_node.get_output_layout(false);
-    if (conv_layout.is_dynamic() || reorder_layout.is_dynamic())
+    if (conv_layout.is_dynamic() || reorder_layout.is_dynamic()) {
         return;
+    }
 
     // Mirror the default-format branch of layout::compatible(), which is what lets
     // remove_redundant_reorders reinterpret the buffer instead of copying it.
-    if (!format::is_default_format(reorder_layout.format))
+    if (!format::is_default_format(reorder_layout.format)) {
         return;
+    }
 
-    if (conv_layout.get_rank() != reorder_layout.format.dimension())
+    if (conv_layout.get_rank() != reorder_layout.format.dimension()) {
         return;
+    }
 
-    if (conv_layout.data_type != reorder_layout.data_type)
+    if (conv_layout.data_type != reorder_layout.data_type) {
         return;
+    }
 
-    if (conv_layout.data_padding || reorder_layout.data_padding)
+    if (conv_layout.data_padding || reorder_layout.data_padding) {
         return;
+    }
 
-    if (conv_layout.get_linear_size() != reorder_layout.get_linear_size())
+    if (conv_layout.get_linear_size() != reorder_layout.get_linear_size()) {
         return;
+    }
 
     node.set_preferred_output_fmt(0, reorder_layout.format);
 }
@@ -180,10 +194,11 @@ void select_preferred_formats::run(program& p) {
 
     auto forcing_map = p.get_config().get_force_implementations();
 
-    for (auto* n : p.get_processing_order()) {
+    // Returns the chosen factory, if any.
+    auto select_formats_for = [&](program_node* n) -> std::shared_ptr<ImplementationManager> {
         n->recalc_output_layout();
         if (n->is_input() || !n->is_in_data_flow()) {
-            continue;
+            return nullptr;
         }
 
         auto forced_fmt = format::any;
@@ -230,7 +245,8 @@ void select_preferred_formats::run(program& p) {
                 GPU_DEBUG_LOG << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
             }
             print_selected_formats(*n);
-        } if (n->is_type<fully_connected>()) {
+        }
+        if (n->is_type<fully_connected>()) {
             const auto& fc_prim = n->as<fully_connected>().get_primitive();
             size_t decompression_param_idx =
                 fc_prim->bias.is_valid() ? 3 : 2;
@@ -240,13 +256,47 @@ void select_preferred_formats::run(program& p) {
                     n->set_preferred_input_fmt(
                         decompression_param_idx,
                         n->get_input_layout(decompression_param_idx).format);
-                    decompression_param_idx++;
                 }
+                // The index must advance even when the format was already chosen (e.g. by oneDNN
+                // query_formats), otherwise the zero-point slot below would re-check the scale index.
+                decompression_param_idx++;
             } if (fc_prim->decompression_zero_point.is_valid()) {
                 if (n->get_preferred_input_fmt(decompression_param_idx) == format::any) {
-                    n->set_preferred_input_fmt(
-                        decompression_param_idx,
-                        n->get_input_layout(decompression_param_idx).format);
+                    n->set_preferred_input_fmt(decompression_param_idx, n->get_input_layout(decompression_param_idx).format);
+                }
+            }
+        }
+        return factory;
+    };
+
+    for (auto* n : p.get_processing_order()) {
+        auto factory = select_formats_for(n);
+
+        // u2 scale/zp were left bfyx by prepare_quantization; CM keeps them, other impls get the usual reorder.
+        if (n->is_type<fully_connected>()) {
+            auto& fc_node = n->as<fully_connected>();
+            if (defer_u2_decompression_reorder(fc_node)) {
+                bool cm_selected = false;
+#if OV_GPU_WITH_CM
+                cm_selected = factory && factory->get_type_info() == ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::get_type_info_static();
+#else
+                (void)factory;
+#endif
+                GPU_DEBUG_TRACE_DETAIL << fc_node.id() << " : u2 FC, CM " << (cm_selected ? "selected, scale/zp kept bfyx" : "not selected") << std::endl;
+                if (!cm_selected) {
+                    // New reorders precede fc_node in processing order, so the main loop would skip them.
+                    for (auto* new_reorder : reorder_fc_decompression_params_if_needed(fc_node, p)) {
+                        select_formats_for(new_reorder);
+                    }
+                    const auto& fc_prim = fc_node.get_primitive();
+                    size_t decompression_param_idx = fc_prim->bias.is_valid() ? 3 : 2;
+                    if (fc_prim->decompression_scale.is_valid()) {
+                        fc_node.set_preferred_input_fmt(decompression_param_idx, fc_node.get_input_layout(decompression_param_idx).format);
+                        decompression_param_idx++;
+                    }
+                    if (fc_prim->decompression_zero_point.is_valid()) {
+                        fc_node.set_preferred_input_fmt(decompression_param_idx, fc_node.get_input_layout(decompression_param_idx).format);
+                    }
                 }
             }
         }

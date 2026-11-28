@@ -31,8 +31,8 @@ class typed_primitive_inst<qsa_indexer> : public typed_primitive_inst_base<qsa_i
 
 public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(const qsa_indexer_node& node, const kernel_impl_params& impl_params);
-    static layout calc_output_layout(const qsa_indexer_node& node, const kernel_impl_params& impl_params);
+    static std::vector<layout> calc_output_layouts(const qsa_indexer_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const qsa_indexer_node& node, const kernel_impl_params& impl_param);
 
     static std::string to_string(const qsa_indexer_node& node);
     typed_primitive_inst(network& network, const qsa_indexer_node& node);

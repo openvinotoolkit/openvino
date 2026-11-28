@@ -4,6 +4,7 @@
 
 #include "scatter_update_kernel_ref.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -194,11 +195,6 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     JitConstants jit = MakeBaseParamsJitConstants(params);
     size_t axis_value = GetScatterUpdateChannelIndex(params);
 
-    // Flag fp8 inputs so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
-    // (see scatter_update_ref.cl). INPUT0 = dictionary (first kernel), INPUT2 = updates (second).
-    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
-    jit.AddConstant(MakeJitConstant("INPUT2_IS_F8E4M3", params.inputs[2].GetDType() == Datatype::F8E4M3));
-
     const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 
     // In case of padded input2 (updates), we also need non-planar indexing, because UPDATES_INDEX is calculated based on output sizes
@@ -210,8 +206,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     }
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
-    jit.AddConstant(
-        MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, static_cast<size_t>(GetScatterUpdateChannelIndex(params)))));
+    jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
 
@@ -270,10 +265,10 @@ bool ScatterUpdateKernelRef::Validate(const Params& p) const {
 
     const scatter_update_params& params = static_cast<const scatter_update_params&>(p);
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -310,7 +305,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params) const {
     if (!orgParams.has_dynamic_inputs()) {
         // if dim of output along axis is equal to logical size of indices, we miss copying kernel
         const size_t indices_size = input1.LogicalSize();
-        if (input0.Extract(input0.GetLayout(), Tensor::DataChannelName(orgParams.axis), input0.GetDims()).v == indices_size) {
+        if (DataTensor::Extract(input0.GetLayout(), Tensor::DataChannelName(orgParams.axis), input0.GetDims()).v == indices_size) {
             start_with_iteration = 1;
         }
     }

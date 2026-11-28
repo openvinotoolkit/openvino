@@ -17,7 +17,7 @@ private:
     using parent = typed_program_node_base<paged_attention>;
 
 public:
-    typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog);
+    typed_program_node(std::shared_ptr<paged_attention> prim, program& prog);
 
     std::set<size_t> get_lockable_input_ids() const override {
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
@@ -59,7 +59,7 @@ public:
 
     static std::string to_string(const paged_attention_node& node);
 
-    typed_primitive_inst(network& network, const paged_attention_node& desc);
+    typed_primitive_inst(network& network, const paged_attention_node& node);
     typed_primitive_inst(network& network) : parent(network) {}
 
     memory::ptr query_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QUERY); }

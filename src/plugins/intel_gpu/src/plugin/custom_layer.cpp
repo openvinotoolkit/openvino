@@ -31,9 +31,9 @@ using namespace ov::util::pugixml;
         return;                             \
     }
 #define CheckNodeTypeAndReturnError(node, type) \
-    CheckAndReturnError((std::string(node.name()).compare(type)), "Wrong node! expected: " << #type << " found: " << node.name())
+    CheckAndReturnError((std::string(node.name()) != (type)), "Wrong node! expected: " << #type << " found: " << node.name())
 #define CheckStrAttrAndReturnError(node, attr, value) \
-    CheckAndReturnError(get_str_attr(node, attr, "").compare(value), "Wrong attribute value! expected: " << value << " found: " << get_str_attr(node, attr, ""))
+    CheckAndReturnError(get_str_attr(node, attr, "") != (value), "Wrong attribute value! expected: " << value << " found: " << get_str_attr(node, attr, ""))
 #define CheckIntAttrAndReturnError(node, attr, value) \
     CheckAndReturnError(get_int_attr(node, attr, -1) != (value), "Wrong attribute value! expected: " << value << " found: " << get_int_attr(node, attr, -1))
 
@@ -88,7 +88,7 @@ void CustomLayer::ProcessKernelNode(const pugi::xml_node& node) {
         kd.param = get_str_attr(defineNode, "param", "");
         kd.default_value = get_str_attr(defineNode, "default", "");
         std::string type = get_str_attr(defineNode, "type", "");
-        if (type.compare("int[]") == 0 || type.compare("float[]") == 0) {
+        if (type == "int[]" || type == "float[]") {
             kd.prefix = "(" + type + ") {";
             kd.postfix = "}";
         }
@@ -107,11 +107,11 @@ void CustomLayer::ProcessBuffersNode(const pugi::xml_node& node) {
         kp.portIndex = get_int_attr(tensorNode, "port-index", -1);
         CheckAndReturnError(kp.portIndex == -1, "Tensor node has no port-index");
         std::string typeStr = get_str_attr(tensorNode, "type");
-        if (typeStr.compare("input") == 0) {
+        if (typeStr == "input") {
             kp.type = ParamType::Input;
-        } else if (typeStr.compare("output") == 0) {
+        } else if (typeStr == "output") {
             kp.type = ParamType::Output;
-        } else if (typeStr.compare("internal") == 0) {
+        } else if (typeStr == "internal") {
             kp.type = ParamType::Internal;
             kp.size_expr = get_str_attr(tensorNode, "size", "");
             CheckAndReturnError(kp.size_expr.empty(), "Internal buffer requires a size attribute");

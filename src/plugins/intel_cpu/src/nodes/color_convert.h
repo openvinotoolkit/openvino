@@ -43,6 +43,7 @@ public:
 private:
     void initSupportedNV12Impls();
     void initSupportedI420Impls();
+    void initSupportedtoNV12Impls();
 
     using ConverterBuilder = std::function<Converter*(Node*)>;
     using SupportedImpls = multidim_map<impl_desc_type,       // Implementation type

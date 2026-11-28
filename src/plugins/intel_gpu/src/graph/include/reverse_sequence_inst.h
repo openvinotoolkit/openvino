@@ -25,7 +25,7 @@ public:
     static layout calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reverse_sequence_node const& node);
 
-    typed_primitive_inst(network& network, reverse_sequence_node const& desc);
+    typed_primitive_inst(network& network, const reverse_sequence_node& node);
 };
 
 using reverse_sequence_inst = typed_primitive_inst<reverse_sequence>;

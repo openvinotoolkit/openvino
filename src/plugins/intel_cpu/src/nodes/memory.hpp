@@ -34,6 +34,7 @@ namespace ov::intel_cpu::node {
 class MemoryOutputBase;
 class MemoryInputBase;
 class ScaledDotProductAttention;
+class SparseSDPA;
 
 class MemoryStatesRegister {
 public:
@@ -297,5 +298,30 @@ private:
 
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
+};
+
+// MemoryInput replacement for the KV cache states of SparseSDPA (SparseAttentionWithKVCache), the counterpart of
+// MemoryInputSDPA. It reuses the shape handling of MemoryInputSDPA (runDynamic, resolveInPlaceEdges) and replaces
+// the SDPA specific parts: the consumer node, and the state, which is a BHLS float KV cache.
+class MemoryInputSparseSDPA : public MemoryInputSDPA {
+public:
+    MemoryInputSparseSDPA(const std::string& id,
+                          const std::string& name,
+                          const std::string& type,
+                          const Shape& output_shape,
+                          const ov::element::Type& output_prc,
+                          const GraphContext::CPtr& context,
+                          const std::optional<std::vector<Shape>>& input_shape,
+                          const std::optional<std::vector<ov::element::Type>>& input_prc,
+                          const std::shared_ptr<SparseSDPA>& sparseNode);
+
+    void createPrimitive() override;
+    MemStatePtr makeState() const override;
+
+private:
+    void assignStateHook() override;
+
+    std::weak_ptr<SparseSDPA> m_sparseNode;
+    int m_sparse_port_idx = -1;
 };
 }  // namespace ov::intel_cpu::node

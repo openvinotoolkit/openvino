@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -12,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -65,6 +67,14 @@ protected:
         model_type = _model_type;
         targetDevice = _targetDevice;
         input_type = _input_type;
+
+        if (model_type == ov::element::bf16) {
+            const auto capabilities = core->get_property(targetDevice, ov::device::capabilities);
+            if (std::find(capabilities.begin(), capabilities.end(), ov::device::capability::BF16) == capabilities.end()) {
+                GTEST_SKIP() << "Device does not support BF16";
+            }
+            configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+        }
 
         if (input_type == ov::test::utils::InputLayerType::CONSTANT) {
             init_input_shapes({input_shape});
@@ -128,6 +138,18 @@ protected:
             for (size_t i = 0; i < size; ++i) {
                 rawBlobDataPtr[i] = static_cast<ov::float16>(data[i]);
             }
+        } else if (model_type == ov::element::bf16) {
+            std::vector<int> data(size);
+
+            int start = -static_cast<int>(size / 2);
+            std::iota(data.begin(), data.end(), start);
+            std::mt19937 gen(0);
+            std::shuffle(data.begin(), data.end(), gen);
+
+            auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = static_cast<ov::bfloat16>(data[i]);
+            }
         } else {
             FAIL() << "generate_inputs for " << model_type << " precision isn't supported";
         }
@@ -147,6 +169,21 @@ protected:
         }
     }
 
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+        if (model_type != ov::element::bf16) {
+            return;
+        }
+
+        const auto runtime_model = compiledModel.get_runtime_model();
+        const auto& ops = runtime_model->get_ordered_ops();
+        const auto topk = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+            return op->get_rt_info().at("layerType").as<std::string>() == "ArgMax";
+        });
+        ASSERT_NE(topk, ops.end());
+        EXPECT_EQ((*topk)->get_rt_info().at("runtimePrecision").as<std::string>(), "bf16");
+    }
+
 private:
     int64_t axis;
     size_t inferRequestNum = 0;
@@ -161,6 +198,7 @@ TEST_P(TopKLayerGPUTest, Inference) {
 const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
     ov::element::f16,
+    ov::element::bf16,
 };
 
 const std::vector<int64_t> axes = {0, 3};

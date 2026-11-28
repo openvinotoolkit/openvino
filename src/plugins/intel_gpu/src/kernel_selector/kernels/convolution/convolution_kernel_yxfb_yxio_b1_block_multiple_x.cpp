@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,11 +65,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_multipl
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(filter_ofm_num, local_work_size);
     if (ofmPerWorkItem == 4) {
         // We compute multiple spatial coordinates "x" in a single workitem that's why we must divide
-        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 4.0f));
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 4.0F));
     } else if (ofmPerWorkItem == 2) {
-        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 8.0f));
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 8.0F));
     } else {
-        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 8.0f));
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 8.0F));
     }
 
     dispatchData.gws[0] = filter_ofm_num * batch_size / ofmPerWorkItem;

@@ -10,11 +10,16 @@
 
 namespace ov::intel_gpu::op {
 
-StatelessKV::StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool is_seq_len_present_len, int64_t window_size)
+StatelessKV::StatelessKV(const OutputVector& inputs,
+                         int64_t concat_axis,
+                         bool is_seq_len_present_len,
+                         int64_t window_size,
+                         bool has_pos_idx)
     : Op(inputs),
       m_concat_axis(concat_axis),
       m_is_seq_len_present_len(is_seq_len_present_len),
-      m_window_size(window_size) {}
+      m_window_size(window_size),
+      m_has_pos_idx(has_pos_idx) {}
 
 StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& new_token_data,
@@ -22,7 +27,18 @@ StatelessKV::StatelessKV(const Output<Node>& past,
                          int64_t concat_axis,
                          bool is_seq_len_present_len,
                          int64_t window_size)
-    : StatelessKV({past, new_token_data, seq_len}, concat_axis, is_seq_len_present_len, window_size) {
+    : StatelessKV({past, new_token_data, seq_len}, concat_axis, is_seq_len_present_len, window_size, false) {
+    validate_and_infer_types();
+}
+
+StatelessKV::StatelessKV(const Output<Node>& past,
+                         const Output<Node>& new_token_data,
+                         const Output<Node>& seq_len,
+                         const Output<Node>& cur_len,
+                         int64_t concat_axis,
+                         bool is_seq_len_present_len,
+                         int64_t window_size)
+    : StatelessKV({past, new_token_data, seq_len, cur_len}, concat_axis, is_seq_len_present_len, window_size, false) {
     validate_and_infer_types();
 }
 
@@ -32,7 +48,7 @@ StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& pos_idx,
                          int64_t concat_axis,
                          bool is_seq_len_present_len)
-    : StatelessKV({past, new_token_data, seq_len, pos_idx}, concat_axis, is_seq_len_present_len, 0) {
+    : StatelessKV({past, new_token_data, seq_len, pos_idx}, concat_axis, is_seq_len_present_len, 0, true) {
     validate_and_infer_types();
 }
 
@@ -40,6 +56,7 @@ bool StatelessKV::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("concat_axis", m_concat_axis);
     visitor.on_attribute("is_seq_len_present_len", m_is_seq_len_present_len);
     visitor.on_attribute("window_size", m_window_size);
+    visitor.on_attribute("has_pos_idx", m_has_pos_idx);
     return true;
 }
 
@@ -51,7 +68,7 @@ void StatelessKV::validate_and_infer_types() {
     const auto& seq_len_dtype = get_input_element_type(2);
 
     OPENVINO_ASSERT(m_window_size >= 0, "[GPU] stateless_kv window_size must be non-negative");
-    OPENVINO_ASSERT(m_window_size == 0 || get_input_size() == 3,
+    OPENVINO_ASSERT(m_window_size == 0 || !m_has_pos_idx,
                     "[GPU] stateless_kv doesn't support window_size together with pos_idx");
     OPENVINO_ASSERT(input_shape.rank().is_static() && append_shape.rank().is_static(), "[GPU] stateless_kv requires static input rank");
     OPENVINO_ASSERT(input_shape.rank() == append_shape.rank(), "[GPU] stateless_kv requires input and new_token being the same rank");
@@ -75,10 +92,19 @@ void StatelessKV::validate_and_infer_types() {
 
 std::shared_ptr<Node> StatelessKV::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    if (new_args.size() == 3) {
-        return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), m_concat_axis, m_is_seq_len_present_len, m_window_size);
+    if (m_has_pos_idx) {
+        return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_concat_axis, m_is_seq_len_present_len);
     }
-    return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_concat_axis, m_is_seq_len_present_len);
+    if (new_args.size() == 4) {
+        return std::make_shared<StatelessKV>(new_args.at(0),
+                                             new_args.at(1),
+                                             new_args.at(2),
+                                             new_args.at(3),
+                                             m_concat_axis,
+                                             m_is_seq_len_present_len,
+                                             m_window_size);
+    }
+    return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), m_concat_axis, m_is_seq_len_present_len, m_window_size);
 }
 
 std::vector<ov::PartialShape> shape_infer(const StatelessKV* op, const std::vector<ov::PartialShape>& input_shapes) {
@@ -95,8 +121,8 @@ std::vector<ov::PartialShape> shape_infer(const StatelessKV* op, const std::vect
         OPENVINO_ASSERT(updated_len >= 0, "[GPU] stateless_kv update offset produces a negative output length");
         if (op->get_window_size() > 0) {
             const auto windowed_len = input_shapes[1][concat_axis].get_length() + op->get_window_size() - 1;
-            if (op->get_is_rolling()) {
-                OPENVINO_ASSERT(op->get_past_seq_len().has_value(), "[GPU] stateless_kv rolling SWA shape inference requires past_seq_len");
+            if (op->get_is_capacity_overflow()) {
+                OPENVINO_ASSERT(op->get_past_seq_len().has_value(), "[GPU] stateless_kv capacity overflow SWA shape inference requires past_seq_len");
                 const auto present_len = *op->get_past_seq_len() + input_shapes[1][concat_axis].get_length();
                 trim_shape[concat_axis] = std::min(windowed_len, present_len);
             } else {

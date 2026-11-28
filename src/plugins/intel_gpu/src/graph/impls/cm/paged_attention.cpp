@@ -782,7 +782,7 @@ private:
     std::vector<int32_t> m_xattn_post_wg_map;
     MixedRouteMode m_mixed_route_mode = MixedRouteMode::SPLIT;
 
-    void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
+    static void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
         const auto& input_mem = params.memory_deps;
 
         auto validate_input = [&](size_t idx, const char* name) {

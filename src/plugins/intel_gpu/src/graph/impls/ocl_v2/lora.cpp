@@ -71,7 +71,7 @@ protected:
 public:
     [[nodiscard]] static size_t get_lora_count(const RuntimeParams& params) {
         auto desc = params.typed_desc<lora>();
-        return (desc->input_size() - 2ul) / 3ul;
+        return (desc->input_size() - 2UL) / 3UL;
     }
 };
 
@@ -186,7 +186,7 @@ protected:
 public:
     [[nodiscard]] static size_t get_subgroup_size(const RuntimeParams& params) {
         auto in_dtype = params.get_input_layout().data_type;
-        size_t subgroup_size = in_dtype == ov::element::f16 ? 16ul : 8ul;
+        size_t subgroup_size = in_dtype == ov::element::f16 ? 16UL : 8UL;
         return subgroup_size;
     }
 
@@ -204,8 +204,8 @@ public:
         return static_cast<size_t>(batch * feature > 1);
     }
 
-    static constexpr size_t gemm_a_sg_bk = 32ul;
-    static constexpr size_t min_lora_rank = 16ul;
+    static constexpr size_t gemm_a_sg_bk = 32UL;
+    static constexpr size_t min_lora_rank = 16UL;
 };
 
 template <LoraType LT>

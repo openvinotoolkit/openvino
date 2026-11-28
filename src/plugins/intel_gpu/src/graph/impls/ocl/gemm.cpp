@@ -134,7 +134,7 @@ protected:
         return stream.aggregate_events(all_events, all_events.size() > 1);
     }
 
-    bool need_indirect_load(const gemm_inst& inst) const {
+    static bool need_indirect_load(const gemm_inst& inst) {
         auto desc = inst.get_typed_desc<gemm>();
         if (!desc->indirect_a && !desc->indirect_b) {
             return false;

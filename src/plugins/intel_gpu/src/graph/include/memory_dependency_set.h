@@ -28,8 +28,9 @@ public:
     }
 
     bool contains(uint32_t id) const {
-        if (_bits.empty())
+        if (_bits.empty()) {
             return std::binary_search(_values.begin(), _values.end(), id);
+        }
         const size_t word = id / bits_per_block;
         // The shift form avoids a slower variable-mask sequence with GCC 13.
         return word >= _first_word && word - _first_word < _bits.size() && _bits[word - _first_word][id % bits_per_block];
@@ -58,22 +59,26 @@ public:
         }
 
         auto it = std::lower_bound(_values.begin(), _values.end(), id);
-        if (it != _values.end() && *it == id)
+        if (it != _values.end() && *it == id) {
             return;
+        }
         _values.insert(it, id);
 
         // Reconsider sparse sets only at geometrically increasing sizes.
         const auto size = _values.size();
-        if (size < 64 || (size & (size - 1)) != 0)
+        if (size < 64 || (size & (size - 1)) != 0) {
             return;
+        }
         const size_t first = _values.front() / bits_per_block;
         const size_t words = _values.back() / bits_per_block - first + 1;
-        if (words * sizeof(bit_block) > size * sizeof(uint32_t))
+        if (words * sizeof(bit_block) > size * sizeof(uint32_t)) {
             return;
+        }
 
         std::vector<bit_block> bits(words);
-        for (auto value : _values)
+        for (auto value : _values) {
             bits[value / bits_per_block - first].set(value % bits_per_block);
+        }
         _bits.swap(bits);
         _first_word = first;
         _count = size;
@@ -87,8 +92,9 @@ public:
             for (size_t i = 0; i < _bits.size(); ++i) {
                 auto bits = _bits[i];
                 for (uint32_t bit = 0; bits.any(); ++bit, bits >>= 1) {
-                    if (bits.test(0))
+                    if (bits.test(0)) {
                         _values.push_back(static_cast<uint32_t>((_first_word + i) * bits_per_block + bit));
+                    }
                 }
             }
             std::vector<bit_block>().swap(_bits);

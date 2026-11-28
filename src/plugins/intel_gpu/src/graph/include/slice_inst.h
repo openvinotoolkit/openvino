@@ -3,7 +3,9 @@
 //
 
 #pragma once
+#include <algorithm>
 #include <intel_gpu/primitives/slice.hpp>
+
 #include "primitive_inst.h"
 
 namespace cldnn {
@@ -60,7 +62,7 @@ public:
     static layout calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(slice_node const& node);
 
-    typed_primitive_inst(network& network, slice_node const& desc);
+    typed_primitive_inst(network& network, const slice_node& node);
     void update_shape_info_tensor(const kernel_impl_params& params) override;
 };
 
@@ -79,12 +81,9 @@ inline const std::vector<size_t>& SliceKernelRefNeededInputs::GetNeededInputInde
 
 ///////////////////////////////////////////////////////////////////
 inline bool SliceKernelRefNeededInputs::IsInputNeededInRuntime(InputIndices type) const {
-    for (auto idx : neededIndexes) {
-        if (idx == type) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(neededIndexes.begin(), neededIndexes.end(), [type](auto idx) {
+        return idx == type;
+    });
 }
 
 } // namespace cldnn

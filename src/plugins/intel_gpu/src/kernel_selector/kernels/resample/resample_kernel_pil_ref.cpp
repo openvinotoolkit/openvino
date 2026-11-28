@@ -49,7 +49,7 @@ int ConvertToNCHW(InterpolateAxis axis) {
 }
 
 Tensor::Dim ExtractDim(const DataTensor& tensor, InterpolateAxis axis) {
-    return tensor.Extract(tensor.GetLayout(), Convert(axis), tensor.GetDims());
+    return DataTensor::Extract(tensor.GetLayout(), Convert(axis), tensor.GetDims());
 }
 
 size_t getInputHorizontalSize(const resample_params& params, bool with_pad = false) {
@@ -101,10 +101,10 @@ std::size_t GetKernelsNum(const resample_params& params) {
 
 std::size_t GetFirstRow(const resample_params& params) {
     float scale = static_cast<float>(getInputVerticalSize(params, true)) / static_cast<float>(getOutputVerticalSize(params));
-    float filter_scale = std::max(1.f, scale);
-    float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-    float center = 0.5f * scale;
-    auto xmin = std::max(0, static_cast<int>(center - support + 0.5f));
+    float filter_scale = std::max(1.F, scale);
+    float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
+    float center = 0.5F * scale;
+    auto xmin = std::max(0, static_cast<int>(center - support + 0.5F));
     return xmin;
 }
 
@@ -112,10 +112,10 @@ std::size_t GetLastRow(const resample_params& params) {
     auto inputVerticalSize = getInputVerticalSize(params, true);
     auto outputVerticalSize = getOutputVerticalSize(params);
     float scale = static_cast<float>(inputVerticalSize) / static_cast<float>(outputVerticalSize);
-    float filter_scale = std::max(1.f, scale);
-    float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-    float center = (outputVerticalSize - 0.5f) * scale;
-    auto xmax = std::min(inputVerticalSize, static_cast<std::size_t>(center + support + 0.5f));
+    float filter_scale = std::max(1.F, scale);
+    float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
+    float center = (outputVerticalSize - 0.5F) * scale;
+    auto xmax = std::min(inputVerticalSize, static_cast<std::size_t>(center + support + 0.5F));
     return xmax;
 }
 
@@ -162,7 +162,7 @@ inline ResampleKernelPilRef::KernelId& operator++(ResampleKernelPilRef::KernelId
   return id;
 }
 
-ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(KernelId id, const resample_params &arg) const {
+ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(KernelId id, const resample_params& arg) {
     ResampleKernelBase::DispatchData dispatchData;
     switch (id) {
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
@@ -214,8 +214,8 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
         auto outputHorizontalSize = getOutputHorizontalSize(params);
         float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
-        float filter_scale = std::max(1.f, scale);
-        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        float filter_scale = std::max(1.F, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
         int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
 
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // coefficients
@@ -245,8 +245,8 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
         auto outputVerticalSize = getOutputVerticalSize(params);
         float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
-        float filter_scale = std::max(1.f, scale);
-        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        float filter_scale = std::max(1.F, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
         int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
 
         internalBuffers.push_back(outputVerticalSize * ksize * sizeof(float)); // coefficients
@@ -301,10 +301,11 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
             auto outputHorizontalSize = getOutputHorizontalSize(params);
             float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+            float filter_scale = std::max(1.F, scale);
+            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            jit_constants.AddConstants({MakeJitConstant("IN_DIM_BEGIN", 0.f),
+            jit_constants.AddConstants({
+                MakeJitConstant("IN_DIM_BEGIN", 0.F),
                 MakeJitConstant("IN_DIM_END", static_cast<float>(inputHorizontalSizeWithPadding)),
                 MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputHorizontalSizeWithPadding)),
                 MakeJitConstant("OUT_DIM_SIZE", static_cast<int>(outputHorizontalSize)),
@@ -320,8 +321,8 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
             auto outputHorizontalSize = getOutputHorizontalSize(params);
             float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+            float filter_scale = std::max(1.F, scale);
+            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
             auto ybox_first = GetFirstRow(params);
             const bool needVerticalPass = NeedVerticalPass(params);
@@ -353,10 +354,11 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
             auto outputVerticalSize = getOutputVerticalSize(params);
             float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+            float filter_scale = std::max(1.F, scale);
+            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            jit_constants.AddConstants({MakeJitConstant("IN_DIM_BEGIN", 0.f),
+            jit_constants.AddConstants({
+                MakeJitConstant("IN_DIM_BEGIN", 0.F),
                 MakeJitConstant("IN_DIM_END", static_cast<float>(inputVerticalSizeWithPadding)),
                 MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputVerticalSizeWithPadding)),
                 MakeJitConstant("OUT_DIM_SIZE", static_cast<int>(outputVerticalSize)),
@@ -372,8 +374,8 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
             auto outputVerticalSize = getOutputVerticalSize(params);
             float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+            float filter_scale = std::max(1.F, scale);
+            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.F : 2.F * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
             const bool needHorizontalPass = NeedHorizontalPass(params);
             jit_constants.AddConstants({MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),

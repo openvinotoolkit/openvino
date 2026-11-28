@@ -7,6 +7,7 @@
 #include "registry.hpp"
 
 #if OV_GPU_WITH_OCL
+#    include "impls/ocl_v2/paged_causal_conv1d_opt.hpp"
 #    include "impls/ocl_v2/paged_causal_conv1d_ref.hpp"
 #endif
 
@@ -17,6 +18,7 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<paged_causal_conv1d>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_OCL
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedCausalConv1DOpt, shape_types::any)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedCausalConv1DRef, shape_types::any)
 #endif
     };

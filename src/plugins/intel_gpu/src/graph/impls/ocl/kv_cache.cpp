@@ -365,27 +365,38 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             // When primitive is optimized, concat kernel writes directly to variable memory
             return stream.aggregate_events(res_events, res_events.size() > 1);
         }
+
+        // realloc_outputs() binds a state to its output buffer even without preallocated padding; a self-copy is invalid
+        std::vector<std::pair<memory::ptr, memory::ptr>> state_copies;
+        const auto add_state_copy = [&](const memory::ptr& state_mem, const memory& out_mem) {
+            if (!engine.is_the_same_buffer(*state_mem, out_mem)) {
+                state_copies.emplace_back(state_mem, engine.reinterpret_buffer(out_mem, state_mem->get_layout()));
+            }
+        };
+        add_state_copy(variable.get_memory(), instance.output_memory(0));
+
+        if (desc->compressed) {
+            auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
+            add_state_copy(compressed_cache_variable->get_compression_scale_state()->get_memory(), instance.output_memory(2));
+
+            if (desc->get_compression_zp_inputs_num() > 0) {
+                add_state_copy(compressed_cache_variable->get_compression_zp_state()->get_memory(), instance.output_memory(3));
+            }
+        }
+
+        if (state_copies.empty()) {
+            GPU_DEBUG_TRACE_DETAIL << desc->id << " : Variable memory is bound to the output buffer! Skip copying " << std::endl;
+            return stream.aggregate_events(res_events, res_events.size() > 1);
+        }
         // Otherwise, we need to copy result from out buffer to state memory
         GPU_DEBUG_TRACE_DETAIL << desc->id << " : Copying output to variable memory" << std::endl;
 
         stream.enqueue_barrier();
 
         std::vector<event::ptr> copy_events;
-        auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
-        copy_events.push_back(variable.get_memory()->copy_from(stream, *out, false));
-
-        if (desc->compressed) {
-            auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
-            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
-            auto scale_state = compressed_cache_variable->get_compression_scale_state();
-            auto out_scale_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(2), scale_state->get_memory()->get_layout());
-            copy_events.push_back(scale_state->get_memory()->copy_from(stream, *out_scale_mem, false));
-
-            if (desc->get_compression_zp_inputs_num() > 0) {
-                auto zp_state = compressed_cache_variable->get_compression_zp_state();
-                auto out_zp_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(3), zp_state->get_memory()->get_layout());
-                copy_events.push_back(zp_state->get_memory()->copy_from(stream, *out_zp_mem, false));
-            }
+        for (const auto& [state_mem, out_mem] : state_copies) {
+            copy_events.push_back(state_mem->copy_from(stream, *out_mem, false));
         }
 
         return stream.aggregate_events(copy_events, copy_events.size() > 1);

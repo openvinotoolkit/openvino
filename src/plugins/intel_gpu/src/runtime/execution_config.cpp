@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -44,7 +45,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-constexpr float optimum_intel_default_asf = 8.0f;
+constexpr float optimum_intel_default_asf = 8.0F;
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
@@ -76,6 +77,11 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // A READ with a write gate has two outputs, which the legacy shape inference cannot address by port.
+    if (ov::is_type<ov::intel_gpu::op::GatedResidual>(op)) {
         return true;
     }
 
@@ -371,8 +377,15 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
+    if (!is_set_by_user(ov::intel_gpu::use_onednn)) {
+#if defined(OV_GPU_VENDOR_NVIDIA)
+        // oneDNN is the main backend on NVIDIA GPUs
         m_use_onednn = true;
+#else
+        if (info.supports_immad) {
+            m_use_onednn = true;
+        }
+#endif
     }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;

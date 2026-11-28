@@ -62,7 +62,9 @@ public:
 
 protected:
     virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const = 0;
-    virtual std::string GetKernelName(const convolution_params&) const { return kernelName; }
+    virtual std::string GetKernelName(const convolution_params& /*unused*/) const {
+        return kernelName;
+    }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p) const override;
     using WeightBiasKernelBase::GetJitConstants;
@@ -70,16 +72,16 @@ protected:
     virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
-    static bool CheckWorkGroups(const DispatchData&);
+    static bool CheckWorkGroups(const DispatchData& /*dispatchData*/);
     KernelsData GetCommonKernelsData(const Params& params,
                                      const std::string exeMode = EXE_MODE_DEFAULT,
                                      int autoTuneIndex = -1) const;
 
-    Datatype GetPackedType(Datatype dt, size_t pack_size = 4) const;
-    Datatype GetPackedInputType(const convolution_params& params) const;
-    Datatype GetPackedOutputType(const convolution_params& params, size_t pack_size = 4) const;
+    static Datatype GetPackedType(Datatype dt, size_t pack_size = 4);
+    static Datatype GetPackedInputType(const convolution_params& params);
+    static Datatype GetPackedOutputType(const convolution_params& params, size_t pack_size = 4);
     Datatype GetActivationType(const convolution_params& params) const;
-    Datatype GetAccumulatorType(const convolution_params& params) const;
+    static Datatype GetAccumulatorType(const convolution_params& params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 

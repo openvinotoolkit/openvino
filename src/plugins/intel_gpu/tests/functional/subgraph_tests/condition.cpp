@@ -21,6 +21,13 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/avg_pool.hpp"
 
+#include "openvino/op/concat.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+
 namespace {
 class InnerBodyGenerator {
 public:
@@ -892,4 +899,106 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_zero_dims, DynamicConditionLayer
                     testing::ValuesIn(condTypes_zero_dims),                             // cond type
                     testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),         // device type
                 DynamicConditionLayerGPUTest::getTestCaseName);
+
+class ConditionSplitConcatClipSubgraphGPUTest : public testing::WithParamInterface<ov::element::Type>,
+                                                virtual public ov::test::SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto prc = GetParam();
+
+        ov::test::InputShape boxes_shape{ov::PartialShape{-1, 10, 4}, {{1, 10, 4}, {1, 10, 4}}};
+        ov::test::InputShape pred_shape{ov::PartialShape{}, {{}, {}}};
+        init_input_shapes({pred_shape, boxes_shape});
+
+        auto pred_param = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::PartialShape{});
+        auto boxes_param = std::make_shared<ov::op::v0::Parameter>(prc, ov::PartialShape{-1, 10, 4});
+
+        auto split_axis2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+        auto split_boxes = std::make_shared<ov::op::v1::Split>(boxes_param, split_axis2, 4);
+
+        auto build_passthrough_branch = [&](bool swap_outputs) {
+            auto p0 = std::make_shared<ov::op::v0::Parameter>(prc, ov::PartialShape{-1, 10, 1});
+            auto p1 = std::make_shared<ov::op::v0::Parameter>(prc, ov::PartialShape{-1, 10, 1});
+            auto r0 = std::make_shared<ov::op::v0::Result>(swap_outputs ? p1 : p0);
+            auto r1 = std::make_shared<ov::op::v0::Result>(swap_outputs ? p0 : p1);
+            return std::make_shared<ov::Model>(ov::ResultVector{r0, r1}, ov::ParameterVector{p0, p1});
+        };
+
+        auto then_y = build_passthrough_branch(false);
+        auto else_y = build_passthrough_branch(true);
+        auto if_y = std::make_shared<ov::op::v8::If>(pred_param);
+        if_y->set_then_body(then_y);
+        if_y->set_else_body(else_y);
+        if_y->set_input(split_boxes->output(0), then_y->get_parameters()[0], else_y->get_parameters()[0]);
+        if_y->set_input(split_boxes->output(2), then_y->get_parameters()[1], else_y->get_parameters()[1]);
+        auto y_min = if_y->set_output(then_y->get_results()[0], else_y->get_results()[0]);
+        auto y_max = if_y->set_output(then_y->get_results()[1], else_y->get_results()[1]);
+
+        auto then_x = build_passthrough_branch(false);
+        auto else_x = build_passthrough_branch(true);
+        auto if_x = std::make_shared<ov::op::v8::If>(pred_param);
+        if_x->set_then_body(then_x);
+        if_x->set_else_body(else_x);
+        if_x->set_input(split_boxes->output(1), then_x->get_parameters()[0], else_x->get_parameters()[0]);
+        if_x->set_input(split_boxes->output(3), then_x->get_parameters()[1], else_x->get_parameters()[1]);
+        auto x_min = if_x->set_output(then_x->get_results()[0], else_x->get_results()[0]);
+        auto x_max = if_x->set_output(then_x->get_results()[1], else_x->get_results()[1]);
+
+        auto canon_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{y_min, x_min, y_max, x_max}, 2);
+        auto reshape_2d = std::make_shared<ov::op::v1::Reshape>(
+            canon_concat,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {10, 4}),
+            false);
+        auto transpose_4x10 = std::make_shared<ov::op::v1::Transpose>(
+            reshape_2d,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0}));
+
+        auto split_axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto clip_split = std::make_shared<ov::op::v1::Split>(transpose_4x10, split_axis0, 4);
+        auto zero_const = ov::op::v0::Constant::create(prc, ov::Shape{1, 1}, {0.0f});
+        auto one_const = ov::op::v0::Constant::create(prc, ov::Shape{1, 1}, {1.0f});
+
+        ov::OutputVector clipped_coords;
+        for (size_t i = 0; i < 4; ++i) {
+            auto clamped_upper = std::make_shared<ov::op::v1::Minimum>(clip_split->output(i), one_const);
+            auto clamped_lower = std::make_shared<ov::op::v1::Maximum>(clamped_upper, zero_const);
+            clipped_coords.push_back(clamped_lower);
+        }
+
+        auto clipped_concat = std::make_shared<ov::op::v0::Concat>(clipped_coords, 0);
+        auto area_split = std::make_shared<ov::op::v1::Split>(clipped_concat, split_axis0, 4);
+        auto height = std::make_shared<ov::op::v1::Subtract>(area_split->output(2), area_split->output(0));
+        auto width = std::make_shared<ov::op::v1::Subtract>(area_split->output(3), area_split->output(1));
+        auto area = std::make_shared<ov::op::v1::Multiply>(height, width);
+
+        auto res_boxes = std::make_shared<ov::op::v0::Result>(clipped_concat);
+        auto res_area = std::make_shared<ov::op::v0::Result>(area);
+        function = std::make_shared<ov::Model>(ov::ResultVector{res_boxes, res_area},
+                                               ov::ParameterVector{pred_param, boxes_param},
+                                               "ConditionSplitConcatClip");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& params = function->get_parameters();
+        auto pred_tensor = ov::Tensor{ov::element::boolean, {}};
+        pred_tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>()[0] = (iter++ % 2 == 0);
+        inputs.insert({params[0], pred_tensor});
+
+        auto boxes_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(
+            params[1]->get_element_type(), targetInputStaticShapes[1], 0.05f, 0.95f, 42);
+        inputs.insert({params[1], boxes_tensor});
+    }
+
+    size_t iter = 0;
+};
+
+TEST_P(ConditionSplitConcatClipSubgraphGPUTest, CompareWithRefs) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConditionSplitConcatClip,
+                         ConditionSplitConcatClipSubgraphGPUTest,
+                         testing::Values(ov::element::f32, ov::element::f16));
 } // namespace

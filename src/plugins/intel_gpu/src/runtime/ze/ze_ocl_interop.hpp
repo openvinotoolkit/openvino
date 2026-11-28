@@ -67,18 +67,19 @@ public:
     bool check_support(ze_device_handle_t ze_device) const;
 
     cl_device_id find_ocl_device(ze_device_handle_t ze_device) const;
-    ze_driver_handle_t find_ze_driver(cl_device_id ocl_device) const;
+    static ze_driver_handle_t find_ze_driver(cl_device_id ocl_device);
 
-    ze_context_handle_t get_ze_context(cl_context context) const;
-    ze_command_list_handle_t get_ze_cmd_list(cl_command_queue queue) const;
-    void* get_ze_usm(cl_mem ocl_mem) const;
-    ze_image_handle_t get_ze_image(cl_mem ocl_mem) const;
-    ze_device_handle_t get_ze_device(cl_device_id device) const;
+    static ze_context_handle_t get_ze_context(cl_context context);
+    static ze_command_list_handle_t get_ze_cmd_list(cl_command_queue queue);
+    static void* get_ze_usm(cl_mem ocl_mem);
+    static ze_image_handle_t get_ze_image(cl_mem ocl_mem);
+    static ze_device_handle_t get_ze_device(cl_device_id device);
 
-    cl_context create_cl_context(ze_context_handle_t context, const ocl_context_args& args) const;
-    cl_command_queue create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args) const;
-    cl_mem create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args) const;
-    cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args) const;
+    static cl_context create_cl_context(ze_context_handle_t context, const ocl_context_args& args);
+    static cl_command_queue create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args);
+    static cl_mem create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args);
+    static cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args);
+
 protected:
     ze_ocl_interop() = default;
     /// @brief Initialize OpenCL and L0 drivers and fill device_map

@@ -38,7 +38,7 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
             axes[i] += rank;
         }
 
-        if (axes[i] >= static_cast<int64_t>(rank) || axes[i] < 0) {
+        if (axes[i] >= rank || axes[i] < 0) {
             OPENVINO_THROW("[GPU] Unsupported axis value in ", op->get_friendly_name(), " (", axes[i], ")");
         }
     }

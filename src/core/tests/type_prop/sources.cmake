@@ -131,6 +131,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mvn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/negative.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/non_zero.cpp
@@ -152,6 +153,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp

@@ -27,6 +27,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
@@ -45,11 +46,13 @@ using ConfigParams = std::tuple<std::string,   // Device name
 namespace ov {
 namespace test {
 namespace behavior {
+
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
+    ::intel_npu::VCLFunctionTableProvider vclFunctionsProvider;
     std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
     std::string configuration;
@@ -80,6 +83,10 @@ public:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        const auto vclLoader = std::make_shared<VCLLoader>();
+        vclFunctionsProvider = [vclLoader] {
+            return vclLoader->sharedFunctions();
+        };
         options->reset();
 #define REGISTER_OPTION(OPT_TYPE) \
     do {                          \
@@ -143,10 +150,6 @@ public:
             }
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        REGISTER_OPTION(ENABLE_CPU_PINNING);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-
         // NPUW properties are requested by OV Core during caching and
         // have no effect on the NPU plugin. But we still need to enable
         // those for OV Core to query. Note: do this last to not filter
@@ -156,10 +159,15 @@ public:
             REGISTER_OPTION(Opt);
         });
 
+        const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
+        const auto adapterFactory = std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
+                                                                                                vclFunctionsProvider,
+                                                                                                optionSupportCache);
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(adapterFactory),
+            adapterFactory,
             ::intel_npu::Logger::global());
     }
 
@@ -682,10 +690,14 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
 
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
+    const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
+    const auto adapterFactory =
+        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache);
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory()),
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(adapterFactory),
+        adapterFactory,
         ::intel_npu::Logger::global());
 
     {

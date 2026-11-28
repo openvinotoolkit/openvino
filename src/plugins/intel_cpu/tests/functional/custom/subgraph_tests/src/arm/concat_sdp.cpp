@@ -41,6 +41,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::Values<int64_t>(8)),
                          ConcatSDPTest::getTestCaseName);
 
+// Shifts q and k apart so that every attention score is far below zero. The f16 softmax must still pick the
+// row max from the scores; seeding it with 0 made exp() underflow and the attention output NaN.
+class ConcatSDPNegativeScoresTest : public ConcatSDPTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        ConcatSDPTest::generate_inputs(targetInputStaticShapes);
+        const auto& params = function->get_parameters();
+        shift(inputs.at(params[0]), 2.0F);   // q
+        shift(inputs.at(params[1]), -2.0F);  // k
+        shift(inputs.at(params[3]), -2.0F);  // past k
+    }
+
+private:
+    static void shift(ov::Tensor& tensor, float delta) {
+        auto* data = tensor.data<ov::float16>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            data[i] = ov::float16(static_cast<float>(data[i]) + delta);
+        }
+    }
+};
+
+TEST_P(ConcatSDPNegativeScoresTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPNegativeScoresTest,
+                         ConcatSDPNegativeScoresTest,
+                         ::testing::Combine(::testing::Values(ElementType::f16),
+                                            ::testing::Values(inputShapes[0]),
+                                            ::testing::Values(cfg_none, cfg_u8_sym),
+                                            ::testing::Values(false),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values<int64_t>(8, 2)),
+                         ConcatSDPTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov

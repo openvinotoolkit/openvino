@@ -2,20 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sstream>
+#include <tuple>
+
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "pass/simplify_activation_shapes.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 
 namespace {
 
@@ -90,6 +103,230 @@ TEST_F(GGUFActivationShapes, KeepsMatMulOutputConsumersAtRankFour) {
     model = get_matmul_output_consumers_model();
     model_ref = get_matmul_output_consumers_model_ref();
     comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
+}
+
+std::shared_ptr<ov::Model> matmul_rms_model(bool with_scale, bool with_residual, const ov::PartialShape& input_shape) {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+    const auto target = v0::Constant::create(ov::element::i64, {4}, {-1, 1, 1, 8});
+    const auto expanded = std::make_shared<v1::Reshape>(x, target, false);
+    const auto weights = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(expanded, weights, false, true);
+    const auto axes = v0::Constant::create(ov::element::i64, {1}, {-1});
+    const auto eps = v0::Constant::create(ov::element::f32, {}, {1e-5f});
+    const auto gamma = v0::Constant::create(ov::element::f32, {8}, {0.5f});
+    ov::pass::NodeRegistry reg;
+    ov::Output<ov::Node> value =
+        ov::decomposition::rms_norm(reg, fc, axes, eps, with_scale ? gamma->output(0) : ov::Output<ov::Node>{});
+    if (with_residual)
+        value = std::make_shared<v1::Add>(value, expanded);
+    return std::make_shared<ov::Model>(ov::OutputVector{value}, ov::ParameterVector{x});
+}
+
+std::shared_ptr<ov::Model> matmul_rms_model_ref(bool with_scale,
+                                                bool with_residual,
+                                                const ov::PartialShape& input_shape) {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+    const auto target = v0::Constant::create(ov::element::i64, {4}, {-1, 1, 1, 8});
+    const auto expanded = std::make_shared<v1::Reshape>(x, target, false);
+    const auto weights = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(expanded, weights, false, true);
+    const auto gamma = v0::Constant::create(ov::element::f32, {8}, {0.5f});
+    ov::Output<ov::Node> value = with_scale
+                                     ? std::make_shared<ov::op::internal::RMS>(fc, gamma, 1e-5f, ov::element::f32)
+                                     : std::make_shared<ov::op::internal::RMS>(fc, 1e-5f, ov::element::f32);
+    if (with_residual)
+        value = std::make_shared<v1::Add>(value, expanded);
+    return std::make_shared<ov::Model>(ov::OutputVector{value}, ov::ParameterVector{x});
+}
+
+using MatMulRmsFusionParams = std::tuple<bool, bool, ov::PartialShape>;
+
+class GGUFMatMulRmsFusion : public GGUFActivationShapes, public testing::WithParamInterface<MatMulRmsFusionParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulRmsFusionParams>& info) {
+        const auto& [with_scale, with_residual, input_shape] = info.param;
+        std::ostringstream name;
+        name << (with_scale ? "Scaled" : "Unscaled") << (with_residual ? "Residual" : "NoResidual")
+             << (input_shape[0].is_dynamic() ? "Dynamic" : "Static");
+        return name.str();
+    }
+
+protected:
+    void SetUp() override {
+        GGUFActivationShapes::SetUp();
+        const auto& [with_scale, with_residual, input_shape] = GetParam();
+        model = matmul_rms_model(with_scale, with_residual, input_shape);
+        model_ref = matmul_rms_model_ref(with_scale, with_residual, input_shape);
+        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+        manager.register_pass<ov::pass::EliminateSqueeze>();
+        manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+    }
+};
+
+TEST_P(GGUFMatMulRmsFusion, FusesMatMulRmsNorm) {}
+
+INSTANTIATE_TEST_SUITE_P(GGUFActivationShapes,
+                         GGUFMatMulRmsFusion,
+                         testing::Values(MatMulRmsFusionParams{true, true, {-1, 1, 8}},
+                                         MatMulRmsFusionParams{true, true, {2, 1, 8}},
+                                         MatMulRmsFusionParams{false, false, {2, 1, 8}},
+                                         MatMulRmsFusionParams{false, true, {-1, 1, 8}}),
+                         GGUFMatMulRmsFusion::getTestCaseName);
+
+std::shared_ptr<ov::Model> rotary_model(bool compact,
+                                        int64_t split_axis,
+                                        int64_t concat_axis,
+                                        bool split_input = false,
+                                        bool split_cos = false) {
+    const bool split_last = split_axis == -1 || split_axis == 3;
+    const auto x_shape = split_cos    ? ov::PartialShape{2, 1, 2, 8}
+                         : split_last ? ov::PartialShape{2, 1, -1, 8}
+                                      : ov::PartialShape{2, 1, 8, 4};
+    const auto table_shape = split_cos    ? ov::PartialShape{2, 1, 2, 4}
+                             : split_last ? ov::PartialShape{2, 1, -1, 4}
+                                          : ov::PartialShape{2, 1, 4, 4};
+    const auto input =
+        std::make_shared<v0::Parameter>(ov::element::f32, split_input ? ov::PartialShape{2, 2, -1, 8} : x_shape);
+    ov::Output<ov::Node> x = input;
+    if (split_input) {
+        x = std::make_shared<v1::VariadicSplit>(input,
+                                                v0::Constant::create(ov::element::i64, {}, {1}),
+                                                v0::Constant::create(ov::element::i64, {2}, {1, 1}))
+                ->output(0);
+    }
+    const auto cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, split_cos ? ov::PartialShape{2, 1, 4, 4} : table_shape);
+    const auto sin = std::make_shared<v0::Parameter>(ov::element::f32, table_shape);
+    const auto split = std::make_shared<v1::VariadicSplit>(x,
+                                                           v0::Constant::create(ov::element::i64, {}, {split_axis}),
+                                                           v0::Constant::create(ov::element::i64, {2}, {4, 4}));
+    const auto axis = v0::Constant::create(ov::element::i64, {1}, {1});
+    ov::Output<ov::Node> first = split->output(0);
+    ov::Output<ov::Node> second = split->output(1);
+    ov::Output<ov::Node> cos_value = cos;
+    ov::Output<ov::Node> sin_value = sin;
+    if (split_cos) {
+        cos_value = std::make_shared<v1::VariadicSplit>(cos,
+                                                        v0::Constant::create(ov::element::i64, {}, {2}),
+                                                        v0::Constant::create(ov::element::i64, {2}, {2, 2}))
+                        ->output(0);
+    }
+    if (compact) {
+        first = std::make_shared<v0::Squeeze>(first, axis);
+        second = std::make_shared<v0::Squeeze>(second, axis);
+        cos_value = std::make_shared<v0::Squeeze>(cos_value, axis);
+        sin_value = std::make_shared<v0::Squeeze>(sin_value, axis);
+    }
+    const auto first_cos =
+        split_cos ? std::make_shared<v1::Multiply>(cos_value, first) : std::make_shared<v1::Multiply>(first, cos_value);
+    const auto second_sin = std::make_shared<v1::Multiply>(second, sin_value);
+    const auto negative =
+        std::make_shared<v1::Multiply>(second_sin, v0::Constant::create(ov::element::f32, {}, {-1.f}));
+    ov::Output<ov::Node> result_first = std::make_shared<v1::Add>(first_cos, negative);
+    const auto second_cos = split_cos ? std::make_shared<v1::Multiply>(cos_value, second)
+                                      : std::make_shared<v1::Multiply>(second, cos_value);
+    const auto first_sin = std::make_shared<v1::Multiply>(first, sin_value);
+    ov::Output<ov::Node> result_second = std::make_shared<v1::Add>(second_cos, first_sin);
+    if (compact) {
+        result_first = std::make_shared<v0::Unsqueeze>(result_first, axis);
+        result_second = std::make_shared<v0::Unsqueeze>(result_second, axis);
+    }
+    const auto output = std::make_shared<v0::Concat>(ov::OutputVector{result_first, result_second}, concat_axis);
+    return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, cos, sin});
+}
+
+std::shared_ptr<ov::Model> rotary_model_ref(bool split_input = false, bool split_cos = false) {
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32,
+                                                       split_input ? ov::PartialShape{2, 2, -1, 8}
+                                                       : split_cos ? ov::PartialShape{2, 1, 2, 8}
+                                                                   : ov::PartialShape{2, 1, -1, 8});
+    ov::Output<ov::Node> x = input;
+    if (split_input) {
+        x = std::make_shared<v1::VariadicSplit>(input,
+                                                v0::Constant::create(ov::element::i64, {}, {1}),
+                                                v0::Constant::create(ov::element::i64, {2}, {1, 1}))
+                ->output(0);
+    }
+    const auto cos =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        split_cos ? ov::PartialShape{2, 1, 4, 4} : ov::PartialShape{2, 1, -1, 4});
+    const auto sin =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        split_cos ? ov::PartialShape{2, 1, 2, 4} : ov::PartialShape{2, 1, -1, 4});
+    ov::Output<ov::Node> cos_value = cos;
+    if (split_cos) {
+        cos_value = std::make_shared<v1::VariadicSplit>(cos,
+                                                        v0::Constant::create(ov::element::i64, {}, {2}),
+                                                        v0::Constant::create(ov::element::i64, {2}, {2, 2}))
+                        ->output(0);
+    }
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = 8;
+    config.cos_sin_ndims = 4;
+    const auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, cos_value, sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos, sin});
+}
+
+using SingletonHeadRoPEParams = std::tuple<int64_t, int64_t, bool, bool>;
+
+class SingletonHeadRoPEFusionTests : public GGUFActivationShapes,
+                                     public testing::WithParamInterface<SingletonHeadRoPEParams> {
+protected:
+    void SetUp() override {
+        GGUFActivationShapes::SetUp();
+        const auto [split_axis, concat_axis, split_input, split_cos] = GetParam();
+        model = rotary_model(false, split_axis, concat_axis, split_input, split_cos);
+        model_ref = rotary_model_ref(split_input, split_cos);
+        manager.register_pass<ov::pass::RoPEFusion>();
+        comparator.disable(FunctionsComparator::ACCURACY);
+        disable_rt_info_check();
+    }
+};
+
+TEST_P(SingletonHeadRoPEFusionTests, Fuses) {}
+
+std::string singleton_head_rope_test_name(const testing::TestParamInfo<SingletonHeadRoPEParams>& info) {
+    switch (info.index) {
+    case 0:
+        return "NegativeAxes";
+    case 1:
+        return "PositiveAxes";
+    case 2:
+        return "SplitInput";
+    case 3:
+        return "SplitCosine";
+    default:
+        return "Unknown";
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         SingletonHeadRoPEFusionTests,
+                         testing::Values(SingletonHeadRoPEParams{-1, -1, false, false},
+                                         SingletonHeadRoPEParams{3, 3, false, false},
+                                         SingletonHeadRoPEParams{-1, -1, true, false},
+                                         SingletonHeadRoPEParams{-1, -1, false, true}),
+                         singleton_head_rope_test_name);
+
+TEST_F(GGUFActivationShapes, SimplifiesRotaryArithmeticWithNonLastConcatAxis) {
+    model = rotary_model(false, -1, 2);
+    model_ref = rotary_model(true, -1, 2);
+}
+
+TEST_F(GGUFActivationShapes, SimplifiesRotaryArithmeticWithNonLastSplitAxis) {
+    model = rotary_model(false, 2, -1);
+    model_ref = rotary_model(true, 2, -1);
+}
+
+TEST_F(GGUFActivationShapes, KeepsUnrelatedMatMulElementwiseConsumersAtRankFour) {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{2, 1, 3, 8});
+    const auto weights = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(x, weights, false, true);
+    const auto scale = v0::Constant::create(ov::element::f32, {}, {0.5f});
+    const auto exponent = v0::Constant::create(ov::element::f32, {}, {2.0f});
+    model = std::make_shared<ov::Model>(
+        ov::OutputVector{std::make_shared<v1::Multiply>(fc, scale), std::make_shared<v1::Power>(fc, exponent)},
+        ov::ParameterVector{x});
 }
 
 TEST_F(GGUFActivationShapes, PreservesOtherOutputsOfReshapeProducer) {

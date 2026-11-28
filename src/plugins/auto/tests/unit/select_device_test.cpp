@@ -331,6 +331,8 @@ TEST_P(SelectDeviceWithUtilizationTest, selectDeviceWithUtilization) {
     std::string netPrecision = "FP32";
     auto result = plugin->select_device(devices, netPrecision, 0, {threshold, {}}, {});
     compare(result, selectedDeviceInfo);
+    // m_priority_map is process-wide static state; clean up to avoid leaking into other suites.
+    plugin->unregister_priority(0, result.unique_name);
 }
 
 const std::unordered_map<std::string, unsigned> testUtilizThreshold_15 = {{"CPU", 15},
@@ -393,7 +395,7 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
                        {{"CPU", 85.5f}, {"GPU", 20.5f}},
-                       {"CPU", {}, -1, "01", "CPU_01", 1}},
+                       {"GPU", {}, -1, "01", "GPU", 2}},
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
                        {{"CPU", 85.5f}, {"GPU.0", 20.5f}},
@@ -403,7 +405,7 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
                        {{"CPU", 85.5f}, {"GPU.0", 20.5f}, {"GPU.1", 50.5f}},
-                       {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
+                       {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
@@ -630,6 +632,9 @@ public:
         std::vector<std::string> npuCapability = {"FP32", "FP16", "INT8", "BIN"};
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCapability));
+        // without it CPU is dropped as not supporting the precision, leaving only NPU to choose from
+        ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_CPU), StrEq(ov::device::capabilities.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(npuCapability));
         ON_CALL(*plugin, get_device_utilizations)
             .WillByDefault([this](const std::list<DeviceInformation>& devices) -> std::unordered_map<std::string, float> {
                 std::unordered_map<std::string, float> result;
@@ -675,6 +680,30 @@ TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, thresholdResultIsKeptWhenP
 
     auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable}, {});
     EXPECT_EQ(result.unique_name, "NPU_01");
+    plugin->unregister_priority(0, result.unique_name);
+}
+
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, leastLoadedDeviceIsSelectedWhenAllExceedThresholds) {
+    std::string netPrecision = "FP32";
+    std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 1}, {"NPU", {}, -1, "01", "NPU_01", 2}};
+    std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 20}, {"NPU", 20}};
+    deviceUtilization = {{"CPU", 90.f}, {"NPU", 40.f}};
+
+    // Both exceed their thresholds; NPU is less loaded although CPU has the higher priority.
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {});
+    EXPECT_EQ(result.unique_name, "NPU_01");
+    plugin->unregister_priority(0, result.unique_name);
+}
+
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, priorityOrderBreaksTieWhenAllExceedThresholds) {
+    std::string netPrecision = "FP32";
+    // an explicit priority list is needed, the default order puts CPU behind every other device
+    std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 1}, {"NPU", {}, -1, "01", "NPU_01", 2}};
+    std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 20}, {"NPU", 20}};
+    deviceUtilization = {{"CPU", 50.f}, {"NPU", 50.f}};
+
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {});
+    EXPECT_EQ(result.unique_name, "CPU_01");
     plugin->unregister_priority(0, result.unique_name);
 }
 
