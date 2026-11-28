@@ -1227,7 +1227,7 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.ovc import convert_model
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
-        with self.assertRaisesRegex(Exception, "Input for tensor name \'input1\[1, 10\]\' is not found."):
+        with self.assertRaisesRegex(Exception, r"Input for tensor name 'input1\[1, 10\]' is not found."):
             convert_model(pytorch_model, input='input1[1, 10]')
 
     def test_incorrect_inputs_2(self):
@@ -1235,7 +1235,7 @@ class ConvertRaises(unittest.TestCase):
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
         # check that it accepts specified names as is, without parsing into 2 different inputs
-        with self.assertRaisesRegex(Exception, 'Input for tensor name \'input1,input2\' is not found.'):
+        with self.assertRaisesRegex(Exception, r"Input for tensor name 'input1,input2' is not found."):
             convert_model(pytorch_model, input='input1,input2')
 
     def test_incorrect_inputs_3(self):
@@ -1243,7 +1243,7 @@ class ConvertRaises(unittest.TestCase):
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
         # check that it accepts specified names as is, without parsing into 2 different inputs
-        with self.assertRaisesRegex(Exception, 'Input for tensor name \'input1\[1, 10\],input2\[2, 100\]\' is not found.'):
+        with self.assertRaisesRegex(Exception, r"Input for tensor name 'input1\[1, 10\],input2\[2, 100\]' is not found."):
             convert_model(pytorch_model, input='input1[1, 10],input2[2, 100]')
 
     def test_incorrect_inputs_4(self):
@@ -1251,7 +1251,7 @@ class ConvertRaises(unittest.TestCase):
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
         # check that it accepts specified names as is, without parsing into 2 different inputs
-        with self.assertRaisesRegex(Exception, 'Input for tensor name \'input1\[1, 10\]\' is not found.'):
+        with self.assertRaisesRegex(Exception, r"Input for tensor name 'input1\[1, 10\]' is not found."):
             convert_model(pytorch_model, input=[
                           'input1[1, 10]', 'input2[2, 100]'])
 
@@ -1267,10 +1267,10 @@ class ConvertRaises(unittest.TestCase):
 
         # Check that OVC raises error message of wrong argument.
         with self.assertRaisesRegex(Exception, ".*Conversion is failed for: aten::relu.*"):
-            convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
+            convert_model(pt_model, input=(inp_shapes, np.float32), extension=[
                 ConversionExtension("aten::relu", relu_bad)])
 
-    def test_failed_extension(self):
+    def test_cannot_recognize_input_model(self):
         import tempfile
         import os
         from openvino.tools.ovc import convert_model
