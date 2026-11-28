@@ -1009,6 +1009,40 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
     for (auto& layer_id : order) {
         auto& p = params[layer_id];
         const auto& edgeIt = edges.find(layer_id);
+        std::unordered_set<size_t> connected_ports;
+        if (edgeIt != edges.end()) {
+            connected_ports.reserve(edgeIt->second.size());
+            for (const auto& e : edgeIt->second) {
+                connected_ports.insert(e.toPortId);
+            }
+        }
+        std::vector<size_t> missing_ports;
+        for (const auto& in_port : p.params.inputPorts) {
+            if (connected_ports.find(in_port.portId) == connected_ports.end()) {
+                missing_ports.push_back(in_port.portId);
+            }
+        }
+        if (!missing_ports.empty()) {
+            const size_t expected_input_ports = p.params.inputPorts.size();
+            std::ostringstream missing_str;
+            for (size_t m_idx = 0; m_idx < missing_ports.size(); ++m_idx) {
+                missing_str << missing_ports[m_idx] << (m_idx + 1 < missing_ports.size() ? ", " : "");
+            }
+            OPENVINO_THROW("OpenVINO IR Deserialization Error: Layer '",
+                           p.params.name,
+                           "' (type: ",
+                           p.params.type,
+                           ", id: ",
+                           p.params.layerId,
+                           ") is missing an incoming edge on input port(s): [",
+                           missing_str.str(),
+                           "]. Layer expects ",
+                           expected_input_ports,
+                           " connected input port(s), but only ",
+                           connected_ports.size(),
+                           " unique port(s) with incoming edges were found in the IR XML.");
+        }
+
         if (edgeIt == edges.end())
             continue;
         ov::OutputVector inputs(edgeIt->second.size());
@@ -1027,6 +1061,20 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
                                p.params.layerId,
                                " is inconsistent!");
             inputs[realInputPortId] = input_node->output(p_output.get_real_output_port_id(e.fromPortId));
+        }
+
+        for (size_t port_idx = 0; port_idx < inputs.size(); ++port_idx) {
+            if (!inputs[port_idx].get_node()) {
+                OPENVINO_THROW("OpenVINO IR Deserialization Error: Layer '",
+                               p.params.name,
+                               "' (type: ",
+                               p.params.type,
+                               ", id: ",
+                               p.params.layerId,
+                               ") input port ",
+                               port_idx,
+                               " is not connected to a valid source node.");
+            }
         }
 
         auto node = create_node(inputs, p.xml, m_weights_provider, p.params);
