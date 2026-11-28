@@ -1347,17 +1347,40 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             serialize_weightless(stream, cpu_closures, ctx);
             NPUW_ASSERT(cpu_closure_ids.size() == cpu_closures.size() &&
                         "Malformed ORC blob: CPU closure ids count does not match CPU closure tensor count");
-            std::size_t tidx = 0;
-            for (const auto& idx : cpu_closure_ids) {
-                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: CPU closure index is out of range");
-                closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
-            }
             stream & non_cpu_tensors_ids & non_cpu_tensors;
             NPUW_ASSERT(non_cpu_tensors_ids.size() == non_cpu_tensors.size() &&
                         "Malformed ORC blob: non-CPU closure ids count does not match non-CPU tensor count");
+            std::vector<bool> seen(closure_size, false);
+            for (std::size_t tidx = 0; tidx < cpu_closure_ids.size(); ++tidx) {
+                const auto idx = cpu_closure_ids[tidx];
+                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: CPU closure index is out of range");
+                NPUW_ASSERT(!seen[idx] && "Malformed ORC blob: duplicate closure index");
+                NPUW_ASSERT(closure_desc.closure_uid[idx] == -1 &&
+                            "Malformed ORC blob: CPU closure id does not match closure_uid classification");
+                NPUW_ASSERT(cpu_closures[tidx] && "Malformed ORC blob: CPU closure tensor is uninitialized");
+                seen[idx] = true;
+            }
+            for (std::size_t ltidx = 0; ltidx < non_cpu_tensors_ids.size(); ++ltidx) {
+                const auto idx = non_cpu_tensors_ids[ltidx];
+                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: non-CPU closure index is out of range");
+                NPUW_ASSERT(!seen[idx] && "Malformed ORC blob: duplicate closure index");
+                NPUW_ASSERT(closure_desc.closure_uid[idx] != -1 &&
+                            "Malformed ORC blob: non-CPU closure id does not match closure_uid classification");
+                NPUW_ASSERT(non_cpu_tensors[ltidx] && "Malformed ORC blob: non-CPU closure tensor is uninitialized");
+                seen[idx] = true;
+            }
+            NPUW_ASSERT(std::all_of(seen.begin(),
+                                    seen.end(),
+                                    [](bool is_seen) {
+                                        return is_seen;
+                                    }) &&
+                        "Malformed ORC blob: closure ids do not cover the closure");
+            std::size_t tidx = 0;
+            for (const auto& idx : cpu_closure_ids) {
+                closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
+            }
             std::size_t ltidx = 0;
             for (const auto& idx : non_cpu_tensors_ids) {
-                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: non-CPU closure index is out of range");
                 lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
             }
             for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
