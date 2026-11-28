@@ -21,6 +21,12 @@ passes, decoders, and conversion tests.
   `i >= context.get_input_size()`, as well as for an explicit `None`. It can
   guard optional inputs without a separate range check; do not flag calls
   beyond the input count as out-of-bounds access.
+- When FX or export entries are removed from the operation table in favor of
+  ATen-name fallback to TorchScript translators, list the affected operations
+  and check each inherited wrapper (`quantizable_op`, `inplace_op`, optional
+  input and output type handling) against FX schemas and quantization
+  metadata. A wrapper can activate FX code paths that were never exercised,
+  such as requantization of quantized outputs.
 - Distinguish capture specialization from conversion defects. Do not turn
   symbolic shape calculations into example-input constants, or reorder user
   inputs, parameters, buffers, and flattened container outputs.
@@ -52,6 +58,12 @@ destinations when affected. Preserve view/copy distinctions: non-contiguous
 reshape may copy, and `*_copy` variants must not gain aliases merely because
 values match. Use the captured graph and decoder alias contract as evidence.
 
+Alias, mutation, constant-attribute, and subgraph handling shared by capture
+paths affects all of them. Check unfrozen `torch.jit.script` models with
+constants captured inside nested `prim::If`/`prim::Loop` blocks, mutations
+through unpacked list/tuple aliases, and exported higher-order operations such
+as `vmap`.
+
 ## Regression coverage
 
 Confirm the actual mode in the
@@ -59,7 +71,9 @@ Confirm the actual mode in the
 `PYTORCH_TRACING_MODE=EXPORT` selects export, `TORCHFX` selects the compile
 backend, and the ordinary path uses TorchScript scripting/tracing options.
 Check affected paths when shared logic receives different schemas or metadata;
-do not demand unsupported capture modes.
+do not demand unsupported capture modes. For quantization changes or FX
+dispatch changes, include FX models quantized by NNCF with both `u8` and `i8`
+quantizers.
 
 Verify the expected operator/overload survives capture and decomposition.
 For the changed rule, check mixed dtype/scalar kinds, multiple permitted
