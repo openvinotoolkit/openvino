@@ -74,7 +74,7 @@ protected:
     static size_t weights_section_size(const std::string& blob) {
         const auto reader = runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
         OPENVINO_ASSERT(reader.has_value(), "Not an HSM blob");
-        const auto section = reader->section(hsm::weights.device, hsm::weights.tag.id());
+        const auto section = reader->section(hsm::weights.device, hsm::weights.tag);
         return section ? section->size() : 0;
     }
 
@@ -129,12 +129,12 @@ TEST_F(CpuHsmBlobTest, exported_blob_is_hsm_with_cpu_sections) {
 
     const auto reader = runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
     ASSERT_TRUE(reader.has_value());
-    EXPECT_EQ(reader->count(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id()), 1u);
-    EXPECT_EQ(reader->count(hsm::model_id.device, hsm::model_id.tag.id()), 0u);
-    EXPECT_EQ(reader->count(hsm::model_struct.device, hsm::model_struct.tag.id()), 1u);
-    EXPECT_EQ(reader->count(hsm::weights.device, hsm::weights.tag.id()), 1u);
+    EXPECT_EQ(reader->count(hsm::runtime_requirements.device, hsm::runtime_requirements.tag), 1u);
+    EXPECT_EQ(reader->count(hsm::model_id.device, hsm::model_id.tag), 0u);
+    EXPECT_EQ(reader->count(hsm::model_struct.device, hsm::model_struct.tag), 1u);
+    EXPECT_EQ(reader->count(hsm::weights.device, hsm::weights.tag), 1u);
 
-    const auto requirements = reader->section(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id());
+    const auto requirements = reader->section(hsm::runtime_requirements.device, hsm::runtime_requirements.tag);
     ASSERT_TRUE(requirements.has_value());
     const auto bytes = requirements->to_bytes();
     ASSERT_TRUE(bytes.has_value());

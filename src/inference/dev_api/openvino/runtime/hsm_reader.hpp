@@ -196,76 +196,67 @@ public:
 
     /**
      * @brief Number of manifest entries matching (@p device, @p tag) - no section payload is read.
+     * @note Matches the tag id and the reserved bytes exactly, as #IWriter::add_section() writes them; a bare
+     * #SectionTag converts to a #SectionTagReserved with zero reserved bytes. The inline/pointer flag is ignored.
      *
      * @param device The device ID to match.
-     * @param tag The tag to match.
+     * @param tag The tag and reserved bytes to match.
      * @return size_t The number of matching manifest entries.
      */
-    template <typename Tag>
-    size_t count(DeviceId device, Tag tag) const noexcept {
-        return count_by_id(device, static_cast<uint32_t>(tag));
-    }
+    size_t count(DeviceId device, const SectionTagReserved& tag) const noexcept;
 
     /**
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
-    template <typename Tag>
-    size_t count(Tag tag) const noexcept {
-        return count_by_id(any_device_id, static_cast<uint32_t>(tag));
+    size_t count(const SectionTagReserved& tag) const noexcept {
+        return count(any_device_id, tag);
     }
 
     /**
      * @brief Finds the first manifest entry matching (@p device, @p tag) and returns a #Section handle for it.
+     * @note Matches like #count().
      *
      * @param device The device ID to match.
-     * @param tag The tag to match.
+     * @param tag The tag and reserved bytes to match.
      * @return std::optional<Section> A handle to the matching section, or `std::nullopt` if not found.
      */
-    template <typename Tag>
-    std::optional<Section> section(DeviceId device, Tag tag) const {
-        return section_by_id(device, static_cast<uint32_t>(tag));
-    }
+    std::optional<Section> section(DeviceId device, const SectionTagReserved& tag) const;
 
     /**
-     * @overload Uses #any_device_id - shorthand for Core sections; no new accessor needed as tags grow.
+     * @overload Uses #any_device_id - shorthand for Core sections.
      */
-    template <typename Tag>
-    std::optional<Section> section(Tag tag) const {
-        return section_by_id(any_device_id, static_cast<uint32_t>(tag));
+    std::optional<Section> section(const SectionTagReserved& tag) const {
+        return section(any_device_id, tag);
     }
 
     /**
      * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
      * manifest order.
+     * @note Matches like #count().
      *
-     * @tparam Tag The type of the tag, typically an enum or `uint32_t`.
      * @param device The device ID to match.
-     * @param tag The tag to match.
+     * @param tag The tag and reserved bytes to match.
      * @return std::vector<Section> A vector of handles to the matching sections, in manifest order.
      */
-    template <typename Tag>
-    std::vector<Section> sections(DeviceId device, Tag tag) const {
-        return sections_by_id(device, static_cast<uint32_t>(tag));
-    }
+    std::vector<Section> sections(DeviceId device, const SectionTagReserved& tag) const;
 
     /**
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
-    template <typename Tag>
-    std::vector<Section> sections(Tag tag) const {
-        return sections_by_id(any_device_id, static_cast<uint32_t>(tag));
+    std::vector<Section> sections(const SectionTagReserved& tag) const {
+        return sections(any_device_id, tag);
     }
 
     /**
      * @brief Runs @p decoder over the first manifest entry matching (@p device, @p tag).
      * @note Returns std::nullopt if no matching entry is found, or if @p decoder itself returns std::nullopt.
      * @param device The device ID to match.
-     * @param tag The tag to match.
+     * @param tag The tag and reserved bytes to match - see #count().
      * @param decoder The decoder to run over the matching section.
      * @return A decoded value if the section is found and the decoder succeeds; otherwise, `std::nullopt`.
      */
-    template <typename T, typename Tag>
-    std::optional<T> decode(DeviceId device, Tag tag, const SectionDecoder<T>& decoder) const {
+    template <typename T>
+    std::optional<T> decode(DeviceId device, const SectionTagReserved& tag, const SectionDecoder<T>& decoder) const {
         const auto found = section(device, tag);
         return found ? decoder(*found) : std::nullopt;
     }
@@ -273,8 +264,8 @@ public:
     /**
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
-    template <typename T, typename Tag>
-    std::optional<T> decode(Tag tag, const SectionDecoder<T>& decoder) const {
+    template <typename T>
+    std::optional<T> decode(const SectionTagReserved& tag, const SectionDecoder<T>& decoder) const {
         return decode(any_device_id, tag, decoder);
     }
 
@@ -284,12 +275,14 @@ public:
      * @note If no matching entries are found, an empty vector is returned.
      *
      * @param device The device ID to match.
-     * @param tag The tag to match.
+     * @param tag The tag and reserved bytes to match - see #count().
      * @param decoder The decoder to run over the matching sections.
      * @return A vector of decoded values for the matching sections that the decoder accepts.
      */
-    template <typename T, typename Tag>
-    std::vector<T> decode_all(DeviceId device, Tag tag, const SectionDecoder<T>& decoder) const {
+    template <typename T>
+    std::vector<T> decode_all(DeviceId device,
+                              const SectionTagReserved& tag,
+                              const SectionDecoder<T>& decoder) const {
         std::vector<T> result;
         for (const auto& found : sections(device, tag)) {
             if (auto value = decoder(found)) {
@@ -302,8 +295,8 @@ public:
     /**
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
-    template <typename T, typename Tag>
-    std::vector<T> decode_all(Tag tag, const SectionDecoder<T>& decoder) const {
+    template <typename T>
+    std::vector<T> decode_all(const SectionTagReserved& tag, const SectionDecoder<T>& decoder) const {
         return decode_all(any_device_id, tag, decoder);
     }
 
@@ -328,10 +321,6 @@ private:
           m_manifest(std::move(manifest)) {}
 
     Section make_section(const ManifestEntry& entry) const;
-
-    std::optional<Section> section_by_id(DeviceId device, uint32_t tag_id) const;
-    std::vector<Section> sections_by_id(DeviceId device, uint32_t tag_id) const;
-    size_t count_by_id(DeviceId device, uint32_t tag_id) const noexcept;
 
     std::optional<ov::util::MemoryView> m_buffer;  //!< set only by open(data,size)
     std::istream* m_stream;                        //!< non-owning; set only by open(stream)

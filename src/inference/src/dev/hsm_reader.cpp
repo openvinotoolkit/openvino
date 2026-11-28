@@ -67,8 +67,8 @@ bool Section::read(size_t offset, size_t length, void* destination) const noexce
 }
 
 namespace {
-bool entry_matches(const ManifestEntry& entry, DeviceId device, uint32_t tag_id) noexcept {
-    return entry.device == device && entry.tag.id() == tag_id;
+bool entry_matches(const ManifestEntry& entry, DeviceId device, const SectionTagReserved& tag) noexcept {
+    return entry.device == device && entry.tag.id() == tag.tag.id() && entry.tag_reserved == tag.bytes;
 }
 
 // Resizes `manifest` per header.manifest_size and reads it in; a no-op read for an empty manifest.
@@ -151,26 +151,26 @@ Section Reader::make_section(const ManifestEntry& entry) const {
     }
 }
 
-std::optional<Section> Reader::section_by_id(DeviceId device, uint32_t tag_id) const {
-    const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), [device, tag_id](const auto& entry) {
-        return entry_matches(entry, device, tag_id);
+std::optional<Section> Reader::section(DeviceId device, const SectionTagReserved& tag) const {
+    const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), [device, &tag](const auto& entry) {
+        return entry_matches(entry, device, tag);
     });
     return found != m_manifest.end() ? std::optional<Section>(make_section(*found)) : std::nullopt;
 }
 
-std::vector<Section> Reader::sections_by_id(DeviceId device, uint32_t tag_id) const {
+std::vector<Section> Reader::sections(DeviceId device, const SectionTagReserved& tag) const {
     std::vector<Section> result;
     for (const auto& entry : m_manifest) {
-        if (entry_matches(entry, device, tag_id)) {
+        if (entry_matches(entry, device, tag)) {
             result.push_back(make_section(entry));
         }
     }
     return result;
 }
 
-size_t Reader::count_by_id(DeviceId device, uint32_t tag_id) const noexcept {
-    return static_cast<size_t>(std::count_if(m_manifest.begin(), m_manifest.end(), [device, tag_id](const auto& entry) {
-        return entry_matches(entry, device, tag_id);
+size_t Reader::count(DeviceId device, const SectionTagReserved& tag) const noexcept {
+    return static_cast<size_t>(std::count_if(m_manifest.begin(), m_manifest.end(), [device, &tag](const auto& entry) {
+        return entry_matches(entry, device, tag);
     }));
 }
 

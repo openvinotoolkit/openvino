@@ -199,7 +199,7 @@ protected:
         std::stringstream stream(blob);
         const auto reader = hsm::Reader::open(stream);
         OPENVINO_ASSERT(reader, "Not an HSM blob");
-        const auto weights = reader->section(template_device_id, hsm::weights);
+        const auto weights = reader->section(template_device_id, hsm::weights_tag);
         OPENVINO_ASSERT(weights, "No weights section");
         const auto bytes = weights->to_bytes();
         OPENVINO_ASSERT(bytes, "Cannot read the weights section");
@@ -414,7 +414,7 @@ TEST_F(TemplateHsmBlobTest, compile_options_hold_the_cache_relevant_properties) 
     std::stringstream stream(export_hsm({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}));
     const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader);
-    const auto section = reader->section(template_device_id, hsm::compile_options);
+    const auto section = reader->section(template_device_id, hsm::compile_options_tag);
     ASSERT_TRUE(section);
     const auto bytes = section->to_bytes();
     ASSERT_TRUE(bytes);
@@ -436,7 +436,7 @@ TEST_F(TemplateHsmBlobTest, model_id_is_stable_for_a_compiled_model) {
         std::stringstream stream(export_blob(compiled));
         const auto reader = hsm::Reader::open(stream);
         OPENVINO_ASSERT(reader, "Not an HSM blob");
-        const auto bytes = reader->section(hsm::any_device_id, hsm::model_id)->to_bytes();
+        const auto bytes = reader->section(hsm::any_device_id, hsm::model_id_tag)->to_bytes();
         OPENVINO_ASSERT(bytes, "Cannot read the model id section");
         return std::string(reinterpret_cast<const char*>(bytes->data()), bytes->size());
     };
@@ -450,12 +450,12 @@ TEST_F(TemplateHsmBlobTest, exported_blob_has_all_sections) {
     ASSERT_TRUE(reader);
 
     EXPECT_EQ(reader->entries().size(), 6u);
-    EXPECT_EQ(reader->count(hsm::any_device_id, hsm::model_id), 1u);
-    EXPECT_EQ(reader->count(hsm::any_device_id, hsm::runtime_requirements), 1u);
-    EXPECT_EQ(reader->count(template_device_id, hsm::model), 1u);
-    EXPECT_EQ(reader->count(template_device_id, hsm::weights), 1u);
-    EXPECT_EQ(reader->count(template_device_id, hsm::compile_options), 1u);
-    EXPECT_EQ(reader->count(template_device_id, blob_info_tag.id()), 1u);
+    EXPECT_EQ(reader->count(hsm::any_device_id, hsm::model_id_tag), 1u);
+    EXPECT_EQ(reader->count(hsm::any_device_id, hsm::runtime_requirements_tag), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::model_tag), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::weights_tag), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::compile_options_tag), 1u);
+    EXPECT_EQ(reader->count(template_device_id, blob_info_tag), 1u);
 }
 
 TEST_F(TemplateHsmBlobTest, weights_section_starts_on_a_page_boundary) {
@@ -477,8 +477,8 @@ TEST_F(TemplateHsmBlobTest, cache_mode_optimize_size_omits_weights_section) {
     const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader);
 
-    EXPECT_EQ(reader->count(template_device_id, hsm::model), 1u);
-    EXPECT_EQ(reader->count(template_device_id, hsm::weights), 0u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::model_tag), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::weights_tag), 0u);
 }
 
 TEST_F(TemplateHsmBlobTest, weightless_blob_is_imported_with_weights_path_hint) {

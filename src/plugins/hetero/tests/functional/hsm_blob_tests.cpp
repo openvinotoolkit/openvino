@@ -229,9 +229,14 @@ TEST_P(HeteroHsmBlobVariantTests, export_is_hsm_with_hetero_sections_per_submode
 
     const auto reader = runtime::hsm::Reader::open(as_bytes(variant.blob), variant.blob.size());
     ASSERT_TRUE(reader.has_value());
-    EXPECT_EQ(1u, reader->count(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id()));
-    EXPECT_EQ(1u, reader->count(hsm::metadata.device, hsm::metadata.tag.id()));
-    EXPECT_EQ(variant.submodels, reader->count(variant.payload.device, variant.payload.tag.id()));
+    EXPECT_EQ(1u, reader->count(hsm::runtime_requirements.device, hsm::runtime_requirements.tag));
+    EXPECT_EQ(1u, reader->count(hsm::metadata.device, hsm::metadata.tag));
+    size_t payload_sections = 0;
+    for (uint32_t index = 0; index < variant.submodels; ++index) {
+        payload_sections += reader->count(variant.payload.device,
+                                          {variant.payload.tag, hsm::encode_section_index(index)});
+    }
+    EXPECT_EQ(variant.submodels, payload_sections);
 
     std::vector<uint32_t> indexes;
     for (const auto& entry : reader->entries()) {
@@ -295,9 +300,9 @@ TEST_F(HeteroHsmBlobTests, submodel_that_cannot_export_falls_back_to_ir_sections
 
     const auto reader = runtime::hsm::Reader::open(as_bytes(blob), blob.size());
     ASSERT_TRUE(reader.has_value());
-    EXPECT_EQ(0u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag.id()));
-    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag.id()));
-    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag.id()));
+    EXPECT_EQ(0u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag));
     expect_adds_weights(import_from_stream(blob), size, 1.0f);
     expect_adds_weights(import_from_tensor(blob), size, 1.0f);
 }
@@ -346,10 +351,10 @@ TEST_F(HeteroHsmBlobTests, ir_submodel_stores_xml_and_weights_sections) {
 
     const auto reader = runtime::hsm::Reader::open(as_bytes(blob), blob.size());
     ASSERT_TRUE(reader.has_value());
-    EXPECT_EQ(0u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag.id()));
-    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag.id()));
-    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag.id()));
-    const auto weights = reader->section(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag.id());
+    EXPECT_EQ(0u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag));
+    const auto weights = reader->section(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag);
     ASSERT_TRUE(weights.has_value());
     EXPECT_EQ(size * sizeof(float), weights->size());
 
@@ -438,8 +443,8 @@ TEST_F(HeteroHsmBlobTests, nested_hsm_blob_of_a_sub_device_keeps_page_alignment)
 
     const auto reader = runtime::hsm::Reader::open(as_bytes(blob), blob.size());
     ASSERT_TRUE(reader.has_value());
-    EXPECT_EQ(1u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag.id()));
-    EXPECT_EQ(0u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag.id()));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag));
+    EXPECT_EQ(0u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag));
     const auto outer = std::find_if(reader->entries().begin(), reader->entries().end(), [](const auto& entry) {
         return has_section_id(entry, hsm::submodel_blob);
     });
