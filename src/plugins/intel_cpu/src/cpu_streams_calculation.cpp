@@ -37,6 +37,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -1388,6 +1389,20 @@ int get_model_prefer_threads(const int num_streams,
     return config.modelPreferThreads;
 }
 
+// Rewrites every row's threads-per-stream, since IStreamsExecutor::Config reads it from the table.
+// Rows with NUMBER_OF_STREAMS == 0 only describe splitting a multi-core-type stream and are dropped.
+static void force_single_thread_per_stream(std::vector<std::vector<int>>& streams_info_table) {
+    streams_info_table.erase(std::remove_if(streams_info_table.begin(),
+                                            streams_info_table.end(),
+                                            [](const std::vector<int>& row) {
+                                                return row[NUMBER_OF_STREAMS] == 0;
+                                            }),
+                             streams_info_table.end());
+    for (auto& row : streams_info_table) {
+        row[THREADS_PER_STREAM] = MULTI_APP_THREAD_SYNC_THREADS_PER_STREAM;
+    }
+}
+
 std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    const int input_numa_node_id,
                                                    const std::shared_ptr<ov::Model>& model,
@@ -1431,10 +1446,39 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
-                                                config.changedCpuPinning,
-                                                config.enableCpuReservation,
-                                                streams_info_table);
+    // Same gating as CompiledModel::m_run_sync_in_caller_thread: runs unpinned on app threads, so intra-op
+    // threads would only add contention.
+    const bool has_sub_streams = config.numSubStreams > 0 ||
+                                 std::any_of(streams_info_table.begin(), streams_info_table.end(), [](const auto& row) {
+                                     return row[NUMBER_OF_STREAMS] < 0;
+                                 });
+    const bool run_sync_in_caller_thread =
+        config.multiAppThreadSyncExecution && !config.exclusiveAsyncRequests && !has_sub_streams;
+
+    // Reject an explicit pinning request here, before check_cpu_pinning() can override it per platform
+    // (e.g. forced off on macOS), so the contract is the same everywhere.
+    OPENVINO_ASSERT(!run_sync_in_caller_thread || !config.changedCpuPinning || !config.enableCpuPinning,
+                    "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with "
+                    "ov::hint::enable_cpu_pinning(true). Running inference on the calling application thread "
+                    "while CPU pinning is enabled silently changes that thread's CPU affinity. Remove "
+                    "ov::hint::enable_cpu_pinning(true) or set it to false.");
+
+    if (run_sync_in_caller_thread && !config.changedCpuPinning) {
+        // Pinning would change the caller thread's affinity, so default it off unless explicitly requested.
+        config.enableCpuPinning = false;
+        OPENVINO_INFO("[CPU] ov::hint::enable_cpu_pinning resolved to false because "
+                      "ov::intel_cpu::multi_app_thread_sync_execution(true) runs inference on application threads.");
+    } else {
+        config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
+                                                    config.changedCpuPinning,
+                                                    config.enableCpuReservation,
+                                                    streams_info_table);
+    }
+
+    if (run_sync_in_caller_thread) {
+        force_single_thread_per_stream(streams_info_table);
+        config.threadsPerStream = MULTI_APP_THREAD_SYNC_THREADS_PER_STREAM;
+    }
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,

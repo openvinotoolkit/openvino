@@ -441,6 +441,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/input_tensor_initialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/properties.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/release_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_infer_request/multi_app_thread_sync.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_plugin/properties.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/compiled_model/core_integration.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/compiled_model/cpu_reservation_test.cpp

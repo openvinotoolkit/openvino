@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -116,6 +115,36 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  * @endcode
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
+
+/**
+ * @brief This CPU-specific opt-in property runs synchronous inference directly on the calling
+ * application thread instead of dispatching to a worker thread.
+ * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * Intended for workloads where multiple application threads share one compiled model, each
+ * driving its own synchronous request.
+ *
+ * @code
+ * core.compile_model(model, "CPU", ov::AnyMap{{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
+ * @endcode
+ *
+ * @note Falls back to the regular async pipeline (with a warning log) when exclusive async
+ * requests are enabled or the model uses sub-streams (e.g. tensor-parallel); check get_property()
+ * for the effective value.
+ * @note CPU pinning defaults to false with this property, since inline inference would otherwise
+ * change the caller thread's own affinity. Explicitly passing ov::hint::enable_cpu_pinning(true)
+ * together with this property is rejected with an exception at compile_model() time.
+ * @note Each call runs on a free internal graph slot. Up to NUM_STREAMS concurrent application threads
+ * run in parallel. Beyond that, extra threads wait for a slot to free up. Results stay correct, but
+ * parallelism is capped at NUM_STREAMS.
+ * @note On multi-socket (NUMA) systems, CPU pinning is disabled, so the OS can schedule caller threads
+ * on any NUMA node. Each internal graph's memory, however, stays on the NUMA node of its stream.
+ * This includes memory migrated under ov::hint::performance_mode(LATENCY). Callers running on a
+ * different node therefore see remote memory access latency and reduced NUMA locality. To keep
+ * locality, bind each application thread to the node of the stream it is expected to use, or limit
+ * the model to one NUMA node.
+ */
+static constexpr Property<bool> multi_app_thread_sync_execution{"CPU_MULTI_APP_THREAD_SYNC_EXECUTION"};
 
 }  // namespace intel_cpu
 }  // namespace ov

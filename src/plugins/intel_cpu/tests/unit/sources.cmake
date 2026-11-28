@@ -9,6 +9,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_memory_desc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_memory_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_zero_dims_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/multi_app_thread_sync_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rt_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/weights_cache_test.cpp

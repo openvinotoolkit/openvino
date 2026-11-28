@@ -4,14 +4,17 @@
 
 #include "openvino/runtime/properties.hpp"
 
+#include <algorithm>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "internal_properties.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/properties_test.hpp"
 
@@ -47,6 +50,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RO_property(ov::intel_cpu::multi_app_thread_sync_execution.name()),
         RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RO_property(ov::intel_cpu::tbb_partitioner.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
@@ -168,6 +172,104 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
 
     ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionWithZeroStreams) {
+    ov::Core ie;
+    ov::CompiledModel compiledModel;
+    bool value = false;
+    ov::AnyMap config = {ov::num_streams(0), ov::intel_cpu::multi_app_thread_sync_execution(true)};
+
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+
+    ASSERT_TRUE(value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExclusiveAsyncDisablesMultiAppThreadSyncExecution) {
+    ov::Core ie;
+    ov::CompiledModel compiledModel;
+    bool value = true;
+    ov::AnyMap config = {ov::num_streams(4),
+                         ov::internal::exclusive_async_requests(true),
+                         ov::intel_cpu::multi_app_thread_sync_execution(true)};
+
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+
+    ASSERT_FALSE(value);
+}
+
+// Tensor-parallel sub-streams are not supported in caller-thread mode: compile must succeed and
+// fall back to the regular async pipeline, reporting the effective value as false.
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelDisablesMultiAppThreadSyncExecution) {
+    ov::Core ie;
+    std::shared_ptr<ov::Model> tensorParallelModel = ov::test::utils::make_matmul_bias();
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {
+        ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), modelDistributionPolicy},
+                         {ov::intel_cpu::enable_tensor_parallel.name(), true},
+                         {ov::num_streams.name(), 1},
+                         {ov::inference_num_threads.name(), 1},
+                         {ov::hint::enable_cpu_pinning.name(), false},
+                         {ov::intel_cpu::multi_app_thread_sync_execution.name(), true}};
+
+    ov::CompiledModel compiledModel;
+    bool value = true;
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(tensorParallelModel, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+
+    auto request = compiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(request.infer());
+}
+
+// Explicitly requested CPU pinning + multi_app_thread_sync_execution=true must be rejected: running
+// inference on the caller thread while pinned would silently alter that thread's own CPU affinity.
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionRejectsCpuPinning) {
+    ov::Core ie;
+    ov::AnyMap config = {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
+                        {ov::hint::enable_cpu_pinning.name(), true},
+                        {ov::num_streams.name(), 4}};
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ie.compile_model(model, deviceName, config),
+                                  ov::Exception,
+                                  "multi_app_thread_sync_execution");
+}
+
+// Without an explicit enable_cpu_pinning, pinning must resolve to false on every platform so the
+// documented usage (multi_app_thread_sync_execution alone) compiles and runs on the caller thread.
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionDisablesDefaultCpuPinning) {
+    ov::Core ie;
+    ov::AnyMap config = {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
+                         {ov::num_streams.name(), 4}};
+
+    ov::CompiledModel compiledModel;
+    bool syncValue = false;
+    bool pinningValue = true;
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(syncValue = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+    OV_ASSERT_NO_THROW(pinningValue = compiledModel.get_property(ov::hint::enable_cpu_pinning));
+    ASSERT_TRUE(syncValue);
+    ASSERT_FALSE(pinningValue);
+
+    auto request = compiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(request.infer());
+}
+
+// Explicitly disabling CPU pinning alongside multi_app_thread_sync_execution=true must
+// continue to compile and infer successfully.
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionAllowedWithoutCpuPinning) {
+    ov::Core ie;
+    bool value = false;
+    ov::AnyMap config = {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
+                        {ov::hint::enable_cpu_pinning.name(), false},
+                        {ov::num_streams.name(), 4}};
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_TRUE(value);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
@@ -574,6 +676,91 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
     ASSERT_EQ(model_distribution_policy_value, setModels);
     ASSERT_EQ(enable_tensor_parallel, true);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncDefaultIsFalse) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+    bool value = true;
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(
+                           ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetTrue) {
+    ov::Core core;
+    // Pinning must be disabled here since it's rejected alongside this property (see the
+    // rejection test above); this test only targets get_property readback.
+    ov::CompiledModel compiledModel = core.compile_model(
+        model, deviceName,
+        {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
+         {ov::hint::enable_cpu_pinning.name(), false}});
+    bool value = false;
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(
+                           ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_TRUE(value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetFalse) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(
+        model, deviceName, {{ov::intel_cpu::multi_app_thread_sync_execution.name(), false}});
+    bool value = true;
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(
+                           ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncInferNoThrow) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(
+        model, deviceName,
+        {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
+         {ov::hint::enable_cpu_pinning.name(), false},
+         {ov::num_streams.name(), 1}});
+
+    auto inferRequest = compiledModel.create_infer_request();
+
+    // conv_pool_relu default input shape: {1, 1, 32, 32}, f32
+    ov::Tensor inputTensor(ov::element::f32, {1, 1, 32, 32});
+    std::fill_n(inputTensor.data<float>(), inputTensor.get_size(), 1.0f);
+    inferRequest.set_input_tensor(inputTensor);
+
+    OV_ASSERT_NO_THROW(inferRequest.infer());
+
+    auto outputTensor = inferRequest.get_output_tensor(0);
+    ASSERT_GT(outputTensor.get_size(), 0u);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncResultsMatchDefault) {
+    ov::Core core;
+
+    ov::Tensor inputTensor(ov::element::f32, {1, 1, 32, 32});
+    std::fill_n(inputTensor.data<float>(), inputTensor.get_size(), 1.0f);
+
+    auto runInfer = [&](bool syncExec) -> ov::Tensor {
+        ov::CompiledModel cm = core.compile_model(
+            model, deviceName,
+            {{ov::intel_cpu::multi_app_thread_sync_execution.name(), syncExec},
+             {ov::hint::enable_cpu_pinning.name(), false},
+             {ov::num_streams.name(), 1}});
+        auto req = cm.create_infer_request();
+        req.set_input_tensor(inputTensor);
+        req.infer();
+        return req.get_output_tensor(0);
+    };
+
+    ov::Tensor outDefault = runInfer(false);
+    ov::Tensor outSync    = runInfer(true);
+
+    ASSERT_EQ(outDefault.get_shape(), outSync.get_shape());
+    ASSERT_EQ(outDefault.get_element_type(), outSync.get_element_type());
+
+    const float* d0 = outDefault.data<float>();
+    const float* d1 = outSync.data<float>();
+    for (size_t i = 0; i < outDefault.get_size(); ++i) {
+        ASSERT_FLOAT_EQ(d0[i], d1[i]) << "Mismatch at element " << i;
+    }
 }
 
 }  // namespace

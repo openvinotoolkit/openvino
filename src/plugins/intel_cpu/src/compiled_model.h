@@ -8,6 +8,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -36,6 +37,9 @@ public:
         std::mutex _mutex;
         struct Lock : public std::unique_lock<std::mutex> {
             explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            Lock(GraphGuard& graph, std::try_to_lock_t tag)
+                : std::unique_lock<std::mutex>(graph._mutex, tag),
+                  _graph(graph) {}
             GraphGuard& _graph;
         };
     };
@@ -102,6 +106,9 @@ private:
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
     bool m_has_sub_compiled_models = false;
     bool m_optimized_single_stream = false;
+    // Effective "run inference on the caller thread" flag for CPU_MULTI_APP_THREAD_SYNC_EXECUTION,
+    // computed in the constructor from the real task executor.
+    bool m_run_sync_in_caller_thread = false;
     std::string m_runtime_requirements;
 };
 
