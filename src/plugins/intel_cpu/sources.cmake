@@ -625,6 +625,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/decompose_rms_norm.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/disable_bf16_comp_sin_cos_embedding.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/disable_bf16_comp_sin_cos_embedding.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/fc_bias_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/fc_bias_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/insert_convert_after_extension.cpp
