@@ -1927,7 +1927,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Not bound by the 128-EU floor: on the 64-EU integrated Xe2 the merged int2 projection is still faster.
         fuse_mlp_swiglu |= int2_merge_mlp;
         if (!disable_horizontal_fc_fusion) {
-            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
+#ifdef _WIN32
+            // CVS-200876
+            const bool evict_folded_weights = false;
+#else
+            const bool evict_folded_weights = config.get_offload_ratio() == 0;
+#endif
+            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu, evict_folded_weights);
 
             if (config.get_enable_lora_operation()) {
                 manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();

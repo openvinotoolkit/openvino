@@ -5,14 +5,17 @@
 #include "fc_horizontal_fusion.hpp"
 
 #include <string_view>
+#include <vector>
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/multiply.hpp"
@@ -25,7 +28,23 @@
 
 namespace ov::intel_gpu {
 
-FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
+namespace {
+
+/// @brief Hints the OS to evict the file-backed Constants that folding @p source reads.
+void evict_fold_inputs(const ov::Output<ov::Node>& source) {
+    std::vector<ov::Node*> nodes;
+    if (ov::could_propagate(source, nodes)) {
+        for (auto* node : nodes) {
+            if (auto* constant = ov::as_type<ov::op::v0::Constant>(node)) {
+                ov::weight_sharing::Extension::hint_evict(*constant);
+            }
+        }
+    }
+}
+
+}  // namespace
+
+FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool evict_folded_weights) {
     using namespace ov::pass::pattern;
 
     // Three FCs connected to the same input
@@ -173,7 +192,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // Concatenates and folds the given constant-like nodes into a Constant right away, instead of relying on ConstantFolding pass:
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
-        auto concat_and_fold = [](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+        auto concat_and_fold = [evict_folded_weights](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
             const auto& reference_shape = outputs.front().get_partial_shape();
             if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
                 return nullptr;
@@ -191,6 +210,9 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
+            if (evict_folded_weights) {
+                evict_fold_inputs(concat);
+            }
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;
