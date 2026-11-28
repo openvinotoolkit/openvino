@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 
 #include <memory>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -27,35 +28,68 @@ struct ConvertFCToCompressedParams {
     ov::PartialShape in_shape;
     ov::Shape wei_shape;
     ov::Shape scale_zp_shape;
+    bool transposed;
+    size_t expected_group_size;
 };
 
 class ConvertFCToCompressed : public testing::WithParamInterface<ConvertFCToCompressedParams>,
-                              public TransformationTestsF {};
+                              public TransformationTestsF {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertFCToCompressedParams>& info) {
+        const auto shape_name = [](const ov::Shape& shape) {
+            std::string name = shape.empty() ? "Scalar" : "";
+            for (const auto dim : shape) {
+                if (!name.empty()) {
+                    name += "x";
+                }
+                name += std::to_string(dim);
+            }
+            return name;
+        };
+        const auto& p = info.param;
+        return p.compressed_type.get_type_name() + "_Weights_" + shape_name(p.wei_shape) + "_ScaleZP_" +
+               shape_name(p.scale_zp_shape) + "_WithZP_" + std::to_string(p.with_zp) + "_Transposed_" +
+               std::to_string(p.transposed) + "_GroupSize_" + std::to_string(p.expected_group_size);
+    }
+
+protected:
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        ASSERT_EQ(received_group_size.size(), 1u);
+        EXPECT_EQ(received_group_size[0], GetParam().expected_group_size);
+    }
+
+    std::vector<size_t> received_group_size;
+};
 
 TEST_P(ConvertFCToCompressed, ConvertFCToCompressedTest) {
     const auto& params = GetParam();
     ov::element::Type compressed_type_ = params.compressed_type;
     bool with_zp_ = params.with_zp;
     bool grouped_ = params.grouped;
+    bool transposed_ = params.transposed;
     ov::PartialShape in_shape_ = params.in_shape;
     ov::Shape wei_shape_ = params.wei_shape;
     ov::Shape scale_zp_shape_ = params.scale_zp_shape;
     const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
     const std::vector<ov::element::Type> supported_weights_types{compressed_type_};
 
-    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                                     supported_weights_types);
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(
+        supported_activation_types,
+        supported_weights_types,
+        [this](const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t group_size) {
+            received_group_size.push_back(group_size);
+            return true;
+        });
 
-    auto weight_reshaped_dims = [&]() {
-        std::vector<int64_t> wei_reshaped;
-        for (size_t i = 0; i < wei_shape_.size() - 2; ++i) {
-            wei_reshaped.push_back(static_cast<int64_t>(wei_shape_[i]));
+    // Grouped [OC, G, IC / G] -> [OC, IC]; transposed grouped [G, IC / G, OC] -> [IC, OC]
+    auto combine_groups = [&](const ov::Shape& shape) {
+        if (!grouped_) {
+            return shape;
         }
-        int64_t combined_dim = static_cast<int64_t>(wei_shape_[wei_shape_.size() - 2]) *
-                               static_cast<int64_t>(wei_shape_[wei_shape_.size() - 1]);
-        wei_reshaped.push_back(combined_dim);
-        return wei_reshaped;
+        return transposed_ ? ov::Shape{shape[0] * shape[1], shape[2]} : ov::Shape{shape[0], shape[1] * shape[2]};
     };
+    auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, in_shape_);
         auto weights_const = ov::op::v0::Constant::create(compressed_type_, wei_shape_, {1});
@@ -72,10 +106,13 @@ TEST_P(ConvertFCToCompressed, ConvertFCToCompressedTest) {
         std::shared_ptr<ov::op::Op> wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
 
         if (grouped_) {
-            std::vector<int64_t> wei_reshaped = weight_reshaped_dims();
+            const auto wei_reshaped = combine_groups(wei_shape_);
             auto reshape_pattern =
                 ov::op::v0::Constant::create(ov::element::i32, ov::Shape{wei_reshaped.size()}, wei_reshaped);
             wei_scale = std::make_shared<ov::op::v1::Reshape>(wei_scale, reshape_pattern, false);
+        }
+        if (transposed_) {
+            wei_scale = std::make_shared<ov::op::v1::Transpose>(wei_scale, perm);
         }
         auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_scale, bias);
@@ -83,55 +120,68 @@ TEST_P(ConvertFCToCompressed, ConvertFCToCompressedTest) {
         model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
     }
     {
+        // The pass applies the weights Transpose to non-scalar scale / zero point as well
+        auto make_const = [&](ov::element::Type type, const ov::Shape& shape) -> std::shared_ptr<ov::Node> {
+            std::shared_ptr<ov::Node> node = ov::op::v0::Constant::create(type, combine_groups(shape), {1});
+            if (transposed_ && ov::shape_size(shape) > 1) {
+                node = std::make_shared<ov::op::v1::Transpose>(node, perm);
+            }
+            return node;
+        };
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, in_shape_);
-        auto reshape_dims = wei_shape_;
-        if (grouped_) {
-            std::vector<int64_t> reshaped_vec = weight_reshaped_dims();
-            reshape_dims = ov::Shape(reshaped_vec.begin(), reshaped_vec.end());
-        }
-        auto weights_const = ov::op::v0::Constant::create(compressed_type_, reshape_dims, {1});
-        auto scale_zp_shape = scale_zp_shape_;
-        if (grouped_) {
-            scale_zp_shape.pop_back();
-        }
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, scale_zp_shape, {1});
+        auto weights = make_const(compressed_type_, wei_shape_);
+        auto scale = make_const(ov::element::f32, scale_zp_shape_);
         auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed =
-            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
+        auto fc_compressed = std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights, bias, scale);
         if (with_zp_) {
-            auto zp_const = ov::op::v0::Constant::create(compressed_type_, scale_zp_shape, {1});
-            fc_compressed = std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
-                                                                                         weights_const,
-                                                                                         bias,
-                                                                                         scale_const,
-                                                                                         zp_const);
+            auto zp = make_const(compressed_type_, scale_zp_shape_);
+            fc_compressed =
+                std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights, bias, scale, zp);
         }
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
     }
 }
 
 const auto params = std::vector<ConvertFCToCompressedParams>{
-    {ov::element::u8, false, false, ov::PartialShape{10, 2048}, ov::Shape{5, 2048}, ov::Shape{5, 1}},
-    {ov::element::u8, true, false, ov::PartialShape{10, 2048}, ov::Shape{5, 2048}, ov::Shape{5, 1}},
+    {ov::element::u8, false, false, ov::PartialShape{10, 2048}, ov::Shape{5, 2048}, ov::Shape{5, 1}, false, 2048},
+    {ov::element::u8, true, false, ov::PartialShape{10, 2048}, ov::Shape{5, 2048}, ov::Shape{5, 1}, false, 2048},
     // grouped
-    {ov::element::u8, false, true, ov::PartialShape{10, 2048}, ov::Shape{5, 16, 128}, ov::Shape{5, 16, 1}},
-    {ov::element::u8, true, true, ov::PartialShape{10, 2048}, ov::Shape{5, 16, 128}, ov::Shape{5, 16, 1}},
+    {ov::element::u8, false, true, ov::PartialShape{10, 2048}, ov::Shape{5, 16, 128}, ov::Shape{5, 16, 1}, false, 128},
+    {ov::element::u8, true, true, ov::PartialShape{10, 2048}, ov::Shape{5, 16, 128}, ov::Shape{5, 16, 1}, false, 128},
     // grouped with output channel 1
-    {ov::element::u8, false, true, ov::PartialShape{10, 2048}, ov::Shape{1, 16, 128}, ov::Shape{1, 16, 1}},
-    {ov::element::u8, true, true, ov::PartialShape{10, 2048}, ov::Shape{1, 16, 128}, ov::Shape{1, 16, 1}},
+    {ov::element::u8, false, true, ov::PartialShape{10, 2048}, ov::Shape{1, 16, 128}, ov::Shape{1, 16, 1}, false, 128},
+    {ov::element::u8, true, true, ov::PartialShape{10, 2048}, ov::Shape{1, 16, 128}, ov::Shape{1, 16, 1}, false, 128},
 
-    {ov::element::u4, false, false, ov::PartialShape{-1, 512}, ov::Shape{3, 512}, ov::Shape{3, 1}},
-    {ov::element::u4, true, false, ov::PartialShape{-1, 512}, ov::Shape{3, 512}, ov::Shape{3, 1}},
+    {ov::element::u4, false, false, ov::PartialShape{-1, 512}, ov::Shape{3, 512}, ov::Shape{3, 1}, false, 512},
+    {ov::element::u4, true, false, ov::PartialShape{-1, 512}, ov::Shape{3, 512}, ov::Shape{3, 1}, false, 512},
     // grouped
-    {ov::element::u4, false, true, ov::PartialShape{-1, 512}, ov::Shape{3, 4, 128}, ov::Shape{3, 4, 1}},
-    {ov::element::u4, true, true, ov::PartialShape{-1, 512}, ov::Shape{3, 4, 128}, ov::Shape{3, 4, 1}},
+    {ov::element::u4, false, true, ov::PartialShape{-1, 512}, ov::Shape{3, 4, 128}, ov::Shape{3, 4, 1}, false, 128},
+    {ov::element::u4, true, true, ov::PartialShape{-1, 512}, ov::Shape{3, 4, 128}, ov::Shape{3, 4, 1}, false, 128},
     // grouped with output channel 1
-    {ov::element::u4, false, true, ov::PartialShape{-1, 512}, ov::Shape{1, 4, 128}, ov::Shape{1, 4, 1}},
-    {ov::element::u4, true, true, ov::PartialShape{-1, 512}, ov::Shape{1, 4, 128}, ov::Shape{1, 4, 1}},
+    {ov::element::u4, false, true, ov::PartialShape{-1, 512}, ov::Shape{1, 4, 128}, ov::Shape{1, 4, 1}, false, 128},
+    {ov::element::u4, true, true, ov::PartialShape{-1, 512}, ov::Shape{1, 4, 128}, ov::Shape{1, 4, 1}, false, 128},
+
+    // per-tensor
+    {ov::element::u8, false, false, ov::PartialShape{10, 32}, ov::Shape{64, 32}, ov::Shape{}, false, 32},
+    // per-OC with transposed weights
+    {ov::element::u8, true, false, ov::PartialShape{10, 32}, ov::Shape{32, 64}, ov::Shape{1, 64}, true, 32},
+    // grouped with transposed weights
+    {ov::element::u8, false, true, ov::PartialShape{10, 32}, ov::Shape{4, 8, 64}, ov::Shape{4, 1, 64}, true, 8},
+    {ov::element::u8, true, true, ov::PartialShape{10, 32}, ov::Shape{4, 8, 64}, ov::Shape{4, 1, 64}, true, 8},
+    // per-IC
+    {ov::element::u8, false, false, ov::PartialShape{10, 32}, ov::Shape{64, 32}, ov::Shape{1, 32}, false, 1},
+    {ov::element::u8, true, false, ov::PartialShape{10, 32}, ov::Shape{64, 32}, ov::Shape{1, 32}, false, 1},
+    // per-IC with transposed weights
+    {ov::element::u8, false, false, ov::PartialShape{10, 32}, ov::Shape{32, 64}, ov::Shape{32, 1}, true, 1},
+    {ov::element::u8, true, false, ov::PartialShape{10, 32}, ov::Shape{32, 64}, ov::Shape{32, 1}, true, 1},
+    {ov::element::u8, false, false, ov::PartialShape{10, 768}, ov::Shape{768, 2304}, ov::Shape{768, 1}, true, 1},
 };
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertFCToCompressed, ::testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertFCToCompressed,
+                         ::testing::ValuesIn(params),
+                         ConvertFCToCompressed::getTestCaseName);
 
 // Regression test: when the matched Transpose acts on the weights tensor and
 // scale / zero-point are rank-1 per-output-channel Constants, the old code

@@ -18,7 +18,8 @@ namespace utils {
 enum class DecompressionType {
     empty,   // no decompression
     scalar,  // decompression with scalar shape
-    full     // decompression with per-channel or grouped shape
+    full,    // decompression with per-output-channel or grouped shape
+    per_ic   // decompression with per-input-channel shape, broadcast along output channels
 };
 
 std::ostream& operator<<(std::ostream& os, DecompressionType type);

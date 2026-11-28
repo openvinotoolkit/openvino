@@ -147,7 +147,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
                                                     [[maybe_unused]] size_t IC,
                                                     [[maybe_unused]] size_t OC,
-                                                    [[maybe_unused]] size_t G,
+                                                    [[maybe_unused]] size_t group_size,
                                                     [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
@@ -175,7 +175,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             }
             // Grouped scales over IC are rejected by oneDNN for fp8 weights
             // (brgemm_matmul_utils.cpp, per-K weight scales check).
-            if (G != 1) {
+            if (group_size != IC) {
                 return false;
             }
             // The fp8 dequantization scheme is scale-only.
@@ -218,7 +218,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             }
         }
 
-        if (IC % G != 0 || IC / G < 4 || OC == 1) {
+        if (IC % group_size != 0 || group_size < 4 || OC == 1) {
             return false;
         }
 
@@ -245,7 +245,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
 
         const auto scalesShape = op->input(WEIGHT_SCALES).get_shape();
         const bool isChannelWise = shape_size(scalesShape) == OC;
-        const bool hasValidGroupGeometry = IC % G == 0 && IC / G >= 4 && OC != 1 && (IC / G) % 32 == 0;
+        const bool hasValidGroupGeometry = IC % group_size == 0 && group_size >= 4 && OC != 1 && group_size % 32 == 0;
         const bool isGroupWise = !isChannelWise && hasValidGroupGeometry;
 
         if (!isChannelWise && !isGroupWise) {

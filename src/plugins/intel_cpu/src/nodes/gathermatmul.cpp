@@ -93,7 +93,7 @@ bool GatherMatmul::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
                                                   [[maybe_unused]] size_t IC,
                                                   [[maybe_unused]] size_t OC,
-                                                  [[maybe_unused]] size_t G,
+                                                  [[maybe_unused]] size_t group_size,
                                                   [[maybe_unused]] const Config& config) noexcept {
 #ifdef OPENVINO_ARCH_X86_64
     try {
@@ -121,11 +121,11 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
             }
         }
 
-        if (IC % G != 0) {
+        if (IC % group_size != 0) {
             return false;  // sanity check IC must be evenly divided by the group size
         }
 
-        if (IC / G < 4) {
+        if (group_size < 4) {
             return false;  // minimal group size should be 4
         }
 

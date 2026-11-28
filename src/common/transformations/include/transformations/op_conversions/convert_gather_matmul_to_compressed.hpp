@@ -56,6 +56,7 @@ class TRANSFORMATIONS_API ConvertGatherMatmulToGatherMatmulCompressed : public o
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGatherMatmulToGatherMatmulCompressed");
 
+    // Arguments: compressed op candidate, IC, OC, decompression group size along IC
     using SupportsPredicate =
         std::function<bool(const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>&, size_t, size_t, size_t)>;
 
