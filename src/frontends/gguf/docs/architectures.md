@@ -37,7 +37,7 @@ residual and output ordering; the shared sublayer methods do not assemble those.
 | [`blocks/`](../src/builder/blocks) | Reusable fragments: `common`, `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` |
 | [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | Per-architecture detection and per-layer accessors |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | Decoder assembly order |
-| [`arch/inkling_builder.cpp`](../src/builder/arch/inkling_builder.cpp) | Inkling 2 depth mixing, relative attention, short convolutions and Mini loop unrolling using shared operation converters |
+| [`arch/inkling_builder.cpp`](../src/builder/arch/inkling_builder.cpp) | Inkling 2 depth mixing, relative attention, short convolutions and Mini loop unrolling, emitted as GGML operations only |
 | [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | The `architectures` catalog returned by `builtin_architectures()` |
 | [`model_kind.hpp`](../src/builder/model_kind.hpp) | Diagnostic family detection for an unclaimed file |
 | [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | Parse, resolve the definition, invoke its builder |
@@ -361,7 +361,11 @@ For a missing one, express it exactly with existing nodes or add a converter: ex
 [`ConversionExtension`](extensions.md#add-or-override-an-operation-converter)
 (`ConverterRegisteredAfterLoadInfersBuilderValues` is a working test), or built in through
 [how_to_add_op.md](how_to_add_op.md). Converters are the only operation-support layer: never add a
-builder-specific enum, shape rule or `GgufGraphContext` method. An unsupported quantization format
+builder-specific enum, shape rule or `GgufGraphContext` method. Builders never construct OpenVINO
+operations: inputs, constants and states come from the builder API, and every computation is a
+GGML operation (`GgufGraphContext::node`, or `GraphEmitter::add_op` inside built-ins). A missing
+semantic becomes an `op_case` or converter, so the llama.cpp backend and `ConversionExtension`
+overrides see the same operations. An unsupported quantization format
 belongs to the weight loader in [`src/quant/`](../src/quant).
 
 For state, make previous-state inputs, the update and retained outputs explicit and declare them as

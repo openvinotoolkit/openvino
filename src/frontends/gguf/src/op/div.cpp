@@ -138,8 +138,11 @@ OutputVector translate_div(const NodeContext& context) {
     ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Divide>(input_0, input_1);
     // Keep the divide in FP32: the GPU plugin would otherwise compress it back to FP16 and overflow
     // on small gate values (e.g. silu(x) / x in qwen2moe). Precision-sensitive inputs would instead
-    // mark the whole producing subgraph as a shape computation and keep it in FP32.
-    ov::disable_conversion(res.get_node_shared_ptr(), ov::element::f16);
+    // mark the whole producing subgraph as a shape computation and keep it in FP32. A builder whose
+    // denominator is bounded away from zero sets "allow_f16" to keep the producing chain in F16.
+    if (!context.get_attribute<bool>("allow_f16", false)) {
+        ov::disable_conversion(res.get_node_shared_ptr(), ov::element::f16);
+    }
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }

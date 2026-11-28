@@ -16,8 +16,14 @@ namespace ov::frontend::gguf::op {
 
 // GGML_OP_CLAMP: elementwise clamp to [min, max]. The decoder exposes the bounds as typed
 // float attributes ("clamp_min"/"clamp_max"), so the translator never reads ggml op_params.
+// Native builders may pass tensor bounds: inputs (x, min) clamp from below only, (x, min, max) both.
 OutputVector translate_clamp(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
+    if (context.get_input_size() == 2) {
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Maximum>(context.get_input(0), context.get_input(1))},
+            context.get_name());
+    }
     if (context.get_input_size() == 3) {
         auto bounded = std::make_shared<ov::op::v1::Maximum>(context.get_input(0), context.get_input(1));
         return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Minimum>(bounded, context.get_input(2))},

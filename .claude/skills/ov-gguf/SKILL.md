@@ -37,6 +37,9 @@ converters; builders and validation differ. Registration or conversion alone nev
 
 - Keep all architecture-specific computation and decisions under `src/builder/`: metadata schemas,
   aliases/defaults, topology, operation selection, layouts, and architecture-specific adaptation.
+- Builders emit only GGML operations (`graph.node("GGML_OP_*")`, or `GraphEmitter::add_op` in
+  built-ins) plus builder-API inputs, constants and states; never construct OpenVINO ops there.
+  A missing semantic becomes an `op_case` or converter in `src/op/`.
 - Built-ins and `ArchitectureExtension`/`ProjectorExtension` must use the same configuration and
   builder contracts. An extension must be able to replace or override every architecture-specific
   behavior without editing parser, quantization, translator, or generic adaptation code.

@@ -92,6 +92,20 @@ OutputVector translate_pad(const NodeContext& context) {
                                               ov::op::PadMode::CONSTANT);
         return rename_outputs_with_suffix({result}, context.get_name());
     }
+    // Native builders may give OpenVINO-order extents for any rank; the padding value is zero.
+    if (context.has_attribute("pads_begin")) {
+        const auto begin = context.get_attribute<std::vector<int64_t>>("pads_begin");
+        const auto end = context.get_attribute<std::vector<int64_t>>("pads_end");
+        FRONT_END_OP_CONVERSION_CHECK(
+            begin.size() == end.size() && input.get_partial_shape().rank() == ov::Dimension(begin.size()),
+            "PAD extents must match the input rank");
+        auto res =
+            std::make_shared<ov::op::v12::Pad>(input,
+                                               ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
+                                               ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
+                                               ov::op::PadMode::CONSTANT);
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    }
     if (context.get_input_shape(0) == context.get_output_shape()) {
         auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
         auto res = std::make_shared<ov::op::v1::Reshape>(input, input_shape, false);

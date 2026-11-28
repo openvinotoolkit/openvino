@@ -259,6 +259,13 @@ void GraphEmitter::add_extra_input_node(const std::string& name, const std::shar
     (*m_graph->values)[name] = node;
 }
 
+void GraphEmitter::add_constant(const std::string& name, const ov::Tensor& value) {
+    OPENVINO_ASSERT(!m_graph->values->count(name) && !has_weight(name) && !has_model_input(name),
+                    "[GGUF] constant name is already used: ",
+                    name);
+    add_extra_input_node(name, std::make_shared<ov::op::v0::Constant>(value));
+}
+
 void GraphEmitter::emit_weight(const std::string& name, const GgufWeight& source) {
     if (m_emitted_weights.count(name)) {
         return;
