@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <functional>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -18,6 +19,7 @@
 #include "openvino/op/floor.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
@@ -31,6 +33,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/sign.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
@@ -1595,6 +1598,63 @@ TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_value) {
 
     EXPECT_EQ(outputs[0].data<int64_t>()[0], 49)
         << "f16 compression must not change the integer bucket produced by Ceiling";
+}
+
+TEST(TransformationTests, ConvertPrecision_preserves_deberta_log_bucket_chain) {
+    // End-to-end reproduction of make_log_bucket_position from issue #40075. The real chain has
+    // two integer-to-float conversions feeding the same Log/Ceiling tail plus a Select branch;
+    // f16 rounding of the Ceiling input moves several distances one bucket closer to zero.
+    constexpr int64_t buckets = 256;
+    constexpr int64_t max_position = 512;
+    constexpr int64_t mid_i = buckets / 2;
+    constexpr float mid = static_cast<float>(mid_i);
+    std::vector<int64_t> position_data{129, 198, 216, 260, 290, 313, 349, 511};
+
+    auto position = make_shared<Parameter>(element::i64, Shape{position_data.size()});
+    auto mid_const = Constant::create(element::i64, Shape{}, {buckets / 2});
+    auto minus_mid_const = Constant::create(element::i64, Shape{}, {-buckets / 2});
+    auto near = make_shared<LogicalAnd>(make_shared<Less>(position, mid_const),
+                                        make_shared<Greater>(position, minus_mid_const));
+    auto abs_pos = make_shared<Select>(near,
+                                       Constant::create(element::i64, Shape{}, {buckets / 2 - 1}),
+                                       make_shared<Abs>(position));
+
+    auto divisor = Constant::create(element::f32, Shape{}, {mid});
+    auto log_pos = make_shared<Log>(make_shared<Divide>(make_shared<Convert>(abs_pos, element::f32), divisor));
+    auto log_base = static_cast<float>(std::log(static_cast<float>(max_position - 1) / mid));
+    auto normalized = make_shared<Divide>(log_pos, Constant::create(element::f32, Shape{}, {log_base}));
+    auto scaled = make_shared<Multiply>(normalized, Constant::create(element::f32, Shape{}, {mid - 1.0f}));
+    auto ceiling = make_shared<Ceiling>(scaled);
+    auto signed_bucket =
+        make_shared<Multiply>(make_shared<Add>(ceiling, Constant::create(element::f32, Shape{}, {mid})),
+                              make_shared<Convert>(make_shared<Sign>(position), element::f32));
+
+    auto direct = make_shared<Convert>(position, element::f32);
+    auto direct_branch = make_shared<LessEqual>(abs_pos, mid_const);
+    auto selected = make_shared<Select>(direct_branch, direct, signed_bucket);
+    auto bucket = make_shared<Convert>(selected, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    TensorVector inputs{Tensor(element::i64, Shape{position_data.size()}, position_data.data())};
+    TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    for (size_t i = 0; i < position_data.size(); ++i) {
+        const auto p = position_data[i];
+        const auto a = (p < mid_i && p > -mid_i) ? (mid_i - 1) : (p > 0 ? p : -p);
+        const auto expected = a <= mid_i ? p
+                                         : static_cast<int64_t>((std::ceil(std::log(static_cast<float>(a) / mid) /
+                                                                           log_base * static_cast<float>(mid_i - 1)) +
+                                                                 mid) *
+                                                                (p > 0 ? 1 : -1));
+        EXPECT_EQ(outputs[0].data<int64_t>()[i], expected) << "distance " << p;
+    }
 }
 
 TEST(TransformationTests, ConvertPrecision_keeps_integer_rounding_ops_in_fp32) {
