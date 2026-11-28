@@ -2166,6 +2166,18 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         }
     }
 
+#if defined(OV_CPU_WITH_ACL)
+    // ACL reduction kernels accumulate in the tensor precision and need the same input and output precision, so an
+    // f16 sum stops growing once the f16 step exceeds the added values (e.g. at 32768 for values about 11), and an f16
+    // mean overflows to inf although the mean fits f16. The jit path above writes these modes in f32; in ACL builds
+    // they also read f32, whichever executor is selected (the ref one is f32 anyway). The members are updated (not
+    // only the descriptors) to keep the data sizes and init_dst_data() consistent.
+    if (input_prec == ov::element::f16 && is_precision_sensitive_reduce(algorithm)) {
+        input_prec = ov::element::f32;
+        output_prec = ov::element::f32;
+    }
+#endif
+
     intermediate_prec = fuse_low_precision ? ov::element::f32 : output_prec;
     precision_change = input_prec != intermediate_prec;
     support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
@@ -2283,6 +2295,38 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
     }
 }
+
+#if defined(OV_CPU_WITH_ACL)
+void Reduce::selectOptimalPrimitiveDescriptor() {
+    // When no ACL descriptor matches the parent, e.g. f16 Sum/Mean/Prod run on f32 descriptors (see
+    // initSupportedPrimitiveDescriptors), the generic selection takes the first (nspc) one. Keep the planar or
+    // channels-last layout of the parent instead, so that the inserted Reorder only converts the precision.
+    const auto& parentEdge = getParentEdgeAt(REDUCE_DATA);
+    const auto* parentPD = parentEdge->getParent()->getSelectedPrimitiveDescriptor();
+    if (canUseAclExecutor && parentPD != nullptr && !parentPD->getConfig().outConfs.empty()) {
+        auto inNum = parentEdge->getInputNum();
+        if (inNum < 0 || inNum >= static_cast<int>(parentPD->getConfig().outConfs.size())) {
+            inNum = 0;
+        }
+        const auto& parentDesc = parentPD->getConfig().outConfs[inNum].getMemDesc();
+        const auto& descs = getSupportedPrimitiveDescriptors();
+        if (std::none_of(descs.begin(), descs.end(), [&](const NodeDesc& desc) {
+                return desc.getConfig().inConfs[REDUCE_DATA].getMemDesc()->isCompatible(*parentDesc);
+            })) {
+            for (size_t i = 0; i < descs.size(); i++) {
+                const auto& desc = descs[i].getConfig().inConfs[REDUCE_DATA].getMemDesc();
+                for (const auto layout : {LayoutType::nspc, LayoutType::ncsp}) {
+                    if (parentDesc->hasLayoutType(layout) && desc->hasLayoutType(layout)) {
+                        selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    Node::selectOptimalPrimitiveDescriptor();
+}
+#endif
 
 bool Reduce::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
