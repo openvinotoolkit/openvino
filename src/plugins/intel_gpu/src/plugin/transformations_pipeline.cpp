@@ -124,6 +124,7 @@
 #include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
+#include "plugin/transformations/recurrent_replay_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/stateless_kv_fusion.hpp"
@@ -1038,6 +1039,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager("Plugin:GPU");
+        manager.register_pass<ov::intel_gpu::RecurrentReplayFusion>();
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 

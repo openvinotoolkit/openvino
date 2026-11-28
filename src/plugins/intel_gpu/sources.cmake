@@ -104,6 +104,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/recurrent_cache_replay.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/region_yolo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reorg_yolo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reshape.cpp
@@ -201,6 +202,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_xattention_threshold_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_compression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/recurrent_replay_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/l2_norm_to_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/lora_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/lora_subgraph_horizontal_fusion.cpp
@@ -234,6 +236,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/indirect_gemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/indirect_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/kv_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/recurrent_cache_replay.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_router_fused.cpp

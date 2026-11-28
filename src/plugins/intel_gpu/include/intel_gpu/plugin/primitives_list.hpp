@@ -328,6 +328,8 @@ REGISTER_FACTORY(internal, VLSDPA);
 REGISTER_FACTORY(internal, MOECompressed);
 REGISTER_FACTORY(internal, MoERouterFused);
 REGISTER_FACTORY(internal, GatedDeltaNet);
+REGISTER_FACTORY(internal, RecurrentConvCacheReplayUpdate);
+REGISTER_FACTORY(internal, RecurrentGatedDeltaNetReplayUpdate);
 REGISTER_FACTORY(internal, SelectiveSSM);
 REGISTER_FACTORY(internal, PagedCausalConv1D);
 REGISTER_FACTORY(internal, GatherMatmul);
