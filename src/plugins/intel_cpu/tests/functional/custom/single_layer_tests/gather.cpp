@@ -262,9 +262,79 @@ protected:
     }
 };
 
+typedef std::tuple<ov::Shape,  // Data shape
+                   ov::Shape,  // Indices shape
+                   int,        // Axis
+                   bool,       // Is const indices
+                   bool        // Is dynamic shape
+                   >
+    GatherZeroDimsLayerTestCPUParams;
+
+// Data or indices have a zero dim. Indices into an empty axis are out of range, so the output is zeros.
+class GatherZeroDimsLayerTestCPU : public testing::WithParamInterface<GatherZeroDimsLayerTestCPUParams>,
+                                   virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherZeroDimsLayerTestCPUParams>& obj) {
+        const auto& [dataShape, indicesShape, axis, isIndicesConst, isDynamic] = obj.param;
+        std::ostringstream result;
+        result << "data=" << ov::test::utils::vec2str(dataShape) << "_";
+        result << "indices=" << ov::test::utils::vec2str(indicesShape) << "_";
+        result << "axis=" << axis << "_";
+        result << "constIdx=" << (isIndicesConst ? "True" : "False") << "_";
+        result << "dynamic=" << (isDynamic ? "True" : "False");
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [dataShape, indicesShape, axis, isIndicesConst, isDynamic] = this->GetParam();
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        auto toInputShape = [&](const ov::Shape& shape) -> InputShape {
+            return {isDynamic ? ov::PartialShape::dynamic(shape.size()) : ov::PartialShape{}, {shape}};
+        };
+        std::vector<InputShape> inputShapes{toInputShape(dataShape)};
+        if (!isIndicesConst) {
+            inputShapes.push_back(toInputShape(indicesShape));
+        }
+        init_input_shapes(inputShapes);
+
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inputDynamicShapes[0])};
+        std::shared_ptr<ov::Node> indices;
+        if (isIndicesConst) {
+            indices = ov::op::v0::Constant::create(ElementType::i64,
+                                                   indicesShape,
+                                                   std::vector<int64_t>(ov::shape_size(indicesShape), 0));
+        } else {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inputDynamicShapes[1]));
+            indices = params.back();
+        }
+        auto gather = std::make_shared<ov::op::v8::Gather>(
+            params[0],
+            indices,
+            ov::op::v0::Constant::create(ElementType::i64, ov::Shape({1}), {axis}));
+        function = std::make_shared<ov::Model>(gather->outputs(), params, "GatherZeroDimsCPU");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& params = function->get_parameters();
+        inputs.insert(
+            {params[0], ov::test::utils::create_and_fill_tensor(ElementType::f32, targetInputStaticShapes[0])});
+        if (params.size() > 1) {
+            ov::Tensor indices{ElementType::i64, targetInputStaticShapes[1]};
+            std::fill_n(indices.data<int64_t>(), indices.get_size(), 0);
+            inputs.insert({params[1], indices});
+        }
+    }
+};
+
 TEST_P(GatherLayerTestCPU, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Gather");
+}
+
+TEST_P(GatherZeroDimsLayerTestCPU, CompareWithRefs) {
+    run();
 }
 
 TEST_P(GatherInPlaceLayerTestCPU, CompareWithRefs) {
@@ -997,6 +1067,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_4D_out_of_range,
                                             ::testing::Values(ElementType::f32),
                                             ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"})),
                          GatherInPlaceLayerTestCPU::getTestCaseName);
+
+// Empty indices: elementwise (inner size 1), blocked (inner size <= vector length) and plain cases.
+INSTANTIATE_TEST_SUITE_P(smoke_zero_dims_indices,
+                         GatherZeroDimsLayerTestCPU,
+                         ::testing::Combine(::testing::Values(ov::Shape{20}, ov::Shape{2, 3, 20}, ov::Shape{2, 3, 8}),
+                                            ::testing::Values(ov::Shape{0}, ov::Shape{2, 0}),
+                                            ::testing::Values(-1),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(false, true)),
+                         GatherZeroDimsLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_zero_dims_indices_axis1,
+                         GatherZeroDimsLayerTestCPU,
+                         ::testing::Combine(::testing::Values(ov::Shape{2, 3, 20}, ov::Shape{2, 3, 8}),
+                                            ::testing::Values(ov::Shape{0}, ov::Shape{2, 0}),
+                                            ::testing::Values(1),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(false, true)),
+                         GatherZeroDimsLayerTestCPU::getTestCaseName);
+
+// Empty data: zero-sized dim before or after the axis.
+INSTANTIATE_TEST_SUITE_P(smoke_zero_dims_data,
+                         GatherZeroDimsLayerTestCPU,
+                         ::testing::Combine(::testing::Values(ov::Shape{0, 5}, ov::Shape{0, 5, 4}, ov::Shape{2, 5, 0}),
+                                            ::testing::Values(ov::Shape{3}),
+                                            ::testing::Values(1),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(false, true)),
+                         GatherZeroDimsLayerTestCPU::getTestCaseName);
+
+// Empty data at the axis with non-empty indices: every index is out of range, so the output is all zeros.
+INSTANTIATE_TEST_SUITE_P(smoke_zero_dims_data_at_axis,
+                         GatherZeroDimsLayerTestCPU,
+                         ::testing::Combine(::testing::Values(ov::Shape{2, 0, 5}, ov::Shape{4, 0}, ov::Shape{3, 0, 16}),
+                                            ::testing::Values(ov::Shape{3}, ov::Shape{2, 2}),
+                                            ::testing::Values(1),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(false, true)),
+                         GatherZeroDimsLayerTestCPU::getTestCaseName);
 
 }  // namespace
 }  // namespace test
