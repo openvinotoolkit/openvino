@@ -136,10 +136,10 @@ public:
         cur = token_rows(mix(blocks, cur, weight("output_res_query.weight", {width})));
         cur = norm(cur, weight("output_norm.weight", {width}), eps);
         cur = operation("GGML_OP_GET_ROWS", {cur, e.value("inp_out_ids")});
-        cur = mm(weight("output.weight", {vocab, width}), cur);
+        // Trimming the head rows keeps MatMul -> softcap -> Result for GenAI's slice-before-matmul.
+        cur = mm(slice(weight("output.weight", {vocab, width}), 0, 0, unpadded), cur);
         if (final_cap > 0)
             cur = softcap(cur, static_cast<float>(final_cap));
-        cur = slice(cur, 3, 0, unpadded);
         graph.model_output_names.insert(graph.model_output_names.begin(), save(cur));
         return e.graph();
     }
