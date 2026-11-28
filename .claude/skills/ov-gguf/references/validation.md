@@ -17,6 +17,10 @@ an unimplemented contract remains outstanding work, not an implicit scope reduct
 Test layout-sensitive recurrent paths with batching early, alongside single-sequence numerics.
 Include multiple heads/tokens and unequal Q/KV dimensions where applicable.
 
+When the real checkpoint does not fit the target device, use a reduced proxy with the real head,
+expert and window geometry plus a well-conditioned variant; it covers device numerics, not the
+checkpoint's quality.
+
 Complete a coherent family stage before expanding implementation, preserving remaining
 contracts in the manifest. Exercise the actual consumer constructor and a small prefill/decode
 early, including draft/target pairing or media insertion when applicable. Test default settings

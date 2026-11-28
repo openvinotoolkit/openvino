@@ -213,6 +213,8 @@ oracles have separate [regeneration instructions](testing.md#fixtures-and-oracle
 | Dynamic tail slices | Derive offsets from the live length; a prefill offset can overrun during decode |
 | Strided VIEW treated as dense | Inspect `ne[]`, `nb[]`, element offset, and semantic `op_case`; shape alone does not establish contiguity |
 | Recurrent state shared across subgraphs | Keep per-subgraph bookkeeping separate and test beyond the first decode step |
+| NaN only on GPU or past a window | F16 overflow of an additive mask combined with another bias; check finiteness in F16, not only F32 |
+| Correct before adaptation, wrong or slow after | Generic `AdaptToGenAI` shape passes may fold a reshape or layout a downstream operation such as `GatherMatmul` depends on; compare graphs before and after |
 | Media adaptation mismatch | Check modality pruning, removed input prefixes, DeepStack splitting, and separate Gemma4 per-layer embeddings |
 
 Use small fixtures while localizing. Compilation may materialize additional weight buffers;

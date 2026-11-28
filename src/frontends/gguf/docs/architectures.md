@@ -210,6 +210,10 @@ Graph nodes alone do not tell consumers how to maintain state or form masks:
 - `set_sliding_window(tokens)` records the window of a custom attention implementation.
 - `add_recurrent_state(input, update)` declares an overwritten state for `GGUFMakeStateful`. It is not
   the declaration for an append-only KV cache; reuse the shared attention blocks for that.
+  Prefer expressing extra history through these two paths, for example as additional channels of an
+  existing convolution state. Any other state, especially a non-float one, is outside the
+  `SDPAToPagedAttention` and plugin KV-cache contracts; check GenAI adaptation, PagedAttention
+  conversion and GPU compilation with it early.
 - `set_output(value)` appends an output; `set_primary_output(value)` puts it before auxiliary outputs
   such as KV caches. `finish()` validates the graph and seals the context.
 
@@ -283,6 +287,11 @@ Layout rules:
   contiguous subrange. Strided views need a suitable converter or explicit layout operations.
 - CONT case 1 is a passthrough, but `ggml_cont_2d/3d/4d` still carries a reshape. Keep real transposes.
 - Preserve dynamic token/item axes. A one-token graph does not validate broadcasting.
+- Keep additive masks finite in F16 when another bias is added to them: GPU executes in F16, and a
+  large-negative mask plus a bias can overflow to infinity and give NaN past the window. Scale the mask
+  so masked logits stay finite.
+- Keep numeric floors the reference depends on, but omit epsilons that cannot change the result,
+  such as one inside a saturated clip factor; precision passes may keep the whole chain in F32.
 
 ### 4. Implement a whole-model builder
 
@@ -413,7 +422,9 @@ scope:
    and nonuniform values. llama.cpp's `cb` labels help match intermediates.
 3. **Whole graph:** compare identical inputs. Decoders: full logits through prefill and several cached
    decode steps, multiple lengths, nonzero positions, state resets and window boundaries. Encoders:
-   features or projections directly.
+   features or projections directly. Also run GPU (F16) past every window boundary, and inspect the
+   graph after [GenAI adaptation](runtime.md#stateful-and-genai-conversion): its generic shape passes
+   can remove a layout a downstream operation needs.
 4. **Real checkpoint:** repeat with the real model and quantization, aligned tokenizer, preprocessing
    and precision. Record tested and untested variants.
 5. **Regression:** keep a fixture. Decoders reuse [`gen_arch_accuracy.py`](../tests/gen_arch_accuracy.py)
