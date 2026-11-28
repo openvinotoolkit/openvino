@@ -274,26 +274,34 @@ std::string Config::toString() const {
     return resultStream.str();
 }
 
-void Config::fromString(const std::string& str) {
-    std::string str_cfg(str);
+Config::ConfigMap Config::parseString(const std::string& str) {
+    ConfigMap config;
 
-    auto parse_token = [&](const std::string& token) {
-        auto pos_eq = token.find('=');
-        auto key = token.substr(0, pos_eq);
-        auto value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
-        update(key, value);
-    };
-
-    size_t pos = 0;
-    std::string token, key, value;
-    while ((pos = str_cfg.find(' ')) != std::string::npos) {
-        token = str_cfg.substr(0, pos);
-        parse_token(token);
-        str_cfg.erase(0, pos + 1);
+    size_t begin = 0;
+    while (begin < str.size()) {
+        auto end = str.find(' ', begin);
+        if (end == std::string::npos) {
+            end = str.size();
+        }
+        if (end > begin) {
+            // Each token has the form KEY="VALUE", as written by toString()
+            const std::string_view token(str.data() + begin, end - begin);
+            const auto pos_eq = token.find('=');
+            OPENVINO_ASSERT(pos_eq != std::string_view::npos && token.size() >= pos_eq + 3 &&
+                                token[pos_eq + 1] == '"' && token.back() == '"',
+                            "Malformed config entry: ",
+                            token);
+            config[std::string(token.substr(0, pos_eq))] =
+                std::string(token.substr(pos_eq + 2, token.size() - pos_eq - 3));
+        }
+        begin = end + 1;
     }
 
-    // Process tail
-    parse_token(str_cfg);
+    return config;
+}
+
+void Config::fromString(const std::string& str) {
+    update(parseString(str));
 }
 
 bool Config::hasOpt(std::string_view key) const {

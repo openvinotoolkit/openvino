@@ -1994,7 +1994,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         stream & compiled->m_longrope_tables;
 
         // Deserialize config
-        stream & compiled->m_cfg;
+        // Security: the config comes from a potentially untrusted cache blob.
+        // Apply only the options meant to round-trip through a blob (CACHED). Any other entries, e.g. UNCACHED debug
+        // knobs (NPUW_DUMP_*, NPUW_CACHE_DIR) or unregistered keys, are dropped.
+        std::string blob_cfg;
+        stream & blob_cfg;
+        compiled->m_cfg.update(::intel_npu::filterCachedNPUWOptions(::intel_npu::Config::parseString(blob_cfg)));
         compiled->implement_properties();
 
         // Deserialize KV cache model variants
