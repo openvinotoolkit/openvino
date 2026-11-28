@@ -615,7 +615,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankTagKeptOutOfStageConfigs) {
     expect_missing_prop(generate.props, "NPUW_TEXT_RERANK");
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShrinkAndPropagateSliceUp) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShrinkAndDefersGatherPropagation) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -624,7 +624,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShri
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
-    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelKeepsExplicitUserOverrides) {
@@ -654,7 +654,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePre
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
-    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMultiTokenGeneration) {
@@ -670,7 +670,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMul
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
-    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {

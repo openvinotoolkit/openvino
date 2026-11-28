@@ -326,19 +326,18 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, MaskIsDetectedAndMadeStatic) {
     EXPECT_EQ(generate_mask.get_element_type(), GetParam());
 }
 
-// Prefill puts the caller mask's [Q, Q] block at the bottom-right corner of the static [P, P] mask;
+// Prefill puts the caller mask's [Q, Q] block at the top-left corner of the static [P, P] mask;
 // every padded position is fully masked.
-TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillPutsTheMaskIntoTheBottomRightCorner) {
+TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillPutsTheMaskIntoTheTopLeftCorner) {
     constexpr size_t kPromptLen = 5;
     run_prefill(kPromptLen);
 
     const auto staged = request().prefill_attention_mask();
     const size_t size = staged->get_shape()[2];
     ASSERT_EQ(staged->get_shape(), (ov::Shape{1, 1, size, size}));
-    const size_t offset = size - kPromptLen;
     const float masked = padding_value();
     expect_cells(staged, [&](size_t row, size_t column) {
-        return (row >= offset && column >= offset) ? marker(row - offset, column - offset) : masked;
+        return (row < kPromptLen && column < kPromptLen) ? marker(row, column) : masked;
     });
 }
 
@@ -382,7 +381,7 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateSplitsTheMaskIntoPastAndCurren
 }
 
 // With several current tokens, each row has its own past and current columns,
-// and the rows above them stay fully masked.
+// and the rows after them stay fully masked.
 TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateStagesEveryRowOfAWindowOfSeveralTokens) {
     // NPUW rounds a generation window above 1 up to a multiple of 8.
     constexpr size_t kWindow = 8;
@@ -399,15 +398,16 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateStagesEveryRowOfAWindowOfSever
         const auto staged = request().generate_attention_mask();
         const size_t width = staged->get_shape()[3];
         ASSERT_EQ(staged->get_shape(), (ov::Shape{1, 1, kWindow, width}));
-        const size_t first_row = kWindow - tokens;
         expect_cells(staged, [&](size_t row, size_t column) {
-            if (row < first_row) {
+            if (row >= tokens) {
                 return masked;
             }
             if (column < kPromptLen) {
-                return marker(row - first_row, column);
+                return marker(row, column);
             }
-            return column >= width - tokens ? marker(row - first_row, kPromptLen + column - (width - tokens)) : masked;
+            return column >= width - kWindow && column < width - kWindow + tokens
+                       ? marker(row, kPromptLen + column - (width - kWindow))
+                       : masked;
         });
     }
 }
