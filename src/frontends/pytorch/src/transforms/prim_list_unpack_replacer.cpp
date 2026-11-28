@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -19,7 +20,6 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
@@ -130,23 +130,25 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto indices_or_sections = tensor_split->get_input_source_output(1);
             indices_or_sections = std::make_shared<v0::Convert>(indices_or_sections, element::i32);
             auto dim = rg.make<v0::Unsqueeze>(tensor_split->get_input_source_output(2), const_0);
-            auto list_num_outs = v0::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size()});
             auto list_num_outs_scalar = v0::Constant::create(element::i32, Shape{}, {list_unpack->get_output_size()});
 
             if (rank.get_length() == 0) {
+                // tensor_split(input, n) always returns n chunks, so n is the number of ListUnpack outputs.
+                // Chunk i has (L + n - 1 - i) / n elements, which gives the first L % n chunks one extra element.
+                // Adding an n-element constant keeps the split lengths shape static ([n]), so VariadicSplit
+                // keeps n outputs. A Reshape to [n] is not enough: SmartReshape relaxes it to [-1] and it is
+                // then removed, which leaves VariadicSplit with a single output.
+                const auto num_outs = static_cast<int32_t>(list_unpack->get_output_size());
+                std::vector<int32_t> extra(num_outs);
+                for (int32_t i = 0; i < num_outs; ++i) {
+                    extra[i] = num_outs - 1 - i;
+                }
                 auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
                 auto axis_size = rg.make<v8::Gather>(input_shape, dim, const_0);
-                auto minimum_split_size = rg.make<v1::Divide>(axis_size, indices_or_sections);
-                auto maximum_split_size = rg.make<v1::Add>(minimum_split_size, const_1);
-                auto num_splits_with_max_size = rg.make<v1::Mod>(axis_size, indices_or_sections);
-                auto num_splits_with_min_size = rg.make<v1::Subtract>(indices_or_sections, num_splits_with_max_size);
-                auto splits_max_size = rg.make<v0::Tile>(maximum_split_size, num_splits_with_max_size);
-                auto splits_min_size = rg.make<v0::Tile>(minimum_split_size, num_splits_with_min_size);
-
-                auto split_sizes = rg.make<v0::Concat>(OutputVector{splits_max_size, splits_min_size}, 0);
-                // Reshape is used to make number of outputs static.
-                auto split_sizes_known_length = rg.make<v1::Reshape>(split_sizes, list_num_outs, false);
-                auto splits = rg.make<v1::VariadicSplit>(input, dim, split_sizes_known_length);
+                auto extra_const = v0::Constant::create(element::i32, Shape{extra.size()}, extra);
+                auto padded_size = rg.make<v1::Add>(axis_size, extra_const);
+                auto split_sizes = rg.make<v1::Divide>(padded_size, list_num_outs_scalar, true);
+                auto splits = rg.make<v1::VariadicSplit>(input, dim, split_sizes);
                 copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
                 replace_node(list_unpack, splits->outputs());
                 return true;

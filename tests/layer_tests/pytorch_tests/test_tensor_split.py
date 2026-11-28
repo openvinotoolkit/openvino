@@ -64,3 +64,15 @@ class TestTensorSplit(PytorchLayerTest):
     def test_tensor_split(self, input_shape, splits, axis, ie_device, precision, ir_version):
         self.input_shape = input_shape
         self._test(*self.create_model(splits, axis), ie_device, precision, ir_version)
+
+    @pytest.mark.parametrize("input_shape", [(2, 7), (3, 5, 7, 11)])
+    @pytest.mark.parametrize("splits", [2, 3, 4, [1, 3]])
+    @pytest.mark.parametrize("axis", [0, -1])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tensor_split_convert_model(self, input_shape, splits, axis, ie_device, precision, ir_version):
+        # convert_model runs SmartReshape, which used to drop the static number of outputs
+        # for integer sections and make compilation fail.
+        self.input_shape = input_shape
+        self._test(*self.create_model(splits, axis), ie_device, precision, ir_version,
+                   use_convert_model=True, trace_model=True)
