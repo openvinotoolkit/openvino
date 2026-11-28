@@ -18,10 +18,12 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -42,6 +44,7 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
+namespace v10 = ov::op::v10;
 namespace v13 = ov::op::v13;
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
@@ -164,6 +167,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
     }
 
+    Output<Node> softmax_input = scaled_atten;
     if (has_sink) {
         auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-2}));
         auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
@@ -184,6 +188,11 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     } else {
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     }
+    auto neg_inf = register_new_node<v10::IsInf>(softmax_input, v10::IsInf::Attributes{true, false});
+    auto last_axis = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    auto fully_masked_row = register_new_node<v1::ReduceLogicalAnd>(neg_inf, last_axis, true);
+    auto zero = register_new_node<v1::ConvertLike>(zero_i, scaled_atten);
+    scaled_atten = register_new_node<v1::Select>(fully_masked_row, zero, scaled_atten);
 
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
