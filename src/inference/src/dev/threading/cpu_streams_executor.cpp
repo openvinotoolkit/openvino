@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -486,14 +487,22 @@ struct CPUStreamsExecutor::Impl {
         stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
             stream._execute = true;
-            try {
-                while (!stream._taskQueue.empty()) {
-                    Execute(stream._taskQueue.front(), stream);
-                    stream._taskQueue.pop();
+            std::exception_ptr failure;
+            while (!stream._taskQueue.empty()) {
+                auto current = std::move(stream._taskQueue.front());
+                stream._taskQueue.pop();
+                try {
+                    Execute(current, stream);
+                } catch (...) {
+                    if (!failure) {
+                        failure = std::current_exception();
+                    }
                 }
-            } catch (...) {
             }
             stream._execute = false;
+            if (failure) {
+                std::rethrow_exception(failure);
+            }
         }
     }
 
