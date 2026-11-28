@@ -335,18 +335,16 @@ def parse_value_for_virtual_device(device, values_string):
             value = values_string.get(device)
             values_string.clear()
             values_string[device] = value
-    keys = values_string.keys()
+            return
+    merged = ''
     for key in list(values_string):
-        if device not in list(values_string):
-            values_string[device] = '{'
-        else:
-            values_string[device] += ','
-        values_string[device] += key + ":" + values_string.get(key)
+        if key == device:
+            # The value of the virtual device itself stays as it is.
+            continue
+        merged += ('{' if not merged else ',') + key + ":" + values_string[key]
         del values_string[key]
-    if device in values_string.keys():
-        values_string[device] = values_string[device].strip()
-        if values_string[device] != '':
-            values_string[device] += '}'
+    if merged:
+        values_string[device] = merged + '}'
     return
 
 def process_help_inference_string(benchmark_app, device_number_streams):
