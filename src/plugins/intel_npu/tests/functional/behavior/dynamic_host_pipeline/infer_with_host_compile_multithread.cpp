@@ -263,6 +263,11 @@ protected:
         return cfg;
     }
 
+    bool isDeferredGraphInit() const {
+        const auto it = configuration.find(ov::intel_npu::create_executor.name());
+        return it != configuration.end() && it->second.as<std::string>() == "0";
+    }
+
     ov::Core core;
     ov::AnyMap configuration;
     std::string selectedModelName;
@@ -270,6 +275,7 @@ protected:
     bool isTargetDevice = false;
 };
 
+// Review: Delete. Covered by MT_PerThreadCompileZeroInputOutputTensorInfer (per-thread compile + shape change).
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -283,7 +289,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -315,10 +321,14 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
 // Negative control for the per-request seed spacing: distinct requests must produce outputs that differ by
 // more than the comparison tolerance, so comparing one request's NPU output against another request's
 // reference is rejected. This guards the concurrency checks against silently accepting cross-request swaps.
+// Review: Optional delete. Validates the test's own seeds/tolerance, not plugin behavior, and is not multithreaded.
 TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsRejected) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
+    }
+    if (isDeferredGraphInit()) {
+        GTEST_SKIP() << "Validates test input seeds only; independent of graph init timing";
     }
 
     auto referenceModel = createModelByName(selectedModelName);
@@ -371,6 +381,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
     }
 }
 
+// Review: Keep. Only test creating 8 requests concurrently on one compiled model (concurrent lazy graph init when
+// NPU_CREATE_EXECUTOR=0).
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateRequestAndInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -384,7 +396,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -416,10 +428,14 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     }
 }
 
+// Review: Keep. Note set_property runs between rounds, so a set_property racing with push() is not covered.
 TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAndInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
+    }
+    if (isDeferredGraphInit()) {
+        GTEST_SKIP() << "Requests are created sequentially before any concurrency; graph init timing is irrelevant";
     }
 
     constexpr size_t kThreadCount = 8;
@@ -429,9 +445,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
+    size_t testedModes = 0;
+    std::string unsupportedReason;
     for (bool sharedQueue : {true, false}) {
         auto cfg = makeConfig(sharedQueue);
         cfg[ov::hint::model_priority.name()] = ov::hint::Priority::LOW;
@@ -441,8 +459,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         try {
             compiledModel = core.compile_model(model, target_device, cfg);
         } catch (const ov::Exception& e) {
-            GTEST_SKIP() << "model priority is not supported: " << e.what();
+            unsupportedReason = e.what();
+            continue;
         }
+        ++testedModes;
 
         std::vector<ov::InferRequest> requests;
         std::vector<ov::InferRequest> referenceRequests;
@@ -506,8 +526,12 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
             });
     }
+    if (testedModes == 0) {
+        GTEST_SKIP() << "model priority is not supported: " << unsupportedReason;
+    }
 }
 
+// Review: Keep. Simplify: the producer std::async is joined immediately, so a plain compile loop is equivalent.
 TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequestsMultiInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -525,7 +549,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -608,6 +632,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     }
 }
 
+// Review: Keep. Concurrent zero-copy input/output with shape changes on one compiled model.
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOutputTensorInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -623,7 +648,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -680,6 +705,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
     }
 }
 
+// Review: Keep. Per-thread compiled models (shared mode draws the same queue from the pool) with zero-copy tensors.
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputTensorInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -695,7 +721,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -755,6 +781,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     }
 }
 
+// Review: Keep. Only test where compile_model overlaps with inference on previously compiled models.
 TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -769,7 +796,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
+        GTEST_SKIP() << "TEMPLATE plugin unavailable: " << e.what();
     }
 
     for (bool sharedQueue : {true, false}) {
