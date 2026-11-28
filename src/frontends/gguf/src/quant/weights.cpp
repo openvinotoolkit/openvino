@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -701,10 +702,60 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
     return requantized && !is_embedding_or_output(name) ? ov::element::u8 : ov::element::f16;
 }
 
+namespace {
+
+// GPU GatherMatmul runs non-4-bit expert weights through oneDNN grouped matmul, which needs
+// scale groups that are multiples of 32 and integer zero points. Q6_K (group 16) and Q5_1
+// (fractional f16 zero point) experts are re-quantized to Q8_0 (i8, group 32).
+bool needs_expert_q8_0_requant(const WeightTensors& t, GgufTensorType qtype, const std::string& name) {
+    if (name.find("_exps") == std::string::npos || !t.weight || !t.scales)
+        return false;
+    const auto et = t.weight.get_element_type();
+    if (et != ov::element::i8 && et != ov::element::u8)
+        return false;
+    const bool fractional_zp = t.zero_point && t.zero_point.get_element_type() == ov::element::f16;
+    return qtype == GGUF_TYPE_Q6_K || (qtype == GGUF_TYPE_Q5_1 && fractional_zp);
+}
+
+WeightTensors requantize_extracted_q8_0_groups(const WeightTensors& t) {
+    const auto& shape = t.weight.get_shape();
+    const size_t cols = shape.back();
+    const size_t rows = ov::shape_size(shape) / cols;
+    OPENVINO_ASSERT(cols % 32 == 0, "[GGUF] Q8_0 expert requant needs cols divisible by 32");
+    auto scale_shape = shape;
+    scale_shape.back() = cols / 32;
+    WeightTensors out;
+    out.weight = ov::Tensor(ov::element::i8, shape);
+    out.scales = ov::Tensor(ov::element::f16, scale_shape);
+    auto* w = out.weight.data<int8_t>();
+    auto* s = out.scales.data<ov::float16>();
+    ov::parallel_for(rows, [&](size_t r) {
+        thread_local std::vector<float> rowf;
+        rowf.resize(cols);
+        dequant_extracted_row_to_f32(t, r, cols, rowf.data());
+        for (size_t g = 0; g < cols / 32; ++g) {
+            const float* x = rowf.data() + g * 32;
+            float amax = 0.0f;
+            for (size_t k = 0; k < 32; ++k)
+                amax = std::max(amax, std::abs(x[k]));
+            const float d = amax / 127.0f;
+            const float id = d != 0.0f ? 1.0f / d : 0.0f;
+            s[r * (cols / 32) + g] = ov::float16(d);
+            for (size_t k = 0; k < 32; ++k)
+                w[r * cols + g * 32 + k] = static_cast<int8_t>(std::lround(x[k] * id));
+        }
+    });
+    return out;
+}
+
+}  // namespace
+
 std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                                            GgufTensorType qtype,
                                            const std::string& name) {
     OPENVINO_ASSERT(tensors.weight, "[GGUF] missing weight tensor: ", name);
+    if (needs_expert_q8_0_requant(tensors, qtype, name))
+        return make_weight_node(requantize_extracted_q8_0_groups(tensors), GGUF_TYPE_Q8_0, name);
     const auto format = get_weight_format(qtype, tensors.weight, tensors.zero_point, name);
     OPENVINO_ASSERT(!format.has_scales() || tensors.scales, "[GGUF] missing scales tensor: ", name);
     OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point, "[GGUF] missing zero-point tensor: ", name);
