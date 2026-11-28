@@ -19,6 +19,8 @@ class Matcher;
 
 namespace ov::npuw::moe {
 
+inline constexpr char device_routed_weight_gather_tag[] = "npuw_device_routed_weight_gather";
+
 // The semantic boundary between routing and expert execution. Selection and
 // mixing are deliberately separate: selection logits may include a bias that
 // must NOT be applied to the mixture weights (e.g. sigmoid/bias routers).

@@ -389,6 +389,9 @@ std::shared_ptr<ov::Node> build_device_routed_moe(const BatchedMoE& moe) {
         }
         selected->set_friendly_name(node->get_friendly_name() + "/gathered");
         ov::copy_runtime_info(node, selected);
+        if (ov::is_type<ov::op::v8::Gather>(selected) && value.get_partial_shape().size() > 3) {
+            selected->get_rt_info()[device_routed_weight_gather_tag] = true;
+        }
         gathered.emplace(node, selected);
         return selected->output(value.get_index());
     };

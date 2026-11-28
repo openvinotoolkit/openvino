@@ -3,9 +3,14 @@
 //
 
 #include "moe_transformations/gather_to_2d_gather.hpp"
+#include "moe_transformations/moe_topology.hpp"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <algorithm>
+#include <array>
+#include <numeric>
 
 #include <common_test_utils/test_common.hpp>
 
@@ -314,6 +319,103 @@ TEST_F(GatherTo2DGatherTest, BasicTransformation) {
 
     // Validate transformation results
     validate_transformation(model, I, M, K);
+}
+
+TEST_F(GatherTo2DGatherTest, Rank4GatherPreservesOutputValues) {
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 4, 2, 6});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    gather->get_rt_info()[ov::npuw::moe::device_routed_weight_gather_tag] = true;
+    auto model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data, indices});
+    auto reference = model->clone();
+
+    ASSERT_TRUE(GatherTo2DGather().run_on_model(model));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(model->output().get_shape(), (Shape{2, 4, 2, 6}));
+    auto flattened_gather = find_gather(model);
+    ASSERT_NE(flattened_gather, nullptr);
+    EXPECT_EQ(flattened_gather->input_value(0).get_shape(), (Shape{24, 6}));
+    EXPECT_EQ(flattened_gather->input_value(1).get_shape(), (Shape{16}));
+
+    Tensor data_tensor(element::f32, Shape{3, 4, 2, 6});
+    std::iota(data_tensor.data<float>(), data_tensor.data<float>() + data_tensor.get_size(), 0.0f);
+    Tensor indices_tensor(element::i32, Shape{2});
+    for (const auto& values : {std::array<int32_t, 2>{2, 0}, std::array<int32_t, 2>{-1, -3}}) {
+        std::copy(values.begin(), values.end(), indices_tensor.data<int32_t>());
+        TensorVector expected{Tensor(element::f32, Shape{2, 4, 2, 6})};
+        TensorVector actual{Tensor(element::f32, Shape{2, 4, 2, 6})};
+        const TensorVector inputs{data_tensor, indices_tensor};
+        ASSERT_TRUE(reference->evaluate(expected, inputs));
+        ASSERT_TRUE(model->evaluate(actual, inputs));
+        EXPECT_TRUE(std::equal(expected[0].data<float>(),
+                               expected[0].data<float>() + expected[0].get_size(),
+                               actual[0].data<float>()));
+    }
+}
+
+TEST_F(GatherTo2DGatherTest, Rank4EmptyIndicesPreserveOutputShape) {
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 4, 2, 6});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{0});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    gather->get_rt_info()[ov::npuw::moe::device_routed_weight_gather_tag] = true;
+    auto model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data, indices});
+
+    ASSERT_TRUE(GatherTo2DGather().run_on_model(model));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(model->output().get_shape(), (Shape{0, 4, 2, 6}));
+}
+
+TEST_F(GatherTo2DGatherTest, Rank4EmptyDataIsNotRewritten) {
+    for (const auto& shape : {Shape{0, 4, 2, 6}, Shape{3, 0, 2, 6}, Shape{3, 4, 2, 0}}) {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{0});
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+        gather->get_rt_info()[ov::npuw::moe::device_routed_weight_gather_tag] = true;
+        auto model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data, indices});
+
+        EXPECT_FALSE(GatherTo2DGather().run_on_model(model));
+    }
+}
+
+TEST_F(GatherTo2DGatherTest, Rank4PackedWeightsKeepTheirTypeAndShape) {
+    auto data = std::make_shared<op::v0::Parameter>(element::i4, Shape{8, 16, 4, 128});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    gather->get_rt_info()[ov::npuw::moe::device_routed_weight_gather_tag] = true;
+    auto model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data, indices});
+
+    ASSERT_TRUE(GatherTo2DGather().run_on_model(model));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(model->output().get_element_type(), element::i4);
+    EXPECT_EQ(model->output().get_shape(), (Shape{2, 16, 4, 128}));
+    auto flattened_gather = find_gather(model);
+    ASSERT_NE(flattened_gather, nullptr);
+    EXPECT_EQ(flattened_gather->input_value(0).get_shape(), (Shape{512, 128}));
+}
+
+TEST_F(GatherTo2DGatherTest, Rank4FlattenedIndicesOverflowIsNotRewritten) {
+    auto data = std::make_shared<op::v0::Parameter>(element::i4, Shape{1024, 4096, 1024, 128});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    gather->get_rt_info()[ov::npuw::moe::device_routed_weight_gather_tag] = true;
+    auto model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data, indices});
+
+    EXPECT_FALSE(GatherTo2DGather().run_on_model(model));
+}
+
+TEST_F(GatherTo2DGatherTest, UnmarkedRank4GatherIsNotRewritten) {
+    auto data = std::make_shared<op::v0::Parameter>(element::i4, Shape{8, 16, 4, 128});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    auto model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data, indices});
+
+    EXPECT_FALSE(GatherTo2DGather().run_on_model(model));
 }
 
 // Test 2: Negative test - Axis != 0
