@@ -782,7 +782,7 @@ def string_to_device_properties(device_properties_str):
         return ret
     if not device_properties_str.startswith("{") or not device_properties_str.endswith("}"):
         raise Exception(
-            "Failed to parse device properties. Value of device properties should be started with '{' and ended with '}'."
+            "Failed to parse device properties. Value of device properties should be started with '{{' and ended with '}}'. "
             "They are actually {} and {}".format(device_properties_str[0], device_properties_str[-1]))
     pattern = r'(\w+):({.+?}|[^,}]+)'
     pairs = re.findall(pattern, device_properties_str)
