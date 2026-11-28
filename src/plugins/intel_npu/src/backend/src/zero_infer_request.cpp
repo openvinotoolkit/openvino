@@ -149,8 +149,7 @@ void check_shape_against_port(const ov::PartialShape& portPartialShape,
                     ".");
 }
 
-ov::Shape getInitialTensorShape(const intel_npu::IODescriptor& descriptor,
-                                const ov::SoPtr<ov::ITensor>& userTensor) {
+ov::Shape getInitialTensorShape(const intel_npu::IODescriptor& descriptor, const ov::SoPtr<ov::ITensor>& userTensor) {
     if (userTensor != nullptr) {
         return userTensor->get_shape();
     }

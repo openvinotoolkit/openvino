@@ -44,7 +44,9 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     const auto byte_size = ov::util::get_memory_size_safe(element_type, shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", shape);
     _logger.debug("ZeroTensor allocate - shape=%s bytes=%zu is_input=%d",
-                  shape.to_string().c_str(), byte_size.value(), is_input);
+                  shape.to_string().c_str(),
+                  byte_size.value(),
+                  is_input);
 
     _bytes_capacity = get_byte_size();
 
@@ -189,8 +191,11 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
 
     if (byteSize.value() != _bytes_capacity) {
         _logger.debug("ZeroTensor set_shape - reshape %s -> %s, capacity=%zu, requested=%zu, is_input=%d",
-                      oldShape.to_string().c_str(), _shape.to_string().c_str(),
-                      _bytes_capacity, byteSize.value(), _is_input);
+                      oldShape.to_string().c_str(),
+                      _shape.to_string().c_str(),
+                      _bytes_capacity,
+                      byteSize.value(),
+                      _is_input);
 
         OPENVINO_ASSERT(_init_structs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0),
                         "Re-shaping the tensor is not available using this driver version. "

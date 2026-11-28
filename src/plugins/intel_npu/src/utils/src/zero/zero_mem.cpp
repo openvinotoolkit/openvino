@@ -24,7 +24,10 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, zero_memory_flag};
     _logger.debug("zeMemAllocHost - requested size=%zu rounded size=%zu alignment=%zu is_input=%d",
-                  bytes, _size, alignment, is_input);
+                  bytes,
+                  _size,
+                  alignment,
+                  is_input);
     THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocHost",
                                 zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr));
 
