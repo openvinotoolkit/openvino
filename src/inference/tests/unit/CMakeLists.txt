@@ -18,6 +18,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/config_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/core.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_map_parser/cache_parser_linux.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/cpu_map_parser/cpu_list_parser_linux.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_map_parser/freq_parser_linux.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_map_parser/parser_macos.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_map_parser/parser_windows.cpp
