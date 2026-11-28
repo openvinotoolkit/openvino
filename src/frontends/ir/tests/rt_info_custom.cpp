@@ -4,15 +4,59 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <sstream>
+#include <tuple>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
+#include "transformations/common_optimizations/moc_transformations.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 
 namespace ov::test {
+
+class NonconvertibleDivideRoundTrip : public testing::TestWithParam<std::tuple<bool, element::Type>> {};
+
+TEST_P(NonconvertibleDivideRoundTrip, PreservesMOCBehavior) {
+    const auto& [marked, type] = GetParam();
+    const auto input = std::make_shared<op::v0::Parameter>(type, Shape{2});
+    const auto divisor = op::v0::Constant::create(type, Shape{}, {9.796875f});
+    const auto divide = std::make_shared<op::v1::Divide>(input, divisor);
+    if (marked) {
+        disable_divide_conversion(divide);
+    }
+    const auto model = std::make_shared<Model>(OutputVector{divide}, ParameterVector{input});
+
+    std::stringstream model_stream, weights_stream;
+    pass::Serialize{model_stream, weights_stream}.run_on_model(model);
+    const auto weights_data = weights_stream.str();
+    Tensor weights(element::u8, Shape{weights_data.size()});
+    std::memcpy(weights.data(), weights_data.data(), weights_data.size());
+    const auto reloaded = Core{}.read_model(model_stream.str(), weights);
+    const auto reloaded_divide = reloaded->get_results().at(0)->get_input_node_shared_ptr(0);
+    ASSERT_TRUE(is_type<op::v1::Divide>(reloaded_divide));
+    EXPECT_EQ(divide_is_nonconvertible(reloaded_divide), marked);
+
+    pass::MOCTransformations(true, false).run_on_model(model);
+    pass::MOCTransformations(true, false).run_on_model(reloaded);
+    const auto original_result = model->get_results().at(0)->get_input_node_shared_ptr(0);
+    const auto reloaded_result = reloaded->get_results().at(0)->get_input_node_shared_ptr(0);
+    EXPECT_EQ(is_type<op::v1::Divide>(original_result), marked);
+    EXPECT_EQ(is_type<op::v1::Divide>(reloaded_result), marked);
+    EXPECT_EQ(is_type<op::v1::Multiply>(original_result), !marked);
+    EXPECT_EQ(is_type<op::v1::Multiply>(reloaded_result), !marked);
+}
+
+INSTANTIATE_TEST_SUITE_P(RTInfoCustom,
+                         NonconvertibleDivideRoundTrip,
+                         testing::Combine(testing::Bool(), testing::Values(element::f16, element::f32)));
 
 TEST(RTInfoCustom, simple_entries) {
     std::string ref_ir_xml = R"V0G0N(
