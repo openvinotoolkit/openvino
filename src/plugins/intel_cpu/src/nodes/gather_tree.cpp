@@ -193,6 +193,12 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
                     finished = true;
                 }
             }
+        } else {
+            // A beam without decoded steps is filled with end_token at all time steps, as in the specification.
+            auto idx = batch * beamWidth + beam;
+            for (int32_t time = 0; time < maxTime; time++, idx += bbSize) {
+                finalIdx[idx] = endToken;
+            }
         }
     });
 

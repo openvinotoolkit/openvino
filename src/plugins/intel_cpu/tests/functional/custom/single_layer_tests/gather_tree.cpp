@@ -118,6 +118,26 @@ TEST_P(GatherTreeLayerCPUTest, CompareWithRefs) {
     run();
 }
 
+// Every other batch has max_seq_len 0, so its beams have no decoded steps and must be all end_token.
+class GatherTreeZeroSeqLenCPUTest : public GatherTreeLayerCPUTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        GatherTreeLayerCPUTest::generate_inputs(targetInputStaticShapes);
+        auto maxSeqLen = inputs.at(function->get_parameters().at(2));
+        for (size_t batch = 0; batch < maxSeqLen.get_size(); batch += 2) {
+            if (maxSeqLen.get_element_type() == ov::element::f32) {
+                maxSeqLen.data<float>()[batch] = 0.0f;
+            } else {
+                maxSeqLen.data<int32_t>()[batch] = 0;
+            }
+        }
+    }
+};
+
+TEST_P(GatherTreeZeroSeqLenCPUTest, CompareWithRefs) {
+    run();
+}
+
 namespace {
 
 const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::i32};
@@ -164,6 +184,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant,
                          GatherTreeLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(inputDynamicShapesConstant),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatherTreeLayerCPUTest::getTestCaseName);
+
+// The repeated shape runs the same infer request again, so output left over from the previous run fails too.
+const std::vector<InputShape> inputShapesZeroSeqLen = {{{}, {{5, 3, 10}}},
+                                                       {{-1, -1, -1}, {{5, 3, 10}, {7, 2, 10}, {5, 3, 10}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUZeroSeqLen,
+                         GatherTreeZeroSeqLenCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesZeroSeqLen),
+                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::element::dynamic),
