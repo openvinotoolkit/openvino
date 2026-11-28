@@ -31,6 +31,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -1530,6 +1531,10 @@ TEST(TransformationTests, do_not_mark_integer_to_float_subgraph_with_matmul) {
     manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
     manager.run_passes(model);
 
+    EXPECT_FALSE(is_precision_sensitive(bucket->input(0)))
+        << "a MatMul boundary must not make the integer result precision sensitive";
+    EXPECT_FALSE(is_conversion_disabled(relative_position_f, element::f16));
+
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
@@ -1553,6 +1558,9 @@ TEST(TransformationTests, do_not_mark_integer_to_float_subgraph_without_integer_
 
     manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
     manager.run_passes(model);
+
+    EXPECT_FALSE(is_conversion_disabled(relative_position_f, element::f16))
+        << "a purely floating point result must stay compressible";
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
@@ -1592,24 +1600,37 @@ TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_value) {
 TEST(TransformationTests, ConvertPrecision_keeps_integer_rounding_ops_in_fp32) {
     // Ceiling, Floor and Round are all precision sensitive when they feed an integer conversion:
     // rounding the input to f16 first can move a value across the integer boundary, so every one
-    // of them must keep the whole chain in f32.
-    const std::vector<std::function<std::shared_ptr<Node>(const std::shared_ptr<Node>&)>> rounding_ops{
-        [](const std::shared_ptr<Node>& input) {
-            return std::make_shared<Ceiling>(input);
-        },
-        [](const std::shared_ptr<Node>& input) {
-            return std::make_shared<Floor>(input);
-        },
-        [](const std::shared_ptr<Node>& input) {
-            return std::make_shared<Round>(input, op::v5::Round::RoundMode::HALF_TO_EVEN);
-        }};
+    // of them must keep the whole chain in f32. Each case picks an offset that f16 rounds across
+    // the integer boundary, so the structural and the numerical check fail together without the
+    // pass.
+    struct RoundingCase {
+        std::function<std::shared_ptr<Node>(const std::shared_ptr<Node>&)> make_rounding;
+        float offset;
+        int64_t expected;
+    };
+    const std::vector<RoundingCase> cases{{[](const std::shared_ptr<Node>& input) {
+                                               return std::make_shared<Ceiling>(input);
+                                           },
+                                           0.003f,
+                                           49},
+                                          {[](const std::shared_ptr<Node>& input) {
+                                               return std::make_shared<Floor>(input);
+                                           },
+                                           0.99999f,
+                                           48},
+                                          {[](const std::shared_ptr<Node>& input) {
+                                               return std::make_shared<Round>(input,
+                                                                              op::v5::Round::RoundMode::HALF_TO_EVEN);
+                                           },
+                                           0.50001f,
+                                           49}};
 
-    for (const auto& make_rounding : rounding_ops) {
+    for (const auto& test_case : cases) {
         auto position = make_shared<Parameter>(element::i64, Shape{1});
         auto position_f = make_shared<Convert>(position, element::f32);
-        auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
-        auto scaled = make_shared<Multiply>(position_f, scale);
-        auto rounded = make_rounding(scaled);
+        auto offset = Constant::create(element::f32, Shape{}, {test_case.offset});
+        auto shifted = make_shared<Add>(position_f, offset);
+        auto rounded = test_case.make_rounding(shifted);
         auto bucket = make_shared<Convert>(rounded, element::i64);
         auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
 
@@ -1620,11 +1641,126 @@ TEST(TransformationTests, ConvertPrecision_keeps_integer_rounding_ops_in_fp32) {
         manager.run_passes(model);
 
         EXPECT_EQ(position_f->get_output_element_type(0), element::f32) << rounded->get_type_name();
-        EXPECT_EQ(scaled->get_output_element_type(0), element::f32) << rounded->get_type_name();
+        EXPECT_EQ(shifted->get_output_element_type(0), element::f32) << rounded->get_type_name();
         EXPECT_EQ(rounded->get_output_element_type(0), element::f32) << rounded->get_type_name();
         EXPECT_EQ(bucket->get_input_element_type(0), element::f32) << rounded->get_type_name();
         EXPECT_EQ(bucket->get_output_element_type(0), element::i64) << rounded->get_type_name();
+
+        std::vector<int64_t> position_data{48};
+        TensorVector inputs{Tensor(element::i64, Shape{1}, position_data.data())};
+        TensorVector outputs(model->get_output_size());
+        ASSERT_TRUE(model->evaluate(outputs, inputs));
+        EXPECT_EQ(outputs[0].data<int64_t>()[0], test_case.expected) << rounded->get_type_name();
     }
+}
+
+TEST(TransformationTests, ConvertPrecision_preserves_truncating_conversion_without_rounding_op) {
+    // Ceiling, Floor and Round are not the only way a rounding error becomes a discrete
+    // difference: Convert(f32 -> i64) truncates, so a value that f32 places just below an
+    // integer and f16 rounds up to it also changes the result. 47 * 0.9999998 is 46.99999 in
+    // f32 and truncates to 46; in f16 the factor rounds to 1.0 and the result is 47.
+    auto position = make_shared<Parameter>(element::i64, Shape{2});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto scale = Constant::create(element::f32, Shape{}, {0.9999998f});
+    auto scaled = make_shared<Multiply>(position_f, scale);
+    auto bucket = make_shared<Convert>(scaled, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    EXPECT_EQ(position_f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(scaled->get_output_element_type(0), element::f32);
+    EXPECT_EQ(bucket->get_input_element_type(0), element::f32);
+
+    std::vector<int64_t> position_data{47, -47};
+    TensorVector inputs{Tensor(element::i64, Shape{2}, position_data.data())};
+    TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+    EXPECT_EQ(outputs[0].data<int64_t>()[0], 46);
+    EXPECT_EQ(outputs[0].data<int64_t>()[1], -46);
+}
+
+TEST(TransformationTests, ConvertPrecision_keeps_unrelated_float_subgraph_in_fp16) {
+    // The integer bucket chain must stay in f32, but an independent floating point branch that
+    // never converts back to an integer must still be compressed.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
+    auto scaled = make_shared<Multiply>(position_f, scale);
+    auto ceiling = make_shared<Ceiling>(scaled);
+    auto bucket = make_shared<Convert>(ceiling, element::i64);
+
+    auto data = make_shared<Parameter>(element::f32, Shape{1});
+    auto factor = Constant::create(element::f32, Shape{}, {2.0f});
+    auto unrelated = make_shared<Multiply>(data, factor);
+
+    auto model = make_shared<Model>(OutputVector{bucket, unrelated}, ParameterVector{position, data});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    EXPECT_EQ(position_f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(scaled->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ceiling->get_output_element_type(0), element::f32);
+
+    EXPECT_EQ(data->get_output_element_type(0), element::f16) << "unrelated parameter not compressed";
+    EXPECT_EQ(unrelated->get_output_element_type(0), element::f16) << "unrelated branch not compressed";
+}
+
+TEST(TransformationTests, ConvertPrecision_keeps_forward_side_branch_in_fp16) {
+    // Marking the source Convert would propagate down to every consumer, including a floating
+    // point side branch that never reaches the integer conversion. Only the backward chain to the
+    // terminal conversion is precision sensitive, so the side branch must still be compressed.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
+    auto scaled = make_shared<Multiply>(position_f, scale);
+    auto ceiling = make_shared<Ceiling>(scaled);
+    auto bucket = make_shared<Convert>(ceiling, element::i64);
+
+    auto factor = Constant::create(element::f32, Shape{}, {2.0f});
+    auto side_branch = make_shared<Multiply>(scaled, factor);
+
+    auto model = make_shared<Model>(OutputVector{bucket, side_branch}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    EXPECT_EQ(position_f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(scaled->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ceiling->get_output_element_type(0), element::f32);
+    EXPECT_EQ(side_branch->get_output_element_type(0), element::f16)
+        << "a forward side branch of the protected chain must still be compressed";
+}
+
+TEST(TransformationTests, ConvertPrecision_compresses_integer_to_float_without_integer_terminal) {
+    // An integer-to-float conversion whose result stays floating point is not an index
+    // computation, so it must still be compressed to f16.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto abs = make_shared<Abs>(position_f);
+    auto sqrt = make_shared<Sqrt>(abs);
+    auto model = make_shared<Model>(OutputVector{sqrt}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    EXPECT_EQ(position_f->get_output_element_type(0), element::f16);
+    EXPECT_EQ(abs->get_output_element_type(0), element::f16);
+    EXPECT_EQ(sqrt->get_output_element_type(0), element::f16);
 }
 
 TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_selected_by_comparison) {
@@ -1654,6 +1790,82 @@ TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_selected_by_
 
     EXPECT_EQ(outputs[0].data<int64_t>()[0], 100)
         << "f16 compression must not flip a comparison that selects an integer bucket";
+}
+
+TEST(TransformationTests, ConvertPrecision_preserves_bucket_selected_by_boolean_chain) {
+    // The sensitive value reaches Select only through the boolean condition:
+    // Greater -> LogicalAnd -> Select(const, const). f16 rounds 47.999 to 48.0, so
+    // Greater(48, 47.999) flips from true to false and the wrong constant is selected.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto lower = Constant::create(element::f32, Shape{}, {47.999f});
+    auto upper = Constant::create(element::f32, Shape{}, {48.5f});
+    auto above_lower = make_shared<Greater>(position_f, lower);
+    auto below_upper = make_shared<Less>(position_f, upper);
+    auto both = make_shared<LogicalAnd>(above_lower, below_upper);
+    auto true_bucket = Constant::create(element::f32, Shape{}, {100.0f});
+    auto false_bucket = Constant::create(element::f32, Shape{}, {200.0f});
+    auto selected = make_shared<Select>(both, true_bucket, false_bucket);
+    auto bucket = make_shared<Convert>(selected, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    std::vector<int64_t> position_data{48};
+    TensorVector inputs{Tensor(element::i64, Shape{1}, position_data.data())};
+    TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    EXPECT_EQ(outputs[0].data<int64_t>()[0], 100)
+        << "f16 compression must not flip a boolean chain that selects an integer bucket";
+}
+
+TEST(TransformationTests, ConvertPrecision_preserves_boolean_terminal_conversion) {
+    // The float chain ends in Convert(boolean -> i64) rather than Convert(f32 -> i64).
+    // The comparison result still has to be computed from f32 values.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto threshold = Constant::create(element::f32, Shape{}, {47.999f});
+    auto cond = make_shared<Greater>(position_f, threshold);
+    auto bucket = make_shared<Convert>(cond, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    std::vector<int64_t> position_data{48};
+    TensorVector inputs{Tensor(element::i64, Shape{1}, position_data.data())};
+    TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    EXPECT_EQ(outputs[0].data<int64_t>()[0], 1) << "f16 compression must not flip a comparison converted to an integer";
+}
+
+TEST(TransformationTests, MarkIntegerToFloatSubgraph_follows_all_split_outputs) {
+    // Split has several outputs; the walk must continue from every one of them.
+    auto position = make_shared<Parameter>(element::i64, Shape{2, 4});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto axis = Constant::create(element::i64, Shape{}, {1});
+    auto split = make_shared<Split>(position_f, axis, 2);
+    auto ceiling1 = make_shared<Ceiling>(split->output(0));
+    auto bucket1 = make_shared<Convert>(ceiling1, element::i64);
+    auto ceiling2 = make_shared<Ceiling>(split->output(1));
+    auto bucket2 = make_shared<Convert>(ceiling2, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket1, bucket2}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    EXPECT_TRUE(is_precision_sensitive(bucket1->input(0))) << "first Split output not followed";
+    EXPECT_TRUE(is_precision_sensitive(bucket2->input(0))) << "second Split output not followed";
 }
 
 TEST(TransformationTests, MarkIntegerToFloatSubgraph_marks_every_terminal_convert) {

@@ -22,6 +22,7 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -47,6 +48,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -119,8 +121,9 @@ const std::shared_ptr<Node> propagate_through_ops =
                        v1::Select,
                        op::util::BinaryElementwiseComparison>();
 
-// The same set of ops as in propagate_through_ops, except for Convert and Constant which are
-// handled explicitly while walking an integer-to-float subgraph.
+// The same set of ops as in propagate_through_ops, plus logical ops so the walk can follow a
+// boolean comparison result into a Select condition. Convert and Constant are handled explicitly
+// while walking an integer-to-float subgraph.
 bool is_precision_propagating_op(const std::shared_ptr<Node>& node) {
     return ov::is_type_any_of<v0::Squeeze,
                               v0::Unsqueeze,
@@ -141,7 +144,9 @@ bool is_precision_propagating_op(const std::shared_ptr<Node>& node) {
                               v0::Concat,
                               v0::Tile,
                               v1::Select,
-                              op::util::BinaryElementwiseComparison>(node);
+                              op::util::BinaryElementwiseComparison,
+                              op::util::BinaryElementwiseLogical,
+                              v1::LogicalNot>(node);
 }
 
 }  // namespace
@@ -437,8 +442,9 @@ public:
  * the resulting integer. A typical example is the DeBERTa relative position bucket computation,
  * where a wrong bucket silently changes the gathered position embedding.
  *
- * Mark the integer-to-float Convert so that the whole elementwise chain up to the
- * float-to-integer Convert is kept in f32.
+ * Mark the input of the float-to-integer Convert as precision sensitive, so that the backward
+ * elementwise chain up to the integer-to-float Convert is kept in f32 by
+ * MarkPrecisionSensitiveShapeOfSubgraphs.
  */
 class MarkIntegerToFloatSubgraph : public MatcherPass {
 public:
@@ -467,13 +473,18 @@ public:
                         continue;
 
                     if (const auto to_integer = as_type_ptr<v0::Convert>(consumer)) {
-                        if (to_integer->get_input_element_type(0).is_real() &&
+                        const auto terminal_input_type = to_integer->get_input_element_type(0);
+                        // A boolean terminal is a comparison result converted to an index; the
+                        // comparison itself is still computed from the floating point chain, so
+                        // the chain must stay in f32 as well.
+                        if ((terminal_input_type.is_real() || terminal_input_type == element::boolean) &&
                             to_integer->get_convert_element_type().is_integral_number()) {
-                            // AlignMixedFP32FP16Types must not insert a compression Convert
-                            // right before the float-to-integer conversion, otherwise the
-                            // rounding happens anyway. Do not stop here: one int-to-float
-                            // Convert can feed several terminal conversions through different
-                            // branches, and all of them must be marked.
+                            // Marking the input instead of the Convert itself keeps only the
+                            // backward chain in f32: MarkPrecisionSensitiveShapeOfSubgraphs walks
+                            // it and disables f16 conversion, while a mark on the source Convert
+                            // would propagate down into unrelated forward branches. Do not stop
+                            // here: one int-to-float Convert can feed several terminal conversions
+                            // through different branches, and all of them must be marked.
                             mark_as_precision_sensitive(to_integer->input(0));
                             found = true;
                         }
@@ -494,8 +505,6 @@ public:
                 }
             }
 
-            if (found)
-                disable_conversion(convert, element::f16);
             return found;
         };
 
