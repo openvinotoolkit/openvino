@@ -361,6 +361,7 @@ OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_stack_fx);
 OP_CONVERTER(translate_sum_fx);
 OP_CONVERTER(translate_std_fx);
+OP_CONVERTER(translate_std_mean_fx);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_quantize_per_channel_fx);
 OP_CONVERTER(translate_quantize_per_tensor_fx);
@@ -380,6 +381,13 @@ OP_CONVERTER(translate_embedding_ct);
 OP_CONVERTER(translate_linear_ext);
 OP_CONVERTER(translate_linear_gptq);
 }  // namespace op
+
+// Translators of custom operations registered by integrations (torch.compile vLLM path). They may produce
+// internal operations, so the converted model can't always be serialized.
+namespace op::ext {
+OP_CONVERTER(translate_gdn_attention);
+OP_CONVERTER(translate_paged_attention);
+}  // namespace op::ext
 
 // Supported ops for TorchScript
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
@@ -962,6 +970,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.prod.default", op::translate_prod_fx},
         {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.round.decimals", op::translate_round},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
         {"aten.select_scatter.default", op::translate_select_scatter_fx},
@@ -971,6 +980,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.split.Tensor", op::translate_list_view_fx},
         {"aten.stack.default", op::translate_stack_fx},
         {"aten.std.correction", op::translate_std_fx},
+        {"aten.std_mean.correction", op::translate_std_mean_fx},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
         {"aten.sym_size.int", op::translate_size},
@@ -1006,6 +1016,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"ov_ext.ct_gemm.default", op::translate_linear_ct},
         {"ov_ext.ct_embedding.default", op::translate_embedding_ct},
         {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
+        {"ov_ext.gdn_attention.default", op::ext::translate_gdn_attention},
+        {"ov_ext.paged_attention.default", op::ext::translate_paged_attention},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},

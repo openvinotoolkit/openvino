@@ -1,0 +1,7 @@
+# vLLM test dependencies, installed only by their own CI job: vllm-cpu needs numpy>=2, which conflicts with the
+# other test requirements, and brings its own torch. Bump vllm-cpu only after re-running the vLLM tests.
+--extra-index-url https://download.pytorch.org/whl/cpu
+vllm-cpu==0.28.0
+
+pytest==9.0.3
+pytest-html==4.2.0

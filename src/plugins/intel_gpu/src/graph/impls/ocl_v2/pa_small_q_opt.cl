@@ -36,6 +36,27 @@
 #define ROWS 8
 #define QUERY_ROW_STRIDE (K_HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM)
 
+#if HAS_TOKEN_TYPE_IDS
+// An empty token_type_ids input (runtime size 0) disables the bidirectional masking.
+#define TT_PRESENT (TOKEN_TYPE_IDS_BATCH_NUM > 0)
+
+// Run of type-1 tokens containing query token `token_off` of the subsequence, as [begin, end) offsets in the subsequence.
+// Subsequences have at most a few tokens on this path, so a serial scan is enough.
+inline uint FUNC(type1_run_begin)(const __global TOKEN_TYPE_IDS_TYPE* token_type_ids, uint query_begin, uint token_off) {
+    uint begin = token_off;
+    while (begin > 0 && token_type_ids[query_begin + begin - 1] == 1)
+        begin--;
+    return begin;
+}
+
+inline uint FUNC(type1_run_end)(const __global TOKEN_TYPE_IDS_TYPE* token_type_ids, uint query_begin, uint query_count, uint token_off) {
+    uint end = token_off + 1;
+    while (end < query_count && token_type_ids[query_begin + end] == 1)
+        end++;
+    return end;
+}
+#endif
+
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
     #define K_BLOCK_ELEMS (PACKED_ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE)
     #define V_BLOCK_ELEMS (PACKED_ADJUSTED_V_HEAD_SIZE * BLOCK)
@@ -164,6 +185,9 @@ KERNEL(pa_small_q_opt)(
     const __global QQ_BIAS_DATA_T* qq_bias,
     const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
 #endif
+#if HAS_TOKEN_TYPE_IDS
+    const __global TOKEN_TYPE_IDS_TYPE* token_type_ids,
+#endif
     __global OUTPUT_TYPE* output,
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
@@ -236,7 +260,32 @@ KERNEL(pa_small_q_opt)(
     float8 row_max = (float8)(-INFINITY);
     float8 row_sum = (float8)(0.0f);
 
-    // The first query row defines the union of keys needed by this subsequence's sliding windows.
+    // Keys of each row: [key_begin, key_end). key_end is the causal length, or for a type-1 token the end of its run of
+    // type-1 tokens (the same length the finalization stage uses). A sliding window moves key_begin up; for a type-1
+    // token it stops at the run start, so the whole run stays visible.
+    uint key_end[ROWS];
+#if SLIDING_WINDOW_SIZE != 0
+    uint key_begin[ROWS];
+#endif
+    unroll_for (uint m = 0; m < ROWS; m++) {
+        const uint token_off = sgid * TOKENS_PER_SG + m / KV_HEADS_GROUP_SIZE;
+        const uint causal_len = past_len + token_off + 1;
+        key_end[m] = causal_len;
+#if SLIDING_WINDOW_SIZE != 0
+        key_begin[m] = causal_len > SLIDING_WINDOW_SIZE ? causal_len - SLIDING_WINDOW_SIZE : 0;
+#endif
+#if HAS_TOKEN_TYPE_IDS
+        if (TT_PRESENT && token_off < query_count && token_type_ids[query_begin + token_off] == 1) {
+            key_end[m] = past_len + FUNC_CALL(type1_run_end)(token_type_ids, query_begin, query_count, token_off);
+    #if SLIDING_WINDOW_SIZE != 0
+            key_begin[m] = min(key_begin[m], past_len + FUNC_CALL(type1_run_begin)(token_type_ids, query_begin, token_off));
+    #endif
+        }
+#endif
+    }
+
+    // The first query row defines the union of keys needed by this subsequence's sliding windows: a later row's window,
+    // or a type-1 token's run start (>= past_len), never starts before it.
     uint tile_start = partition_start;
 #if SLIDING_WINDOW_SIZE != 0
     const uint first_query_seq_len = past_len + 1;
@@ -289,16 +338,15 @@ KERNEL(pa_small_q_opt)(
         }
         s *= (float8)(scale_val);
 
-        // Lane owns key token key_pos; the causal length differs per row
+        // Lane owns key token key_pos; the key range differs per row
         const uint key_pos = key_start + sglid;
         float scores[ROWS];
         vstore8(s, 0, scores);
         unroll_for (uint m = 0; m < ROWS; m++) {
             const uint token_off = sgid * TOKENS_PER_SG + m / KV_HEADS_GROUP_SIZE;
-            const uint seq_len = past_len + token_off + 1;
-            bool valid = token_off < query_count && key_pos < seq_len;
+            bool valid = token_off < query_count && key_pos < key_end[m];
 #if SLIDING_WINDOW_SIZE != 0
-            valid = valid && !(seq_len > SLIDING_WINDOW_SIZE && key_pos < seq_len - SLIDING_WINDOW_SIZE);
+            valid = valid && key_pos >= key_begin[m];
 #endif
 #if HAS_QQ_BIAS
             // Speculative tree mask between draft tokens of the same subsequence
@@ -309,7 +357,8 @@ KERNEL(pa_small_q_opt)(
             }
 #endif
 #if HAS_ALIBI
-            scores[m] += convert_float(alibi_slopes[head_begin + m % KV_HEADS_GROUP_SIZE]) * ((int)key_pos + 1 - (int)seq_len);
+            // ALiBi uses the causal distance, also for type-1 tokens
+            scores[m] += convert_float(alibi_slopes[head_begin + m % KV_HEADS_GROUP_SIZE]) * ((int)key_pos - (int)(past_len + token_off));
 #endif
             if (!valid)
                 scores[m] = -INFINITY;
@@ -368,14 +417,13 @@ KERNEL(pa_small_q_opt)(
         if (token_off >= query_count)
             continue;
 
-        const uint seq_len = past_len + token_off + 1;
         const uint token = query_begin + token_off;
         const uint head = head_begin + m % KV_HEADS_GROUP_SIZE;
         const float denom = sum_arr[m];
         const float inv_denom = denom > 0.0f ? 1.0f / denom : 0.0f;
 
         // The finalization stage skips tokens fitting into a single partition, so those are written to output directly
-        if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+        if (key_end[m] > SEQ_LEN_PARTITION_SIZE) {
             if (sglid == 0) {
                 const uint exp_sums_offset = token * HEADS_NUM * total_partitions_num + head * total_partitions_num + partition_idx;
                 exp_sums[exp_sums_offset] = denom;

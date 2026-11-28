@@ -77,10 +77,8 @@ attach_rms_impl::attach_rms_impl() {
         data_types::f8e5m2
     };
 
-    auto formats = {
-        format::bfyx,
-        format::bfzyx
-    };
+    // b_fs_yx_fsv16 / b_fs_zyx_fsv16: feature-axis only, static only; gated by Registry<rms> (registry/rms_impls.cpp)
+    auto formats = {format::bfyx, format::bfzyx, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16};
 
     implementation_map<rms>::add(impl_types::ocl,
                                  shape_types::any,

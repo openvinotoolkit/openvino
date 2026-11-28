@@ -1143,6 +1143,7 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
         auto row_out = req.get_tensor(row_result->output(0));
         auto logits = req.get_tensor("logits");
 
+        EXPECT_EQ(row_out.get_shape(), (ov::Shape{1, 1, 1, static_cast<size_t>(hidden)}));
         ASSERT_EQ(row_out.get_size(), (size_t)hidden);
         ASSERT_EQ(logits.get_shape(), (ov::Shape{1, 1, 1}));
         const float* data = row_out.data<float>();
@@ -1165,6 +1166,7 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
         auto row_out = req.get_tensor(row_result->output(0));
         auto logits = req.get_tensor("logits");
 
+        EXPECT_EQ(row_out.get_shape(), (ov::Shape{T, 1, 1, static_cast<size_t>(hidden)}));
         ASSERT_EQ(row_out.get_size(), T * (size_t)hidden);
         ASSERT_EQ(logits.get_shape(), (ov::Shape{T, 1, 1}));
         const float* data = row_out.data<float>();

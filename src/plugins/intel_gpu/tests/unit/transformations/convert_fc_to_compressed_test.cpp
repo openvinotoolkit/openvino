@@ -2,28 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_test_utils.hpp"
-
-#include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/add.hpp"
-#include "intel_gpu/op/fully_connected.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "intel_gpu/op/placeholder.hpp"
-
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 
 #include <memory>
 #include <sstream>
+#include <tuple>
 #include <vector>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/fully_connected.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -414,10 +414,26 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedParameterWeightsAndScaleWithEx
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed3) {
+class ConvertFCToCompressedGroupedWeightsTest : public TransformationTestsF, public testing::WithParamInterface<ov::element::Type> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& info) {
+        return info.param.get_type_name();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+};
+
+TEST_P(ConvertFCToCompressedGroupedWeightsTest, ConvertsGroupedWeights) {
+    const auto weights_type = GetParam();
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 16 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 4, 4 }, { 1 });
+        auto weights_const = ov::op::v0::Constant::create(weights_type, ov::Shape{32, 4, 4}, {1});
         auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
         auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 4, 1 }, { 1 });
         auto sub = std::make_shared<ov::op::v1::Subtract>(convert, zp_const);
@@ -429,11 +445,10 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed3) {
         auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, reshape, no_bias);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
     }
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 16 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
+        auto weights_const = ov::op::v0::Constant::create(weights_type, ov::Shape{32, 16}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 4 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 4 }, { 1 });
@@ -442,6 +457,11 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed3) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertFCToCompressedGroupedWeightsTest,
+                         testing::Values(ov::element::u8, ov::element::u3),
+                         ConvertFCToCompressedGroupedWeightsTest::getTestCaseName);
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed4) {
     {

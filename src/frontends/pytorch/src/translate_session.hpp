@@ -4,11 +4,28 @@
 
 #pragma once
 
+#include <map>
+#include <memory>
+#include <string>
+
 #include "input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov::frontend::pytorch {
+
+/// vLLM PagedAttention state shared by the PagedAttention translator calls of one translation session.
+struct VLLMPagedAttentionState {
+    // Shared PagedAttention side-channel Parameters, keyed by tag.
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> shared_params;
+    // Shared PA inputs derived from seq_lens and query_start_loc (past_lens, max_context_len, ...).
+    std::map<std::string, ov::Output<ov::Node>> shared_outputs;
+    // Per-layer PagedAttention key/value by vLLM layer name, reused by the layers sharing that KV cache.
+    std::map<std::string, std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> layer_kv;
+    // PagedAttention calls without a constant layer_name, to give each a distinct tag.
+    size_t unknown_layer_count{0};
+};
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, operation translators (including extensions) registered for this
@@ -65,6 +82,11 @@ public:
 
     OutputVector convert_node(const NodeContext& context);
 
+    /// \brief Returns the vLLM PagedAttention state shared across translator calls of this session
+    VLLMPagedAttentionState& get_vllm_paged_attention_state() {
+        return m_pa_state;
+    }
+
 private:
     const frontend::InputModel::Ptr m_input_model;
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
@@ -75,6 +97,7 @@ private:
     std::map<std::string, uint64_t> m_op_statistics;
     // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
     bool m_is_fx = false;
+    VLLMPagedAttentionState m_pa_state;
 };
 
 }  // namespace ov::frontend::pytorch

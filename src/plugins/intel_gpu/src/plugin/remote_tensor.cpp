@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+#include <memory>
+
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-
-#include <cstdint>
-#include <memory>
 
 template <>
 struct std::hash<ov::intel_gpu::SharedBufferHandle> {
@@ -37,22 +37,7 @@ namespace ov::intel_gpu {
 
 namespace {
 ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
-    ov::Strides strides{};
-    if (element_type.bitwidth() < 8) {
-        if (ov::util::can_compute_byte_strides(element_type, shape)) {
-            strides = ov::util::get_dense_byte_strides(element_type, shape);
-        }
-        return strides;
-    }
-
-    if (!shape.empty()) {
-        strides.resize(shape.size());
-        strides.back() = shape.back() == 0 ? 0 : element_type.size();
-        std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
-        std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
-    }
-
-    return strides;
+    return ov::util::can_compute_byte_strides(element_type, shape) ? ov::util::get_dense_byte_strides(element_type, shape) : ov::Strides{};
 }
 
 struct MemWrapper {
@@ -242,8 +227,8 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
-    // Sub-byte types use flat contiguous copy
-    if (m_element_type.bitwidth() < 8) {
+    // Sub-byte types and scalars use a flat contiguous copy.
+    if (m_element_type.bitwidth() < 8 || shape.empty()) {
         const auto byte_size = get_byte_size();
         if (dst_remote_tensor != nullptr) {
             auto src_mem = MemWrapper(stream, get_memory(), nullptr);
@@ -292,8 +277,8 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
 
-    // Sub-byte types use flat contiguous copy
-    if (m_element_type.bitwidth() < 8) {
+    // Sub-byte types and scalars use a flat contiguous copy.
+    if (m_element_type.bitwidth() < 8 || shape.empty()) {
         const auto byte_size = get_byte_size();
         if (src_remote_tensor != nullptr) {
             auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
