@@ -403,6 +403,9 @@ inline void (FUNC_NAME)(
     OUTPUT_VEC_TYPE result[FORCED_TILE_B] = { };
 #if HAS_FUSED_OPS
     unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+    #if IS_DYNAMIC
+        if (bi + out_b < BATCH_SIZE) {
+    #endif
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -412,6 +415,9 @@ inline void (FUNC_NAME)(
         FUSED_OPS_SCALAR;
         result[bi] = FUSED_OPS_RESULT_SCALAR;
     #endif // TILE_OFM > 1
+    #if IS_DYNAMIC
+        }
+    #endif
     }
 #else
     unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {

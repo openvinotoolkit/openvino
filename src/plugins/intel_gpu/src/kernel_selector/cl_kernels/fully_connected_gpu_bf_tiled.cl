@@ -288,6 +288,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
 
 #if !USE_SLM && !IS_DYNAMIC && DISPATCH_BATCH_LEFTOVER
+    // Dynamic kernels always dispatch with DISPATCH_BSV == 1 (out_b < BATCH_SIZE), so only
+    // static padded-dispatch workgroups need an early exit (avoiding extra CFG in __sa kernels).
     if (out_b >= BATCH_SIZE) {
         return;
     }
@@ -307,6 +309,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         }
         uint input_k_offset = 0;
     #elif OUTPUT_3D && !FC_ACC_NEEDS_PROMOTION
+        // Keep the legacy 3D offset expression on non-FP16 paths to preserve IGC codegen parity.
         uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
         uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
         uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;

@@ -699,7 +699,9 @@ FullyConnected_bf_tiled::DispatchData FullyConnected_bf_tiled::SetDefault(const 
     auto feature_threads = threads.second;
 
     const size_t aligned_batch = Align(batch_threads, lws_batches);  // Each WG calculates 8x8 batches (TILE_B x LWS[2] size)
-    const size_t aligned_batch_threads = Align(batch_threads, tparams.dispatch_bsv);
+    // Dynamic shape-agnostic kernels always use dispatch_bsv == 1 (enforced in VerifyTuneParams),
+    // so only static non-SLM dispatch aligns batch_threads to dispatch_bsv (padded WGs early-exit).
+    const size_t aligned_batch_threads = params.is_shape_agnostic ? batch_threads : Align(batch_threads, tparams.dispatch_bsv);
     const bool can_use_slm = tparams.kernel_type == KernelType::SLM;
 
     dispatchData.gws[0] = can_use_slm ? feature_threads * simd : feature_threads * aligned_batch_threads * simd;
@@ -891,10 +893,10 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     // for 3d output we are treating spatial as features
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         auto tile_in_b_pitch = (params.inputs[0].Feature().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Feature().pitch;
-        bool input_has_feature_pad = params.is_shape_agnostic || params.inputs[0].has_dynamic_pad() ||
-                                     params.inputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].Feature().pad.Total() != 0;
-        bool output_has_feature_pad = params.is_shape_agnostic || params.outputs[0].has_dynamic_pad() ||
-                                      params.outputs[0].PitchesDifferFromLogicalDims() || params.outputs[0].Feature().pad.Total() != 0;
+        bool input_has_feature_pad = params.is_shape_agnostic || params.inputs[0].has_dynamic_pad() || params.inputs[0].PitchesDifferFromLogicalDims() ||
+                                     params.inputs[0].Feature().pad.Total() != 0;
+        bool output_has_feature_pad = params.is_shape_agnostic || params.outputs[0].has_dynamic_pad() || params.outputs[0].PitchesDifferFromLogicalDims() ||
+                                      params.outputs[0].Feature().pad.Total() != 0;
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Y().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Y().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));

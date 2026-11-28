@@ -1258,6 +1258,68 @@ TEST(fully_connected_gpu, bf_tiled_with_pad) {
     }
 }
 
+namespace {
+
+ExecutionConfig make_forced_fc_config(cldnn::engine& engine,
+                                      const std::string& impl_name,
+                                      bool optimize_data,
+                                      bool allow_new_shape_infer = false,
+                                      int64_t dyn_quant_gs = -1) {
+    ExecutionConfig config = get_test_default_config(engine);
+    if (allow_new_shape_infer) {
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    }
+    config.set_property(ov::intel_gpu::optimize_data(optimize_data));
+    if (dyn_quant_gs >= 0) {
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(static_cast<uint64_t>(dyn_quant_gs)));
+    }
+    ov::intel_gpu::ImplementationDesc impl_desc = {format::bfyx, impl_name, impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", impl_desc}}));
+    return config;
+}
+
+bool kernel_source_has_all_defines(const primitive_inst& inst, const std::vector<std::string>& defines) {
+    const auto& node = inst.get_node();
+    auto selected_impl = node.type()->create_impl(node);
+    for (const auto& s : selected_impl->get_kernels_source()) {
+        if (s == nullptr) {
+            continue;
+        }
+        const auto src = s->get_str();
+        bool all_found = true;
+        for (const auto& def : defines) {
+            if (src.find(def) == std::string::npos) {
+                all_found = false;
+                break;
+            }
+        }
+        if (all_found) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename T>
+void compare_fc_memory_near(cldnn::memory::ptr test_out, cldnn::memory::ptr ref_out, size_t expected_count, float tol, const std::string& ctx = "") {
+    ASSERT_EQ(test_out->count(), expected_count) << ctx;
+    cldnn::mem_lock<T, mem_lock_type::read> out_ptr(test_out, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
+    for (size_t i = 0; i < expected_count; ++i) {
+        ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), tol) << ctx << " i=" << i;
+    }
+}
+
+void fill_random_fc_tensor(cldnn::memory::ptr mem, tests::random_generator& rg, data_types dt, size_t count, float lo, float hi) {
+    if (dt == data_types::f16) {
+        set_values(mem, rg.generate_random_1d<ov::float16>(count, lo, hi));
+    } else {
+        set_values(mem, rg.generate_random_1d<float>(count, lo, hi));
+    }
+}
+
+}  // namespace
+
 TEST(fully_connected_gpu, bf_tiled_3d_crop_feature_pad_cross_batch) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
@@ -1301,32 +1363,25 @@ TEST(fully_connected_gpu, bf_tiled_3d_crop_feature_pad_cross_batch) {
         }
     }
     std::vector<ov::float16> empty_bias(output_y, ov::float16(0.f));
-    auto reference_output = dynamic_fully_connected_reference_calc<ov::float16, ov::float16, ov::float16, ov::float16, float>(
-        batch_num * feature_num,
-        input_y,
-        output_y,
-        cropped_input_bfyx,
-        weights_data_bfyx,
-        empty_bias);
+    auto reference_output = dynamic_fully_connected_reference_calc<ov::float16, ov::float16, ov::float16, ov::float16, float>(batch_num * feature_num,
+                                                                                                                              input_y,
+                                                                                                                              output_y,
+                                                                                                                              cropped_input_bfyx,
+                                                                                                                              weights_data_bfyx,
+                                                                                                                              empty_bias);
 
     set_values(input_mem, full_input_bfyx);
     set_values(weights_mem, weights_data_bfyx);
     set_values(eltw_mem, eltwise_input);
 
-    topology topology(
-        input_layout("input", input_mem->get_layout()),
-        data("weights", weights_mem),
-        data("eltw_input", eltw_mem),
-        eltwise("eltw", {input_info("input"), input_info("eltw_input")}, eltwise_mode::sum),
-        crop("crop", input_info("eltw"), tensor{batch_num, feature_num, input_x, input_y}, tensor{0, feature_offset, 0, 0}),
-        fully_connected("fc_prim", input_info("crop"), "weights", "", 3, 3));
+    topology topology(input_layout("input", input_mem->get_layout()),
+                      data("weights", weights_mem),
+                      data("eltw_input", eltw_mem),
+                      eltwise("eltw", {input_info("input"), input_info("eltw_input")}, eltwise_mode::sum),
+                      crop("crop", input_info("eltw"), tensor{batch_num, feature_num, input_x, input_y}, tensor{0, feature_offset, 0, 0}),
+                      fully_connected("fc_prim", input_info("crop"), "weights", "", 3, 3));
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-    network network(engine, topology, config);
+    network network(engine, topology, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true));
     ASSERT_TRUE(network.get_primitive("crop")->can_be_optimized());
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
@@ -1351,26 +1406,33 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
         GTEST_SKIP() << "cl_khr_fp16 is not supported.";
     }
 
-    // Reproduces FP16 large-K (K=3072) running-sum stagnation/drift in fully_connected_gpu_bf_tiled.
+    // Reproduces FP16 large-K running-sum stagnation/drift in fully_connected_gpu_bf_tiled.
     // First 16 products sum to +/-64.0 (where FP16 1 ULP = 0.0625); each subsequent 16-element tile sums to
     // +/-0.030 (< 0.5 ULP in FP16), which stagnates completely if accumulated in half instead of float.
-    // Exercises both batch=1 (TILE_B=1) and prime multi-batch=17 (TILE_B=8, dispatch_bsv=3, BATCH_LEFTOVER).
+    // Exercises batch=1 (TILE_B=1, FC_ACC_MERGE_TILES=1), prime multi-batch=17 (TILE_B=8, dispatch_bsv=3,
+    // BATCH_LEFTOVER, FC_ACC_MERGE_TILES=2), and K=3074 (FC_ACC_MERGE_TILES=2 with K-leftover).
     const int feature_num = 1;
     const int input_x = 1;
-    const int input_y = 3072;
     const int output_y = 64;
 
-    auto weights_mem = engine.allocate_memory({{output_y, input_y}, data_types::f16, format::bfyx});
-    std::vector<ov::float16> weights_data(output_y * input_y);
-    for (int ofm = 0; ofm < output_y; ++ofm) {
-        const float sign = (ofm % 2 == 0) ? -1.0f : 1.0f;
-        for (int k = 0; k < input_y; ++k) {
-            weights_data[ofm * input_y + k] = (k < 16) ? ov::float16(sign * 1.0f) : ov::float16(sign * 0.015f);
-        }
-    }
-    set_values(weights_mem, weights_data);
+    struct AccCase {
+        int batch_num;
+        int input_y;
+    };
+    for (const auto& tc : std::vector<AccCase>{{1, 3072}, {17, 3072}, {17, 3074}}) {
+        const int batch_num = tc.batch_num;
+        const int input_y = tc.input_y;
 
-    for (int batch_num : {1, 17}) {
+        auto weights_mem = engine.allocate_memory({{output_y, input_y}, data_types::f16, format::bfyx});
+        std::vector<ov::float16> weights_data(static_cast<size_t>(output_y) * input_y);
+        for (int ofm = 0; ofm < output_y; ++ofm) {
+            const float sign = (ofm % 2 == 0) ? -1.0f : 1.0f;
+            for (int k = 0; k < input_y; ++k) {
+                weights_data[static_cast<size_t>(ofm) * input_y + k] = (k < 16) ? ov::float16(sign * 1.0f) : ov::float16(sign * 0.015f);
+            }
+        }
+        set_values(weights_mem, weights_data);
+
         auto input_mem = engine.allocate_memory({{batch_num, feature_num, input_y, input_x}, data_types::f16, format::bfyx});
         std::vector<ov::float16> input_data(static_cast<size_t>(batch_num) * input_y);
         for (int b = 0; b < batch_num; ++b) {
@@ -1393,17 +1455,11 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
             }
         }
 
-        topology topology(
-            input_layout("input", input_mem->get_layout()),
-            data("weights", weights_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
+        topology topology(input_layout("input", input_mem->get_layout()),
+                          data("weights", weights_mem),
+                          fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
 
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-        network network(engine, topology, config);
+        network network(engine, topology, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true));
         network.set_input_data("input", input_mem);
         auto outputs = network.execute();
 
@@ -1420,7 +1476,8 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
             for (int ofm = 0; ofm < output_y; ++ofm) {
                 const size_t idx = static_cast<size_t>(b) * output_y + ofm;
                 const float ref_f16 = static_cast<float>(ov::float16(expected_f32[idx]));
-                ASSERT_NEAR(ref_f16, static_cast<float>(output_ptr[idx]), 0.0625f) << "batch_num=" << batch_num << " b=" << b << " ofm=" << ofm;
+                ASSERT_NEAR(ref_f16, static_cast<float>(output_ptr[idx]), 0.0625f)
+                    << "batch_num=" << batch_num << " K=" << input_y << " b=" << b << " ofm=" << ofm;
             }
         }
     }
@@ -1447,17 +1504,11 @@ TEST(fully_connected_gpu, bf_tiled_fp32_tile_partial_sum_cancellation) {
     set_values(input_mem, input_data);
     set_values(weights_mem, weights_data);
 
-    topology topology(
-        input_layout("input", input_mem->get_layout()),
-        data("weights", weights_mem),
-        fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
+    topology topology(input_layout("input", input_mem->get_layout()),
+                      data("weights", weights_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-    network network(engine, topology, config);
+    network network(engine, topology, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true));
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 
@@ -1520,10 +1571,8 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
         const int ofm_num = tc.ofm_num;
         auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
         auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
-        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
-        set_values(weights_mem, weights_data);
-        set_values(scale_mem, scale_data);
+        set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10));
+        set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f));
 
         const layout dyn_in_layout(ov::PartialShape{-1, in_features_total, ifm_num}, data_types::f16, format::bfyx);
         auto fc_prim = fully_connected("fc_prim", input_info("crop"), "weights", "", "scale", "", data_types::f16, 3, 2);
@@ -1538,21 +1587,8 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
             crop("crop", {input_info("input"), input_info("axis"), input_info("splits")}, tensor(1), tensor(0), crop_ngraph_op_mode::variadic_split, 1, 1),
             fc_prim);
 
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
-        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, tc.forced_impl, impl_types::ocl};
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-        ExecutionConfig ref_config = get_test_default_config(engine);
-        ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        ref_config.set_property(ov::intel_gpu::optimize_data(false));
-        ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
-        ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
-
-        network test_net(engine, test_topo, config);
-        network ref_net(engine, test_topo, ref_config);
+        network test_net(engine, test_topo, make_forced_fc_config(engine, tc.forced_impl, true, true, 32));
+        network ref_net(engine, test_topo, make_forced_fc_config(engine, "fully_connected_gpu_bfyx_ref", false, true));
 
         ASSERT_TRUE(test_net.get_primitive("crop")->can_be_optimized());
 
@@ -1589,14 +1625,11 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
                 EXPECT_NE(kernels.find("fully_connected_gpu_bf_tiled"), std::string::npos) << "Expected bf_tiled kernel, got: " << kernels;
             }
 
-            cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-            cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-            const size_t expected_count = static_cast<size_t>(batch_num) * feature_num * ofm_num;
-            ASSERT_EQ(test_out->count(), expected_count);
-            for (size_t i = 0; i < expected_count; ++i) {
-                ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 5e-2f)
-                    << "ofm_num=" << ofm_num << " batch_num=" << batch_num << " i=" << i;
-            }
+            compare_fc_memory_near<ov::float16>(test_out,
+                                                ref_out,
+                                                static_cast<size_t>(batch_num) * feature_num * ofm_num,
+                                                5e-2f,
+                                                "ofm_num=" + std::to_string(ofm_num) + " batch_num=" + std::to_string(batch_num));
         }
     }
 }
@@ -1621,10 +1654,8 @@ TEST(fully_connected_gpu, bf_tiled_zero_offset_upper_feature_pad_disables_dyn_qu
 
     auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
     auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
-    auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
-    set_values(weights_mem, weights_data);
-    set_values(scale_mem, scale_data);
+    set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10));
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f));
 
     auto full_input_mem = engine.allocate_memory({{batch_num, in_features_total, ifm_num, 1}, data_types::f16, format::bfyx});
     auto contig_input_mem = engine.allocate_memory({{batch_num, feature_num, ifm_num, 1}, data_types::f16, format::bfyx});
@@ -1641,40 +1672,26 @@ TEST(fully_connected_gpu, bf_tiled_zero_offset_upper_feature_pad_disables_dyn_qu
             }
         }
     }
-    std::vector<ov::float16> eltw_zero(in_features_total, ov::float16(0.0f));
     set_values(full_input_mem, full_input_data);
     set_values(contig_input_mem, active_vals);
-    set_values(eltw_mem, eltw_zero);
+    set_values(eltw_mem, std::vector<ov::float16>(in_features_total, ov::float16(0.0f)));
 
     auto fc_padded = fully_connected("fc_prim", input_info("crop"), "weights", "", "scale", "", data_types::f16, 3, 2);
     fc_padded.decompression_zero_point_scalar = 0;
-    topology padded_topo(
-        input_layout("input", full_input_mem->get_layout()),
-        data("eltw_in", eltw_mem),
-        data("weights", weights_mem),
-        data("scale", scale_mem),
-        eltwise("eltw", {input_info("input"), input_info("eltw_in")}, eltwise_mode::sum),
-        crop("crop", input_info("eltw"), tensor{batch_num, feature_num, 1, ifm_num}, tensor{0, 0, 0, 0}),
-        fc_padded);
+    topology padded_topo(input_layout("input", full_input_mem->get_layout()),
+                         data("eltw_in", eltw_mem),
+                         data("weights", weights_mem),
+                         data("scale", scale_mem),
+                         eltwise("eltw", {input_info("input"), input_info("eltw_in")}, eltwise_mode::sum),
+                         crop("crop", input_info("eltw"), tensor{batch_num, feature_num, 1, ifm_num}, tensor{0, 0, 0, 0}),
+                         fc_padded);
 
     auto fc_contig = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
     fc_contig.decompression_zero_point_scalar = 0;
-    topology contig_topo(
-        input_layout("input", contig_input_mem->get_layout()),
-        data("weights", weights_mem),
-        data("scale", scale_mem),
-        fc_contig);
+    topology contig_topo(input_layout("input", contig_input_mem->get_layout()), data("weights", weights_mem), data("scale", scale_mem), fc_contig);
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-    ExecutionConfig ref_config = get_test_default_config(engine);
-    ref_config.set_property(ov::intel_gpu::optimize_data(false));
-    ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
-    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
+    auto config = make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true, false, 32);
+    auto ref_config = make_forced_fc_config(engine, "fully_connected_gpu_bfyx_ref", false);
 
     network padded_net(engine, padded_topo, config);
     network contig_net(engine, contig_topo, config);
@@ -1697,13 +1714,7 @@ TEST(fully_connected_gpu, bf_tiled_zero_offset_upper_feature_pad_disables_dyn_qu
     EXPECT_EQ(contig_fc_inst->get_impl()->get_kernels().size(), 2U) << "Contiguous static control must include quantize_input + FC kernels";
     EXPECT_EQ(contig_fc_inst->get_intermediates_memories().size(), 2U) << "Contiguous control must allocate dynamic quantize buffers";
 
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(padded_out, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-    const size_t expected_count = static_cast<size_t>(batch_num) * feature_num * ofm_num;
-    ASSERT_EQ(padded_out->count(), expected_count);
-    for (size_t i = 0; i < expected_count; ++i) {
-        ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 5e-2f) << " i = " << i;
-    }
+    compare_fc_memory_near<ov::float16>(padded_out, ref_out, static_cast<size_t>(batch_num) * feature_num * ofm_num, 5e-2f);
 }
 
 TEST(fully_connected_gpu, bf_tiled_dynamic_k_static_upper_feature_pad_disables_dyn_quant) {
@@ -1727,10 +1738,8 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_k_static_upper_feature_pad_disables_d
 
     auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
     auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
-    auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
-    set_values(weights_mem, weights_data);
-    set_values(scale_mem, scale_data);
+    set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10));
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f));
 
     const padding static_upper_f_pad({0, 0, 0, 0}, {0, feature_pad_after, 0, 0});
     const layout dyn_in_layout(ov::PartialShape{-1, feature_num, -1}, data_types::f16, format::bfyx, static_upper_f_pad);
@@ -1752,43 +1761,19 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_k_static_upper_feature_pad_disables_d
 
     auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
     fc_prim.decompression_zero_point_scalar = 0;
-    topology topo(
-        input_layout("input", dyn_in_layout),
-        data("weights", weights_mem),
-        data("scale", scale_mem),
-        fc_prim);
+    topology topo(input_layout("input", dyn_in_layout), data("weights", weights_mem), data("scale", scale_mem), fc_prim);
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-    ExecutionConfig ref_config = get_test_default_config(engine);
-    ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    ref_config.set_property(ov::intel_gpu::optimize_data(false));
-    ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
-    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
-
-    network test_net(engine, topo, config);
-    network ref_net(engine, topo, ref_config);
+    network test_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true, true, 32));
+    network ref_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bfyx_ref", false, true));
 
     test_net.set_input_data("input", input_mem);
     ref_net.set_input_data("input", input_mem);
     auto test_out = test_net.execute().at("fc_prim").get_memory();
     auto ref_out = ref_net.execute().at("fc_prim").get_memory();
 
-    auto fc_inst = test_net.get_primitive("fc_prim");
-    EXPECT_EQ(fc_inst->get_intermediates_memories().size(), 0U) << "Dynamic quantize must be disabled for dynamic-K statically padded input";
-
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-    const size_t expected_count = static_cast<size_t>(batch_num) * feature_num * ofm_num;
-    ASSERT_EQ(test_out->count(), expected_count);
-    for (size_t i = 0; i < expected_count; ++i) {
-        ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 5e-2f) << " i = " << i;
-    }
+    EXPECT_EQ(test_net.get_primitive("fc_prim")->get_intermediates_memories().size(), 0U)
+        << "Dynamic quantize must be disabled for dynamic-K statically padded input";
+    compare_fc_memory_near<ov::float16>(test_out, ref_out, static_cast<size_t>(batch_num) * feature_num * ofm_num, 5e-2f);
 }
 
 TEST(fully_connected_gpu, bf_tiled_dyn_b_non_post_op_scale_group_no_tile_overflow) {
@@ -1807,14 +1792,11 @@ TEST(fully_connected_gpu, bf_tiled_dyn_b_non_post_op_scale_group_no_tile_overflo
 
     auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
     auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
-    std::vector<uint8_t> weights_data(static_cast<size_t>(ofm_num) * ifm_num / 2, 0x11);
-    std::vector<ov::float16> scale_data(static_cast<size_t>(ofm_num) * (ifm_num / scales_group_size), ov::float16(1.0f));
-    set_values(weights_mem, weights_data);
-    set_values(scale_mem, scale_data);
+    set_values(weights_mem, std::vector<uint8_t>(static_cast<size_t>(ofm_num) * ifm_num / 2, 0x11));
+    set_values(scale_mem, std::vector<ov::float16>(static_cast<size_t>(ofm_num) * (ifm_num / scales_group_size), ov::float16(1.0f)));
 
     const layout dyn_in_layout(ov::PartialShape{-1, ifm_num}, data_types::f16, format::bfyx);
-    const layout actual_in_layout(ov::PartialShape{batch_num, ifm_num}, data_types::f16, format::bfyx);
-    auto input_mem = engine.allocate_memory(actual_in_layout);
+    auto input_mem = engine.allocate_memory(layout(ov::PartialShape{batch_num, ifm_num}, data_types::f16, format::bfyx));
     std::vector<ov::float16> input_data(static_cast<size_t>(batch_num) * ifm_num);
     for (int b = 0; b < batch_num; ++b) {
         for (int k = 0; k < ifm_num; ++k) {
@@ -1825,20 +1807,9 @@ TEST(fully_connected_gpu, bf_tiled_dyn_b_non_post_op_scale_group_no_tile_overflo
 
     auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2);
     fc_prim.decompression_zero_point_scalar = 0;
-    topology topo(
-        input_layout("input", dyn_in_layout),
-        data("weights", weights_mem),
-        data("scale", scale_mem),
-        fc_prim);
+    topology topo(input_layout("input", dyn_in_layout), data("weights", weights_mem), data("scale", scale_mem), fc_prim);
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled_dyn_b", impl_types::ocl};
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-    network test_net(engine, topo, config);
+    network test_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled_dyn_b", true, true, 0));
     test_net.set_input_data("input", input_mem);
     auto test_out = test_net.execute().at("fc_prim").get_memory();
 
@@ -1861,93 +1832,43 @@ TEST(fully_connected_gpu, bf_tiled_unaligned_batch_padded_dispatch_bsv) {
     const int ifm_num = 64;
     const int ofm_num = 64;
 
-    auto run_case = [&](data_types dt, int batch_num, float tol) {
-        if (dt == data_types::f16 && !engine.get_device_info().supports_fp16) {
-            return;
-        }
-        auto input_mem = engine.allocate_memory({{1, batch_num, ifm_num, 1}, dt, format::bfyx});
-        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, dt, format::bfyx});
-
-        if (dt == data_types::f16) {
-            set_values(input_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f));
-            set_values(weights_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f));
-        } else {
-            set_values(input_mem, rg.generate_random_1d<float>(static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f));
-            set_values(weights_mem, rg.generate_random_1d<float>(static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f));
-        }
-
-        topology topo(input_layout("input", input_mem->get_layout()),
-                      data("weights", weights_mem),
-                      fully_connected("fc_prim", input_info("input"), "weights", "", 3, 2));
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-        ExecutionConfig ref_config = get_test_default_config(engine);
-        ref_config.set_property(ov::intel_gpu::optimize_data(false));
-        ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
-        ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
-
-        network test_net(engine, topo, config);
-        network ref_net(engine, topo, ref_config);
-
-        test_net.set_input_data("input", input_mem);
-        ref_net.set_input_data("input", input_mem);
-        auto test_out = test_net.execute().at("fc_prim").get_memory();
-        auto ref_out = ref_net.execute().at("fc_prim").get_memory();
-
-        auto fc_inst = test_net.get_primitive("fc_prim");
-        const auto& node = fc_inst->get_node();
-        auto selected_impl = node.type()->create_impl(node);
-        bool found_tile_b8 = false;
-        bool found_bsv16 = false;
-        bool found_fsv2 = false;
-        bool found_dispatch_leftover = false;
-        bool found_expected_tile_leftover = false;
-        const std::string expected_bl = (batch_num % 8 == 0) ? "#define BATCH_LEFTOVER 0" : "#define BATCH_LEFTOVER 1";
-        for (const auto& s : selected_impl->get_kernels_source()) {
-            if (s != nullptr) {
-                const auto src = s->get_str();
-                if (src.find("#define TILE_B 8") != std::string::npos)
-                    found_tile_b8 = true;
-                if (src.find("#define DISPATCH_BSV 16") != std::string::npos)
-                    found_bsv16 = true;
-                if (src.find("#define DISPATCH_FSV 2") != std::string::npos)
-                    found_fsv2 = true;
-                if (src.find("#define DISPATCH_BATCH_LEFTOVER 1") != std::string::npos)
-                    found_dispatch_leftover = true;
-                if (src.find(expected_bl) != std::string::npos)
-                    found_expected_tile_leftover = true;
-            }
-        }
-        EXPECT_TRUE(found_tile_b8) << "dt=" << dt << " batch=" << batch_num;
-        EXPECT_TRUE(found_bsv16) << "dt=" << dt << " batch=" << batch_num;
-        EXPECT_TRUE(found_fsv2) << "dt=" << dt << " batch=" << batch_num;
-        EXPECT_TRUE(found_dispatch_leftover) << "dt=" << dt << " batch=" << batch_num;
-        EXPECT_TRUE(found_expected_tile_leftover) << "dt=" << dt << " batch=" << batch_num;
-
-        const size_t expected_count = static_cast<size_t>(batch_num) * ofm_num;
-        ASSERT_EQ(test_out->count(), expected_count);
-        if (dt == data_types::f16) {
-            cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-            cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-            for (size_t i = 0; i < expected_count; ++i) {
-                ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), tol) << "f16 batch=" << batch_num << " i=" << i;
-            }
-        } else {
-            cldnn::mem_lock<float, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-            cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-            for (size_t i = 0; i < expected_count; ++i) {
-                ASSERT_NEAR(ref_ptr[i], out_ptr[i], tol) << "f32 batch=" << batch_num << " i=" << i;
-            }
-        }
-    };
-
     for (int batch_num : {688, 690}) {
-        run_case(data_types::f16, batch_num, 5e-2f);
-        run_case(data_types::f32, batch_num, 1e-3f);
+        for (data_types dt : {data_types::f16, data_types::f32}) {
+            if (dt == data_types::f16 && !engine.get_device_info().supports_fp16) {
+                continue;
+            }
+            const float tol = (dt == data_types::f16) ? 5e-2f : 1e-3f;
+            auto input_mem = engine.allocate_memory({{1, batch_num, ifm_num, 1}, dt, format::bfyx});
+            auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, dt, format::bfyx});
+            fill_random_fc_tensor(input_mem, rg, dt, static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f);
+            fill_random_fc_tensor(weights_mem, rg, dt, static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f);
+
+            topology topo(input_layout("input", input_mem->get_layout()),
+                          data("weights", weights_mem),
+                          fully_connected("fc_prim", input_info("input"), "weights", "", 3, 2));
+
+            network test_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true));
+            network ref_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bfyx_ref", false));
+
+            test_net.set_input_data("input", input_mem);
+            ref_net.set_input_data("input", input_mem);
+            auto test_out = test_net.execute().at("fc_prim").get_memory();
+            auto ref_out = ref_net.execute().at("fc_prim").get_memory();
+
+            const std::string expected_bl = (batch_num % 8 == 0) ? "#define BATCH_LEFTOVER 0" : "#define BATCH_LEFTOVER 1";
+            EXPECT_TRUE(kernel_source_has_all_defines(
+                *test_net.get_primitive("fc_prim"),
+                {"#define TILE_B 8", "#define DISPATCH_BSV 16", "#define DISPATCH_FSV 2", "#define DISPATCH_BATCH_LEFTOVER 1", expected_bl}))
+                << "dt=" << dt << " batch=" << batch_num;
+
+            const size_t expected_count = static_cast<size_t>(batch_num) * ofm_num;
+            const std::string ctx = "batch=" + std::to_string(batch_num);
+            if (dt == data_types::f16) {
+                compare_fc_memory_near<ov::float16>(test_out, ref_out, expected_count, tol, "f16 " + ctx);
+            } else {
+                compare_fc_memory_near<float>(test_out, ref_out, expected_count, tol, "f32 " + ctx);
+            }
+        }
     }
 }
 
@@ -1970,9 +1891,9 @@ TEST(fully_connected_gpu, bf_tiled_unaligned_batch_fused_binary_add_oob_safety) 
             auto residual_mem = engine.allocate_memory({ov::PartialShape{1, batch_num, ofm_num}, data_types::f16, format::bfyx});
             auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm_num, ifm_num}, data_types::f16, format::bfyx});
 
-            set_values(input_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f));
-            set_values(residual_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch_num) * ofm_num, -2.0f, 2.0f));
-            set_values(weights_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f));
+            fill_random_fc_tensor(input_mem, rg, data_types::f16, static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f);
+            fill_random_fc_tensor(residual_mem, rg, data_types::f16, static_cast<size_t>(batch_num) * ofm_num, -2.0f, 2.0f);
+            fill_random_fc_tensor(weights_mem, rg, data_types::f16, static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f);
 
             const layout in_layout = is_dynamic ? layout{ov::PartialShape{1, -1, ifm_num}, data_types::f16, format::bfyx} : input_mem->get_layout();
             const layout res_layout = is_dynamic ? layout{ov::PartialShape{1, -1, ofm_num}, data_types::f16, format::bfyx} : residual_mem->get_layout();
@@ -1984,20 +1905,8 @@ TEST(fully_connected_gpu, bf_tiled_unaligned_batch_fused_binary_add_oob_safety) 
                           eltwise("add_prim", {input_info("fc_prim"), input_info("residual")}, eltwise_mode::sum),
                           reorder("reorder_out", input_info("add_prim"), format::bfyx, data_types::f32));
 
-            ExecutionConfig config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            config.set_property(ov::intel_gpu::optimize_data(true));
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-            ExecutionConfig ref_config = get_test_default_config(engine);
-            ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            ref_config.set_property(ov::intel_gpu::optimize_data(false));
-            ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
-            ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
-
-            network test_net(engine, topo, config);
-            network ref_net(engine, topo, ref_config);
+            network test_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true, true));
+            network ref_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bfyx_ref", false, true));
 
             auto fc_inst = test_net.get_primitive("fc_prim");
             ASSERT_NE(fc_inst, nullptr);
@@ -2013,14 +1922,11 @@ TEST(fully_connected_gpu, bf_tiled_unaligned_batch_fused_binary_add_oob_safety) 
 
             auto test_out = test_net.execute().at("reorder_out").get_memory();
             auto ref_out = ref_net.execute().at("reorder_out").get_memory();
-
-            cldnn::mem_lock<float, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-            cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-            const size_t expected_count = static_cast<size_t>(batch_num) * ofm_num;
-            ASSERT_EQ(test_out->count(), expected_count);
-            for (size_t i = 0; i < expected_count; ++i) {
-                ASSERT_NEAR(ref_ptr[i], out_ptr[i], 5e-2f) << "is_dynamic=" << is_dynamic << " fused add batch=" << batch_num << " i=" << i;
-            }
+            compare_fc_memory_near<float>(test_out,
+                                          ref_out,
+                                          static_cast<size_t>(batch_num) * ofm_num,
+                                          5e-2f,
+                                          "is_dynamic=" + std::to_string(is_dynamic) + " batch=" + std::to_string(batch_num));
         }
     }
 }
@@ -2040,31 +1946,15 @@ TEST(fully_connected_gpu, bf_tiled_small_batch_exact_tiles) {
         for (int batch_num : {1, 2, 7, 30, 196}) {
             auto input_mem = engine.allocate_memory({{1, batch_num, ifm_num, 1}, dt, format::bfyx});
             auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, dt, format::bfyx});
-
-            if (dt == data_types::f16) {
-                set_values(input_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f));
-                set_values(weights_mem, rg.generate_random_1d<ov::float16>(static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f));
-            } else {
-                set_values(input_mem, rg.generate_random_1d<float>(static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f));
-                set_values(weights_mem, rg.generate_random_1d<float>(static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f));
-            }
+            fill_random_fc_tensor(input_mem, rg, dt, static_cast<size_t>(batch_num) * ifm_num, -1.0f, 1.0f);
+            fill_random_fc_tensor(weights_mem, rg, dt, static_cast<size_t>(ofm_num) * ifm_num, -0.5f, 0.5f);
 
             topology topo(input_layout("input", input_mem->get_layout()),
                           data("weights", weights_mem),
                           fully_connected("fc_prim", input_info("input"), "weights", "", 3, 2));
 
-            ExecutionConfig config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::optimize_data(true));
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
-
-            ExecutionConfig ref_config = get_test_default_config(engine);
-            ref_config.set_property(ov::intel_gpu::optimize_data(false));
-            ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
-            ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
-
-            network test_net(engine, topo, config);
-            network ref_net(engine, topo, ref_config);
+            network test_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bf_tiled", true));
+            network ref_net(engine, topo, make_forced_fc_config(engine, "fully_connected_gpu_bfyx_ref", false));
 
             test_net.set_input_data("input", input_mem);
             ref_net.set_input_data("input", input_mem);
@@ -2072,38 +1962,18 @@ TEST(fully_connected_gpu, bf_tiled_small_batch_exact_tiles) {
             auto ref_out = ref_net.execute().at("fc_prim").get_memory();
 
             if (batch_num == 30 || batch_num == 196) {
-                auto fc_inst = test_net.get_primitive("fc_prim");
-                const auto& node = fc_inst->get_node();
-                auto selected_impl = node.type()->create_impl(node);
                 const std::string expected_tb = (batch_num == 30) ? "#define TILE_B 6" : "#define TILE_B 7";
                 const std::string expected_bsv = (batch_num == 30) ? "#define DISPATCH_BSV 5" : "#define DISPATCH_BSV 14";
-                bool found_exact = false;
-                for (const auto& s : selected_impl->get_kernels_source()) {
-                    if (s != nullptr) {
-                        const auto src = s->get_str();
-                        if (src.find(expected_tb) != std::string::npos && src.find(expected_bsv) != std::string::npos &&
-                            src.find("#define BATCH_LEFTOVER 0") != std::string::npos) {
-                            found_exact = true;
-                        }
-                    }
-                }
-                EXPECT_TRUE(found_exact) << "dt=" << dt << " batch=" << batch_num << " should keep exact " << expected_tb << ", " << expected_bsv;
+                EXPECT_TRUE(kernel_source_has_all_defines(*test_net.get_primitive("fc_prim"), {expected_tb, expected_bsv, "#define BATCH_LEFTOVER 0"}))
+                    << "dt=" << dt << " batch=" << batch_num << " should keep exact " << expected_tb << ", " << expected_bsv;
             }
 
             const size_t expected_count = static_cast<size_t>(batch_num) * ofm_num;
-            ASSERT_EQ(test_out->count(), expected_count);
+            const std::string ctx = "batch=" + std::to_string(batch_num);
             if (dt == data_types::f16) {
-                cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-                cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-                for (size_t i = 0; i < expected_count; ++i) {
-                    ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), tol) << "f16 batch=" << batch_num << " i=" << i;
-                }
+                compare_fc_memory_near<ov::float16>(test_out, ref_out, expected_count, tol, "f16 " + ctx);
             } else {
-                cldnn::mem_lock<float, mem_lock_type::read> out_ptr(test_out, get_test_stream());
-                cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
-                for (size_t i = 0; i < expected_count; ++i) {
-                    ASSERT_NEAR(ref_ptr[i], out_ptr[i], tol) << "f32 batch=" << batch_num << " i=" << i;
-                }
+                compare_fc_memory_near<float>(test_out, ref_out, expected_count, tol, "f32 " + ctx);
             }
         }
     }
@@ -2120,8 +1990,7 @@ TEST(fully_connected_gpu, bf_tiled_with_unaligned_batch) {
     const int output_y = input_y;
 
     // Allocate memory
-    auto input_mem =
-        engine.allocate_memory({{batch_num, feature_num, input_y, input_x}, data_types::f16, format::bfyx});
+    auto input_mem = engine.allocate_memory({{batch_num, feature_num, input_y, input_x}, data_types::f16, format::bfyx});
     auto weights_mem = engine.allocate_memory({{output_y, input_y}, data_types::f16, format::bfyx});
 
     // Generate random input data and set values
@@ -2134,12 +2003,8 @@ TEST(fully_connected_gpu, bf_tiled_with_unaligned_batch) {
     std::vector<ov::float16> empty_bias(output_y, 0);
     set_values(input_mem, input_data_bfyx);
     set_values(weights_mem, weights_data_bfyx);
-    auto reference_output = dynamic_fully_connected_reference_calc<ov::float16>(batch_num * feature_num,
-                                                                                input_y,
-                                                                                output_y,
-                                                                                input_data_bfyx,
-                                                                                weights_data_bfyx,
-                                                                                empty_bias);
+    auto reference_output =
+        dynamic_fully_connected_reference_calc<ov::float16>(batch_num * feature_num, input_y, output_y, input_data_bfyx, weights_data_bfyx, empty_bias);
     topology topology(input_layout("input", input_mem->get_layout()),
                       data("weights", weights_mem),
                       fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
@@ -2163,12 +2028,10 @@ TEST(fully_connected_gpu, bf_tiled_with_unaligned_batch) {
     }
 }
 
-TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
-{
+TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34) {
     auto& engine = get_test_engine();
 
-    if (!engine.get_device_info().supports_fp16)
-    {
+    if (!engine.get_device_info().supports_fp16) {
         GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     // Test parameters
@@ -2179,9 +2042,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     const int input_f = 64;
 
     // Allocate memory
-    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
-    auto weights_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { output_f, input_f, input_y, input_x } });
-    auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
+    auto input_prim = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, input_f, input_y, input_x}});
+    auto weights_prim = engine.allocate_memory({data_types::f16, format::bfyx, {output_f, input_f, input_y, input_x}});
+    auto bias_prim = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, output_f, 1}});
 
     // Generate random input data and set values
     tests::random_generator rg(GET_SUITE_NAME);
@@ -2200,14 +2063,12 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     auto reference_output = fully_connected_reference(input_data, weights_data, bias_data, true);
 
     // Create topology to test
-    topology topology(
-        input_layout("input", input_prim->get_layout()),
-        data("weights", weights_prim),
-        data("bias", bias_prim),
-        reorder("input_fsv", input_info("input"), { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc_prim", input_info("input_fsv"), "weights", "bias"),
-        activation("out", input_info("fc_prim"), activation_func::relu)
-    );
+    topology topology(input_layout("input", input_prim->get_layout()),
+                      data("weights", weights_prim),
+                      data("bias", bias_prim),
+                      reorder("input_fsv", input_info("input"), {data_types::f16, format::fs_b_yx_fsv32, {batch_num, input_f, input_y, input_x}}),
+                      fully_connected("fc_prim", input_info("input_fsv"), "weights", "bias"),
+                      activation("out", input_info("fc_prim"), activation_func::relu));
 
     // Set data optimization to allow weights reordering to optimal format
     ExecutionConfig config = get_test_default_config(engine);
@@ -2221,17 +2082,14 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     auto output_prim = outputs.at("out").get_memory();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    for (size_t bi = 0; bi < batch_num; ++bi)
-    {
-        for (size_t fi = 0; fi < output_f; ++fi)
-        {
+    for (size_t bi = 0; bi < batch_num; ++bi) {
+        for (size_t fi = 0; fi < output_f; ++fi) {
             auto ref_val = reference_output[bi][0][0][fi];
             auto val = output_ptr[bi * output_f + fi];
             auto equal = floating_point_equal(ref_val, val);
 
             ASSERT_TRUE(equal);
-            if (!equal)
-            {
+            if (!equal) {
                 std::cout << "At b = " << bi << ", f = " << fi << std::endl;
             }
         }
@@ -2247,8 +2105,8 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
     const int out_feature_num = 136;
 
     // Allocate memory
-    auto input_mem = engine.allocate_memory({ { batch_num, in_feature_num }, data_types::f16, format::bfyx });
-    auto weights_mem = engine.allocate_memory({ { out_feature_num, in_feature_num }, data_types::f16, format::bfyx });
+    auto input_mem = engine.allocate_memory({{batch_num, in_feature_num}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{out_feature_num, in_feature_num}, data_types::f16, format::bfyx});
 
     // Generate random input data and set values
     auto input_data = rg.generate_random_1d<ov::float16>(batch_num * in_feature_num, -1, 1);
@@ -2296,7 +2154,6 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
         }
     }
 }
-
 
 class fully_connected_gpu_tests: public ::testing::Test {
 public:
