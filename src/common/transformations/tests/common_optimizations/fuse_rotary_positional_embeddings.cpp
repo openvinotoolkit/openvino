@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <set>
+
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -30,9 +33,13 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/pattern_blocks/rope_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace testing;
@@ -323,13 +330,18 @@ static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_4D(const int batch,
 static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_3D(const int seq_length,
                                                        const int num_heads,
                                                        const int rotary_ndims,
-                                                       std::string split_op_type) {
+                                                       std::string split_op_type,
+                                                       bool convert_minus_one = false) {
     auto seq_length_s = static_cast<size_t>(seq_length);
     auto rotary_ndims_s = static_cast<size_t>(rotary_ndims);
     auto num_heads_s = static_cast<size_t>(num_heads);
     auto input =
         std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, num_heads_s, rotary_ndims_s});
-    auto Constant_396096 = makeConst(ov::element::f32, ov::Shape({1, 1, 1}), {-1.000000f});
+    ov::Output<ov::Node> Constant_396096 =
+        makeConst(convert_minus_one ? ov::element::i32 : ov::element::f32, ov::Shape({1, 1, 1}), {-1});
+    if (convert_minus_one) {
+        Constant_396096 = std::make_shared<v0::Convert>(Constant_396096, ov::element::f32);
+    }
 
     auto param_cos =
         std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, 1, rotary_ndims_s});
@@ -372,6 +384,102 @@ static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_3D(const int seq_length,
     auto add_Add = makeOP<ov::opset1::Add>({mul_cos_Multiply, mul_sin_Multiply}, {{"auto_broadcast", "numpy"}});
     ov::ParameterVector parameters = ov::ParameterVector{input, param_cos, param_sin};
     return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, parameters);
+}
+
+TEST(GPTNeoXRoPEPatternTest, SharesInputWithEnclosingPattern) {
+    namespace pattern = ov::pass::pattern;
+    const auto model = buildROPE_GPTNEOX_3D(16, 32, 80, "VariadicSplit");
+    const auto input = model->get_parameters().at(0);
+    const auto other = std::make_shared<ov::opset1::Parameter>(ov::element::f32, input->get_shape());
+    const auto rope_output = model->get_results().at(0)->input_value(0);
+
+    const auto shared_input = pattern::any_input(pattern::rank_equals(3));
+    const pattern::GPTNeoXRoPEPattern rope(shared_input, 3);
+    const auto root = pattern::wrap_type<v1::Subtract>({shared_input, rope.anchors.root.node});
+    pattern::Matcher matcher(root);
+
+    ASSERT_TRUE(matcher.match(std::make_shared<v1::Subtract>(input, rope_output)->output(0)));
+    EXPECT_EQ(matcher.get_pattern_value_map().at(rope.anchors.input.node), input->output(0));
+    ASSERT_FALSE(matcher.match(std::make_shared<v1::Subtract>(other, rope_output)->output(0)));
+}
+
+TEST(GPTNeoXRoPEPatternTest, SharesSymbolsWithEnclosingPattern) {
+    namespace pattern = ov::pass::pattern;
+    const auto model = buildROPE_GPTNEOX_3D(16, 32, 80, "Slice");
+    const auto rope_output = model->get_results().at(0)->input_value(0);
+    const auto matching = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{16, 32, 80});
+    const auto different = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 32, 80});
+
+    const auto input = pattern::any_input(pattern::shape_matches("sequence, ?, ?"));
+    const pattern::GPTNeoXRoPEPattern rope(input, 3);
+    const auto sibling = pattern::any_input(pattern::shape_matches("sequence, ?, ?"));
+    const auto root = pattern::wrap_type<v1::Subtract>({rope.anchors.root.node, sibling});
+    pattern::Matcher matcher(root);
+
+    ASSERT_TRUE(matcher.match(std::make_shared<v1::Subtract>(rope_output, matching)->output(0)));
+    EXPECT_EQ(matcher.get_symbols().at("sequence").i(), 16);
+    EXPECT_EQ(matcher.get_symbols().at("half_ndims").i(), 40);
+    ASSERT_FALSE(matcher.match(std::make_shared<v1::Subtract>(rope_output, different)->output(0)));
+}
+
+TEST(GPTNeoXRoPEPatternTest, InstancesHaveIndependentHandles) {
+    namespace pattern = ov::pass::pattern;
+    const auto first_model = buildROPE_GPTNEOX_3D(16, 32, 80, "Slice");
+    const auto second_model = buildROPE_GPTNEOX_3D(16, 32, 160, "VariadicSplit");
+    const auto first_input = pattern::any_input(pattern::rank_equals(3));
+    const auto second_input = pattern::any_input(pattern::rank_equals(3));
+    const pattern::GPTNeoXRoPEPattern first(first_input, 3, "first_half_ndims");
+    const pattern::GPTNeoXRoPEPattern second(second_input, 3, "second_half_ndims");
+    const auto root =
+        pattern::wrap_type<v0::Concat>({first.anchors.root.node, second.anchors.root.node}, {{"axis", -1}});
+    const auto graph = std::make_shared<v0::Concat>(ov::OutputVector{first_model->get_results().at(0)->input_value(0),
+                                                                     second_model->get_results().at(0)->input_value(0)},
+                                                    -1);
+    pattern::Matcher matcher(root);
+
+    ASSERT_TRUE(matcher.match(graph->output(0)));
+    const auto& matches = matcher.get_pattern_value_map();
+    EXPECT_EQ(matches.at(first.anchors.input.node), first_model->get_parameters().at(0)->output(0));
+    EXPECT_EQ(matches.at(second.anchors.input.node), second_model->get_parameters().at(0)->output(0));
+    EXPECT_NE(matches.at(first.anchors.mul_sin.node), matches.at(second.anchors.mul_sin.node));
+    EXPECT_EQ(matcher.get_symbols().at(first.half_ndims_symbol).i(), 40);
+    EXPECT_EQ(matcher.get_symbols().at(second.half_ndims_symbol).i(), 80);
+}
+
+TEST(GPTNeoXRoPEPatternTest, EnumeratesMatchedAndOptionalAnchors) {
+    namespace pattern = ov::pass::pattern;
+    const pattern::GPTNeoXRoPEPattern rope(pattern::any_input(pattern::rank_equals(3)), 3);
+    const auto anchors = rope.anchors.all();
+    const auto anchor = [&](std::string_view name) {
+        return std::find_if(anchors.begin(), anchors.end(), [&](const auto& entry) {
+            return entry->name == name;
+        });
+    };
+
+    std::set<std::string_view> names;
+    for (const auto* entry : anchors) {
+        EXPECT_TRUE(names.insert(entry->name).second);
+        EXPECT_NE(entry->node, nullptr);
+    }
+    ASSERT_NE(anchor("input"), anchors.end());
+    ASSERT_NE(anchor("minus_one_convert"), anchors.end());
+    EXPECT_EQ(anchor("unknown"), anchors.end());
+    EXPECT_EQ(*anchor("input"), &rope.anchors.input);
+    const auto copied_rope = rope;
+    EXPECT_EQ(copied_rope.anchors.all().front(), &copied_rope.anchors.input);
+    EXPECT_NE(copied_rope.anchors.all().front(), anchors.front());
+
+    pattern::Matcher matcher(rope.anchors.root.node);
+    const auto without_convert = buildROPE_GPTNEOX_3D(16, 32, 80, "Slice");
+    ASSERT_TRUE(matcher.match(without_convert->get_results().at(0)->input_value(0)));
+    EXPECT_EQ(matcher.get_pattern_value_map().at((*anchor("input"))->node),
+              without_convert->get_parameters().at(0)->output(0));
+    EXPECT_EQ(matcher.get_pattern_value_map().count((*anchor("minus_one_convert"))->node), 0);
+
+    const auto with_convert = buildROPE_GPTNEOX_3D(16, 32, 80, "Slice", true);
+    ASSERT_TRUE(matcher.match(with_convert->get_results().at(0)->input_value(0)));
+    const auto& convert = matcher.get_pattern_value_map().at((*anchor("minus_one_convert"))->node);
+    EXPECT_TRUE(ov::is_type<v0::Convert>(convert.get_node_shared_ptr()));
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {

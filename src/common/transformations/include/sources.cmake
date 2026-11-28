@@ -307,6 +307,8 @@ set(PAGED_ATTENTION_HEADERS
 
 set(PATTERN_BLOCKS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/compressed_weights_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/pattern_anchor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/rope_pattern.hpp
 )
 
 set(RT_INFO_HEADERS

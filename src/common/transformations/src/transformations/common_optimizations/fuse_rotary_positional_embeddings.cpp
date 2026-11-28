@@ -47,6 +47,7 @@
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/pattern_blocks/rope_pattern.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -194,27 +195,7 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     // branch.
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
-    auto x = pattern::any_input(pattern::rank_equals(rank));
-    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(rank));
-    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(rank));
-    auto t_sin = pattern::any_input(pattern::rank_equals(rank));
-
-    auto varsplit = pattern::wrap_type_strict_index<v1::VariadicSplit>({x, rank - 1, {"half_ndims", "?"}});
-
-    auto int32_max = std::numeric_limits<std::int32_t>::max();
-
-    auto x2 = op_util::NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
-    auto minus_one = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1"));
-    auto minus_one_convert = pattern::optional<v0::Convert>({minus_one});
-    auto x2neg =
-        pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), minus_one_convert}, {{"auto_broadcast", "numpy"}});
-    auto x1 = op_util::NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
-    auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
-
-    auto mul_cos = pattern::wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
-    auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
-
-    auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+    const pattern::GPTNeoXRoPEPattern rope_pattern(pattern::any_input(pattern::rank_equals(rank)), rank);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -222,9 +203,9 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 
         // check mul(x, cos) exists
         Output<Node> v_cos;
-        const auto& x_or_cos1_val = pattern_map.at(x_or_cos1);
-        const auto& x_or_cos2_val = pattern_map.at(x_or_cos2);
-        const auto& x_val = pattern_map.at(x);
+        const auto& x_or_cos1_val = pattern_map.at(rope_pattern.anchors.cos_input_1.node);
+        const auto& x_or_cos2_val = pattern_map.at(rope_pattern.anchors.cos_input_2.node);
+        const auto& x_val = pattern_map.at(rope_pattern.anchors.input.node);
         if (x_or_cos1_val == x_val) {
             v_cos = x_or_cos2_val;
         } else if (x_or_cos2_val == x_val) {
@@ -235,7 +216,7 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
         }
 
         auto symbols = m.get_symbols();
-        const auto& half_ndims = symbols["half_ndims"];
+        const auto& half_ndims = symbols[rope_pattern.half_ndims_symbol];
         if (!half_ndims.is_integer()) {
             return false;
         }
@@ -249,15 +230,15 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 
         new_args.push_back(x_val);
         new_args.push_back(v_cos);
-        new_args.push_back(pattern_map.at(t_sin));
+        new_args.push_back(pattern_map.at(rope_pattern.anchors.sin.node));
         auto old_node = root;
         auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(x2neg).get_node_shared_ptr(),
-                               pattern_map.at(x_rotate_half).get_node_shared_ptr(),
-                               pattern_map.at(mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(result).get_node_shared_ptr()},
+        ov::copy_runtime_info({pattern_map.at(rope_pattern.anchors.negated_half.node).get_node_shared_ptr(),
+                               pattern_map.at(rope_pattern.anchors.rotated_input.node).get_node_shared_ptr(),
+                               pattern_map.at(rope_pattern.anchors.mul_cos.node).get_node_shared_ptr(),
+                               pattern_map.at(rope_pattern.anchors.mul_sin.node).get_node_shared_ptr(),
+                               pattern_map.at(rope_pattern.anchors.root.node).get_node_shared_ptr()},
                               new_node);
         ov::replace_node(old_node, new_node);
 
@@ -266,7 +247,7 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(rope_pattern.anchors.root.node, matcher_name);
     this->register_matcher(m, callback);
 }
 

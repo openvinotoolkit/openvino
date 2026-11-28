@@ -269,6 +269,7 @@ set(PAGED_ATTENTION_SOURCES
 
 set(PATTERN_BLOCKS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/compressed_weights_block.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/rope_pattern.cpp
 )
 
 set(RT_INFO_SOURCES
