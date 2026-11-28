@@ -516,6 +516,10 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
 bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(FuseMOE);
+    // Both MultiMatcher patterns contain NonZero, and MultiMatcher only visits top-level ops.
+    if (!ov::op::util::has_op_with_type<v3::NonZero>(model)) {
+        return false;
+    }
     ov::pass::Manager manager(get_pass_config(), "FuseMOE");
 
     manager.register_pass<ov::pass::FuseMOEExperts>();

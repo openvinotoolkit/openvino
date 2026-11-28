@@ -143,8 +143,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // expectations, Transpose on MatMul inputs (optionally via Convert)
     // must be fused into MatMul rather than constant-folded.
     // Therefore, TransposeMatMul should run before the first ConstantFolding pass.
-    REGISTER_PASS(manager, TransposeConvert)
-    REGISTER_PASS(manager, TransposeMatMul)
+    // Convert and MatMul roots are disjoint, so one traversal is equivalent to two sequential ones.
+    auto transpose_matmul = manager.register_pass<ov::pass::GraphRewrite>();
+    transpose_matmul->set_name("ov::pass::TransposeMatMulFusions");
+    ADD_MATCHER(transpose_matmul, TransposeConvert)
+    ADD_MATCHER(transpose_matmul, TransposeMatMul)
     if (m_low_precision_enabled) {
         // Transformation call example, to check with the real model
         manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
@@ -162,17 +165,22 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
-    REGISTER_PASS(manager, EliminateConvert)
-    REGISTER_PASS(manager, EliminateScatterUpdate)
-    REGISTER_PASS(manager, RemoveConcatZeroDimInput)
-    REGISTER_PASS(manager, EliminateLoopInputsOutputs);
+    // Matchers below have disjoint root types (Convert, ScatterUpdate, Concat, Loop/TensorIterator).
+    auto early_eliminations = manager.register_pass<ov::pass::GraphRewrite>();
+    early_eliminations->set_name("ov::pass::EarlyEliminations");
+    ADD_MATCHER(early_eliminations, EliminateConvert)
+    ADD_MATCHER(early_eliminations, EliminateScatterUpdate)
+    ADD_MATCHER(early_eliminations, RemoveConcatZeroDimInput)
+    ADD_MATCHER(early_eliminations, EliminateLoopInputsOutputs)
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
     REGISTER_PASS(manager, EliminateDuplicateTIInputs);
     REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParamsResults)
-    REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
-    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+    auto subgraph_preparation = manager.register_pass<ov::pass::GraphRewrite>();
+    subgraph_preparation->set_name("ov::pass::SubgraphConstantFoldingPreparation");
+    ADD_MATCHER(subgraph_preparation, FoldSubgraphEmptyInputs)
+    ADD_MATCHER(subgraph_preparation, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)
     REGISTER_PASS(manager, ConstantFolding)
 
@@ -195,8 +203,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // workaround until dynamism in NMS is not supported
     REGISTER_PASS(manager, ConvertNmsGatherPathToUnsigned)
     REGISTER_PASS(manager, StridedSliceOptimization, m_use_shapes)
-    REGISTER_PASS(manager, BroadcastElementwiseFusion)
-    REGISTER_PASS(manager, BroadcastMatMulFusion)
+    // BroadcastTransition shares the elementwise root with BroadcastElementwiseFusion, so it stays separate.
+    auto broadcast_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    broadcast_fusions->set_name("ov::pass::BroadcastFusions");
+    ADD_MATCHER(broadcast_fusions, BroadcastElementwiseFusion)
+    ADD_MATCHER(broadcast_fusions, BroadcastMatMulFusion)
     REGISTER_PASS(manager, BroadcastTransition)
     REGISTER_PASS(manager, PullThroughReduce)
 

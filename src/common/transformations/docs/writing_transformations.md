@@ -59,6 +59,14 @@ Several rules follow from this table:
 - **Register the matcher in a `BackwardGraphRewrite` when the pattern root is optional.** `GraphRewrite` visits nodes in topological order, so a matcher whose root is an `optional<...>` node fires on the shorter variant as soon as the optional node's producer is reached, and the full pattern is never tried. Backward traversal reaches the optional tail first and matches the complete pattern. Encapsulate this in the pass itself — expose the matcher as a standalone `MatcherPass` and register it inside a `BackwardGraphRewrite` container.
 - Prefer composing existing generic passes over re-implementing their effect inline.
 
+`Manager` runs a standalone `MatcherPass` through its own `GraphRewrite`, so
+changing a `ModelPass` to a `MatcherPass` alone does not save a traversal.
+Independent matchers must share a `GraphRewrite` to do that. Keep pattern roots
+type-based (operations, `wrap_type`, or `Or` alternatives with type-based roots)
+to enable efficient dispatch. An untyped alternative still forces fallback
+dispatch for the whole container. See the [MOC performance audit](./moc_performance.md)
+for pipeline boundaries that must be preserved when grouping passes.
+
 ## Anatomy of a MatcherPass
 
 Header — declaration, visibility macro, RTTI and documentation:

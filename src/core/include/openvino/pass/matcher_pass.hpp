@@ -48,7 +48,8 @@ namespace pass {
 /// sure that they were registered in topological order.
 /// Note: when implementing pattern for Matcher make sure that root node is an operation
 /// from opset
-/// or has ov::pass::pattern::op::WrapType. That will help GraphRewrite to execute matcher
+/// or has ov::pass::pattern::op::WrapType, or is an Or of type-based alternatives.
+/// That will help GraphRewrite to execute matcher
 /// passes more
 /// efficient.
 /// \ingroup ov_pass_cpp_api
