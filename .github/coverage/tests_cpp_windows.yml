@@ -1,0 +1,26 @@
+schema_version: 1
+suite: cpp_windows
+reporting:
+  label: C++ (Windows)
+  artifact_group: windows
+  artifact_name_template: coverage-windows-{lane}
+  stats_file: windows-coverage-stats.env
+  duration_file: windows-test-durations.csv
+  coverage_file: windows-coverage.xml
+  debug_dirs:
+    - src: .tmp/windows-coverage
+      dest: diagnostics
+  uploads:
+    - name_template: C++ runtime, Windows, {lane}
+      file: windows-coverage.xml
+      flag_template: cpp-runtime-cpp-windows-{lane}
+tests:
+  - name: ov_npu_unit_tests
+    profiles: [npu]
+    binary: ov_npu_unit_tests.exe
+    mode: gtest_single
+    extra_env: OV_DQ_TEST_DEVICE=NPU
+    coverage_modules:
+      - openvino_intel_npu_plugin.dll
+    coverage_sources:
+      - src/plugins/intel_npu

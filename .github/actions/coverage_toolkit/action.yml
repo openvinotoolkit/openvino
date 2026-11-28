@@ -10,7 +10,7 @@ inputs:
     required: false
     default: ''
   config-dir:
-    description: Directory containing tests_cpp.yml, tests_python.yml, and tests_js.yml.
+    description: Directory containing tests_cpp.yml, tests_cpp_windows.yml, tests_python.yml, and tests_js.yml.
     required: false
     default: ''
   suite:

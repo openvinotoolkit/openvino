@@ -3,15 +3,18 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
 import shutil
 # Coverage CI: fixed toolchain argv (lcov/gcov/genhtml), no shell.
 import subprocess  # nosec B404
-from pathlib import Path
+import sys
+from pathlib import Path, PureWindowsPath
+import xml.etree.ElementTree as ET  # nosec B405 - locally generated coverage reports
 
-from coverage_workflow import CoverageContext, LOGGER, run_cmd
+from coverage_workflow import CoverageContext, CppTestCase, LOGGER, get_config_dir, load_cpp_tests, run_cmd
 
 
 def _slugify(value: str) -> str:
@@ -635,12 +638,15 @@ def _merge_tracefiles(tracefiles: list[Path], output: Path, *, branch_coverage: 
 
 
 def run(ctx: CoverageContext) -> None:
-    """Collect native C/C++ coverage data and generate HTML output.
+    """Collect native C/C++ coverage data.
 
-    The flow intentionally cleans up incompatible gcov artifacts, captures all
-    available native tracefiles, merges them, and then produces the final report
-    used by Codecov and local HTML inspection.
+    Windows normalizes OpenCppCoverage XML produced during test execution.
+    Linux cleans up incompatible gcov artifacts, captures and merges native
+    tracefiles, and generates the Codecov report and HTML output.
     """
+    if sys.platform == "win32":
+        _collect_windows(ctx)
+        return
     src_dir = ctx.workspace
     report_dir = ctx.workspace / "coverage-report"
     merged_info = ctx.workspace / "coverage.info"
@@ -811,3 +817,105 @@ def run(ctx: CoverageContext) -> None:
     )
     if genhtml_rc != 0:
         LOGGER.warning("genhtml failed; coverage.info is still available for Codecov upload.")
+
+
+def _windows_source_path(filename: str, build_root: str, workspace: Path,
+                         sources: tuple[str, ...], binary_root: str = "") -> str | None:
+    path = PureWindowsPath(filename)
+    if ".." in path.parts or (path.drive and not path.is_absolute()):
+        raise ValueError(f"Unexpected coverage source: {filename}")
+    relative = path.as_posix()
+    # OpenCppCoverage stores drive-less filenames (C:\build\src -> build\src).
+    prefixes = [PureWindowsPath(root) for root in (binary_root, build_root) if root]
+    if binary_root and PureWindowsPath(binary_root).is_relative_to(build_root):
+        prefixes.append(PureWindowsPath(binary_root).relative_to(build_root))
+    for prefix in prefixes:
+        if not path.is_absolute() and prefix.is_absolute():
+            prefix = PureWindowsPath(*prefix.parts[1:])
+        try:
+            relative = path.relative_to(prefix).as_posix()
+            break
+        except ValueError:
+            continue
+    cross_compiled = "src/plugins/intel_npu/src/plugin/cross-compiled/"
+    if re.fullmatch(re.escape(cross_compiled) + r"(ANY|AVX2)/util_xarch\.cpp", relative):
+        relative = "src/plugins/intel_npu/src/plugin/npuw/util_xarch.cpp"
+    elif relative == cross_compiled + "util_xarch_disp.cpp":
+        LOGGER.debug("Excluding generated dispatcher: %s", filename)
+        return None
+    if not any(relative.startswith(PureWindowsPath(source).as_posix().rstrip("/") + "/") for source in sources):
+        raise ValueError(f"Unexpected coverage source: {filename}")
+    if "/tests/" in relative or "/thirdparty/" in relative:
+        LOGGER.debug("Excluding non-production source: %s", filename)
+        return None
+    if not (workspace / relative).is_file():
+        raise ValueError(f"Coverage source does not exist in this checkout: {relative}")
+    return relative
+
+
+def _normalize_windows_coverage(reports: list[tuple[Path, CppTestCase]], output: Path,
+                                build_root: str, workspace: Path, binary_root: str = "") -> None:
+    # The EXE and plugin compile some of the same sources. Count each source line once.
+    files: dict[str, dict[int, int]] = {}
+    source_lengths: dict[str, int] = {}
+    for raw, test in reports:
+        root = ET.parse(raw).getroot()
+        if root.tag != "coverage":
+            raise ValueError(f"Expected a Cobertura coverage report: {raw}")
+        packages = root.findall("./packages/package")
+        for module in (test.binary, *test.coverage_modules):
+            if not any(PureWindowsPath(module).stem.lower() ==
+                       PureWindowsPath(package.get("name", "")).stem.lower() and package.findall(".//line")
+                       for package in packages):
+                raise ValueError(f"No coverage for required module: {module} in {raw}")
+        for cls in root.findall(".//class"):
+            filename = _windows_source_path(cls.attrib["filename"], build_root, workspace,
+                                             test.coverage_sources, binary_root)
+            if filename is None:
+                continue
+            if filename not in source_lengths:
+                source_lengths[filename] = len((workspace / filename).read_bytes().splitlines())
+            lines = files.setdefault(filename, {})
+            for line in cls.findall("./lines/line"):
+                number, hits = int(line.attrib["number"]), int(line.attrib["hits"])
+                if number <= 0 or number > source_lengths[filename] or hits < 0:
+                    raise ValueError(f"Invalid line counter in {filename}: {line.attrib}")
+                lines[number] = max(lines.get(number, 0), hits)
+    total = sum(len(lines) for lines in files.values())
+    covered = sum(hits > 0 for lines in files.values() for hits in lines.values())
+    if not total or not covered:
+        raise ValueError("Coverage has no executable or covered source lines")
+    attributes = {
+        "line-rate": str(covered / total), "branch-rate": "0",
+        "lines-valid": str(total), "lines-covered": str(covered),
+        "branches-valid": "0", "branches-covered": "0", "version": "1",
+    }
+    normalized = ET.Element("coverage", attributes)
+    ET.SubElement(ET.SubElement(normalized, "sources"), "source").text = "."
+    package = ET.SubElement(ET.SubElement(normalized, "packages"), "package",
+                            {"name": "windows", "line-rate": attributes["line-rate"], "branch-rate": "0"})
+    classes = ET.SubElement(package, "classes")
+    for filename, lines in sorted(files.items()):
+        if not lines:
+            continue
+        cls = ET.SubElement(classes, "class", {
+            "name": filename, "filename": filename,
+            "line-rate": str(sum(hits > 0 for hits in lines.values()) / len(lines)), "branch-rate": "0",
+        })
+        ET.SubElement(cls, "methods")
+        line_nodes = ET.SubElement(cls, "lines")
+        for number, hits in sorted(lines.items()):
+            ET.SubElement(line_nodes, "line", {"number": str(number), "hits": str(hits)})
+    ET.ElementTree(normalized).write(output, encoding="utf-8", xml_declaration=True)
+    LOGGER.info("Windows C++ line coverage: %d/%d (%.2f%%)", covered, total, 100 * covered / total)
+
+
+def _collect_windows(ctx: CoverageContext) -> None:
+    output = ctx.workspace / "windows-coverage.xml"
+    output.unlink(missing_ok=True)
+    tests = load_cpp_tests(get_config_dir() / "tests_cpp_windows.yml", ctx.test_profile, suite="cpp_windows")
+    if not tests:
+        raise ValueError(f"No Windows tests configured for profile: {ctx.test_profile}")
+    identity = json.loads((ctx.paths.install_pkg_dir / "coverage-build.json").read_text(encoding="utf-8-sig"))
+    reports = [(ctx.workspace / ".tmp/windows-coverage" / test.name / "raw-coverage.xml", test) for test in tests]
+    _normalize_windows_coverage(reports, output, identity["source_root"], ctx.workspace, identity["binary_root"])
