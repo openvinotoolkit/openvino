@@ -106,6 +106,24 @@ const auto dynamicMathBasicCases = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_dynamicMath_CPU, ActivationLayerCPUTest, dynamicMathBasicCases, ActivationLayerCPUTest::getTestCaseName);
 
+// Log special values at lengths around the SIMD vector width: full lanes only, scalar tail only, and both
+const std::vector<std::vector<InputShape>> logBoundaryShapes{
+    {{{-1}, {{1}, {3}, {4}, {7}, {8}, {9}, {16}, {17}}}},
+};
+
+const auto logSpecialValuesCases = ::testing::Combine(
+    ::testing::ValuesIn(logBoundaryShapes),
+    ::testing::Values(activationShapes()),
+    ::testing::Values(std::pair<utils::ActivationTypes, std::vector<float>>{utils::ActivationTypes::Log, {}}),
+    ::testing::ValuesIn(netPrecisions()),
+    ::testing::Values(ov::element::f32),
+    ::testing::Values(ov::element::f32),
+    ::testing::ValuesIn(cpuParamsDynamicMath()),
+    ::testing::Values(false)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Log_SpecialValues_CPU, ActivationLayerCPUTest, logSpecialValuesCases, ActivationLayerCPUTest::getTestCaseName);
+
 } // namespace Activation
 }  // namespace test
 }  // namespace ov
