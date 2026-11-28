@@ -26,11 +26,9 @@
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
-#    if !defined(OPENVINO_ARCH_RISCV64)
-#        include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl.hpp>
 
-#        include "onednn/dnnl.h"
-#    endif
+#    include "onednn/dnnl.h"
 #    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
@@ -1332,13 +1330,7 @@ int get_model_prefer_threads(const int num_streams,
         }
 
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-#    if defined(OPENVINO_ARCH_RISCV64)
-        // oneDNN C++ API (dnnl::utils::get_cache_size) is not available on RISC-V;
-        // use a fallback value for L2 cache size.
-        const float L2_cache_size = 1.0F;
-#    else
         const auto L2_cache_size = static_cast<float>(dnnl::utils::get_cache_size(2 /*level*/, true /*per core */));
-#    endif
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,
                                                  L2_cache_size,
