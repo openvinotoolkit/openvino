@@ -7,12 +7,15 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/log.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -22,13 +25,17 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/sign.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
@@ -38,6 +45,225 @@ using namespace std;
 using namespace ov::opset10;
 
 namespace v0 = ov::op::v0;
+
+namespace {
+
+std::shared_ptr<Model> make_log_bucket_position_model(bool mark_expected_subgraph) {
+    auto relative_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto absolute_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto unrelated_input = std::make_shared<Parameter>(element::f32, Shape{4});
+
+    auto absolute_position_f32 = std::make_shared<Convert>(absolute_position, element::f32);
+    auto log_divisor = Constant::create(element::f32, Shape{1}, {128.0f});
+    auto log_input = std::make_shared<Divide>(absolute_position_f32, log_divisor);
+    auto log = std::make_shared<Log>(log_input);
+    auto bucket_divisor = Constant::create(element::f32, Shape{1}, {1.38629436f});
+    auto normalized_log = std::make_shared<Divide>(log, bucket_divisor);
+    auto bucket_scale = Constant::create(element::f32, Shape{1}, {127.0f});
+    auto scaled_log = std::make_shared<Multiply>(normalized_log, bucket_scale);
+    auto rounded_bucket = std::make_shared<Ceiling>(scaled_log);
+    auto bucket_offset = Constant::create(element::f32, Shape{1}, {128.0f});
+    auto offset_bucket = std::make_shared<Add>(rounded_bucket, bucket_offset);
+
+    auto sign_i64 = std::make_shared<Sign>(relative_position);
+    auto sign_f32 = std::make_shared<Convert>(sign_i64, element::f32);
+    auto signed_bucket = std::make_shared<Multiply>(offset_bucket, sign_f32);
+    auto direct_bucket = std::make_shared<Convert>(relative_position, element::f32);
+    auto near_position_limit = Constant::create(element::i64, Shape{1}, {128});
+    auto use_direct_bucket = std::make_shared<LessEqual>(absolute_position, near_position_limit);
+    auto selected_bucket = std::make_shared<Select>(use_direct_bucket, direct_bucket, signed_bucket);
+    auto bucket = std::make_shared<Convert>(selected_bucket, element::i64);
+    if (mark_expected_subgraph) {
+        for (const auto& node : NodeVector{absolute_position_f32,
+                                           log_divisor,
+                                           log_input,
+                                           log,
+                                           bucket_divisor,
+                                           normalized_log,
+                                           bucket_scale,
+                                           scaled_log,
+                                           rounded_bucket,
+                                           bucket_offset,
+                                           offset_bucket,
+                                           signed_bucket,
+                                           direct_bucket,
+                                           selected_bucket}) {
+            disable_conversion(node, element::f16);
+        }
+        mark_as_precision_sensitive(bucket->input(0));
+    }
+
+    auto unrelated_log_output = log;
+    auto unrelated_consumer = std::make_shared<Add>(unrelated_log_output, unrelated_input);
+    return std::make_shared<Model>(OutputVector{bucket, unrelated_consumer},
+                                   ParameterVector{relative_position, absolute_position, unrelated_input});
+}
+
+}  // namespace
+
+TEST_F(TransformationTestsF, MarkDebertaLogBucketSubgraph) {
+    model = make_log_bucket_position_model(false);
+    model_ref = make_log_bucket_position_model(true);
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+}
+
+TEST_F(TransformationTestsF, MarkDebertaLogBucketRequiresLogAndCeilingOnIntegerPath) {
+    auto relative_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto position_f32 = std::make_shared<Convert>(relative_position, element::f32);
+    auto log = std::make_shared<Log>(position_f32);
+    auto bucket = std::make_shared<Convert>(log, element::i64);
+    model = std::make_shared<Model>(bucket, ParameterVector{relative_position});
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+}
+
+TEST_F(TransformationTestsF, MarkDebertaLogBucketRequiresLogAndCeilingTogether) {
+    auto relative_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto position_f32 = std::make_shared<Convert>(relative_position, element::f32);
+    auto ceiling = std::make_shared<Ceiling>(position_f32);
+    auto bucket = std::make_shared<Convert>(ceiling, element::i64);
+    model = std::make_shared<Model>(bucket, ParameterVector{relative_position});
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+}
+
+TEST(TransformationTests, MarkDebertaLogBucketDoesNotMarkDirectBranchAtBinaryOp) {
+    auto unrelated_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto qualifying_position = std::make_shared<Parameter>(element::i64, Shape{4});
+
+    auto unrelated_position_f32 = std::make_shared<Convert>(unrelated_position, element::f32);
+    auto qualifying_position_f32 = std::make_shared<Convert>(qualifying_position, element::f32);
+    auto log = std::make_shared<Log>(qualifying_position_f32);
+    auto ceiling = std::make_shared<Ceiling>(log);
+    auto binary = std::make_shared<Multiply>(ceiling, unrelated_position_f32);
+    auto bucket = std::make_shared<Convert>(binary, element::i64);
+
+    auto model = std::make_shared<Model>(bucket, ParameterVector{unrelated_position, qualifying_position});
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    ASSERT_TRUE(is_conversion_disabled(log, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(ceiling, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(binary, element::f16));
+    ASSERT_TRUE(is_precision_sensitive(bucket->input(0)));
+    ASSERT_TRUE(is_conversion_disabled(qualifying_position_f32, element::f16));
+    ASSERT_FALSE(is_conversion_disabled(unrelated_position_f32, element::f16));
+}
+
+TEST(TransformationTests, MarkDebertaLogBucketSelectReverseBranchOrdering) {
+    auto relative_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto absolute_position = std::make_shared<Parameter>(element::i64, Shape{4});
+
+    auto absolute_position_f32 = std::make_shared<Convert>(absolute_position, element::f32);
+    auto log_divisor = Constant::create(element::f32, Shape{1}, {128.0f});
+    auto log_input = std::make_shared<Divide>(absolute_position_f32, log_divisor);
+    auto log = std::make_shared<Log>(log_input);
+    auto bucket_divisor = Constant::create(element::f32, Shape{1}, {1.38629436f});
+    auto normalized_log = std::make_shared<Divide>(log, bucket_divisor);
+    auto bucket_scale = Constant::create(element::f32, Shape{1}, {127.0f});
+    auto scaled_log = std::make_shared<Multiply>(normalized_log, bucket_scale);
+    auto ceiling = std::make_shared<Ceiling>(scaled_log);
+    auto bucket_offset = Constant::create(element::f32, Shape{1}, {128.0f});
+    auto qualifying_branch = std::make_shared<Add>(ceiling, bucket_offset);
+
+    auto direct_bucket = std::make_shared<Convert>(relative_position, element::f32);
+    auto condition = std::make_shared<Parameter>(element::boolean, Shape{4});
+    auto selected_bucket = std::make_shared<Select>(condition, qualifying_branch, direct_bucket);
+    auto bucket = std::make_shared<Convert>(selected_bucket, element::i64);
+
+    auto model = std::make_shared<Model>(bucket, ParameterVector{relative_position, absolute_position, condition});
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    ASSERT_TRUE(is_conversion_disabled(log, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(ceiling, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(qualifying_branch, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(direct_bucket, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(selected_bucket, element::f16));
+    ASSERT_TRUE(is_precision_sensitive(bucket->input(0)));
+}
+
+TEST(TransformationTests, MarkDebertaLogBucketUnsupportedSiblingDoesNotInvalidateQualifyingPath) {
+    auto qualifying_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto sibling_position = std::make_shared<Parameter>(element::f32, Shape{4});
+
+    auto qualifying_position_f32 = std::make_shared<Convert>(qualifying_position, element::f32);
+    auto log = std::make_shared<Log>(qualifying_position_f32);
+    auto ceiling = std::make_shared<Ceiling>(log);
+    auto unsupported_sibling = std::make_shared<Exp>(sibling_position);
+    auto combined = std::make_shared<Multiply>(ceiling, unsupported_sibling);
+    auto bucket = std::make_shared<Convert>(combined, element::i64);
+
+    auto model =
+        std::make_shared<Model>(bucket, ParameterVector{qualifying_position, sibling_position});
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    ASSERT_TRUE(is_conversion_disabled(log, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(ceiling, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(combined, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(qualifying_position_f32, element::f16));
+    ASSERT_TRUE(is_precision_sensitive(bucket->input(0)));
+    ASSERT_FALSE(is_conversion_disabled(unsupported_sibling, element::f16));
+    ASSERT_FALSE(is_conversion_disabled(sibling_position, element::f16));
+}
+
+TEST(TransformationTests, MarkDebertaLogBucketSubgraphAlignment) {
+    auto relative_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto absolute_position = std::make_shared<Parameter>(element::i64, Shape{4});
+    auto unrelated_input = std::make_shared<Parameter>(element::f32, Shape{4});
+
+    auto absolute_position_f32 = std::make_shared<Convert>(absolute_position, element::f32);
+    auto log_divisor = Constant::create(element::f32, Shape{1}, {128.0f});
+    auto log_input = std::make_shared<Divide>(absolute_position_f32, log_divisor);
+    auto log = std::make_shared<Log>(log_input);
+    auto bucket_divisor = Constant::create(element::f32, Shape{1}, {1.38629436f});
+    auto normalized_log = std::make_shared<Divide>(log, bucket_divisor);
+    auto bucket_scale = Constant::create(element::f32, Shape{1}, {127.0f});
+    auto scaled_log = std::make_shared<Multiply>(normalized_log, bucket_scale);
+    auto ceiling = std::make_shared<Ceiling>(scaled_log);
+    auto bucket_offset = Constant::create(element::f32, Shape{1}, {128.0f});
+    auto offset_bucket = std::make_shared<Add>(ceiling, bucket_offset);
+
+    auto sign_i64 = std::make_shared<Sign>(relative_position);
+    auto sign_f32 = std::make_shared<Convert>(sign_i64, element::f32);
+    auto signed_bucket = std::make_shared<Multiply>(offset_bucket, sign_f32);
+    auto direct_bucket = std::make_shared<Convert>(relative_position, element::f32);
+    auto near_position_limit = Constant::create(element::i64, Shape{1}, {128});
+    auto use_direct_bucket = std::make_shared<LessEqual>(absolute_position, near_position_limit);
+    auto selected_bucket = std::make_shared<Select>(use_direct_bucket, direct_bucket, signed_bucket);
+    auto bucket = std::make_shared<Convert>(selected_bucket, element::i64);
+    auto unrelated_consumer = std::make_shared<Add>(log, unrelated_input);
+
+    auto unrelated_branch = std::make_shared<Multiply>(absolute_position_f32, unrelated_input);
+    auto model = std::make_shared<Model>(OutputVector{bucket, unrelated_consumer, unrelated_branch},
+                                         ParameterVector{relative_position, absolute_position, unrelated_input});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.register_pass<pass::AlignMixedFP32FP16Types>();
+    manager.run_passes(model);
+
+    ASSERT_TRUE(is_conversion_disabled(log, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(ceiling, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(normalized_log, element::f16));
+    ASSERT_TRUE(is_conversion_disabled(selected_bucket, element::f16));
+    ASSERT_TRUE(is_precision_sensitive(bucket->input(0)));
+
+    bool found_shared_log_conversion = false;
+    for (const auto& input : unrelated_consumer->inputs()) {
+        auto convert = as_type_ptr<Convert>(input.get_source_output().get_node_shared_ptr());
+        if (convert && is_conversion_disabled(convert, element::f16)) {
+            found_shared_log_conversion = true;
+        }
+    }
+    ASSERT_TRUE(found_shared_log_conversion);
+
+    ASSERT_FALSE(is_conversion_disabled(unrelated_branch, element::f16));
+    ASSERT_FALSE(is_conversion_disabled(unrelated_input, element::f16));
+}
+
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;

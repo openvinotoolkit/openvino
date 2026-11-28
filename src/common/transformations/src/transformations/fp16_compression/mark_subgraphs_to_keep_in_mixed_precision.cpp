@@ -4,8 +4,14 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
+#include <array>
+#include <functional>
+#include <unordered_map>
+#include <unordered_set>
+
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -18,6 +24,7 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/log.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -32,6 +39,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
@@ -86,6 +94,149 @@ bool is_fq_path(const std::shared_ptr<const Node>& node) {
 void erase_fq_path(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info.erase("fq_path");
+}
+
+void mark_log_bucket_subgraphs(const std::shared_ptr<Model>& model) {
+    using path_flags = std::array<bool, 8>;
+    struct traversal_result {
+        path_flags flags{};
+        std::array<std::unordered_set<Node*>, 8> matched_nodes{};
+    };
+    std::unordered_map<const Node*, traversal_result> cached_results;
+
+    std::function<traversal_result(const std::shared_ptr<Node>&)> find_integer_convert_path =
+        [&](const std::shared_ptr<Node>& node) -> traversal_result {
+        traversal_result result;
+        if (node->get_output_size() != 1) {
+            return result;
+        }
+        if (node->get_output_element_type(0) != element::f32)
+            return result;
+
+        const auto node_ptr = node.get();
+        if (const auto it = cached_results.find(node_ptr); it != cached_results.end())
+            return it->second;
+
+        const bool is_convert = is_type<v0::Convert>(node);
+        const bool is_constant = is_type<v0::Constant>(node);
+        const bool is_binary_arithmetic = is_type<op::util::BinaryElementwiseArithmetic>(node);
+        const bool is_unary_arithmetic = is_type<op::util::UnaryElementwiseArithmetic>(node);
+        const bool is_log = is_type<v0::Log>(node);
+        const bool is_ceiling = is_type<v0::Ceiling>(node);
+        const bool is_select = is_type<v1::Select>(node);
+        if (!is_convert && !is_constant && !is_binary_arithmetic && !is_unary_arithmetic && !is_log &&
+            !is_ceiling && !is_select) {
+            return result;
+        }
+
+        const unsigned int node_flags = (is_log ? 2 : 0) | (is_ceiling ? 4 : 0);
+
+        if (is_convert && node->input_value(0).get_element_type().is_integral_number()) {
+            result.flags[1 | node_flags] = true;
+            result.matched_nodes[1 | node_flags].insert(node_ptr);
+        } else if (!is_constant) {
+            std::unordered_set<Node*> f32_constants;
+            if (is_select) {
+                std::array<std::unordered_set<Node*>, 3> direct_branch_nodes;
+                std::array<std::unordered_set<Node*>, 3> qualifying_branch_nodes;
+                std::array<bool, 3> has_direct_branch{};
+                std::array<bool, 3> has_qualifying_branch{};
+
+                for (size_t input_idx = 1; input_idx <= 2; ++input_idx) {
+                    const auto& input = node->input(input_idx);
+                    if (input.get_element_type() != element::f32)
+                        continue;
+                    if (is_type<v0::Constant>(input.get_source_output().get_node_shared_ptr()))
+                        f32_constants.insert(input.get_source_output().get_node());
+
+                    const auto input_result = find_integer_convert_path(input.get_source_output().get_node_shared_ptr());
+
+                    for (size_t path = 0; path < input_result.flags.size(); ++path) {
+                        if (!input_result.flags[path])
+                            continue;
+                        if (path == 1) {
+                            has_direct_branch[input_idx] = true;
+                            direct_branch_nodes[input_idx].insert(input_result.matched_nodes[1].begin(),
+                                                                  input_result.matched_nodes[1].end());
+                        }
+                        if (path == 7) {
+                            has_qualifying_branch[input_idx] = true;
+                            qualifying_branch_nodes[input_idx].insert(input_result.matched_nodes[7].begin(),
+                                                                      input_result.matched_nodes[7].end());
+                        }
+                        result.flags[path | node_flags] = true;
+                        result.matched_nodes[path | node_flags].insert(node_ptr);
+                        result.matched_nodes[path | node_flags].insert(input_result.matched_nodes[path].begin(),
+                                                                       input_result.matched_nodes[path].end());
+                    }
+                }
+
+                if (has_direct_branch[1] && has_qualifying_branch[2]) {
+                    result.flags[7] = true;
+                    result.matched_nodes[7].insert(node_ptr);
+                    result.matched_nodes[7].insert(direct_branch_nodes[1].begin(), direct_branch_nodes[1].end());
+                    result.matched_nodes[7].insert(qualifying_branch_nodes[2].begin(),
+                                                   qualifying_branch_nodes[2].end());
+                }
+                if (has_direct_branch[2] && has_qualifying_branch[1]) {
+                    result.flags[7] = true;
+                    result.matched_nodes[7].insert(node_ptr);
+                    result.matched_nodes[7].insert(direct_branch_nodes[2].begin(), direct_branch_nodes[2].end());
+                    result.matched_nodes[7].insert(qualifying_branch_nodes[1].begin(),
+                                                   qualifying_branch_nodes[1].end());
+                }
+            } else {
+                for (const auto& input : node->input_values()) {
+                    if (!input.get_element_type().is_real())
+                        continue;
+                    if (input.get_element_type() != element::f32) {
+                        continue;
+                    }
+
+                    if (is_type<v0::Constant>(input.get_node_shared_ptr())) {
+                        f32_constants.insert(input.get_node());
+                        continue;
+                    }
+
+                    const auto input_result = find_integer_convert_path(input.get_node_shared_ptr());
+                    for (size_t path = 0; path < input_result.flags.size(); ++path) {
+                        if (!input_result.flags[path])
+                            continue;
+                        const auto combined_path = path | node_flags;
+                        result.flags[combined_path] = true;
+                        result.matched_nodes[combined_path].insert(node_ptr);
+                        result.matched_nodes[combined_path].insert(input_result.matched_nodes[path].begin(),
+                                                                  input_result.matched_nodes[path].end());
+                    }
+                }
+            }
+            for (const auto& constant : f32_constants) {
+                for (size_t path = 0; path < result.flags.size(); ++path) {
+                    if (result.flags[path])
+                        result.matched_nodes[path].insert(constant);
+                }
+            }
+        }
+
+        cached_results.emplace(node_ptr, result);
+        return result;
+    };
+
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto convert = as_type_ptr<v0::Convert>(node);
+        if (!convert || !convert->get_output_element_type(0).is_integral_number() ||
+            convert->get_input_element_type(0) != element::f32)
+            continue;
+
+        cached_results.clear();
+        const auto result = find_integer_convert_path(convert->input_value(0).get_node_shared_ptr());
+        if (!result.flags[7])
+            continue;
+
+        for (const auto& subgraph_node : result.matched_nodes[7])
+            disable_conversion(subgraph_node->shared_from_this(), element::f16);
+        mark_as_precision_sensitive(convert->input(0));
+    }
 }
 
 // Marking continues to propagate through these ops.
@@ -482,6 +633,8 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     // Mark nodes in ShapeOf subgraphs to keep in FP32
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
     manager.run_passes(m);
+
+    mark_log_bucket_subgraphs(m);
 
     for (auto& node : m->get_ops()) {
         erase_reduceop_path(node);
