@@ -9,6 +9,12 @@
 
 namespace ov::intel_gpu {
 
+class NormalizeL2LastAxisToFeature : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("NormalizeL2LastAxisToFeatureGPU");
+    NormalizeL2LastAxisToFeature();
+};
+
 /**
  * @brief Decomposes NormalizeL2 into subgraph
  */
