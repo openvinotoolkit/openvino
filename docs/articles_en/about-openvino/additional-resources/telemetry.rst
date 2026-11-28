@@ -28,6 +28,38 @@ You can change your data collection decision with the following command lines:
 ``opt_in_out --opt_out`` - disable telemetry
 
 
+Running without Telemetry
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+``openvino-telemetry`` is installed by default with OpenVINO. In environments where sending outbound telemetry is prohibited, network access is restricted, or the filesystem is read-only (such as air-gapped containers), you can disable telemetry using the ``OPENVINO_TELEMETRY_OPTOUT`` environment variable or run OpenVINO without the ``openvino-telemetry`` package installed.
+
+**Using the environment variable**
+
+Set ``OPENVINO_TELEMETRY_OPTOUT=1`` to disable all telemetry collection and prevent writing any local telemetry or consent files:
+
+.. code-block:: sh
+
+   export OPENVINO_TELEMETRY_OPTOUT=1
+
+.. note::
+
+   The ``OPENVINO_TELEMETRY_OPTOUT`` environment variable is supported in ``openvino-telemetry>=2026.5.0``.
+
+**Excluding or removing the package**
+
+Users who wish to run OpenVINO without the telemetry package can exclude or remove it:
+
+- Using pip: ``pip uninstall openvino-telemetry``
+- Using uv or lockfile tools:
+
+.. code-block:: toml
+
+   [tool.uv]
+   exclude-dependencies = ["openvino-telemetry"]
+
+When ``openvino-telemetry`` is absent, OpenVINO automatically uses an internal silent stub that performs no network requests and generates no local telemetry files.
+
+
 Telemetry Data Collection Details
 ###########################################################
 
