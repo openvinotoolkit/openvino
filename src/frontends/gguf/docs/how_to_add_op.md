@@ -105,6 +105,24 @@ weight `*.attn_sinks.weight` is also recognized. Otherwise the fourth tensor is
 treated as an attention mask; its shape and element type cannot distinguish a
 mask from sinks (an F32 mask can have the same shape as a sink).
 
+`FLASH_ATTN_EXT` also accepts an optional boolean `explicit_mask` attribute. When set, the
+fourth tensor is used as the complete additive mask, so a builder can combine positional
+biases with the causal or sliding-window mask itself. Otherwise the converter slices the
+shared `KQ_mask`/`KQ_mask_swa` input to the current query length.
+
+Native builders also use these converter extensions:
+
+- `CONCAT` accepts more than two inputs; `CLAMP` with a second tensor input bounds only from below.
+- `SUM_ROWS` accepts OpenVINO-order `axes` and `keep_dims`; `PAD` accepts OpenVINO-order
+  `pads_begin`/`pads_end` for zero padding of any rank.
+- A two-input `RESHAPE` without `shape_axes` takes the whole shape of the second input, as `ggml_reshape`.
+- `DIV` keeps itself in F32 unless `allow_f16` is set for a denominator bounded away from zero.
+- `L2_NORM` case 100 clips the last axis to the L2 norm `threshold` with an optional `eps`.
+- `GET_REL_POS` case 2 gathers a `[B, H, T, extent + 1]` table by query-key distance;
+  distances outside `[0, relative_extent)` select the last column.
+- `MUL_MAT_ID` case 100 keeps experts expert-major: `[E, rows, cols]` weights, `[1 or K, T, cols]`
+  activations and valid `[T, K]` ids produce `[K, T, rows]`.
+
 Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
 needed for the operation. A dynamic token axis does not prevent reading a static head width.
 Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,

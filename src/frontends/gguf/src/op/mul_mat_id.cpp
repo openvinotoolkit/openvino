@@ -381,6 +381,20 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     if (ids.get_element_type() != ov::element::i32 && ids.get_element_type() != ov::element::i64) {
         ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
     }
+    if (context.get_op_case() == 100) {
+        // Builder expert-major layout: experts [E, rows, cols], activations [1 or K, T, cols] and
+        // valid expert ids [T, K]; the result stays expert-major [K, T, rows] for elementwise consumers.
+        FRONT_END_OP_CONVERSION_CHECK(expert_weights.get_partial_shape().rank() == 3 &&
+                                          activations.get_partial_shape().rank() == 3 &&
+                                          ids.get_partial_shape().rank() == 2,
+                                      "Expert-major MUL_MAT_ID requires rank-3 experts and activations and [T, K] ids");
+        if (ids.get_element_type() != ov::element::i32) {
+            ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
+        }
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::internal::GatherMatmul>(activations, expert_weights, ids)},
+            context.get_name());
+    }
     ov::Output<ov::Node> safe_ids = ids;
     std::shared_ptr<ov::op::v1::GreaterEqual> valid_ids;
     if (!has_nonnegative_indices(ids)) {

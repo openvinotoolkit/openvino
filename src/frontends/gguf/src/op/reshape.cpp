@@ -26,6 +26,14 @@ namespace ov::frontend::gguf::op {
 
 OutputVector translate_reshape(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
+    if (context.get_input_size() == 2 && !context.has_attribute("shape_axes")) {
+        // ggml_reshape(a, b): take the whole shape of the reference tensor.
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
+                                                   std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1)),
+                                                   false)},
+            context.get_name());
+    }
     if (context.get_input_size() == 2) {
         // Copy selected dimensions from a reference tensor, preserving variable grids.
         const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target");

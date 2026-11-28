@@ -129,11 +129,7 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
 GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tensor& value) {
     m_impl->check_open();
     auto& emitter = m_impl->emitter;
-    OPENVINO_ASSERT(
-        !emitter.graph()->values->count(name) && !emitter.has_weight(name) && !emitter.has_model_input(name),
-        "[GGUF] constant name is already used: ",
-        name);
-    emitter.add_extra_input_node(name, std::make_shared<ov::op::v0::Constant>(value));
+    emitter.add_constant(name, value);
     return GgufValue(name, emitter.value(name));
 }
 

@@ -16,7 +16,9 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -37,6 +39,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -4542,4 +4545,175 @@ TEST(GGUFOps, ReferenceReshapeTracksSpatialDimensions) {
         {{"x", make_f32_tensor({1, 1, 3, 15}, values)}, {"reference", make_f32_tensor({1, 3, 3, 5}, values)}});
     EXPECT_EQ(result.get_shape(), (ov::Shape{1, 3, 3, 5}));
     expect_near(result, values);
+}
+
+TEST(GGUFOps, ConcatMoreThanTwoInputs) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONCAT")
+                     .input("a", ov::element::f32, {2, 1})
+                     .input("b", ov::element::f32, {2, 2})
+                     .input("c", ov::element::f32, {2, 1})
+                     .output("out", ov::element::f32, {2, 4})
+                     .attr<int>("concat_axis", 0)
+                     .build();
+    auto out = run_on_cpu(model,
+                          {{"a", make_f32_tensor({2, 1}, {1, 2})},
+                           {"b", make_f32_tensor({2, 2}, {3, 4, 5, 6})},
+                           {"c", make_f32_tensor({2, 1}, {7, 8})}});
+    expect_near(out, {1, 3, 4, 7, 2, 5, 6, 8});
+}
+
+TEST(GGUFOps, ClampWithTensorLowerBound) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CLAMP")
+                     .input("x", ov::element::f32, {4})
+                     .input("min", ov::element::f32, {})
+                     .output("out", ov::element::f32, {4})
+                     .build();
+    auto out =
+        run_on_cpu(model, {{"x", make_f32_tensor({4}, {-2.f, 0.5f, 1.f, 3.f})}, {"min", make_f32_tensor({}, {1.f})}});
+    expect_near(out, {1.f, 1.f, 1.f, 3.f});
+}
+
+TEST(GGUFOps, SumRowsOverSelectedAxes) {
+    const std::vector<float> x{1, 2, 3, 4, 5, 6};
+    auto kept = SingleOpBuilder()
+                    .op("GGML_OP_SUM_ROWS")
+                    .input("x", ov::element::f32, {1, 3, 2, 1})
+                    .output("out", ov::element::f32, {1, 3, 1, 1})
+                    .attr("axes", std::vector<int64_t>{2})
+                    .build();
+    auto out = run_on_cpu(kept, {{"x", make_f32_tensor({1, 3, 2, 1}, x)}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{1, 3, 1, 1}));
+    expect_near(out, {3, 7, 11});
+
+    auto dropped = SingleOpBuilder()
+                       .op("GGML_OP_SUM_ROWS")
+                       .input("x", ov::element::f32, {2, 3})
+                       .output("out", ov::element::f32, {3})
+                       .attr("axes", std::vector<int64_t>{0})
+                       .attr("keep_dims", false)
+                       .build();
+    out = run_on_cpu(dropped, {{"x", make_f32_tensor({2, 3}, x)}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{3}));
+    expect_near(out, {5, 7, 9});
+}
+
+TEST(GGUFOps, L2NormClipCase) {
+    // Rows with norms 5 and 1 clipped to threshold 2: x * min(2 / ||x||, 1).
+    const std::vector<float> x{3, 4, 0.6f, 0.8f};
+    for (const float eps : {0.f, 1e-6f}) {
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_L2_NORM")
+                         .input("x", ov::element::f32, {1, 1, 2, 2})
+                         .output("out", ov::element::f32, {1, 1, 2, 2})
+                         .op_case(100)
+                         .attr<float>("threshold", 2.f)
+                         .attr<float>("eps", eps)
+                         .build();
+        size_t adds = 0;
+        for (const auto& node : model->get_ops())
+            adds += ov::is_type<ov::op::v1::Add>(node);
+        EXPECT_EQ(adds, eps != 0.f ? 1u : 0u);
+        auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 2}, x)}});
+        expect_near(out, {1.2f, 1.6f, 0.6f, 0.8f});
+    }
+}
+
+TEST(GGUFOps, DivAllowF16LeavesPrecisionUnpinned) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {2, 3})
+                     .input("b", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .attr("allow_f16", true)
+                     .build();
+    auto div = model->get_results()[0]->get_input_node_shared_ptr(0);
+    ASSERT_TRUE(ov::is_type<ov::op::v1::Divide>(div));
+    EXPECT_FALSE(ov::is_conversion_disabled(div, ov::element::f16));
+}
+
+TEST(GGUFOps, PadWithOpenVinoExtents) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PAD")
+                     .input("x", ov::element::f32, {2, 2})
+                     .output("out", ov::element::f32, {3, 2})
+                     .attr("pads_begin", std::vector<int64_t>{0, 0})
+                     .attr("pads_end", std::vector<int64_t>{1, 0})
+                     .build();
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 2}, {1, 2, 3, 4})}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{3, 2}));
+    expect_near(out, {1, 2, 3, 4, 0, 0});
+}
+
+TEST(GGUFOps, GetRelPosGathersByClampedDistance) {
+    // Table [1, H=2, T=2, extent 3 + fallback]; distances outside [0, 3) select column 3.
+    const int64_t heads = 2, tokens = 2, keys = 3, extent = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GET_REL_POS")
+                     .input("table", ov::element::f32, {1, heads, tokens, extent + 1})
+                     .input("distance", ov::element::i64, {1, 1, tokens, keys})
+                     .output("out", ov::element::f32, {1, heads, tokens, keys})
+                     .op_case(2)
+                     .attr<int64_t>("relative_extent", extent)
+                     .build();
+    std::vector<float> table(heads * tokens * (extent + 1));
+    for (size_t i = 0; i < table.size(); ++i)
+        table[i] = static_cast<float>(i);
+    const std::vector<int64_t> distance{0, 2, 3, -1, 1, 0};
+    auto out = run_on_cpu(model,
+                          {{"table", make_f32_tensor({1, heads, tokens, extent + 1}, table)},
+                           {"distance", make_i64_tensor({1, 1, tokens, keys}, distance)}});
+    std::vector<float> expected;
+    for (int64_t h = 0; h < heads; ++h)
+        for (int64_t t = 0; t < tokens; ++t)
+            for (int64_t k = 0; k < keys; ++k) {
+                const auto d = distance[t * keys + k];
+                const auto column = d >= 0 && d < extent ? d : extent;
+                expected.push_back(table[(h * tokens + t) * (extent + 1) + column]);
+            }
+    expect_near(out, expected);
+}
+
+TEST(GGUFOps, MulMatIdExpertMajorCase) {
+    // Experts [E=2, rows=2, cols=3], shared activations [1, T=2, cols], ids [T, K=2] -> [K, T, rows].
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_MUL_MAT_ID")
+                     .input("w", ov::element::f32, {2, 2, 3})
+                     .input("a", ov::element::f32, {1, 2, 3})
+                     .input("ids", ov::element::i32, {2, 2})
+                     .output("out", ov::element::f32, {2, 2, 2})
+                     .op_case(100)
+                     .build();
+    const std::vector<float> w{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    std::shared_ptr<ov::op::v0::Parameter> weight;
+    for (const auto& parameter : model->get_parameters())
+        if (parameter->get_friendly_name() == "w")
+            weight = parameter;
+    ASSERT_NE(weight, nullptr);
+    ov::replace_node(weight, ov::op::v0::Constant::create(ov::element::f32, {2, 2, 3}, w));
+    model->remove_parameter(weight);
+    model->validate_nodes_and_infer_types();
+    ASSERT_TRUE(ov::is_type<ov::op::internal::GatherMatmul>(model->get_results()[0]->get_input_node_shared_ptr(0)));
+    ov::Tensor ids(ov::element::i32, {2, 2});
+    const std::vector<int32_t> id_values{1, 0, 0, 1};
+    std::copy(id_values.begin(), id_values.end(), ids.data<int32_t>());
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({1, 2, 3}, {1, 0, 1, 0, 1, 0})}, {"ids", ids}});
+    // Slot 0: token 0 -> expert 1 [16, 22], token 1 -> expert 0 [2, 5];
+    // slot 1: token 0 -> expert 0 [4, 10], token 1 -> expert 1 [8, 11].
+    expect_near(out, {16, 22, 2, 5, 4, 10, 8, 11});
+}
+
+TEST(GGUFOps, ReshapeToReferenceShape) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_RESHAPE")
+                     .input("x", ov::element::f32, {6})
+                     .input("reference", ov::element::f32, {1, 2, 3})
+                     .output("out", ov::element::f32, {1, 2, 3})
+                     .build();
+    const std::vector<float> values{1, 2, 3, 4, 5, 6};
+    auto out =
+        run_on_cpu(model, {{"x", make_f32_tensor({6}, values)}, {"reference", make_f32_tensor({1, 2, 3}, values)}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{1, 2, 3}));
+    expect_near(out, values);
 }

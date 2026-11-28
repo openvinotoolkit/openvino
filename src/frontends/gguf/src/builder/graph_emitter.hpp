@@ -76,6 +76,7 @@ public:
     void add_extra_input(const std::string& name, int64_t value);
 
     void add_extra_input_node(const std::string& name, const std::shared_ptr<ov::Node>& node);
+    void add_constant(const std::string& name, const ov::Tensor& value);
 
     void add_weight(const std::string& ggml_name);
     void add_weight_from(const std::string& node_name, const std::string& src_base);

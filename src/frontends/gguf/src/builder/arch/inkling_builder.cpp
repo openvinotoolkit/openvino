@@ -11,46 +11,10 @@
 #include "builder/api/metadata_store.hpp"
 #include "builder/graph_emitter.hpp"
 #include "builder/metadata_checks.hpp"
-#include "openvino/opsets/opset13.hpp"
-#include "ov_ops/gather_matmul.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
-namespace op = ov::opset13;
 using Value = ov::Output<ov::Node>;
-
-auto ints(const std::vector<int64_t>& values) {
-    return op::Constant::create(ov::element::i64, {values.size()}, values);
-}
-
-auto scalar(float value) {
-    return op::Constant::create(ov::element::f32, {}, {value});
-}
-
-Value reshape(const Value& value, const std::vector<int64_t>& shape, bool special_zero = false) {
-    return std::make_shared<op::Reshape>(value, ints(shape), special_zero);
-}
-
-Value transpose(const Value& value, const std::vector<int64_t>& order) {
-    return std::make_shared<op::Transpose>(value, ints(order));
-}
-
-Value slice(const Value& value, int64_t axis, int64_t start, int64_t length) {
-    const auto end = length < 0 ? std::numeric_limits<int64_t>::max() : start + length;
-    return std::make_shared<op::Slice>(value, ints({start}), ints({end}), ints({1}), ints({axis}));
-}
-
-Value add(const Value& a, const Value& b) {
-    return std::make_shared<op::Add>(a, b);
-}
-
-Value mul(const Value& a, const Value& b) {
-    return std::make_shared<op::Multiply>(a, b);
-}
-
-Value softcap(const Value& value, float cap) {
-    return mul(std::make_shared<op::Tanh>(mul(value, scalar(1.f / cap))), scalar(cap));
-}
 
 class InklingBuilder : public ModelBuilder {
 public:
@@ -75,19 +39,19 @@ public:
         rel_clip = positive_float("attention.relative_clip");
         gate_cap = positive_float("activation.situ_beta");
         up_cap = positive_float("activation.situ_linear_beta");
-        const auto scale = meta.get_float(arch + ".expert_weights_scale").value_or(1.);
+        const auto expert_scale = meta.get_float(arch + ".expert_weights_scale").value_or(1.);
         const auto floor = positive("attention.log_scale_floor");
         const auto alpha = meta.get_float(arch + ".attention.log_scale_alpha");
         const auto final_cap = meta.get_float(arch + ".final_logit_softcapping").value_or(0.);
         OPENVINO_ASSERT(layers <= 1024 && kernel >= 2 && kernel <= 64 && unpadded <= vocab,
                         "[GGUF] invalid Inkling dimensions");
-        OPENVINO_ASSERT(representable_float(scale) && alpha && representable_float(*alpha) && *alpha >= 0,
+        OPENVINO_ASSERT(representable_float(expert_scale) && alpha && representable_float(*alpha) && *alpha >= 0,
                         "[GGUF] invalid Inkling scaling parameters");
         OPENVINO_ASSERT(representable_float(final_cap) && final_cap >= 0 && std::isfinite(1.f / gate_cap) &&
                             std::isfinite(1.f / up_cap) &&
                             (final_cap == 0 || std::isfinite(1.f / static_cast<float>(final_cap))),
                         "[GGUF] invalid Inkling clipping parameters");
-        route_scale = scale == 0 ? 1.f : static_cast<float>(scale);
+        route_scale = expert_scale == 0 ? 1.f : static_cast<float>(expert_scale);
         sliding = meta.get_int_array(arch + ".attention.sliding_window_pattern");
         const auto is_flag = [](int64_t flag) {
             return flag == 0 || flag == 1;
@@ -131,26 +95,15 @@ public:
                  "cache_positions",
                  {save(reshape(positions, {1, -1, 1, 1})), "inp_kv_idx", "cache_positions"});
         graph.model_output_names.push_back("cache_positions");
-        auto position = std::make_shared<op::Convert>(positions, ov::element::f32);
-        Value ratio = mul(add(position, scalar(1.f)), scalar(1.f / floor));
-        ratio = std::make_shared<op::Maximum>(ratio, scalar(1.f));
-        tau = reshape(add(mul(std::make_shared<op::Log>(ratio), scalar(static_cast<float>(*alpha))), scalar(1.f)),
-                      {0, -1, 1, 1},
-                      true);
-        auto keys = std::make_shared<op::Convert>(e.value("cache_positions"), ov::element::i64);
-        auto distance = std::make_shared<op::Subtract>(
-            reshape(std::make_shared<op::Convert>(positions, ov::element::i64), {0, 1, -1, 1}, true),
-            reshape(keys, {0, 1, 1, -1}, true));
-        auto distance_shape = std::make_shared<op::ShapeOf>(distance);
-        distance_batch = std::make_shared<op::Gather>(distance_shape, ints({0}), ints({0}));
-        distance_rows_cols = std::make_shared<op::Gather>(distance_shape, ints({2, 3}), ints({0}));
+        auto ratio = scale(add(cast(positions, ov::element::f32), scalar(1.f)), 1.f / floor);
+        ratio = operation("GGML_OP_CLAMP", {ratio, scalar(1.f)});
+        tau = reshape(scale(operation("GGML_OP_LOG", {ratio}), static_cast<float>(*alpha), 1.f), {0, -1, 1, 1}, true);
+        distance = operation("GGML_OP_SUB",
+                             {reshape(cast(positions, ov::element::i64), {0, 1, -1, 1}, true),
+                              reshape(cast(e.value("cache_positions"), ov::element::i64), {0, 1, 1, -1}, true)});
         for (const bool swa : {false, true}) {
-            const auto span = ints({swa ? window : extent});
-            auto valid = std::make_shared<op::LogicalAnd>(std::make_shared<op::GreaterEqual>(distance, ints({0})),
-                                                          std::make_shared<op::Less>(distance, span));
-            relative_indices[swa] = std::make_shared<op::Select>(valid, distance, span);
             // Halving keeps masked logits finite in f16 after the bias, sink and score additions.
-            half_masks[swa] = mul(e.value(swa ? "self_kq_mask_swa" : "self_kq_mask"), scalar(0.5f));
+            half_masks[swa] = scale(e.value(swa ? "self_kq_mask_swa" : "self_kq_mask"), 0.5f);
         }
         auto cur = operation("GGML_OP_GET_ROWS", {weight("token_embd.weight", {vocab, width}), e.value("inp_tokens")});
         cur = norm(cur, weight("token_embd_norm.weight", {width}), eps);
@@ -234,6 +187,80 @@ private:
         return e.value(name);
     }
 
+    Value constant(const ov::Tensor& tensor) {
+        const auto name = next_name();
+        e.add_constant(name, tensor);
+        return e.value(name);
+    }
+
+    Value constant(ov::element::Type type, const ov::Shape& shape, const std::vector<float>& values) {
+        ov::Tensor tensor(type, shape);
+        OPENVINO_ASSERT(type == ov::element::f32 || type == ov::element::f16 || type == ov::element::bf16,
+                        "[GGUF] unsupported Inkling constant type ",
+                        type);
+        for (size_t i = 0; i < values.size(); ++i) {
+            if (type == ov::element::f32)
+                tensor.data<float>()[i] = values[i];
+            else if (type == ov::element::f16)
+                tensor.data<ov::float16>()[i] = ov::float16(values[i]);
+            else
+                tensor.data<ov::bfloat16>()[i] = ov::bfloat16(values[i]);
+        }
+        return constant(tensor);
+    }
+
+    Value scalar(float value) {
+        return constant(ov::element::f32, {}, {value});
+    }
+
+    Value reshape(const Value& value, const std::vector<int64_t>& shape, bool special_zero = false) {
+        return operation("GGML_OP_RESHAPE", {value}, 6, {{"reshape_target", shape}, {"special_zero", special_zero}});
+    }
+
+    Value transpose(const Value& value, const std::vector<int64_t>& order) {
+        return operation("GGML_OP_PERMUTE", {value}, 1, {{"perm", order}});
+    }
+
+    // A negative start selects the tail from that offset.
+    Value slice(const Value& value, int64_t axis, int64_t start, int64_t length) {
+        return operation("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{axis, start, length}}});
+    }
+
+    Value concat(const std::vector<Value>& values, int64_t axis) {
+        if (values.size() == 1)
+            return values.front();
+        const auto rank = values.front().get_partial_shape().rank().get_length();
+        return operation("GGML_OP_CONCAT", values, 0, {{"concat_axis", static_cast<int>(rank - 1 - axis)}});
+    }
+
+    Value cast(const Value& value, ov::element::Type type) {
+        return operation("GGML_OP_CPY", {value}, 0, {{"dst_type", type}});
+    }
+
+    Value add(const Value& a, const Value& b) {
+        return operation("GGML_OP_ADD", {a, b});
+    }
+
+    Value sub(const Value& a, const Value& b) {
+        return operation("GGML_OP_SUB", {a, b});
+    }
+
+    Value mul(const Value& a, const Value& b) {
+        return operation("GGML_OP_MUL", {a, b});
+    }
+
+    Value scale(const Value& value, float factor, float bias = 0.f) {
+        return operation("GGML_OP_SCALE", {value}, 0, {{"scale", factor}, {"bias", bias}});
+    }
+
+    Value unary(const std::string& type, const Value& value) {
+        return operation("GGML_UNARY_OP_" + type, {value});
+    }
+
+    Value softcap(const Value& value, float cap) {
+        return scale(unary("TANH", scale(value, 1.f / cap)), cap);
+    }
+
     Value weight(const std::string& name, const std::vector<int64_t>& shape = {}) {
         if (!shape.empty()) {
             const auto squeeze_front = [](ov::Shape s) {
@@ -263,16 +290,15 @@ private:
         return w.get_node() ? mul(normalized, w) : normalized;
     }
 
-    Value clip(Value value, const Value& scale, float threshold) {
-        if (scale.get_node())
-            value = mul(value, scale);
+    Value clip(Value value, const Value& gain, float threshold) {
+        if (gain.get_node())
+            value = mul(value, gain);
         // llama.cpp divides by L2 + 1e-6. The epsilon changes the factor by at most 1e-6 / threshold but pins
         // the chain to f32 on GPU, so it is kept only for thresholds below 1.
-        Value l2 = std::make_shared<op::ReduceL2>(value, ints({3}), true);
-        if (threshold < 1.f)
-            l2 = add(l2, scalar(1e-6f));
-        auto factor = std::make_shared<op::Divide>(scalar(threshold), l2);
-        return mul(value, std::make_shared<op::Clamp>(factor, 0., 1.));
+        return operation("GGML_OP_L2_NORM",
+                         {value},
+                         100,
+                         {{"threshold", threshold}, {"eps", threshold < 1.f ? 1e-6f : 0.f}});
     }
 
     Value token_rows(const Value& value, int64_t row = -1) {
@@ -285,22 +311,22 @@ private:
     }
 
     Value mix(const std::vector<Value>& blocks, const Value& cur, const Value& query) {
-        ov::OutputVector states(blocks.rbegin(), blocks.rend());
+        std::vector<Value> states(blocks.rbegin(), blocks.rend());
         states.push_back(stack_row(cur));
-        const auto values = std::make_shared<op::Concat>(states, 2);
-        const auto queries = reshape(query, {1, 1, -1, width});
-        auto scores = std::make_shared<op::MatMul>(queries, values, false, true);
+        const auto values = concat(states, 2);
+        auto scores = mm(values, reshape(query, {1, 1, -1, width}));
         auto probabilities =
-            std::make_shared<op::Softmax>(mul(scores, scalar(1.f / std::sqrt(static_cast<float>(width)))), 3);
-        return std::make_shared<op::MatMul>(probabilities, values);
+            operation("GGML_OP_SOFT_MAX", {scores}, 0, {{"scale", 1.f / std::sqrt(static_cast<float>(width))}});
+        // ggml_mul_mat(transpose(v), p): case 2 consumes the transposed operand.
+        return operation("GGML_OP_MUL_MAT", {transpose(values, {0, 1, 3, 2}), probabilities}, 2);
     }
 
     Value control(const Value& cur, const Value& message, const std::string& prefix) {
-        auto joined = std::make_shared<op::Concat>(ov::OutputVector{norm(cur, {}, 1e-6f), norm(message, {}, 1e-6f)}, 3);
+        auto joined = concat({norm(cur, {}, 1e-6f), norm(message, {}, 1e-6f)}, 3);
         auto gate = mm(weight(prefix + "_ctrl_down.weight"), joined);
-        auto gain = std::make_shared<op::Tanh>(mm(weight(prefix + "_ctrl_gain.weight"), gate));
-        auto forget = std::make_shared<op::Tanh>(mm(weight(prefix + "_ctrl_forget.weight"), gate));
-        return add(std::make_shared<op::Subtract>(cur, mul(forget, cur)), mul(gain, message));
+        auto gain = unary("TANH", mm(weight(prefix + "_ctrl_gain.weight"), gate));
+        auto forget = unary("TANH", mm(weight(prefix + "_ctrl_forget.weight"), gate));
+        return add(sub(cur, mul(forget, cur)), mul(gain, message));
     }
 
     Value convolve(const Value& cur, const Value& w, const std::string& name, const Value& dynamic = {}) {
@@ -310,19 +336,17 @@ private:
         auto input = cur;
         auto filters = w;
         if (copies > 1) {
-            input = std::make_shared<op::Concat>(ov::OutputVector(static_cast<size_t>(copies), cur), 3);
+            input = concat(std::vector<Value>(static_cast<size_t>(copies), cur), 3);
             std::vector<float> one_hot(static_cast<size_t>(kernel * channels * kernel), 0.f);
             for (int64_t lag = 0; lag < kernel; ++lag)
                 for (int64_t channel = 0; channel < channels; ++channel)
                     one_hot[static_cast<size_t>((lag * channels + channel) * kernel + kernel - 1 - lag)] = 1.f;
             const auto one_hot_shape = ov::Shape{static_cast<size_t>(kernel * channels), static_cast<size_t>(kernel)};
-            filters = std::make_shared<op::Concat>(
-                ov::OutputVector{reshape(w, {channels, kernel}),
-                                 op::Constant::create(w.get_element_type(), one_hot_shape, one_hot)},
-                0);
+            filters =
+                concat({reshape(w, {channels, kernel}), constant(w.get_element_type(), one_hot_shape, one_hot)}, 0);
         }
         const auto state = e.add_input(name, ov::element::f32, ps({1, 1, channels * copies, kernel - 1}));
-        auto history = std::make_shared<op::Concat>(ov::OutputVector{state, transpose(input, {0, 1, 3, 2})}, 3);
+        auto history = concat({state, transpose(input, {0, 1, 3, 2})}, 3);
         const auto update = save(slice(history, 3, -(kernel - 1), -1));
         e.graph()->recurrent_states.emplace_back(name, update);
         e.graph()->model_output_names.push_back(update);
@@ -338,7 +362,7 @@ private:
                 out = add(out, reshape(mul(rows, slice(taps, 3, lag, 1)), {0, 1, -1, channels}, true));
             }
         }
-        return mul(add(cur, out), scalar(1.f / std::sqrt((copies > 1 ? 2 : 1) * kernel + 1.f)));
+        return scale(add(cur, out), 1.f / std::sqrt((copies > 1 ? 2 : 1) * kernel + 1.f));
     }
 
     Value cache(const Value& value, const std::string& name, int64_t heads, int64_t head) {
@@ -387,31 +411,26 @@ private:
         k = cache(k, "cache_k_l" + std::to_string(slot), kv_heads, head);
         v = cache(v, "cache_v_l" + std::to_string(slot), kv_heads, head);
         const auto span = swa ? window : extent;
-        auto padded =
-            std::make_shared<op::Pad>(reshape(weight(p + "attn_rel_bias.weight", {span, relative}), {span, relative}),
-                                      ints({0, 0}),
-                                      ints({1, 0}),
-                                      ov::op::PadMode::CONSTANT);
-        auto table = std::make_shared<op::MatMul>(transpose(r, {0, 2, 1, 3}), padded, false, true);
-        auto bias_shape =
-            std::make_shared<op::Concat>(ov::OutputVector{distance_batch, ints({heads}), distance_rows_cols}, 0);
-        Value bias =
-            std::make_shared<op::GatherElements>(table,
-                                                 std::make_shared<op::Broadcast>(relative_indices[swa], bias_shape),
-                                                 3);
+        // The fallback row past the window holds the zero bias of distances outside it.
+        auto padded = operation("GGML_OP_PAD",
+                                {reshape(weight(p + "attn_rel_bias.weight", {span, relative}), {span, relative})},
+                                0,
+                                {{"pads_begin", std::vector<int64_t>{0, 0}}, {"pads_end", std::vector<int64_t>{1, 0}}});
+        auto table = mm(padded, transpose(r, {0, 2, 1, 3}));
+        auto bias = operation("GGML_OP_GET_REL_POS", {table, distance}, 2, {{"relative_extent", span}});
         auto sinks = mm(weight(p + "attn_sink_proj.weight", {heads, width}), inputs[0]);
-        bias = std::make_shared<op::Subtract>(bias, transpose(sinks, {0, 3, 2, 1}));
+        bias = sub(bias, transpose(sinks, {0, 3, 2, 1}));
         bias = add(bias, half_masks[swa]);
         // The zero sink represents the removed query-dependent sink logit.
-        auto sinks_zero = op::Constant::create(ov::element::f32, {1, 1, 1, static_cast<size_t>(heads)}, {0.f});
+        auto sinks_zero =
+            constant(ov::element::f32, {1, 1, 1, static_cast<size_t>(heads)}, std::vector<float>(heads, 0.f));
         auto out =
             operation("GGML_OP_FLASH_ATTN_EXT",
                       {q, k, v, bias, sinks_zero},
                       100,
                       {{"scale", 1.f / std::sqrt(static_cast<float>(head))}, {"is_swa", swa}, {"explicit_mask", true}});
         out = reshape(out, {0, 1, -1, heads * head}, true);
-        out = mul(out,
-                  std::make_shared<op::Sigmoid>(mm(weight(p + "attn_gate.weight", {heads * head, width}), inputs[0])));
+        out = mul(out, unary("SIGMOID", mm(weight(p + "attn_gate.weight", {heads * head, width}), inputs[0])));
         out = mm(weight(p + "attn_output.weight", {width, heads * head}), out);
         return convolve(out, weight(p + "attn_post_conv.weight", {width, kernel}), state + "_attn");
     }
@@ -420,38 +439,36 @@ private:
         const auto hidden = per_layer("expert_feed_forward_length", layer);
         const auto used = per_layer("expert_used_count", layer);
         OPENVINO_ASSERT(used <= experts, "[GGUF] Inkling expert_used_count exceeds expert_count");
-        auto probs = std::make_shared<op::Sigmoid>(mm(weight(p + "ffn_gate_inp.weight", {experts, width}), cur));
+        auto probs = unary("SIGMOID", mm(weight(p + "ffn_gate_inp.weight", {experts, width}), cur));
         Value selection = probs;
         if (e.has_weight(p + "exp_probs_b.bias"))
             selection = add(probs, weight(p + "exp_probs_b.bias", {experts}));
         auto selected = operation("GGML_OP_TOP_K", {selection}, 0, {{"k", used}});
         auto weights = operation("GGML_OP_GET_ROWS", {probs, selected}, 10);
         // Same floor as llama.cpp; Clamp rather than Maximum keeps this chain out of GPU f32 islands.
-        auto sum = std::make_shared<op::Clamp>(std::make_shared<op::ReduceSum>(weights, ints({2}), true),
-                                               6.103515625e-5,
-                                               std::numeric_limits<double>::infinity());
-        weights = mul(weights, std::make_shared<op::Divide>(scalar(route_scale), sum));
-        // Expert-major [K, T, *] throughout: the activation is elementwise, so neither GatherMatmul
-        // output needs a transpose back to token-major.
-        auto ids = std::make_shared<op::Convert>(reshape(selected, {-1, used}), ov::element::i32);
+        auto sum = operation("GGML_OP_CLAMP",
+                             {operation("GGML_OP_SUM_ROWS", {weights}, 0, {{"axes", std::vector<int64_t>{2}}})},
+                             0,
+                             {{"clamp_min", 6.103515625e-5f}, {"clamp_max", std::numeric_limits<float>::infinity()}});
+        weights = mul(weights, operation("GGML_OP_DIV", {scalar(route_scale), sum}, 0, {{"allow_f16", true}}));
+        // Expert-major [K, T, *] throughout: the activation is elementwise, so neither expert
+        // product needs a transpose back to token-major.
+        auto ids = cast(reshape(selected, {-1, used}), ov::element::i32);
         const auto experts_value = [&](const std::string& name, const std::vector<int64_t>& shape) {
             Value w = weight(name, shape);
             if (w.get_partial_shape().size() == 4)
                 w = reshape(w, {shape.begin() + 1, shape.end()});
             return w;
         };
-        const auto tokens = reshape(cur, {1, -1, width});
-        Value joint = std::make_shared<ov::op::internal::GatherMatmul>(
-            tokens,
-            experts_value(p + "ffn_gate_up_exps.weight", {1, experts, 2 * hidden, width}),
-            ids);
+        const auto expert_mm = [&](const Value& w, const Value& value) {
+            return operation("GGML_OP_MUL_MAT_ID", {w, value, ids}, 100);
+        };
+        auto joint = expert_mm(experts_value(p + "ffn_gate_up_exps.weight", {1, experts, 2 * hidden, width}),
+                               reshape(cur, {1, -1, width}));
         auto gate = slice(joint, 2, 0, hidden);
         auto up = slice(joint, 2, hidden, hidden);
-        auto activation = mul(mul(softcap(gate, gate_cap), std::make_shared<op::Sigmoid>(gate)), softcap(up, up_cap));
-        Value out = std::make_shared<ov::op::internal::GatherMatmul>(
-            activation,
-            experts_value(p + "ffn_down_exps.weight", {1, experts, width, hidden}),
-            ids);
+        auto activation = mul(mul(softcap(gate, gate_cap), unary("SIGMOID", gate)), softcap(up, up_cap));
+        auto out = expert_mm(experts_value(p + "ffn_down_exps.weight", {1, experts, width, hidden}), activation);
         if (e.has_weight(p + "ffn_down_exps.scale")) {
             auto scales = operation("GGML_OP_GET_ROWS",
                                     {reshape(weight(p + "ffn_down_exps.scale"), {1, 1, 1, experts}), selected},
@@ -459,9 +476,12 @@ private:
                                     {{"shared_row", true}});
             weights = mul(weights, scales);
         }
-        auto slot_weights = std::make_shared<op::Unsqueeze>(transpose(reshape(weights, {-1, used}), {1, 0}), ints({2}));
-        auto combined = std::make_shared<op::ReduceSum>(mul(out, slot_weights), ints({0}), false);
-        return std::make_shared<op::Reshape>(combined, std::make_shared<op::ShapeOf>(cur), false);
+        auto slot_weights = reshape(transpose(reshape(weights, {-1, used}), {1, 0}), {0, -1, 1}, true);
+        auto combined = operation("GGML_OP_SUM_ROWS",
+                                  {mul(out, slot_weights)},
+                                  0,
+                                  {{"axes", std::vector<int64_t>{0}}, {"keep_dims", false}});
+        return operation("GGML_OP_RESHAPE", {combined, cur});
     }
 
     Value build_layer(int64_t layer,
@@ -516,8 +536,8 @@ private:
     float eps = 0, qk_clip = 0, rel_clip = 0, gate_cap = 0, up_cap = 0;
     float route_scale = 1;
     std::vector<int64_t> sliding;
-    Value tau, distance_batch, distance_rows_cols;
-    Value relative_indices[2], half_masks[2];
+    Value tau, distance;
+    Value half_masks[2];
 };
 }  // namespace
 

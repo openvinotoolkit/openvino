@@ -5,6 +5,7 @@
 #include "op_table.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -12,7 +13,9 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/less.hpp"
@@ -264,8 +267,29 @@ OutputVector translate_win_unpart(const NodeContext& context) {
 
 OutputVector translate_get_rel_pos(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1");
     using namespace ov::op;
+    if (context.get_op_case() == 2) {
+        // Per-query distance table [B, H, T, extent + 1] gathered by query-key distance [B, 1, T, K]:
+        // distances outside [0, extent) select the fallback column `extent`.
+        const auto table = context.get_input(0), distance = context.get_input(1);
+        const auto& table_shape = table.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(table_shape.rank() == 4 && table_shape[1].is_static(),
+                                      "Relative distance gather requires a rank-4 table with static heads");
+        const auto extent = i64_const({context.get_attribute<int64_t>("relative_extent")});
+        auto valid = std::make_shared<v1::LogicalAnd>(std::make_shared<v1::GreaterEqual>(distance, i64_const({0})),
+                                                      std::make_shared<v1::Less>(distance, extent));
+        auto indices = std::make_shared<v1::Select>(valid, distance, extent);
+        auto distance_shape = std::make_shared<v3::ShapeOf>(distance);
+        auto shape = std::make_shared<v0::Concat>(
+            OutputVector{std::make_shared<v8::Gather>(distance_shape, i64_const({0}), i64_const({0})),
+                         i64_const({table_shape[1].get_length()}),
+                         std::make_shared<v8::Gather>(distance_shape, i64_const({2, 3}), i64_const({0}))},
+            0);
+        return rename_outputs_with_suffix(
+            {std::make_shared<v6::GatherElements>(table, std::make_shared<v3::Broadcast>(indices, shape), 3)},
+            context.get_name());
+    }
+    FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1 or 2");
     auto table = context.get_input(0), indices = context.get_input(1);
     const auto& c = i64_const;
     // The table is a weight, so its width is known at conversion time.
