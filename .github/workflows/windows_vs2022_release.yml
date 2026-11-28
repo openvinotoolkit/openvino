@@ -679,7 +679,7 @@ jobs:
           if-no-files-found: 'error'
 
   GPU_Unit_Tests:
-    name: GPU unit tests
+    name: GPU unit tests PTL
     needs: [ Build, Smart_CI ]
     if: ${{ github.event_name != 'merge_group' && fromJSON(needs.smart_ci.outputs.affected_components).GPU }}
     timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
@@ -698,6 +698,9 @@ jobs:
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache_gpu_unit_ptl.lst"
       TEST_RESULTS_DIR: "${{ github.workspace }}\\install\\tests\\gpu_unit_tests"
+      # NEO_CACHE_PERSISTENT: '1'
+      NEO_CACHE_MAX_SIZE: 16106127360 # 15GB
+      NEO_CACHE_STATS: '1'
     steps:
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -734,6 +737,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-tests-gpu-unit-ptl-stamp-
 
+      - name: Check NEO cache dir size
+        run: |
+          $dir = $env:NEO_CACHE_DIR
+          if (-not $dir) { $dir = Join-Path $env:LOCALAPPDATA 'NEO\neo_compiler_cache' }
+          Write-Host "NEO cache dir: $dir"
+          if (Test-Path $dir) {
+            $size = (Get-ChildItem $dir -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+            if (-not $size) { $size = 0 }
+            Write-Host ("NEO cache dir size: {0} bytes ({1:N2} MB)" -f $size, ($size / 1MB))
+          } else {
+            Write-Host "NEO cache dir does not exist"
+          }
+          # Remove stale stats file so that only stats from the tests run are reported; keep its path for the print step
+          $statsFile = Join-Path $dir 'stats'
+          "NEO_STATS_FILE=$statsFile" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          if (Test-Path $statsFile) {
+            Write-Host "Removing NEO stats file: $statsFile"
+            Remove-Item $statsFile -Force
+          } else {
+            Write-Host "NEO stats file not found: $statsFile"
+          }
+
       - name: Run GPU unit tests
         env:
           NEO_CACHE_PERSISTENT: '1'
@@ -751,6 +776,36 @@ jobs:
           }
           python "$env:PARALLEL_TEST_SCRIPT" -e "$env:INSTALL_TEST_DIR\ov_gpu_unit_tests.exe" -c "$env:PARALLEL_TEST_CACHE" -w "$env:TEST_RESULTS_DIR" -j 16 -s suite -rf 1 --process_timeout 5400 -- --gtest_print_time=1 --report_unique_name "--gtest_filter=$env:GPU_TEST_FILTER"
         timeout-minutes: 500
+
+      - name: Print NEO STATS file content
+        if: always()
+        run: |
+          $f = $env:NEO_STATS_FILE
+          if (-not $f) {
+            $dir = $env:NEO_CACHE_DIR
+            if (-not $dir) { $dir = Join-Path $env:LOCALAPPDATA 'NEO\neo_compiler_cache' }
+            $f = Join-Path $dir 'stats'
+          }
+          $dir = Split-Path $f -Parent
+          Write-Host "NEO stats file: $f"
+          if (-not (Test-Path $f)) {
+            Write-Host "File not found: $f"
+            if (Test-Path $dir) {
+              Get-ChildItem $dir | Select-Object -First 50 Name, Length | Format-Table | Out-String | Write-Host
+            }
+            exit 0
+          }
+          $bytes = [System.IO.File]::ReadAllBytes($f)
+          Write-Host "=== $f ($($bytes.Length) bytes) ==="
+          $count = [int][math]::Floor($bytes.Length / 8)
+          $values = for ($i = 0; $i -lt $count; $i++) { [BitConverter]::ToUInt64($bytes, $i * 8) }
+          for ($i = 0; $i -lt $count; $i += 2) {
+            $end = [math]::Min($i + 1, $count - 1)
+            Write-Host (($values[$i..$end] | ForEach-Object { '{0,20}' -f $_ }) -join ' ')
+          }
+          if ($bytes.Length % 8) {
+            Write-Host "Trailing $($bytes.Length % 8) byte(s) ignored"
+          }
 
       - name: Save tests execution time
         if: github.ref_name == 'master'

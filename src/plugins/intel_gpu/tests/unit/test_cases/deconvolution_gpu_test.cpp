@@ -3142,7 +3142,11 @@ public:
     }
 
     self& add_smoke_3d(data_types in_dt, data_types wei_dt, data_types out_dt, format::type in_fmt, format::type out_fmt) {
-        std::vector<int> batches = { 1, 2, 16, 32 };
+        // Batch 2 is only needed for layouts with a 16-wide batch block (bs_fs_zyx_bsv16_*): it is the only
+        // case with a partial batch block of more than one item (batch 1 has a single item, 16 and 32 are
+        // full blocks). For other layouts batches 16 and 32 already cover multi-batch indexing.
+        const bool has_bsv16_block = in_fmt == format::bs_fs_zyx_bsv16_fsv16 || in_fmt == format::bs_fs_zyx_bsv16_fsv32;
+        std::vector<int> batches = has_bsv16_block ? std::vector<int>{ 1, 2, 16, 32 } : std::vector<int>{ 1, 16, 32 };
         for (auto b : batches) {
             // 1x1
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 1, 1, 1}, {1, 1, 1}, {0, 0, 0}, true, out_dt, ov::intel_gpu::ImplementationDesc{out_fmt, ""} });

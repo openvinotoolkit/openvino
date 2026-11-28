@@ -9536,6 +9536,8 @@ protected:
 };
 
 class convolution_random_smoke_test : public testing::TestWithParam<convolution_random_test_all_params> {};
+class convolution_random_smoke_forced_ref_test : public testing::TestWithParam<convolution_random_test_all_params> {};
+class convolution_random_smoke_fsv4_input_u8_test : public testing::TestWithParam<convolution_random_test_all_params> {};
 class convolution_random_fsv32_test : public testing::TestWithParam<convolution_random_test_all_params> {};
 
 using convolution_random_test_s8s8f32 = convolution_random_test_base<int8_t, int8_t, float>;
@@ -9711,14 +9713,6 @@ TEST_P(convolution_random_smoke_test, u8s8f32) {
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
 
-TEST_P(convolution_random_smoke_test, u8u8f32_forced_ref) {
-    convolution_random_test_u8u8f32 test;
-    const auto p = GetParam();
-    ov::intel_gpu::ImplForcingMap force_map{ { "conv", { p.input_format, "convolution_gpu_ref" } } };
-    test.set_forced_impl(force_map);
-    ASSERT_NO_FATAL_FAILURE(test.run_random(p));
-}
-
 TEST_P(convolution_random_smoke_test, u8s8f32_scale) {
     convolution_scale_random_test_u8s8f32 test;
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
@@ -9726,11 +9720,6 @@ TEST_P(convolution_random_smoke_test, u8s8f32_scale) {
 
 TEST_P(convolution_random_smoke_test, s8s8f32_fsv4_input) {
     convolution_random_test_fsv4_input_s8s8f32 test;
-    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
-}
-
-TEST_P(convolution_random_smoke_test, u8s8f32_fsv4_input) {
-    convolution_random_test_fsv4_input_u8s8f32 test;
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
 
@@ -9755,6 +9744,107 @@ INSTANTIATE_TEST_SUITE_P(
         .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
         .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
     ),
+    to_string_convolution_all_params
+);
+
+// u8 input from b_fs_yx_fsv4 followed by a reorder to the convolution input format. The signed variant runs on the full grid
+// (s8s8f32_fsv4_input); for u8 the convolution kernels are already covered by u8s8f32, so only the fsv4 -> input_format
+// reorder with the unsigned type needs checking: batch 1 and 2, the 3-feature first convolution (features padded to the
+// fsv4 block) and the plain 3x3 32->48 convolution (aligned features) are kept for every format and flag configuration.
+static std::vector<convolution_random_test_all_params> fsv4_input_u8_params(const std::vector<convolution_random_test_all_params>& all) {
+    std::vector<convolution_random_test_all_params> res;
+    for (const auto& p : all) {
+        const bool first_conv = p.input_features == 3 && p.filter_xy == std::array<size_t, 2>{7, 7};
+        const bool plain = p.input_features == 32 && p.filter_xy == std::array<size_t, 2>{3, 3} && p.stride_xy == std::array<int, 2>{1, 1} &&
+                           p.input_xy == std::array<size_t, 2>{14, 14};
+        if (first_conv || plain)
+            res.push_back(p);
+    }
+    return res;
+}
+
+TEST_P(convolution_random_smoke_fsv4_input_u8_test, u8s8f32_fsv4_input) {
+    convolution_random_test_fsv4_input_u8s8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    convolution_random_smoke_fsv4_input_u8_test,
+    testing::ValuesIn(fsv4_input_u8_params(
+        params_generator()
+        .smoke_test_params(format::b_fs_yx_fsv4)
+        .smoke_test_params(format::bfyx)
+        .smoke_test_params(format::b_fs_yx_fsv32)
+        .smoke_test_params(format::b_fs_yx_fsv32, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv32, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv32, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv32, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
+        .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
+        .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
+    )),
+    to_string_convolution_all_params
+);
+
+// Batch > 1 changes the reference kernel code path (SKIP_BATCH is defined only for batch == 1) and the batch/feature
+// indexing, which depends on the feature count, the group count and the block alignment. All batch-1 cases are kept.
+// For batch 2 one stride-1 representative per interaction is kept:
+//  - plain 3x3, 32->48 (full convolution, 48 is not a multiple of 32);
+//  - depthwise 3x3, 64->64, g=64 (groups combined with batch);
+//  - dilated 3x3, 32->24 (dilation, output features not a multiple of 16).
+// Stride is independent of the batch index computation, so stride-2 variants are covered by batch 1 only.
+static std::vector<convolution_random_test_all_params> forced_ref_smoke_params(const std::vector<convolution_random_test_all_params>& all) {
+    std::vector<convolution_random_test_all_params> res;
+    for (const auto& p : all) {
+        if (p.batch != 2) {
+            res.push_back(p);
+            continue;
+        }
+        const bool stride1 = p.stride_xy == std::array<int, 2>{1, 1};
+        const bool plain = p.filter_xy == std::array<size_t, 2>{3, 3} && p.input_xy == std::array<size_t, 2>{14, 14} && p.input_features == 32;
+        const bool depthwise = p.groups == 64 && p.dilation_xy == std::array<int, 2>{1, 1};
+        const bool dilated = p.groups == 1 && p.input_features == 32 && p.output_features == 24;
+        if (stride1 && (plain || depthwise || dilated))
+            res.push_back(p);
+    }
+    return res;
+}
+
+TEST_P(convolution_random_smoke_forced_ref_test, u8u8f32_forced_ref) {
+    convolution_random_test_u8u8f32 test;
+    const auto p = GetParam();
+    ov::intel_gpu::ImplForcingMap force_map{ { "conv", { p.input_format, "convolution_gpu_ref" } } };
+    test.set_forced_impl(force_map);
+    ASSERT_NO_FATAL_FAILURE(test.run_random(p));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    convolution_random_smoke_forced_ref_test,
+    testing::ValuesIn(forced_ref_smoke_params(
+params_generator()
+        .smoke_test_params(format::b_fs_yx_fsv4)
+        .smoke_test_params(format::bfyx)
+        .smoke_test_params(format::b_fs_yx_fsv32)
+        .smoke_test_params(format::b_fs_yx_fsv32, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv32, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv32, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv32, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, true, false)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
+        .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
+        .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
+        .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
+    )),
     to_string_convolution_all_params
 );
 
