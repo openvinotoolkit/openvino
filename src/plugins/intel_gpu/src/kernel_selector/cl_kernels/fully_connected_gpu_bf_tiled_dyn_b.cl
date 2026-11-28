@@ -82,6 +82,26 @@
 #define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
 #define TO_ACCUMULATOR_VEC_TYPE(x) CAT(convert_, ACCUMULATOR_VEC_TYPE)(x)
 
+#if ACCUMULATOR_IS_FP
+#define FC_ACC_TYPE                float
+#define FC_ACC_VEC_TYPE            MAKE_VECTOR_TYPE(float, TILE_OFM)
+#define TO_FC_ACC_TYPE(x)          convert_float(x)
+#define TO_FC_ACC_VEC_TYPE(x)      CAT(convert_, FC_ACC_VEC_TYPE)(x)
+#else
+#define FC_ACC_TYPE                ACCUMULATOR_TYPE
+#define FC_ACC_VEC_TYPE            ACCUMULATOR_VEC_TYPE
+#define TO_FC_ACC_TYPE(x)          TO_ACCUMULATOR_TYPE(x)
+#define TO_FC_ACC_VEC_TYPE(x)      TO_ACCUMULATOR_VEC_TYPE(x)
+#endif
+
+#if OUTPUT_3D
+#define GET_INPUT0_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * INPUT0_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * INPUT0_FEATURE_PITCH + INPUT0_OFFSET)
+#define GET_OUTPUT_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * OUTPUT_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * OUTPUT_FEATURE_PITCH + OUTPUT_OFFSET)
+#else
+#define GET_INPUT0_BF_OFFSET(b_idx) ((b_idx) * TILE_IN_B_PITCH + INPUT0_OFFSET)
+#define GET_OUTPUT_BF_OFFSET(b_idx) ((b_idx) * TILE_OUT_B_PITCH + OUTPUT_OFFSET)
+#endif
+
 // Block I/O macros
 #define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, TILE_IFM, ptr, offset)
 #define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, ptr, offset)
@@ -89,7 +109,11 @@
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, TILE_OFM, ptr, offset, val)
 
 // Block write alignment check
+#if OUTPUT_3D
+#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_BATCH_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#else
 #define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#endif
 
 #if !REALIGN_FP16_OFFSET
     #define MAIN_LOOP_ELEMENTS_COUNT  IFM_SIZE
@@ -276,6 +300,12 @@ KERNEL(fc_bf_tiled_dyn_b)(
 #undef TO_ACTIVATION_VEC_TYPE
 #undef TO_FILTER_VEC_TYPE
 #undef TO_ACCUMULATOR_VEC_TYPE
+#undef FC_ACC_TYPE
+#undef FC_ACC_VEC_TYPE
+#undef TO_FC_ACC_TYPE
+#undef TO_FC_ACC_VEC_TYPE
+#undef GET_INPUT0_BF_OFFSET
+#undef GET_OUTPUT_BF_OFFSET
 
 #undef INPUT_BLOCK_READ
 #undef FILTER_BLOCK_READ

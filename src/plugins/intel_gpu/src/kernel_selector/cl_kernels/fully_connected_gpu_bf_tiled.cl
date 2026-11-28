@@ -123,6 +123,41 @@ KERNEL(quantize_input)(
 #define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
 #define TO_ACCUMULATOR_VEC_TYPE(x) CAT(convert_, ACCUMULATOR_VEC_TYPE)(x)
 
+#define FC_ACC_NEEDS_PROMOTION     (ACCUMULATOR_IS_FP && ACCUMULATOR_TYPE_SIZE < 4)
+
+#if FC_ACC_NEEDS_PROMOTION
+#define FC_ACC_TYPE                float
+#define FC_ACC_VEC_TYPE            MAKE_VECTOR_TYPE(float, TILE_OFM)
+#define FC_ACC_VAL_ONE             1.0f
+#define TO_FC_ACC_TYPE(x)          convert_float(x)
+#define TO_FC_ACC_VEC_TYPE(x)      CAT(convert_, FC_ACC_VEC_TYPE)(x)
+#else
+#define FC_ACC_TYPE                ACCUMULATOR_TYPE
+#define FC_ACC_VEC_TYPE            ACCUMULATOR_VEC_TYPE
+#define FC_ACC_VAL_ONE             ACCUMULATOR_VAL_ONE
+#define TO_FC_ACC_TYPE(x)          TO_ACCUMULATOR_TYPE(x)
+#define TO_FC_ACC_VEC_TYPE(x)      TO_ACCUMULATOR_VEC_TYPE(x)
+#endif
+
+#if OUTPUT_3D
+#if defined(INPUT0_HAS_FEATURE_PAD) && INPUT0_HAS_FEATURE_PAD
+#define USE_PER_ROW_INPUT_OFFSET 1
+#define GET_INPUT0_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * INPUT0_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * INPUT0_FEATURE_PITCH + INPUT0_OFFSET)
+#else
+#define USE_PER_ROW_INPUT_OFFSET 0
+#define GET_INPUT0_BF_OFFSET(b_idx) ((b_idx) * TILE_IN_B_PITCH + INPUT0_OFFSET)
+#endif
+#if defined(OUTPUT_HAS_FEATURE_PAD) && OUTPUT_HAS_FEATURE_PAD
+#define GET_OUTPUT_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * OUTPUT_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * OUTPUT_FEATURE_PITCH + OUTPUT_OFFSET)
+#else
+#define GET_OUTPUT_BF_OFFSET(b_idx) ((b_idx) * TILE_OUT_B_PITCH + OUTPUT_OFFSET)
+#endif
+#else
+#define USE_PER_ROW_INPUT_OFFSET 0
+#define GET_INPUT0_BF_OFFSET(b_idx) ((b_idx) * TILE_IN_B_PITCH + INPUT0_OFFSET)
+#define GET_OUTPUT_BF_OFFSET(b_idx) ((b_idx) * TILE_OUT_B_PITCH + OUTPUT_OFFSET)
+#endif
+
 #define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, TILE_IFM, ptr, offset)
 #define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, ptr, offset)
 #define BIAS_BLOCK_READ(ptr, offset)         BLOCK_READN(BIAS_TYPE, TILE_OFM, ptr, offset)
@@ -134,7 +169,11 @@ KERNEL(quantize_input)(
 
 
 // Check alignment restrictions for using block writes on output.
+#if OUTPUT_3D
+#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_BATCH_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#else
 #define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#endif
 
 
 #if !REALIGN_FP16_OFFSET
@@ -239,20 +278,35 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 #endif
 
-    ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
-    INPUT_VEC_TYPE       in_0[TILE_B] = { };
+#if !USE_SLM && !IS_DYNAMIC && DISPATCH_BATCH_LEFTOVER
+    // Dynamic kernels always dispatch with DISPATCH_BSV == 1 (out_b < BATCH_SIZE), so only
+    // static padded-dispatch workgroups need an early exit (avoiding extra CFG in __sa kernels).
+    if (out_b >= BATCH_SIZE) {
+        return;
+    }
+#endif
+
+    FC_ACC_VEC_TYPE acc[TILE_B] = { };
+    INPUT_VEC_TYPE  in_0[TILE_B] = { };
 
     #if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
         FILTER_VEC_TYPE wei = 0;
     #endif
 
-#if OUTPUT_3D
-    uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
-    uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
-    uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
-#else
-    uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
-#endif
+    #if USE_PER_ROW_INPUT_OFFSET
+        uint input_base_offset[TILE_B];
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            input_base_offset[bi] = GET_INPUT0_BF_OFFSET(out_b + bi);
+        }
+        uint input_k_offset = 0;
+    #elif OUTPUT_3D && !FC_ACC_NEEDS_PROMOTION
+        // Keep the legacy 3D offset expression on non-FP16 paths to preserve IGC codegen parity.
+        uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
+        uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
+        uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
+    #else
+        uint input_offset = GET_INPUT0_BF_OFFSET(out_b);
+    #endif
 
 #if COMPRESSED_WEIGHTS_INT4
     #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
@@ -319,12 +373,18 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
     ACTIVATION_VEC_TYPE activated[TILE_B] = { };
 #if OUTER_OFM > 1
+#if !USE_PER_ROW_INPUT_OFFSET
     uint input_offset_init = input_offset;
+#endif
     uint weights_offset_init = weights_offset;
     uint out_f_init = out_f;
     __attribute__((opencl_unroll_hint(1)))
     for (uint oi = 0; oi < OUTER_OFM; ++oi) {
+#if !USE_PER_ROW_INPUT_OFFSET
         input_offset = input_offset_init;
+#else
+        input_k_offset = 0;
+#endif
         #ifdef SWIGLU_LENGTH
         weights_offset = weights_offset_init + oi * (FILTER_IFM_NUM / (TILE_K_OFM / TILE_K_OFM_PACKED) ) * SWIGLU_LENGTH;
         out_f += SWIGLU_LENGTH * oi;
@@ -339,46 +399,98 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     {
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         uint sglid_b = get_sub_group_local_id() % TILE_B;
+#if !USE_PER_ROW_INPUT_OFFSET
         INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
             ? input[input_offset + sglid_b * TILE_IN_B_PITCH]
             : INPUT0_VAL_ZERO;
+#else
+        INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
+            ? input[GET_INPUT0_BF_OFFSET(out_b + sglid_b) + input_k_offset]
+            : INPUT0_VAL_ZERO;
+#endif
         ACCUMULATOR_VEC_TYPE tmp_wei = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset));
         #if COMPRESSED_WEIGHTS
             tmp_wei = (tmp_wei - d_zp) * d_scale;
         #endif
         unroll_for(uint bi = 0; bi < TILE_B; ++bi) {
-            acc[bi] = _sub_group_shuffle(tmp_input, bi) * tmp_wei;
+            acc[bi] = TO_FC_ACC_TYPE(_sub_group_shuffle(tmp_input, bi)) * TO_FC_ACC_VEC_TYPE(tmp_wei);
         }
         weights_offset += TILE_OFM * SIMD;
+#if !USE_PER_ROW_INPUT_OFFSET
         input_offset += 1;
+#else
+        input_k_offset += 1;
+#endif
     }
 #endif
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
+#if !IS_DYNAMIC && BATCH_LEFTOVER && !USE_PER_ROW_INPUT_OFFSET
+    const bool is_full_batch_tile = (out_b + TILE_B <= BATCH_SIZE);
+#endif
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
-        #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define LOAD_IN_0(bi) do {                                   \
-                if (bi + out_b < BATCH_SIZE) {                       \
-                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
-                } else {                                             \
-                    in_0[bi] = 0;                                    \
-                }                                                    \
-                input_offset += TILE_IN_B_PITCH;                     \
-            } while (false)
+        #if USE_PER_ROW_INPUT_OFFSET
+            #if IS_DYNAMIC || BATCH_LEFTOVER
+            #define LOAD_IN_0(bi) do {                                                          \
+                    if (bi + out_b < BATCH_SIZE) {                                              \
+                        in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
+                    } else {                                                                    \
+                        in_0[bi] = 0;                                                           \
+                    }                                                                           \
+                } while (false)
+            #else
+            #define LOAD_IN_0(bi) do {                                                          \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
+                } while (false)
+            #endif
+            CONST_LOOP(TILE_B, LOAD_IN_0);
+            #undef LOAD_IN_0
+            input_k_offset += TILE_IFM * SIMD;
         #else
-        #define LOAD_IN_0(bi) do {                                   \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);    \
-                input_offset += TILE_IN_B_PITCH;                     \
-            } while (false)
+            #if !IS_DYNAMIC && BATCH_LEFTOVER
+            // Use a single subgroup-uniform full-tile fast path for static unaligned batches
+            // so full batch tiles issue all TILE_B block reads without per-row branches inside
+            // the K-loop (kept off for IS_DYNAMIC/USE_PER_ROW_INPUT_OFFSET to avoid GRF spills).
+            if (is_full_batch_tile) {
+                #define LOAD_IN_0(bi) do {                                                          \
+                        in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH);  \
+                    } while (false)
+                CONST_LOOP(TILE_B, LOAD_IN_0);
+                #undef LOAD_IN_0
+            } else {
+                #define LOAD_IN_0(bi) do {                                                          \
+                        if (bi + out_b < BATCH_SIZE) {                                              \
+                            in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH); \
+                        } else {                                                                    \
+                            in_0[bi] = 0;                                                           \
+                        }                                                                           \
+                    } while (false)
+                CONST_LOOP(TILE_B, LOAD_IN_0);
+                #undef LOAD_IN_0
+            }
+            #elif IS_DYNAMIC || BATCH_LEFTOVER
+            #define LOAD_IN_0(bi) do {                                                          \
+                    if (bi + out_b < BATCH_SIZE) {                                              \
+                        in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH); \
+                    } else {                                                                    \
+                        in_0[bi] = 0;                                                           \
+                    }                                                                           \
+                } while (false)
+            CONST_LOOP(TILE_B, LOAD_IN_0);
+            #undef LOAD_IN_0
+            #else
+            #define LOAD_IN_0(bi) do {                                                          \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH);  \
+                } while (false)
+            CONST_LOOP(TILE_B, LOAD_IN_0);
+            #undef LOAD_IN_0
+            #endif
+            input_offset += TILE_IFM * SIMD;
         #endif
-
-        CONST_LOOP(TILE_B, LOAD_IN_0);
-        #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
@@ -612,10 +724,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #endif
                     #endif
                     #if TILE_OFM > 1
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi]) * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += acc_tmp[bi] * ds;
+                    acc[bi] += TO_FC_ACC_TYPE(acc_tmp[bi]) * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -639,18 +751,20 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #endif
                 #endif
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi]) * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi][fi] = 0;
                 #else
-                acc[bi] += acc_tmp[bi] * ds;
+                acc[bi] += TO_FC_ACC_TYPE(acc_tmp[bi]) * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi] = 0;
                 #endif
             }
         }
 #endif
-
 #if !DECOMPRESSION_SCALE_POST_OP
         unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+#if FC_ACC_NEEDS_PROMOTION
+            acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
+#else
             unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                 #if TILE_OFM > 1
                 ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
@@ -658,6 +772,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 acc[bi] += acc_tmp[bi];
                 #endif
             }
+#endif
         }
 #endif
     }
@@ -667,26 +782,34 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
     {
+        #if !USE_PER_ROW_INPUT_OFFSET
+        #define LEFTOVER_IN_OFFSET(bi) (input_offset + (bi) * TILE_IN_B_PITCH)
+        #else
+        #define LEFTOVER_IN_OFFSET(bi) (input_base_offset[bi] + input_k_offset)
+        #endif
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define LOAD_IN_0(bi) do {                                  \
-                if (bi + out_b < BATCH_SIZE) {                      \
-                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
-                } else {                                            \
-                    in_0[bi] = 0;                      \
-                }                                                   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                                          \
+                if (bi + out_b < BATCH_SIZE) {                                              \
+                    in_0[bi] = INPUT_BLOCK_READ(input, LEFTOVER_IN_OFFSET(bi));             \
+                } else {                                                                    \
+                    in_0[bi] = 0;                                                           \
+                }                                                                           \
             } while (false)
         #else
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                                          \
+                in_0[bi] = INPUT_BLOCK_READ(input, LEFTOVER_IN_OFFSET(bi));                 \
             } while (false)
         #endif
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
+        #undef LEFTOVER_IN_OFFSET
+        #if !USE_PER_ROW_INPUT_OFFSET
+        input_offset += TILE_IFM * SIMD;
+        #else
+        input_k_offset += TILE_IFM * SIMD;
+        #endif
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             #if USE_SLM
                 FILTER_VEC_TYPE wei = 0;
@@ -746,9 +869,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                             #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                            ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                             #else
-                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                            acc[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                             #endif
                         }
                     }
@@ -765,8 +888,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         #if SWIGLU_SPLIT_TO_GLU_IDX == 0
         if (oi == 0) {
             // swish
+            acc[bi] /= (FC_ACC_VAL_ONE + native_exp(-(FC_ACC_VAL_ONE * acc[bi])));
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
-            activated[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * activated[bi])));
         } else {
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
@@ -775,7 +898,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             // swish
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
         } else {
-            acc[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * acc[bi])));
+            acc[bi] /= (FC_ACC_VAL_ONE + native_exp(-(FC_ACC_VAL_ONE * acc[bi])));
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
         #endif
@@ -809,6 +932,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        if (bi + out_b < BATCH_SIZE) {
+    #endif
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -818,6 +944,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         FUSED_OPS_SCALAR;
         result[bi] = FUSED_OPS_RESULT_SCALAR;
     #endif // TILE_OFM > 1
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        }
+    #endif
     }
 #else
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
@@ -826,26 +955,24 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
     // =====================================================================================================================================
     // Write results
-    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+    uint output_f_offset = out_f * TILE_OUT_F_PITCH;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 || out_f + (OUTER_OFM * TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define WRITE_OUTPUT(bi) do {                                       \
-                if (bi + out_b < BATCH_SIZE)                                \
-                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                if (bi + out_b < BATCH_SIZE)                                                                    \
+                    OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]); \
             } while (false)
 #else
-        #define WRITE_OUTPUT(bi) do {                                       \
-                OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]);     \
             } while (false)
 #endif
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        output_offset += sglid;
         for (uint bi = 0; bi < TILE_B; ++bi) {
+            uint output_offset = output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi) + sglid;
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
 #if IS_DYNAMIC || BATCH_LEFTOVER
@@ -858,7 +985,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 }
                 output_offset += SIMD;
             }
-            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
@@ -1400,6 +1526,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        if (bi + out_b < BATCH_SIZE) {
+    #endif
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -1409,6 +1538,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         FUSED_OPS_SCALAR;
         result[bi] = FUSED_OPS_RESULT_SCALAR;
     #endif // TILE_OFM > 1
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        }
+    #endif
     }
 #else
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
@@ -1418,27 +1550,24 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
     // =====================================================================================================================================
     // Write results
-    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+    uint output_f_offset = out_f * TILE_OUT_F_PITCH;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define WRITE_OUTPUT(bi) do {                                       \
-                if (bi + out_b < BATCH_SIZE)                                \
-                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                if (bi + out_b < BATCH_SIZE)                                                                    \
+                    OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]); \
             } while (false)
 #else
-        #define WRITE_OUTPUT(bi) do {                                       \
-                OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]);     \
             } while (false)
 #endif
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        output_offset += sglid;
-
         for (uint bi = 0; bi < TILE_B; ++bi) {
+            uint output_offset = output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi) + sglid;
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
 #if IS_DYNAMIC || BATCH_LEFTOVER
@@ -1451,7 +1580,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 }
                 output_offset += SIMD;
             }
-            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
@@ -1731,6 +1859,15 @@ KERNEL(fc)(
 #undef ACTIVATION_VEC_TYPE
 #undef TO_OUTPUT_VEC_TYPE
 #undef TO_ACTIVATION_VEC_TYPE
+#undef FC_ACC_NEEDS_PROMOTION
+#undef FC_ACC_TYPE
+#undef FC_ACC_VEC_TYPE
+#undef FC_ACC_VAL_ONE
+#undef TO_FC_ACC_TYPE
+#undef TO_FC_ACC_VEC_TYPE
+#undef GET_INPUT0_BF_OFFSET
+#undef GET_OUTPUT_BF_OFFSET
+#undef USE_PER_ROW_INPUT_OFFSET
 
 #undef INPUT_BLOCK_READ
 #undef FILTER_BLOCK_READ

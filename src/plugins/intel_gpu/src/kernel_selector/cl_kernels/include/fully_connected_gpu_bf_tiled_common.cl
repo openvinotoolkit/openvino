@@ -47,17 +47,15 @@ inline void (FUNC_NAME)(
     #endif
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * FORCED_TILE_B);
 
-    ACCUMULATOR_VEC_TYPE acc[FORCED_TILE_B] = { };
-    INPUT_VEC_TYPE       in_0[FORCED_TILE_B] = { };
+    FC_ACC_VEC_TYPE acc[FORCED_TILE_B] = { };
+    INPUT_VEC_TYPE  in_0[FORCED_TILE_B] = { };
 
     FILTER_VEC_TYPE wei = 0;
-#if OUTPUT_3D
-    uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
-    uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
-    uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
-#else
-    uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
-#endif
+    uint input_base_offset[FORCED_TILE_B];
+    unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+        input_base_offset[bi] = GET_INPUT0_BF_OFFSET(out_b + bi);
+    }
+    uint input_k_offset = 0;
 
 #if COMPRESSED_WEIGHTS_INT4
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
@@ -100,11 +98,10 @@ inline void (FUNC_NAME)(
 
     ACTIVATION_VEC_TYPE activated[FORCED_TILE_B] = { };
 #if OUTER_OFM > 1
-    uint input_offset_init = input_offset;
     uint weights_offset_init = weights_offset;
     uint out_f_init = out_f;
     unroll_for (uint oi = 0; oi < OUTER_OFM; ++oi) {
-        input_offset = input_offset_init;
+        input_k_offset = 0;
         #ifdef SWIGLU_LENGTH
         weights_offset = weights_offset_init + oi * (FILTER_IFM_NUM / (TILE_K_OFM / TILE_K_OFM_PACKED) ) * SWIGLU_LENGTH;
         out_f += SWIGLU_LENGTH * oi;
@@ -117,17 +114,20 @@ inline void (FUNC_NAME)(
     // For fp16 we need to ensure that all block reads are aligned to 4 byte (2 words) boundary.
     // To do this solve first input feature separately.
     {
-        INPUT0_TYPE tmp_input = input[input_offset + get_sub_group_local_id() % FORCED_TILE_B * TILE_IN_B_PITCH];
+        uint sglid_b = get_sub_group_local_id() % FORCED_TILE_B;
+        INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
+            ? input[GET_INPUT0_BF_OFFSET(out_b + sglid_b) + input_k_offset]
+            : INPUT0_VAL_ZERO;
         ACCUMULATOR_VEC_TYPE tmp_wei = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset));
         #if COMPRESSED_WEIGHTS
             tmp_wei = (tmp_wei - d_zp) * d_scale;
         #endif
         unroll_for(uint bi = 0; bi < FORCED_TILE_B; ++bi) {
-            acc[bi] = _sub_group_shuffle(tmp_input, bi) * tmp_wei;
+            acc[bi] = TO_FC_ACC_TYPE(_sub_group_shuffle(tmp_input, bi)) * TO_FC_ACC_VEC_TYPE(tmp_wei);
         }
 
         weights_offset += TILE_OFM * SIMD;
-        input_offset += 1;
+        input_k_offset += 1;
     }
 #endif
     // =====================================================================================================================================
@@ -136,14 +136,13 @@ inline void (FUNC_NAME)(
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                                          \
+                in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
             } while (false)
 
         CONST_LOOP(FORCED_TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * FORCED_TILE_B;
+        input_k_offset += TILE_IFM * SIMD;
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
@@ -207,7 +206,11 @@ inline void (FUNC_NAME)(
                 unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+                        #if TILE_OFM > 1
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        #else
+                        acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        #endif
                     }
                 }
             }
@@ -228,10 +231,10 @@ inline void (FUNC_NAME)(
                     #endif
                     #endif
                     #if TILE_OFM > 1
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi]) * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += acc_tmp[bi] * ds;
+                    acc[bi] += TO_FC_ACC_TYPE(acc_tmp[bi]) * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -255,25 +258,20 @@ inline void (FUNC_NAME)(
                 #endif
                 #endif
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi]) * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi][fi] = 0;
                 #else
-                acc[bi] += acc_tmp[bi] * ds;
+                acc[bi] += TO_FC_ACC_TYPE(acc_tmp[bi]) * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi] = 0;
                 #endif
             }
         }
 #endif
-
 #if !DECOMPRESSION_SCALE_POST_OP
         unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
-            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
-            }
+            acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
         }
 #endif
-
-
     }
     // =====================================================================================================================================
     // Leftovers
@@ -281,14 +279,13 @@ inline void (FUNC_NAME)(
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
     {
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                                          \
+                in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
             } while (false)
 
         CONST_LOOP(FORCED_TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * FORCED_TILE_B;
+        input_k_offset += TILE_IFM * SIMD;
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             #if COMPRESSED_WEIGHTS_INT4
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
@@ -343,7 +340,11 @@ inline void (FUNC_NAME)(
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
+                            #if TILE_OFM > 1
+                            ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
+                            #else
+                            acc[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
+                            #endif
                         }
                     }
                 }
@@ -358,8 +359,8 @@ inline void (FUNC_NAME)(
         #ifdef SWIGLU_LENGTH
         #if SWIGLU_SPLIT_TO_GLU_IDX == 0
         if (oi == 0) {
+            acc[bi] /= (FC_ACC_VAL_ONE + native_exp(-(FC_ACC_VAL_ONE * acc[bi])));
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
-            activated[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * activated[bi])));
         } else {
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
@@ -368,7 +369,7 @@ inline void (FUNC_NAME)(
             // swish
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
         } else {
-            acc[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * acc[bi])));
+            acc[bi] /= (FC_ACC_VAL_ONE + native_exp(-(FC_ACC_VAL_ONE * acc[bi])));
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
         #endif
@@ -402,6 +403,9 @@ inline void (FUNC_NAME)(
     OUTPUT_VEC_TYPE result[FORCED_TILE_B] = { };
 #if HAS_FUSED_OPS
     unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+    #if IS_DYNAMIC
+        if (bi + out_b < BATCH_SIZE) {
+    #endif
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -411,6 +415,9 @@ inline void (FUNC_NAME)(
         FUSED_OPS_SCALAR;
         result[bi] = FUSED_OPS_RESULT_SCALAR;
     #endif // TILE_OFM > 1
+    #if IS_DYNAMIC
+        }
+    #endif
     }
 #else
     unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
@@ -419,48 +426,24 @@ inline void (FUNC_NAME)(
 #endif
     // =====================================================================================================================================
     // Write results
-    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+    uint output_f_offset = out_f * TILE_OUT_F_PITCH;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 || out_f + (OUTER_OFM * TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC
-        #define WRITE_OUTPUT(bi) do {                                       \
-                if (bi + out_b < BATCH_SIZE)                                \
-                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                if (bi + out_b < BATCH_SIZE)                                                                    \
+                    OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]); \
             } while (false)
 #else
-        #define WRITE_OUTPUT(bi) do {                                       \
-                OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]);     \
             } while (false)
 #endif
         CONST_LOOP(FORCED_TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        output_offset += sglid;
-
-        // TODO: Investigate why below code doesn't compile and check how it affects performance.
-        //#define WRITE_OUTPUT_FEATURE(fi) do {                                                   \
-        //        const bool should_write =                                                       \
-        //            TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||                                 \
-        //            out_f + (fi) * SIMD + sglid < TILE_OUT_F_NUM;                               \
-        //        if (should_write) {                                                             \
-        //            output[output_offset] = result[out_bi][fi];                                 \
-        //        }                                                                               \
-        //        output_offset += SIMD;                                                          \
-        //    } while (false)
-        //
-        //#define WRITE_OUTPUT(bi) do {                                                           \
-        //        const uint out_bi = bi;                                                         \
-        //        CONST_LOOP(TILE_OFM, WRITE_OUTPUT_FEATURE);                                     \
-        //        output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;                            \
-        //    } while (false)
-        //
-        //CONST_LOOP(FORCED_TILE_B, WRITE_OUTPUT);
-        //#undef WRITE_OUTPUT
-        //#undef WRITE_OUTPUT_FEATURE
-
         for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+            uint output_offset = output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi) + sglid;
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
 #if IS_DYNAMIC
@@ -473,7 +456,6 @@ inline void (FUNC_NAME)(
                 }
                 output_offset += SIMD;
             }
-            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
