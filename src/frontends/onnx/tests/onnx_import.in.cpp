@@ -2733,6 +2733,26 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_downsample_sizes_3D_linear_params) 
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_exclude_outside) {
+    const auto model = convert_model("resize13_up_scales_cubic_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 1, 8},
+        {0.86363636f, 1.1731405f, 1.645283f, 2.296875f, 2.703125f, 3.354717f, 3.8268595f, 4.1363636f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_down_sizes_cubic_half_pixel_symmetric_exclude_outside) {
+    const auto model = convert_model("resize13_down_sizes_cubic_half_pixel_symmetric_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 2}, {2.f, 3.f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape) {
     auto model = convert_model("shape.onnx");
 
