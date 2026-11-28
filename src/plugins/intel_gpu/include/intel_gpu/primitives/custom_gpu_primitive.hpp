@@ -119,7 +119,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const std::shared_ptr<ov::Node>& op = nullptr,
                          const int calcWgDimInputIdx = -1,
                          const std::vector<std::string> globalSizeRules = {},
-                         const std::vector<std::string> localSizeRules = {})
+                         const std::vector<std::string> localSizeRules = {},
+                         const std::vector<int>& output_shape_src = {},
+                         const std::vector<int64_t>& output_static_dims = {})
         : primitive_base(id, inputs, output_layouts.size(), {optional_data_type()}, {output_layouts[0].data_padding}),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
@@ -131,7 +133,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
           op(op),
           calcWgDimInputIdx(calcWgDimInputIdx),
           globalSizeRules(globalSizeRules),
-          localSizeRules(localSizeRules) {}
+          localSizeRules(localSizeRules),
+          output_shape_src(output_shape_src),
+          output_static_dims(output_static_dims) {}
 
     /// @brief The name of the entry point function in the kernel
     const std::string kernel_entry_point;
@@ -154,6 +158,11 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief Custom provided rules for calc work sizes.
     const std::vector<std::string> globalSizeRules;
     const std::vector<std::string> localSizeRules;
+    /// @brief Per output: the input whose dynamic dims the output takes (-1: none). Used for shape inference when
+    /// the original op is not available (model loaded from the cache).
+    const std::vector<int> output_shape_src;
+    /// @brief Per output, one entry per dim: the static size, or -1 if the dim is taken from output_shape_src.
+    const std::vector<int64_t> output_static_dims;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -209,6 +218,11 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ob << gws;
         ob << lws;
         ob << kernels_code;
+        ob << calcWgDimInputIdx;
+        ob << globalSizeRules;
+        ob << localSizeRules;
+        ob << output_shape_src;
+        ob << output_static_dims;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -220,6 +234,11 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ib >> *const_cast<std::vector<size_t>*>(&gws);
         ib >> *const_cast<std::vector<size_t>*>(&lws);
         ib >> *const_cast<primitive_id_arr*>(&kernels_code);
+        ib >> *const_cast<int*>(&calcWgDimInputIdx);
+        ib >> *const_cast<std::vector<std::string>*>(&globalSizeRules);
+        ib >> *const_cast<std::vector<std::string>*>(&localSizeRules);
+        ib >> *const_cast<std::vector<int>*>(&output_shape_src);
+        ib >> *const_cast<std::vector<int64_t>*>(&output_static_dims);
     }
 };
 }  // namespace cldnn
