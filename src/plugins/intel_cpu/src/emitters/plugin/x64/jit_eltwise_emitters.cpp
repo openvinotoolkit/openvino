@@ -2160,11 +2160,15 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 jit_negative_emitter::jit_negative_emitter(x64::jit_generator_t* host,
                                            x64::cpu_isa_t host_isa,
                                            const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
 jit_negative_emitter::jit_negative_emitter(x64::jit_generator_t* host,
                                            x64::cpu_isa_t host_isa,
                                            ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_negative_emitter::get_inputs_num() const {
     return 1;
@@ -2194,8 +2198,13 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
-    h->uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
-    h->uni_vsubps(vmm_dst, vmm_dst, vmm_src);
+    // Flip the sign bit: -(+0) is -0 and NaN stays NaN. 0 - x would give +0 for +0, and it would
+    // read a zeroed input when the destination register is also the source.
+    h->uni_vxorps(vmm_dst, vmm_src, table_val("sign_mask"));
+}
+
+void jit_negative_emitter::register_table_entries() {
+    push_arg_entry_of("sign_mask", 0x80000000, true);
 }
 
 /// EXP ///
