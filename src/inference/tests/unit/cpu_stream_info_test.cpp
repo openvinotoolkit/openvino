@@ -4,6 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <mutex>
+#include <string>
+#include <tuple>
+#include <vector>
+
 #include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
@@ -637,6 +642,199 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _1sockets_24cores_all_proc_hyper_threading,
                                          _1sockets_32cores_all_proc_bind_subset_of_core_kinds,
                                          _1sockets_32cores_all_proc_skip_binding_all_core_kinds));
+
+struct MapProcKindsTestCase {
+    std::string _name;
+    std::vector<int> _frequency_group_counts;
+    std::vector<int> _sys_core_types;
+    std::vector<std::vector<int>> _proc_kinds;
+    std::vector<std::vector<int>> _mapped_core_types;
+    std::vector<std::vector<int>> _fallback_core_types;
+};
+
+class MapProcKindsToTbbCoreTypesTests : public ov::test::TestsCommon,
+                                        public testing::WithParamInterface<std::tuple<MapProcKindsTestCase, bool>> {};
+
+TEST_P(MapProcKindsToTbbCoreTypesTests, MapProcKinds) {
+    const auto& test_data = std::get<0>(GetParam());
+    const bool use_frequency_group_counts = std::get<1>(GetParam());
+    const auto& expected = use_frequency_group_counts ? test_data._mapped_core_types : test_data._fallback_core_types;
+    const auto frequency_group_counts =
+        use_frequency_group_counts ? test_data._frequency_group_counts : std::vector<int>{};
+    const std::vector<int> core_type_presence = test_data._frequency_group_counts.empty()
+                                                    ? std::vector<int>{1, 1, 1}
+                                                    : std::vector<int>{test_data._frequency_group_counts[0] > 0,
+                                                                       test_data._frequency_group_counts[1] > 0,
+                                                                       test_data._frequency_group_counts[2] > 0};
+    ASSERT_EQ(test_data._proc_kinds.size(), expected.size());
+    for (size_t i = 0; i < test_data._proc_kinds.size(); ++i) {
+        SCOPED_TRACE(i);
+        EXPECT_EQ(expected[i],
+                  ov::threading::map_proc_kinds_to_tbb_core_types(test_data._sys_core_types,
+                                                                  test_data._proc_kinds[i],
+                                                                  frequency_group_counts,
+                                                                  core_type_presence));
+    }
+}
+
+TEST_P(MapProcKindsToTbbCoreTypesTests, EmptySystemCoreTypes) {
+    EXPECT_TRUE(
+        ov::threading::map_proc_kinds_to_tbb_core_types({}, {ov::MAIN_CORE_PROC}, {1, 0, 0}, {1, 0, 0}).empty());
+}
+
+TEST_P(MapProcKindsToTbbCoreTypesTests, MapsSingleSystemCoreType) {
+    const std::vector<int> expected{5};
+    EXPECT_EQ(expected,
+              ov::threading::map_proc_kinds_to_tbb_core_types({5}, {ov::MAIN_CORE_PROC}, {1, 0, 0}, {1, 0, 0}));
+    EXPECT_EQ(expected, ov::threading::map_proc_kinds_to_tbb_core_types({5}, {ov::MAIN_CORE_PROC}, {}, {1, 0, 0}));
+    EXPECT_EQ(expected, ov::threading::map_proc_kinds_to_tbb_core_types({5}, {ov::EFFICIENT_CORE_PROC}, {}, {0, 1, 0}));
+    EXPECT_EQ(expected,
+              ov::threading::map_proc_kinds_to_tbb_core_types({5}, {ov::LP_EFFICIENT_CORE_PROC}, {}, {0, 0, 1}));
+}
+
+TEST_P(MapProcKindsToTbbCoreTypesTests, IgnoresAutomaticCoreType) {
+    EXPECT_TRUE(
+        ov::threading::map_proc_kinds_to_tbb_core_types({-1}, {ov::MAIN_CORE_PROC}, {1, 0, 0}, {1, 0, 0}).empty());
+}
+
+TEST(TbbCoreTypeConstraintTests, SplitMainCoreUsesSingleIdOnlyOnLegacyTbb) {
+    std::vector<int> mapped_core_types{2, 3};
+
+    EXPECT_EQ(STREAM_WITH_CORE_TYPE,
+              ov::threading::select_tbb_core_type_constraint({MAIN_CORE_PROC}, true, mapped_core_types));
+    EXPECT_EQ((std::vector<int>{2, 3}), mapped_core_types);
+
+    EXPECT_EQ(STREAM_WITH_CORE_TYPE,
+              ov::threading::select_tbb_core_type_constraint({MAIN_CORE_PROC}, false, mapped_core_types));
+    EXPECT_EQ(std::vector<int>{3}, mapped_core_types);
+}
+
+TEST(TbbCoreTypeConstraintTests, SplitLowPowerCoreUsesFirstMappedIdOnLegacyTbb) {
+    std::vector<int> mapped_core_types{4, 2};
+
+    EXPECT_EQ(STREAM_WITH_CORE_TYPE,
+              ov::threading::select_tbb_core_type_constraint({LP_EFFICIENT_CORE_PROC}, false, mapped_core_types));
+    EXPECT_EQ(std::vector<int>{4}, mapped_core_types);
+}
+
+TEST(TbbCoreTypeConstraintTests, MixedCoreKindsRemainUnconstrainedOnLegacyTbb) {
+    std::vector<int> mapped_core_types{3, 1};
+
+    EXPECT_EQ(STREAM_WITHOUT_PARAM,
+              ov::threading::select_tbb_core_type_constraint({MAIN_CORE_PROC, EFFICIENT_CORE_PROC},
+                                                             false,
+                                                             mapped_core_types));
+}
+
+const std::vector<MapProcKindsTestCase> map_proc_kinds_cases = {
+    {"Pcore",
+     {1, 0, 0},
+     {0},  // P
+     {{MAIN_CORE_PROC}, {HYPER_THREADING_PROC}, {MAIN_CORE_PROC, HYPER_THREADING_PROC}, {}},
+     {{0}, {0}, {0}, {}},
+     {{0}, {0}, {0}, {}}},
+    {"PEcore",
+     {1, 1, 0},
+     {0, 1},  // E, P
+     {{MAIN_CORE_PROC},
+      {HYPER_THREADING_PROC},
+      {EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC},
+      {EFFICIENT_CORE_PROC, MAIN_CORE_PROC},
+      {MAIN_CORE_PROC, HYPER_THREADING_PROC, EFFICIENT_CORE_PROC},
+      {}},
+     {{1}, {1}, {0}, {1, 0}, {0, 1}, {1, 0}, {}},
+     {{1}, {1}, {0}, {1, 0}, {0, 1}, {1, 0}, {}}},
+    {"PELPEcore",
+     {1, 1, 1},
+     {0, 1, 2},  // LPE, E, P
+     {{MAIN_CORE_PROC},
+      {HYPER_THREADING_PROC},
+      {EFFICIENT_CORE_PROC},
+      {LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC},
+      {EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, LP_EFFICIENT_CORE_PROC},
+      {}},
+     {{2}, {2}, {1}, {0}, {2, 1}, {1, 0}, {2, 1, 0}, {2, 0}, {}},
+     {{2}, {2}, {1}, {0}, {2, 1}, {1, 0}, {2, 1, 0}, {2, 0}, {}}},
+    {"SplitPcore",
+     {2, 0, 0},
+     {0, 1},  // P (4 GHz), P (5 GHz)
+     {{MAIN_CORE_PROC}, {HYPER_THREADING_PROC}, {MAIN_CORE_PROC, HYPER_THREADING_PROC}, {}},
+     {{0, 1}, {0, 1}, {0, 1}, {}},
+     {{0, 1}, {0, 1}, {0, 1}, {}}},
+    {"SplitPEcore",
+     {2, 1, 0},
+     {0, 1, 2},  // E, P (4 GHz), P (5 GHz)
+     {{MAIN_CORE_PROC},
+      {HYPER_THREADING_PROC},
+      {EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC},
+      {EFFICIENT_CORE_PROC, MAIN_CORE_PROC},
+      {MAIN_CORE_PROC, HYPER_THREADING_PROC, EFFICIENT_CORE_PROC},
+      {}},
+     {{1, 2}, {1, 2}, {0}, {1, 2, 0}, {0, 1, 2}, {1, 2, 0}, {}},
+     {{1, 2}, {1, 2}, {0}, {1, 2, 0}, {0, 1, 2}, {1, 2, 0}, {}}},
+    {"SplitPELPEcore",
+     {2, 1, 1},
+     {0, 1, 2, 3},  // LPE, E, P (4 GHz), P (5 GHz)
+     {{MAIN_CORE_PROC},
+      {HYPER_THREADING_PROC},
+      {EFFICIENT_CORE_PROC},
+      {LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC},
+      {EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, LP_EFFICIENT_CORE_PROC},
+      {}},
+     {{2, 3}, {2, 3}, {1}, {0}, {2, 3, 1}, {1, 0}, {2, 3, 1, 0}, {2, 3, 0}, {}},
+     {{2, 3}, {2, 3}, {1}, {0}, {2, 3, 1}, {1, 0}, {2, 3, 1, 0}, {2, 3, 0}, {}}},
+    {"SplitPELPEcorePcoreReserved",
+     {2, 1, 1},
+     {0, 1, 2, 3},  // LPE, E, P (4 GHz), P (5 GHz)
+     {{EFFICIENT_CORE_PROC}},
+     {{1}},
+     {{1}}},
+    {"MergedPcoreFrequencies",
+     {2, 1, 1},
+     {0, 1, 2},  // LPE, E, P (merged frequencies)
+     {{MAIN_CORE_PROC},
+      {HYPER_THREADING_PROC},
+      {EFFICIENT_CORE_PROC},
+      {LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC}},
+     {{2}, {2}, {1}, {0}, {2, 1, 0}},
+     {{2}, {2}, {1}, {0}, {2, 1, 0}}},
+    {"ThreeProcKindsTwoTbbIds",
+     {1, 1, 1},
+     {2, 7},
+     {{MAIN_CORE_PROC},
+      {HYPER_THREADING_PROC},
+      {MAIN_CORE_PROC, HYPER_THREADING_PROC},
+      {EFFICIENT_CORE_PROC},
+      {LP_EFFICIENT_CORE_PROC},
+      {MAIN_CORE_PROC, EFFICIENT_CORE_PROC},
+      {}},
+     {{7}, {7}, {7}, {}, {}, {}, {}},
+     {{7}, {7}, {7}, {}, {}, {}, {}}},
+    {"PartialFrequencyTableMissingEcore",
+     {},
+     {0, 1, 2, 3},  // LPE, E, P (4 GHz), P (5 GHz)
+     {{EFFICIENT_CORE_PROC}},
+     {{1}},
+     {{1}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(CpuTopologies,
+                         MapProcKindsToTbbCoreTypesTests,
+                         testing::Combine(testing::ValuesIn(map_proc_kinds_cases), testing::Bool()),
+                         [](const testing::TestParamInfo<MapProcKindsToTbbCoreTypesTests::ParamType>& info) {
+                             return std::get<0>(info.param)._name +
+                                    (std::get<1>(info.param) ? "WithFrequencyGroups" : "WithoutFrequencyGroups");
+                         });
+
 #endif
 
 TEST(StreamProcessorGroupId, DistributesArenaThreadsAcrossGroups) {

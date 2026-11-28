@@ -23,6 +23,27 @@ enum StreamCreateType {
 };
 
 /**
+ * @brief Map processor kinds to the supplied TBB core type IDs.
+ * Uses frequency-group counts when available, otherwise assigns one ID to present E-/LP-E-core kinds and the
+ * remaining higher IDs to P-cores; hyper-threading shares main-core IDs.
+ * If all three processor kinds are present but only two IDs are available and the counts do not resolve the
+ * mapping, only P-core and hyper-threading requests fall back to the highest-performance ID.
+ * @param[in] sys_core_types TBB core type IDs ordered from lowest to highest performance
+ * @param[in] proc_kinds processor kinds used by a stream
+ * @param[in] frequency_group_counts distinct frequency counts for P-, E-, and LP-E-core types
+ * @param[in] core_type_presence P-, E-, and LP-E-core presence flags
+ * @return Unique non-negative IDs in processor-kind order; empty for empty sys_core_types.
+ */
+std::vector<int> map_proc_kinds_to_tbb_core_types(const std::vector<int>& sys_core_types,
+                                                  const std::vector<int>& proc_kinds,
+                                                  const std::vector<int>& frequency_group_counts,
+                                                  const std::vector<int>& core_type_presence);
+
+StreamCreateType select_tbb_core_type_constraint(const std::vector<int>& proc_kinds,
+                                                 bool supports_multiple_core_types,
+                                                 std::vector<int>& mapped_core_types);
+
+/**
  * @brief      Get current stream information
  * @param[in]  stream_id stream id
  * @param[in]  cpu_pinning whether to bind threads to cpus

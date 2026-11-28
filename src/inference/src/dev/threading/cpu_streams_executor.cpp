@@ -22,6 +22,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
+#include "system_conf_internal.hpp"
 
 namespace ov {
 namespace threading {
@@ -100,47 +101,11 @@ struct CPUStreamsExecutor::Impl {
         }
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-        custom::core_type_id map_proc_kind_to_tbb_core_type(const std::vector<custom::core_type_id>& sys_core_types,
-                                                            const int proc_kind) {
-            if (sys_core_types.empty()) {
-                return custom::task_arena::automatic;
-            }
-
-            switch (proc_kind) {
-            case MAIN_CORE_PROC:
-            case HYPER_THREADING_PROC:
-                return sys_core_types.back();
-            case EFFICIENT_CORE_PROC:
-                return sys_core_types.size() >= 2 ? *(sys_core_types.end() - 2) : sys_core_types.back();
-            case LP_EFFICIENT_CORE_PROC:
-                return sys_core_types.front();
-            default:
-                return sys_core_types.back();
-            }
-        }
-
-        std::vector<custom::core_type_id> map_proc_kinds_to_tbb_core_types(
-            const std::vector<custom::core_type_id>& sys_core_types,
-            const std::vector<int>& proc_kinds) {
-            std::vector<custom::core_type_id> mapped_core_types;
-            mapped_core_types.reserve(proc_kinds.size());
-
-            for (const auto proc_kind : proc_kinds) {
-                const auto core_type = map_proc_kind_to_tbb_core_type(sys_core_types, proc_kind);
-                if (core_type != custom::task_arena::automatic &&
-                    std::find(mapped_core_types.begin(), mapped_core_types.end(), core_type) ==
-                        mapped_core_types.end()) {
-                    mapped_core_types.push_back(core_type);
-                }
-            }
-
-            return mapped_core_types;
-        }
-
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
                                    const std::vector<int>& core_types,
+                                   const std::vector<int>& core_type_presence,
                                    const int numa_node_id,
                                    const int socket_id,
                                    const int max_threads_per_core) {
@@ -148,12 +113,19 @@ struct CPUStreamsExecutor::Impl {
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
             auto _stream_type = stream_type;
+            std::vector<int> mapped_core_types;
 #    if (TBB_INTERFACE_VERSION < 12000)
             const auto tbb_version = tbb::TBB_runtime_interface_version();
 #    else
             const auto tbb_version = TBB_runtime_interface_version();
 #    endif
             if (_stream_type == STREAM_WITH_CORE_TYPE) {
+                const auto sys_core_types = custom::info::core_types();
+                mapped_core_types = map_proc_kinds_to_tbb_core_types(sys_core_types,
+                                                                     core_types,
+                                                                     get_cpu_frequency_group_counts(),
+                                                                     core_type_presence);
+
                 int version_major = tbb_version / 10;
                 int version_patch = tbb_version % 10;
                 bool support_core_types = false;
@@ -163,11 +135,7 @@ struct CPUStreamsExecutor::Impl {
                      version_patch >= TBB_VERSION_PATCH_CORE_TYPES_LINUX)) {
                     support_core_types = true;
                 }
-                if (core_types.size() == 1 || (core_types.size() > 1 && support_core_types)) {
-                    _stream_type = STREAM_WITH_CORE_TYPE;
-                } else {
-                    _stream_type = STREAM_WITHOUT_PARAM;
-                }
+                _stream_type = select_tbb_core_type_constraint(core_types, support_core_types, mapped_core_types);
             }
             const int group_base = get_num_processor_groups() > 1 ? stream_id : -1;
             if (_stream_type == STREAM_WITHOUT_PARAM) {
@@ -205,9 +173,7 @@ struct CPUStreamsExecutor::Impl {
                                                                 .set_max_threads_per_core(max_threads_per_core)});
                 }
             } else if (_stream_type == STREAM_WITH_CORE_TYPE) {
-                // sys_core_types = [LPECore, Ecore, Pcore]
-                const auto sys_core_types = custom::info::core_types();
-                const auto mapped_core_types = map_proc_kinds_to_tbb_core_types(sys_core_types, core_types);
+                // sys_core_types = [LPECore, Ecore, Pcore] or [LPECore, Ecore, Pcore1, Pcore2]
                 auto constraints = custom::task_arena::constraints{}
                                        .set_max_concurrency(concurrency)
                                        .set_max_threads_per_core(max_threads_per_core);
@@ -258,10 +224,16 @@ struct CPUStreamsExecutor::Impl {
             if (concurrency <= 0) {
                 return;
             }
+            const std::vector<int> core_type_presence =
+                org_proc_type_table.empty() ? std::vector<int>{}
+                                            : std::vector<int>{org_proc_type_table[0][MAIN_CORE_PROC] > 0,
+                                                               org_proc_type_table[0][EFFICIENT_CORE_PROC] > 0,
+                                                               org_proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0};
             create_tbb_task_arena(stream_id,
                                   stream_type,
                                   concurrency,
                                   cpu_core_types,
+                                  core_type_presence,
                                   numa_node_id,
                                   socket_id,
                                   max_threads_per_core);

@@ -20,6 +20,132 @@
 namespace ov {
 namespace threading {
 
+namespace {
+
+std::vector<int> map_proc_kind_to_tbb_core_types(const std::vector<int>& sys_core_types,
+                                                 const std::vector<int>& frequency_group_counts,
+                                                 const int proc_kind) {
+    if (sys_core_types.empty()) {
+        return {};
+    }
+    if (sys_core_types.size() == 1) {
+        return {sys_core_types.back()};
+    }
+
+    const auto get_count = [&](const int core_type) -> std::size_t {
+        const auto index = static_cast<std::size_t>(core_type - MAIN_CORE_PROC);
+        if (frequency_group_counts.empty() || index >= frequency_group_counts.size()) {
+            return 1;
+        }
+        return static_cast<std::size_t>(std::max(0, frequency_group_counts[index]));
+    };
+    const auto pcore_count = std::min(get_count(MAIN_CORE_PROC), sys_core_types.size());
+    std::size_t end = sys_core_types.size();
+    std::size_t count = 0;
+    switch (proc_kind) {
+    case MAIN_CORE_PROC:
+    case HYPER_THREADING_PROC:
+        count = pcore_count;
+        break;
+    case EFFICIENT_CORE_PROC:
+        end -= pcore_count;
+        count = std::min(get_count(EFFICIENT_CORE_PROC), end);
+        break;
+    case LP_EFFICIENT_CORE_PROC:
+        count = std::min(get_count(LP_EFFICIENT_CORE_PROC), end);
+        end = count;
+        break;
+    default:
+        return {sys_core_types.back()};
+    }
+    return {sys_core_types.begin() + (end - count), sys_core_types.begin() + end};
+}
+
+}  // namespace
+
+std::vector<int> map_proc_kinds_to_tbb_core_types(const std::vector<int>& sys_core_types,
+                                                  const std::vector<int>& proc_kinds,
+                                                  const std::vector<int>& frequency_group_counts,
+                                                  const std::vector<int>& core_type_presence) {
+    std::vector<int> mapped_core_types;
+    mapped_core_types.reserve(proc_kinds.size());
+
+    constexpr std::size_t core_type_count = LP_EFFICIENT_CORE_PROC - MAIN_CORE_PROC + 1;
+    auto core_type_counts = frequency_group_counts;
+    if (!core_type_counts.empty()) {
+        std::size_t kind_count = 0;
+        if (core_type_counts.size() != core_type_count) {
+            core_type_counts.clear();
+        } else {
+            for (const auto count : core_type_counts) {
+                kind_count += static_cast<std::size_t>(std::max(0, count));
+            }
+        }
+        // hwloc may merge small maximum-frequency differences into a single TBB core kind.
+        if (kind_count != sys_core_types.size()) {
+            core_type_counts.clear();
+        }
+    }
+
+    if (core_type_counts.empty() && core_type_presence.size() == core_type_count) {
+        if (sys_core_types.size() == 2 &&
+            std::all_of(core_type_presence.begin(), core_type_presence.end(), [](int present) {
+                return present > 0;
+            })) {
+            if (sys_core_types.back() >= 0 && !proc_kinds.empty() &&
+                std::all_of(proc_kinds.begin(), proc_kinds.end(), [](int proc_kind) {
+                    return proc_kind == MAIN_CORE_PROC || proc_kind == HYPER_THREADING_PROC;
+                })) {
+                return {sys_core_types.back()};
+            }
+            return {};
+        }
+
+        const auto efficient_count = core_type_presence[1] > 0 ? 1U : 0U;
+        const auto lp_efficient_count = core_type_presence[2] > 0 ? 1U : 0U;
+        const auto fixed_count = efficient_count + lp_efficient_count;
+        if (fixed_count <= sys_core_types.size()) {
+            const auto pcore_count = core_type_presence[0] > 0 ? sys_core_types.size() - fixed_count : 0U;
+            core_type_counts = {static_cast<int>(pcore_count),
+                                static_cast<int>(efficient_count),
+                                static_cast<int>(lp_efficient_count)};
+            if (static_cast<std::size_t>(core_type_counts[0] + core_type_counts[1] + core_type_counts[2]) !=
+                sys_core_types.size()) {
+                core_type_counts.clear();
+            }
+        }
+    }
+    if (core_type_counts.empty()) {
+        return {};
+    }
+
+    for (const auto proc_kind : proc_kinds) {
+        for (const auto core_type : map_proc_kind_to_tbb_core_types(sys_core_types, core_type_counts, proc_kind)) {
+            if (core_type >= 0 &&
+                std::find(mapped_core_types.begin(), mapped_core_types.end(), core_type) == mapped_core_types.end()) {
+                mapped_core_types.push_back(core_type);
+            }
+        }
+    }
+
+    return mapped_core_types;
+}
+
+StreamCreateType select_tbb_core_type_constraint(const std::vector<int>& proc_kinds,
+                                                 bool supports_multiple_core_types,
+                                                 std::vector<int>& mapped_core_types) {
+    if (!supports_multiple_core_types && mapped_core_types.size() > 1) {
+        if (proc_kinds.size() != 1) {
+            return STREAM_WITHOUT_PARAM;
+        }
+
+        const auto core_type =
+            proc_kinds.front() == LP_EFFICIENT_CORE_PROC ? mapped_core_types.front() : mapped_core_types.back();
+        mapped_core_types.assign(1, core_type);
+    }
+    return STREAM_WITH_CORE_TYPE;
+}
+
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
                          const std::vector<std::vector<int>>& proc_type_table,
