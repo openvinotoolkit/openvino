@@ -149,6 +149,42 @@ void check_shape_against_port(const ov::PartialShape& portPartialShape,
                     ".");
 }
 
+ov::Shape getInitialTensorShape(const intel_npu::IODescriptor& descriptor, const ov::SoPtr<ov::ITensor>& userTensor) {
+    if (descriptor.relatedDescriptorIndex.has_value()) {
+        return descriptor.shapeFromCompiler.get_max_shape();
+    }
+
+    if (userTensor != nullptr) {
+        return userTensor->get_shape();
+    }
+
+    if (descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->is_static()) {
+        return descriptor.shapeFromIRModel->get_shape();
+    }
+
+    if (descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->is_dynamic()) {
+        const auto minShape = descriptor.shapeFromIRModel->get_min_shape();
+        ov::Shape result;
+        result.reserve(minShape.size());
+        for (const auto& dim : minShape) {
+            result.push_back(dim == 0 ? 1 : dim);
+        }
+        return result;
+    }
+
+    if (descriptor.shapeFromCompiler.rank().is_static()) {
+        const auto minShape = descriptor.shapeFromCompiler.get_min_shape();
+        ov::Shape result;
+        result.reserve(minShape.size());
+        for (const auto& dim : minShape) {
+            result.push_back(dim == 0 ? 1 : dim);
+        }
+        return result;
+    }
+
+    return descriptor.shapeFromCompiler.get_shape();
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -571,7 +607,7 @@ void ZeroInferRequest::create_pipeline_impl() {
 // is synchronized (sync_zero_tensor_with_graph), which can throw (e.g. the batch cannot be changed because the driver
 // does not support mutable command lists, or the allocation fails). If that happens, the call fails but the request
 // keeps the new batch size and the new user tensor, so the next inference is rejected as well until a tensor that can
-// be used is set again (e.g. one with the previous batch size).
+// be set again (e.g. one with the previous batch size).
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor");
 
@@ -1135,9 +1171,16 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
     const auto& descriptor = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
     check_network_precision(descriptor.precision);
 
-    ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
+    ov::Shape allocatedTensorShape;
+    if (isInput && get_user_input(index) != nullptr) {
+        allocatedTensorShape = getInitialTensorShape(descriptor, get_user_input(index));
+    } else if (!isInput && _userOutputTensors.at(index) != nullptr) {
+        allocatedTensorShape = getInitialTensorShape(descriptor, _userOutputTensors.at(index));
+    } else {
+        allocatedTensorShape = getInitialTensorShape(descriptor, {});
+    }
 
-    if (batchSize.has_value()) {
+    if (batchSize.has_value() && !descriptor.relatedDescriptorIndex.has_value()) {
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
@@ -1553,6 +1596,7 @@ void ZeroInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
         tensors.size() != 1,
         "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
     // The shapes are indexed by the batch dimension below, so scalar tensors must be rejected before that
+
     for (const auto& item : tensors) {
         OPENVINO_ASSERT(item, "Uninitialized tensor is provided!");
         OPENVINO_ASSERT(!item->get_shape().empty(),

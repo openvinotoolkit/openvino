@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-#include <cstddef>
-#include <exception>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <array>
+#include <cstddef>
+#include <exception>
 #include <memory>
 #include <random>
 #include <thread>
@@ -124,16 +125,14 @@ TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
     EXPECT_EQ(shape_size, zero_tensor->get_size());
     EXPECT_EQ(shape_size * element_type.size(), zero_tensor->get_byte_size());
 
-    auto data = zero_tensor->data();
-
     auto new_shape = Shape{1, 10, 10, 10};
     auto new_shape_size = ov::shape_size(new_shape);
-    // Reallocation is not required.
     zero_tensor->set_shape(new_shape);
+
     EXPECT_EQ(new_shape, zero_tensor->get_shape());
     EXPECT_EQ(new_shape_size, zero_tensor->get_size());
     EXPECT_EQ(new_shape_size * element_type.size(), zero_tensor->get_byte_size());
-    EXPECT_EQ(data, zero_tensor->data());
+    ASSERT_TRUE(zero_tensor->memory_address_changed());
     ASSERT_TRUE(
         ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor->data()));
 }
@@ -169,12 +168,11 @@ TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensorScalar) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element_type, Shape{}, true);
-    auto data = zero_tensor->data();
     auto strides = zero_tensor->get_strides();
 
     ov::Tensor view_tensor;
 
-    view_tensor = ov::Tensor(element_type, ov::Shape{}, data, strides);
+    view_tensor = ov::Tensor(element_type, ov::Shape{}, zero_tensor->data(), strides);
     EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
@@ -600,11 +598,10 @@ TEST_P(ZeroTensorTestsCheckDataType, WrapNonContiguousUserTensorPreservesByteStr
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
 
     // Backing memory holds 'rows' padded rows, i.e. twice the dense size.
-    auto host_tensor =
-        std::make_shared<::intel_npu::ZeroHostTensor>(zero_context,
-                                                      init_struct,
-                                                      element_type,
-                                                      Shape{2 * rows, row_elements});
+    auto host_tensor = std::make_shared<::intel_npu::ZeroHostTensor>(zero_context,
+                                                                     init_struct,
+                                                                     element_type,
+                                                                     Shape{2 * rows, row_elements});
 
     const Shape shape{rows, row_elements};
     const Strides strides{padded_row_bytes, inner_stride};
@@ -624,7 +621,8 @@ TEST_P(ZeroTensorTestsCheckDataType, IsContinuousDoesNotCrashForDenseTensors) {
     auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
 
     for (const auto& shape : {Shape{2, 16}, Shape{1, 2, 2, 2}, Shape{3, 5}}) {
-        auto host_tensor = std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, element_type, shape);
+        auto host_tensor =
+            std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, element_type, shape);
         EXPECT_TRUE(host_tensor->is_continuous()) << shape;
 
         auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element_type, shape, true);
