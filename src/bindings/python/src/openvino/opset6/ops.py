@@ -46,6 +46,10 @@ def ctc_greedy_decoder_seq_len(
     :param sequence_length: Input 1D tensor with sequence length. Shape: [batch_size]
     :param blank_index:     Scalar or 1D tensor with specifies the class index to use for the blank class.
                             Optional parameter. Default value is num_classes-1.
+    :param merge_repeated:  Flag for merging repeated labels during the CTC calculation.
+    :param classes_index_type: The type of the output tensor with classes indices: "i32" or "i64".
+    :param sequence_length_type: The type of the output tensor with sequence length: "i32" or "i64".
+    :param name:            Optional name for output node.
     :return:                The new node which performs CTCGreedyDecoderSeqLen.
     """
     if blank_index is not None:

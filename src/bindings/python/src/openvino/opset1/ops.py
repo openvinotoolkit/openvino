@@ -446,6 +446,10 @@ def convolution_backprop_data(
     :param      pads_end:     The number of pixels to add to the end along each axis.
     :param      dilations:    The distance in width and height between elements (weights)
                               in the filter.
+    :param      auto_pad:     The type of padding. Range of values: explicit, same_upper,
+                              same_lower, valid. Default value is explicit.
+    :param      output_padding: Additional amount of padding per each spatial axis in the
+                              output tensor. Default value is all zeros.
     :param      name:         The node name.
 
     :return:   The node object representing ConvolutionBackpropData  operation.
@@ -518,6 +522,7 @@ def deformable_convolution(
     """Create node performing deformable convolution.
 
     :param data: The node providing data batch tensor.
+    :param deformable_values: The node providing offsets tensor.
     :param filters: The node providing filters tensor.
     :param strides: The distance (in pixels) to slide the filter on the feature map over the axes.
     :param pads_begin: The number of pixels to add to the beginning along each axis.
@@ -1449,6 +1454,7 @@ def lrn(
     """Return a node which performs element-wise Local Response Normalization (LRN) operation.
 
     :param data: Input data.
+    :param axes: 1D tensor with indices of dimensions in data which define normalization slices.
     :param alpha: A scale factor (usually positive).
     :param beta: An exponent.
     :param bias: An offset (usually positive) to avoid dividing by 0.
@@ -1804,7 +1810,7 @@ def one_hot(
                      in output tensor represented by indices in input take.
     :param off_value: Scalar of any type that is the value that the locations not represented
                       by indices in input take.
-
+    :param axis: The new axis position in the output shape to fill with one-hot values.
     :param name: The optional name for new output node.
     :return: New node performing one-hot operation.
     """

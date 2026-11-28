@@ -66,7 +66,7 @@ def scatter_elements_update(
     :param axis:    The axis for scatter.
     :param reduction: The type of operation to perform on the inputs. One of "none", "sum",
                       "prod", "min", "max", "mean".
-    :param: use_init_val: Controls whether the elements in the data input tensor are used as
+    :param use_init_val: Controls whether the elements in the data input tensor are used as
                           initial value for reduce operations.
     :return: ScatterElementsUpdate node
 
