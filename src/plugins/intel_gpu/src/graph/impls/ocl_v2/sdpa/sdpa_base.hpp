@@ -46,9 +46,9 @@ struct sdpa_configuration {
     int64_t paged_attention_snap_kv_tokens = 0;
 
     bool has_const_scale_val = false;
-    float scale_val = 0.f;
+    float scale_val = 0.F;
     bool has_const_attn_mask_val = false;
-    float attn_mask_val = 0.f;
+    float attn_mask_val = 0.F;
     bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
 
@@ -62,7 +62,7 @@ struct sdpa_configuration {
 struct SDPABase : public KernelGenerator {
     SDPABase(std::string_view name, std::string_view suffix, bool indirect) : KernelGenerator(name, suffix), m_indirect(indirect) {}
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
-    [[nodiscard]] std::pair<int64_t, int64_t> get_gqa_params(const kernel_impl_params& params) const;
+    [[nodiscard]] static std::pair<int64_t, int64_t> get_gqa_params(const kernel_impl_params& params);
 
     static sdpa_configuration get_sdpa_configuration(const kernel_impl_params& impl_param,
                                                      const std::vector<int64_t>& input_q_transpose_order,

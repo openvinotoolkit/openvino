@@ -133,8 +133,9 @@ OutputVector translate_get_rows(const NodeContext& context) {
             res = std::make_shared<ov::op::v8::Gather>(data, indices, axis, 1);
         }
     } else {
-        auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-        res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        res = std::make_shared<ov::op::v8::Gather>(data,
+                                                   indices,
+                                                   ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
     }
 
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.

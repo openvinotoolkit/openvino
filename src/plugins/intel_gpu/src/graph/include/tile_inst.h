@@ -36,8 +36,7 @@ public:
 
     static std::string to_string(tile_node const& node);
 
-public:
-    typed_primitive_inst(network& network, tile_node const& desc);
+    typed_primitive_inst(network& network, const tile_node& node);
 };
 
 using tile_inst = typed_primitive_inst<tile>;

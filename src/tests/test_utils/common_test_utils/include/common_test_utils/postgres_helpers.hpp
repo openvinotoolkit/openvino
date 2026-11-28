@@ -148,7 +148,7 @@ class PGresultHolder {
     inline void decRefCounter(void) {
         if (_ptr != nullptr && refCounter != nullptr) {
             if (*refCounter > 0) {
-                --*refCounter;
+                *refCounter = *refCounter - 1;
             }
             if (*refCounter == 0) {
                 delete refCounter;
@@ -167,14 +167,14 @@ public:
     PGresultHolder(const PGresultHolder& object) {
         _ptr = object._ptr;
         refCounter = object.refCounter;
-        ++*refCounter;
+        *refCounter = *refCounter + 1;
     }
     PGresultHolder& operator=(const PGresultHolder& object) {
         if (_ptr != object._ptr) {
             decRefCounter();
             _ptr = object._ptr;
             refCounter = object.refCounter;
-            ++*refCounter;
+            *refCounter = *refCounter + 1;
         }
         return *this;
     }

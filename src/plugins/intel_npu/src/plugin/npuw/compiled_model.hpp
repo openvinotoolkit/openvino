@@ -14,6 +14,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "moe_transformations/moe_transformation.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -156,6 +157,7 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
     friend class CompiledModelDescSerializationAccess;
+    friend class GQACompiledModel;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -344,6 +346,8 @@ private:
     std::shared_future<void> m_eval_future;
 
     static void validate_submodels(const std::vector<CompiledModelDesc>& submodels);
+
+    std::shared_ptr<ov::weight_sharing::Context> m_shared_ctx_ptr;
 };
 
 struct CompiledModelDescTestAccessor {

@@ -4,10 +4,12 @@
 
 set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/compatibility_string.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/constants_from_ir_file.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/inference_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/memory_dyn_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/model_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/moe_offload.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/properties.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/weight_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/concurrency/gpu_concurrency_tests.cpp
@@ -19,6 +21,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_aliasing_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_deep_chain_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_multiop_chain_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_rebind_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx11_nthandle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx11_remote_ctx_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx12_nthandle.cpp
@@ -26,6 +29,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/helpers.hpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/l0_remote_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/ocl_remote_tensor_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/runtime_weights_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/va_remote_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/ze_remote_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_executable_network/exec_graph_info.cpp
@@ -188,6 +192,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/normalize_l2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/pad.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_attention_block_size.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_attention_token_type.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/pooling.cpp
@@ -323,11 +328,16 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/sign_nan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_backprop_data_runtime_weights.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_in_place_crop.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/broadcast_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/concat_in_place_dynamic_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/convert_bf16_fp32_fp16.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_batch_convolution_byxf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_fc_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_model_static_split_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_smoke_test_conv_reshape_fully_connected.cpp
@@ -348,14 +358,18 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/qdq_stripping.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/read_value_assign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/rms_norm_decomposition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/runtime_weights_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/split_reshape_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/swiglu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/transpose_matmul_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/l2_norm_to_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/loop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/matmul_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/mvn_layernorm_byxf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/prevent_f32_dequantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/random_uniform_infer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/rms_dynamic_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/runtime_weights_update.hpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/serialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/shared_constant.cpp

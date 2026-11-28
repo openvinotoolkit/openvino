@@ -66,6 +66,9 @@ public:
     static std::vector<layout> calc_output_layouts(deconvolution_node const& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
+    // Returns the padding added to the beginning of each spatial axis (primitive `pad`) for the actual shapes.
+    // SAME_UPPER/SAME_LOWER padding can't be calculated at compile time if spatial dims are dynamic.
+    static ov::CoordinateDiff get_pads_begin(const kernel_impl_params& impl_param);
 
     bool need_reset_input_memory(size_t idx = 0) const override {
         if (idx != 0) {
@@ -102,5 +105,33 @@ public:
 };
 
 using deconvolution_inst = typed_primitive_inst<deconvolution>;
+
+// Converts deconvolution weights to a weights layout. A deconvolution with one spatial axis and grouped weights has 4D
+// weights ([g, o, i, x]), which a plain conversion turns into a non-grouped format (oiyx, or oyix when the I/O swap of
+// the weights is a byfx view): the group axis is read as the output features and the filter runs along x, which is 1
+// for the 1D input. Such weights are extended to the 5D goiyx / gioyx formats with the same memory order
+// ([g, o, i, x, 1]), so that the filter runs along y like the spatial axis of the 1D input (bfyx with x = 1). This is
+// the deconvolution counterpart of extend_weights_layout_to_5d() for 1D grouped convolutions.
+inline layout get_deconvolution_weights_layout(const layout& weights_layout, bool grouped_weights_shape) {
+    auto converted = weights_layout.convert_to_weights_layout(grouped_weights_shape);
+    // Weights in a weights format were already reordered for the selected kernel and are not extended again: with one
+    // group, the kernel takes non-grouped weights, which are reordered to the 4D oiyx ([o, i, x, 1]).
+    if (!grouped_weights_shape || format::is_weights_format(weights_layout.format) || converted.get_rank() != 4 || converted.is_dynamic()) {
+        return converted;
+    }
+
+    format grouped_format = format::any;
+    if (converted.format == format::oiyx) {
+        grouped_format = format::goiyx;
+    } else if (converted.format == format::oyix) {
+        grouped_format = format::gioyx;
+    } else {
+        return converted;
+    }
+
+    auto shape = converted.get_shape();
+    shape.push_back(1);
+    return layout(ov::PartialShape(shape), converted.data_type, grouped_format);
+}
 
 }  // namespace cldnn

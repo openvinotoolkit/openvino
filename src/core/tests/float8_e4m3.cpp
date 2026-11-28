@@ -8,8 +8,11 @@
 
 #include <climits>
 #include <cmath>
+#include <vector>
 
 #include "common_test_utils/float_util.hpp"
+#include "openvino/core/type/float_util.hpp"
+#include "openvino/reference/fake_convert.hpp"
 namespace ov {
 namespace test {
 
@@ -168,10 +171,11 @@ TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
     EXPECT_EQ(f8.to_bits(), 0x00);
 }
 
-TEST(F8E4M3Test, f32_in_f16_format_le_zero_gt_f8_half_lowest_subnormal) {
+TEST(F8E4M3Test, f32_gt_f8_half_lowest_subnormal_but_tie_in_f16) {
     const auto f8 = ov::float8_e4m3(0.00097656273283064365387f);
 
-    EXPECT_EQ(f8.to_bits(), 0x00);
+    // The value is rounded to half of f8 lowest subnormal in f16, but it is greater than it in f32, so it rounds up
+    EXPECT_EQ(f8.to_bits(), 0x01);
 }
 
 TEST(F8E4M3Test, f32_in_f16_format_gt_zero_gt_f8_half_lowest_subnormal) {
@@ -220,6 +224,33 @@ TEST(F8E4M3Test, f32_le_f8_lowest_not_within_round_to_lowest) {
 
     // f8 has no such value (NaN)
     EXPECT_EQ(f8.to_bits(), 0xff);
+}
+
+TEST(F8E4M3Test, f32_just_above_tie_round_up) {
+    // 1.0625 + 2^-20 is rounded to 1.0625 (tie between 1.0 and 1.125) in f16
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0x3F880008));
+
+    EXPECT_EQ(f8.to_bits(), 0x39);
+}
+
+TEST(F8E4M3Test, f32_just_above_subnormal_tie_round_up) {
+    // 2^-10 + 2^-33 is rounded to 2^-10 (tie between 0 and 2^-9) in f16
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0x3A800001));
+
+    EXPECT_EQ(f8.to_bits(), 0x01);
+}
+
+TEST(F8E4M3Test, f32_just_above_max_tie_round_to_nan) {
+    // 464 + 2^-15 is rounded to 464 (tie between f8 max 448 and overflow) in f16
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0x43E80001));
+
+    EXPECT_EQ(f8.to_bits(), 0x7F);
+}
+
+TEST(F8E4M3Test, f32_negative_nan) {
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0xFFC00000));
+
+    EXPECT_EQ(f8.to_bits(), 0xFF);
 }
 
 TEST(F8E4M3Test, stream_operator) {
@@ -297,6 +328,42 @@ TEST_P(F8E4M3PTest, f32_to_f8_bits) {
     const auto f8 = ov::float8_e4m3(value);
 
     EXPECT_EQ(f8.to_bits(), exp_value);
+}
+
+// input, use_clamp, expected
+using f8e4m3_emulate_params = std::tuple<ov::float16, bool, float>;
+class F8E4M3EmulatePTest : public testing::TestWithParam<f8e4m3_emulate_params> {};
+
+INSTANTIATE_TEST_SUITE_P(overflow_inf_nan,
+                         F8E4M3EmulatePTest,
+                         testing::Values(f8e4m3_emulate_params{ov::float16(448.f), true, 448.f},
+                                         f8e4m3_emulate_params{ov::float16(1000.f), true, 448.f},
+                                         f8e4m3_emulate_params{ov::float16(-1000.f), true, -448.f},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C00), true, 448.f},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0xFC00), true, -448.f},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7E00), true, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C01), true, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16(448.f), false, 448.f},
+                                         f8e4m3_emulate_params{ov::float16(1000.f), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16(-1000.f), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C00), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0xFC00), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7E00), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C01), false, f32_qnan}));
+
+TEST_P(F8E4M3EmulatePTest, emulate_on_fp16) {
+    const auto& params = GetParam();
+    const auto input = std::get<0>(params);
+    const auto use_clamp = std::get<1>(params);
+    const auto& exp_value = std::get<2>(params);
+    ov::float16 output;
+    ov::reference::func::emulate_f8e4m3_on_fp16(&input, &output, 1, use_clamp);
+
+    if (std::isnan(exp_value)) {
+        EXPECT_TRUE(std::isnan(static_cast<float>(output)));
+    } else {
+        EXPECT_EQ(static_cast<float>(output), exp_value);
+    }
 }
 }  // namespace test
 }  // namespace ov

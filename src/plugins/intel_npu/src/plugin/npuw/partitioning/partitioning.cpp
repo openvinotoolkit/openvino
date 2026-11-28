@@ -2326,7 +2326,9 @@ void Partitioner::optimize(const std::string& func_name) {
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
 
-        // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
+        // Replace the u8 sources with lazy Sub128 parameters. A Sub128 closure shares the data of its
+        // source, which the weights bank detaches after the first evaluation, so the source is always
+        // removed, like the other replaced closures.
         for (const auto& shifted_and_source : ctx.closures_to_subtract_128) {
             const auto& shifted_param = shifted_and_source.first;
             const auto& source_param = shifted_and_source.second;
@@ -2342,7 +2344,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 funcall._is_lazy_unpack.push_back(false);
             });
 
-            if (source_param->output(0).get_target_inputs().empty() && to_remove_idx.insert(source_idx).second) {
+            if (to_remove_idx.insert(source_idx).second) {
                 to_remove.push_back(source_param);
             }
         }

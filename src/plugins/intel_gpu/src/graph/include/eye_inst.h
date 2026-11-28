@@ -33,7 +33,7 @@ public:
     static layout calc_output_layout(eye_node const& node, const kernel_impl_params& impl_param);
     static std::string to_string(eye_node const& node);
 
-    typed_primitive_inst(network& network, eye_node const& desc);
+    typed_primitive_inst(network& network, const eye_node& node);
 };
 
 using eye_inst = typed_primitive_inst<eye>;

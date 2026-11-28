@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,11 +42,11 @@ public:
     };
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const softmax_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
-    Datatype GetActivationType(const softmax_params& params) const {
+    static Datatype GetActivationType(const softmax_params& params) {
         if (params.inputs[0].GetDType() == Datatype::F16) {
             return Datatype::F16;
         }
@@ -61,7 +61,7 @@ public:
     ~SoftmaxKernelBaseBF() override = default;
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     DispatchData SetDefault(const softmax_params& params) const override;
 };
 }  // namespace kernel_selector

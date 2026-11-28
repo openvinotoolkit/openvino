@@ -9,7 +9,7 @@
 
 namespace kernel_selector {
 
-size_t ResampleKernelBfyxCubicOpt::GetOptimalBlockSize(const resample_params& params) const {
+size_t ResampleKernelBfyxCubicOpt::GetOptimalBlockSize(const resample_params& params) {
     std::vector<size_t> block_width = {16, 8, 4, 2, 1};
     for (auto& w : block_width) {
         if (params.outputs[0].X().v % w == 0) {

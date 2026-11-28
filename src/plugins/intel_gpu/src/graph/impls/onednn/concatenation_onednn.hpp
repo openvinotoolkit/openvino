@@ -31,8 +31,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         static_assert(DNNL_ARG_MULTIPLE_SRC % (2 * max_onednn_inputs) == 0,
                       "the first colliding source index equals the flag value only while the "
                       "DNNL_ARG_MULTIPLE_SRC base leaves that bit and all lower bits clear");
-        if (node.get_inputs_count() > max_onednn_inputs)
+        if (node.get_inputs_count() > max_onednn_inputs) {
             return false;
+        }
 
         static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::i8 };
         static const std::vector<format::type> supported_in_fmts = {

@@ -4,6 +4,9 @@
 
 #include "weights_bank.hpp"
 
+#include <algorithm>
+#include <limits>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "serialization.hpp"
@@ -11,6 +14,7 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+using ov::npuw::weights::tensor_factory;
 
 class BankManager {
 public:
@@ -28,7 +32,8 @@ public:
     // Public API
     std::shared_ptr<Bank> getBank(const std::string& bank_name,
                                   const std::shared_ptr<const ov::ICore>& core,
-                                  const std::string& alloc_device);
+                                  const std::string& alloc_device,
+                                  std::shared_ptr<ov::weight_sharing::Context> weight_shared_context = nullptr);
 
 private:
     // Data
@@ -36,8 +41,12 @@ private:
     std::mutex m_mutex;
 };
 
-Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
-    : m_core(core),
+Bank::Bank(const std::shared_ptr<const ov::ICore>& core,
+           const std::string& alloc_device,
+           const std::string& bank_name,
+           std::shared_ptr<ov::weight_sharing::Context> weight_sharing_ctx)
+    : WeightSharingContextAccessor(weight_sharing_ctx),
+      m_core(core),
       m_alloc_device(alloc_device),
       m_bank_name(bank_name) {
     if (m_bank_name.empty()) {
@@ -56,6 +65,7 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 
     auto iter_registered = device_bank.registered_tensors.find(tensor);
     if (iter_registered == device_bank.registered_tensors.end()) {
+        NPUW_ASSERT(uid_count < std::numeric_limits<int64_t>::max() && "Weights bank uid space exhausted");
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
@@ -73,7 +83,24 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
 
     std::unique_lock guard(m_mutex);
 
-    auto& device_bank = m_device_banks.at(device_for_alloc);
+    auto iter_bank =
+        std::find_if(m_device_banks.begin(), m_device_banks.end(), [&device_for_alloc, uid](const auto& device_bank) {
+            if (device_bank.second.storage.count(uid) != 1) {
+                return false;
+            }
+            // Exact device key, or the un-indexed "NPU" key written by old blobs,
+            // which serves any NPU.<n> request for the uids restored under it. uids are unique across
+            // the bank, so at most one key can hold a given uid.
+            return device_bank.first == device_for_alloc ||
+                   (device_bank.first == "NPU" && ov::npuw::util::starts_with(device_for_alloc, "NPU."));
+        });
+    OPENVINO_ASSERT(iter_bank != m_device_banks.end(),
+                    "NPUW: weights bank '",
+                    m_bank_name,
+                    "' has no storage for device '",
+                    device_for_alloc,
+                    "'");
+    auto& device_bank = iter_bank->second;
     auto iter_device = device_bank.storage.find(uid);
 
     NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
@@ -99,7 +126,7 @@ void Bank::evaluate_and_allocate() {
         to_process.reserve(device_bank.storage.size());
         for (const auto& el : device_bank.storage) {
             // Add non-allocated tensors for furter evaluation and allocation
-            if (!el.second.tensor) {
+            if (!el.second.is_evaluated()) {
                 to_process.push_back(el.second.lt);
             }
         }
@@ -122,9 +149,33 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
         auto t = lt.eval();
-        device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
+
+        auto& stored_tensor = device_bank.storage.at(uid);
+
+        // Each LazyTensor describes either a shared `constant` or a shared `transformation` of such constants.
+        // "Shared" means that, once allocated, the tensor's memory may be reused across different compiled-model
+        // instances if the same `transformation` is repeated. If other models repeat the same `transformations`, the
+        // LazyTensor representing a given `transformation` will have the same UID in the `Bank`. Encountering the same
+        // UID while compiling another model using the same `Bank` means that the `transformation` has already been
+        // encountered and its memory may already be allocated. The memory for a shared `transformation` is allocated as
+        // follows:
+        // 1. Allocate memory for the shared `transformation`, aligned to the page size for subsequent use.
+        // 2. Register the allocated memory as a `source_id` in `ov::weight_sharing::Context`.
+        //    The `source_id` has the same value as the UID of the shared `transformation` represented by the
+        //    LazyTensor.
+        // 3. Create an `ov::Tensor` using the allocated memory.
+        // `WeightSharingContextAccessor` only introduces step 2, while encapsulating step 1 internally.
+        // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
+        // It also provides access to `ov::weight_sharing::Context`.
+        {
+            // Serialize mapper and context updates among workers in this parallel_for.
+            std::lock_guard weight_sharing_guard(m_weight_sharing_mutex);
+            auto shared_source =
+                this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU");
+            stored_tensor.tensor = tensor_factory(nullptr, t.get_element_type(), t.get_shape(), shared_source);
+        }
         // Get ownership of the weights, might be a mmaped object during import
-        t.copy_to(device_bank.storage.at(uid).tensor);
+        t.copy_to(stored_tensor.tensor);
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -142,7 +193,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
     // Note: not locking here. This is a private function, so Bank should handle the locks around it
     // as we lock in evaluate_and_allocate() now.
     std::vector<TensorToAllocate> uids_to_allocated;
-    uids_to_allocated.reserve(uid_count);
+    uids_to_allocated.reserve(to_process.size());
 
     for (const auto& lt : to_process) {
         auto iter_device_registered = device_bank.registered_tensors.find(lt);
@@ -161,9 +212,18 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
     for (auto&& allocated : uids_to_allocated) {
-        ov::SoPtr<ov::ITensor> remote_tensor =
-            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-        allocated = {allocated.meta, ov::make_tensor(remote_tensor), allocated.uid};
+        // The main difference here in comparison to the CPU path is that
+        // we don't ask WeightSharingContextAccessor for creating the shared buffer beforehand,
+        // because OpenVINO and NPU plugin do not provide an API for constructing a Host Tensor
+        // from a predefined staged memory buffer.
+        // Instead we create the tensor first, extract the buffer from it, and then register it as a shared weight
+        // source buffer.
+        //
+        // Registration here is sequential under Bank::m_mutex. The CPU path uses a bank-scoped mutex because its
+        // registration runs in parallel_for.
+        ov::Tensor tensor = tensor_factory(remote_ctx, allocated.meta.type, allocated.meta.shape, nullptr);
+        this->register_tensor_as_shared_weight_source(allocated.uid, device, tensor);
+        allocated = {allocated.meta, std::move(tensor), allocated.uid};
     }
 
     // Evaluate and copy into the device memory
@@ -198,10 +258,15 @@ bool Bank::is_remote(int64_t uid) const {
 }
 
 void Bank::serialize(ov::npuw::orc::Stream& stream) {
+    NPUW_ASSERT(stream.output() && "Bank::serialize must use an output stream");
     LOG_INFO("Serializing weights bank...");
     LOG_BLOCK();
 
     std::unique_lock guard(m_mutex);
+    if (this->serialize_native_format(stream)) {
+        LOG_INFO("Bank has been serialized using OV weight sharing.");
+        return;
+    }
 
     std::size_t bank_size = m_device_banks.size();
     stream & bank_size;
@@ -227,18 +292,105 @@ void Bank::serialize(ov::npuw::orc::Stream& stream) {
     LOG_INFO("DONE.");
 }
 
+void Bank::deserialize(ov::npuw::orc::Stream& stream) {
+    NPUW_ASSERT(stream.input() && "Bank::deserialize must use an input stream");
+    LOG_INFO("Deserializing weights bank...");
+    LOG_BLOCK();
+
+    {
+        std::unique_lock guard(m_mutex);
+        if (m_context) {
+            auto deserialized_uids_by_weight_ctx = this->consume_from(stream, *m_core);
+            for (auto uid : deserialized_uids_by_weight_ctx) {
+                NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
+                NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
+                            "Malformed blob: weights bank uid exceeds max int value");
+                for (const auto& bank : m_device_banks) {
+                    NPUW_ASSERT(bank.second.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
+                }
+                uid_count = std::max(uid_count, uid + 1);
+
+                const auto context_ids = ids_mapper.get_ov_context_ids(uid);
+                NPUW_ASSERT(context_ids.has_value() && "Bank::deserialize: Context IDs not found for UID");
+                const auto source_id = context_ids->first;
+                auto m_weight_registry_it = m_context->m_weight_registry.find(source_id);
+                NPUW_ASSERT(m_weight_registry_it != m_context->m_weight_registry.end() &&
+                            "Bank::deserialize: Source ID not found in weight registry");
+                const auto& weight_meta_map = m_weight_registry_it->second;
+                NPUW_ASSERT(weight_meta_map.size() == 1 &&
+                            "Bank::deserialize: weight_meta_map must contain exactly one entry");
+                auto weight_source = ov::weight_sharing::get_runtime_weight_source(*m_context, source_id);
+                auto shared_source = weight_source.m_weights.lock();
+                NPUW_ASSERT(shared_source &&
+                            "Bank::deserialize: WeightSource must provide a valid shared source buffer");
+                for (const auto& [constant_id, weight_meta] : weight_meta_map) {
+                    NPUW_ASSERT(constant_id == 0 &&
+                                "Bank::deserialize: constant id must be 0 for each weight transformation");
+                    NPUW_ASSERT(weight_meta.m_offset == 0 &&
+                                "Bank::deserialize: constant id must have m_offset 0 for each weight transformation");
+
+                    // insert the restored data into the device bank for consistency
+                    const std::string& device = weight_source.m_device;
+                    auto constant_buffer = ov::weight_sharing::get_buffer(*m_context, shared_source, constant_id);
+                    const auto& ov_transformed_constant = this->get_transformed_constant(device, uid);
+
+                    auto& device_bank = m_device_banks[device];
+                    auto iter_device = device_bank.storage.find(uid /* not constant_id! */);
+                    NPUW_ASSERT(iter_device == device_bank.storage.end() &&
+                                "Bank::deserialize: Tensor with this UID already exists in the device bank");
+                    if (device == "CPU") {
+                        device_bank.storage[uid].tensor = tensor_factory(nullptr,
+                                                                         weight_meta.m_type,
+                                                                         ov_transformed_constant.get_shape(),
+                                                                         constant_buffer);
+                    } else {
+                        device_bank.storage[uid].tensor = tensor_from_shared_buffer(shared_source);
+                    }
+
+                    device_bank.storage[uid].lt = LazyTensor();
+                }
+            }
+            LOG_INFO("Bank uids: " << deserialized_uids_by_weight_ctx.size()
+                                   << " has been deserialized using OV weight sharing.");
+            return;
+        }
+    }
+
+    // use legacy deserialization if no weight sharing context is available or applicable
+    deserialize_without_weight_context_impl(stream);
+}
+
+void Bank::deserialize_without_weight_context_impl(ov::npuw::orc::Stream& stream) {
+    std::size_t bank_size;
+    stream & bank_size;
+
+    for (std::size_t i = 0; i < bank_size; ++i) {
+        std::string device;
+        std::size_t storage_size;
+        stream & device & storage_size;
+
+        for (std::size_t j = 0; j < storage_size; ++j) {
+            int64_t uid;
+            stream & uid;
+            read_and_add_tensor(stream, uid, device);
+        }
+    }
+
+    LOG_INFO("Deserialized in the legacy way.");
+}
+
 void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device) {
     // This method is supposed to be used only during deserialization
     std::unique_lock guard(m_mutex);
+    NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
+    NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
+                "Malformed blob: weights bank uid exceeds max int value");
 
-    auto& device_bank = m_device_banks[device];
-    auto iter_device = device_bank.storage.find(uid);
-
-    if (iter_device != device_bank.storage.end()) {
-        // Shouldn't be possible
-        NPUW_ASSERT(false);
-        return;
+    for (const auto& bank : m_device_banks) {
+        NPUW_ASSERT(bank.second.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
     }
+    auto& device_bank = m_device_banks[device];
+    uid_count = std::max(uid_count, uid + 1);
 
     if (device == "CPU") {
         // Just read deserialized tensor into the bank
@@ -262,40 +414,28 @@ std::string Bank::get_name() const {
     return m_bank_name;
 }
 
+bool Bank::StoredTensor::is_evaluated() const {
+    return static_cast<bool>(tensor);
+}
+
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
     if (stream.output()) {
         var.serialize(stream);
     } else {
-        LOG_INFO("Deserializing weights bank...");
-        LOG_BLOCK();
-
-        std::size_t bank_size = 0;
-        stream & bank_size;
-
-        for (std::size_t i = 0; i < bank_size; ++i) {
-            std::string device;
-            stream & device;
-            std::size_t storage_size = 0;
-            stream & storage_size;
-            for (std::size_t j = 0; j < storage_size; ++j) {
-                int64_t uid = -1;
-                stream & uid;
-                var.read_and_add_tensor(stream, uid, device);
-            }
-        }
-
+        var.deserialize(stream);
         LOG_INFO("DONE.");
     }
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
-                                           const std::string& alloc_device) {
+                                           const std::string& alloc_device,
+                                           std::shared_ptr<ov::weight_sharing::Context> weight_shared_context) {
     std::unique_lock guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end() || iter->second.expired()) {
-        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name);
+        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name, weight_shared_context);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -304,12 +444,13 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
                                               const std::shared_ptr<const ov::ICore>& core,
-                                              const std::string& alloc_device) {
+                                              const std::string& alloc_device,
+                                              std::shared_ptr<ov::weight_sharing::Context> weight_shared_context) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(core, alloc_device, bank_name);
+        return std::make_shared<Bank>(core, alloc_device, bank_name, weight_shared_context);
     }
 
     auto& instance = BankManager::getInstance();
-    return instance.getBank(bank_name, core, alloc_device);
+    return instance.getBank(bank_name, core, alloc_device, weight_shared_context);
 }

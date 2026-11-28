@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace kernel_selector {
 struct grn_params : public base_params {
     grn_params() : base_params(KernelType::GRN) {}
 
-    float bias = 1.0f;
+    float bias = 1.0F;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

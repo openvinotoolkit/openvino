@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ bool ResampleKernelBase::has_padding(const resample_params& params) {
            std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; });
 }
 
-size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) const {
+size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) {
     const size_t max_size = 32;
     const size_t min_size = 4;
     size_t feature_block_size = 1;
@@ -166,7 +166,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params, 
         for (std::size_t i = 0; i < params.axes.size(); i++) {
             const int idx = get_axis_index(params.axes[i]);
             if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES) {
-                scales[idx] = 1.f / params.scales[i];
+                scales[idx] = 1.F / params.scales[i];
             }
         }
     } else {
@@ -186,7 +186,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params, 
     }
 
     for (size_t i = 0; i < scales.size(); ++i) {
-        if (scales[i] != 1.f) {
+        if (scales[i] != 1.F) {
             axesUsed[i] = 1;
         }
     }

@@ -3,13 +3,21 @@
 //
 
 #include <algorithm>
+#include <intel_gpu/primitives/arg_max_min.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <numeric>
+#include <optional>
 
 #include "intel_gpu/plugin/output_memory_block.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/topk.hpp"
 #include "openvino/reference/matmul.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "primitive_inst.h"
 #include "test_utils.h"
 
@@ -474,4 +482,174 @@ TEST_F(ZeroCopyMultiUserOutputTest, fallback_when_multiple_users) {
     }
 
     net->clear_output_memory_blocks();
+}
+
+// ===================================================================
+// Multi-output producer fixture: arg_max_min (TopK) has two outputs and
+// only one of them feeds the optimized-out network output; the other
+// output has no user.  Every output must still get memory, so neither
+// the ext_block nor caller-owned output memory, which could only stand
+// in for _outputs[0], is taken by the producer.
+//   input_layout("input") ---> arg_max_min("topk") --out[port]--> reorder("output") [optimized out]
+// ===================================================================
+class ZeroCopyMultiOutputProducerTest : public ZeroCopyOutputTestBase {
+protected:
+    static constexpr size_t L = 16;
+    static constexpr uint32_t top_k = 4;
+
+    enum class OutputBinding { ext_block, caller_memory };
+
+    // (i * 5) % L is a permutation of a row, so the values are distinct and the indices unambiguous
+    static std::vector<float> make_input(size_t M) {
+        std::vector<float> input_data(M * L);
+        for (size_t row = 0; row < M; ++row) {
+            for (size_t i = 0; i < L; ++i)
+                input_data[row * L + i] = static_cast<float>((i * 5 + row * 3) % L);
+        }
+        return input_data;
+    }
+
+    static std::pair<std::vector<float>, std::vector<int32_t>> reference_topk(const std::vector<float>& input_data, size_t M) {
+        std::vector<float> ref_values;
+        std::vector<int32_t> ref_indices;
+        for (size_t row = 0; row < M; ++row) {
+            std::vector<int32_t> order(L);
+            std::iota(order.begin(), order.end(), 0);
+            std::sort(order.begin(), order.end(), [&](int32_t a, int32_t b) {
+                return input_data[row * L + a] > input_data[row * L + b];
+            });
+            for (size_t k = 0; k < top_k; ++k) {
+                ref_values.push_back(input_data[row * L + order[k]]);
+                ref_indices.push_back(order[k]);
+            }
+        }
+        return {ref_values, ref_indices};
+    }
+
+    cldnn::network::ptr build_network(int32_t port) {
+        auto input_layout_dyn = layout{ov::PartialShape{ov::Dimension::dynamic(), static_cast<int64_t>(L)}, data_types::f32, format::bfyx};
+        auto topk =
+            arg_max_min("topk", {input_info("input")}, ov::op::TopKMode::MAX, top_k, 1, ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f32, 2);
+        topk.output_data_types = {data_types::f32, data_types::i32};
+
+        topology topo;
+        topo.add(input_layout("input", input_layout_dyn));
+        topo.add(topk);
+        topo.add(reorder("output", input_info("topk", port), format::bfyx, port == 0 ? data_types::f32 : data_types::i32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        return get_network(engine, topo, config, get_test_stream_ptr(), false);
+    }
+
+    void run(int32_t port, OutputBinding binding) {
+        auto net = build_network(port);
+        const auto output_type = port == 0 ? data_types::f32 : data_types::i32;
+        ov::intel_gpu::OutputMemoryBlock output_block(engine);
+        if (binding == OutputBinding::ext_block)
+            net->register_output_memory_block("output", &output_block);
+
+        for (size_t M : {1, 5, 3}) {
+            SCOPED_TRACE("M = " + std::to_string(M));
+
+            const auto input_data = make_input(M);
+            auto input_mem = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(M), static_cast<int64_t>(L)}, data_types::f32, format::bfyx});
+            set_values(input_mem, input_data);
+            net->set_input_data("input", input_mem);
+            if (binding == OutputBinding::caller_memory) {
+                auto caller_mem =
+                    engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(M), static_cast<int64_t>(top_k)}, output_type, format::bfyx},
+                                           allocation_type::usm_host);
+                net->set_output_memory("output", caller_mem, true);
+            }
+
+            std::map<primitive_id, network_output> outputs;
+            OV_ASSERT_NO_THROW(outputs = net->execute());
+
+            auto topk_inst = net->get_primitive("topk");
+            ASSERT_NE(topk_inst->output_memory_ptr(0), nullptr);
+            ASSERT_NE(topk_inst->output_memory_ptr(1), nullptr);
+            ASSERT_EQ(output_block.memory(), nullptr) << "OutputMemoryBlock should NOT be allocated for a multi-output producer";
+
+            const auto [ref_values, ref_indices] = reference_topk(input_data, M);
+            auto output_mem = outputs.at("output").get_memory();
+            ASSERT_NE(output_mem, nullptr);
+            if (output_type == data_types::f32) {
+                cldnn::mem_lock<float, mem_lock_type::read> lock(output_mem, get_test_stream());
+                for (size_t i = 0; i < ref_values.size(); ++i)
+                    ASSERT_EQ(lock[i], ref_values[i]) << "values mismatch at index " << i;
+            } else {
+                cldnn::mem_lock<int32_t, mem_lock_type::read> lock(output_mem, get_test_stream());
+                for (size_t i = 0; i < ref_indices.size(); ++i)
+                    ASSERT_EQ(lock[i], ref_indices[i]) << "indices mismatch at index " << i;
+            }
+        }
+
+        if (binding == OutputBinding::ext_block)
+            net->clear_output_memory_blocks();
+    }
+
+    // Same graph through an infer request, where wait() has to copy the indices into the output tensor
+    void run_infer_request(bool caller_usm_host) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(L)});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {top_k});
+        auto topk = std::make_shared<ov::op::v11::TopK>(input, k, 1, ov::op::TopKMode::MAX, ov::op::TopKSortType::SORT_VALUES, ov::element::i32);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{topk->output(1)}, ov::ParameterVector{input});
+
+        ov::Core core;
+        auto context = core.get_default_context(get_engine_gpu_device_name()).as<ov::intel_gpu::ocl::ClContext>();
+        auto request = core.compile_model(model, context).create_infer_request();
+
+        // Bound once for the largest batch, as an application would
+        const ov::Shape max_output_shape{5, top_k};
+        std::optional<ov::intel_gpu::ocl::USMTensor> caller_tensor;
+        if (caller_usm_host) {
+            caller_tensor = context.create_usm_host_tensor(ov::element::i32, max_output_shape);
+            request.set_output_tensor(ov::Tensor(ov::element::i32, max_output_shape, caller_tensor->get()));
+        }
+
+        for (size_t M : {1, 5, 3}) {
+            SCOPED_TRACE("M = " + std::to_string(M));
+
+            const auto input_data = make_input(M);
+            ov::Tensor input_tensor(ov::element::f32, ov::Shape{M, L});
+            std::copy(input_data.begin(), input_data.end(), input_tensor.data<float>());
+            request.set_input_tensor(input_tensor);
+            // -1 stays if wait() does not copy into the caller's buffer
+            if (caller_tensor)
+                std::fill_n(static_cast<int32_t*>(caller_tensor->get()), ov::shape_size(max_output_shape), -1);
+
+            OV_ASSERT_NO_THROW(request.infer());
+
+            auto actual = request.get_output_tensor();
+            if (caller_tensor) {
+                ASSERT_EQ(actual.data(), caller_tensor->get());
+            }
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{M, top_k}));
+            const auto* actual_data = actual.data<const int32_t>();
+            ASSERT_EQ(std::vector<int32_t>(actual_data, actual_data + actual.get_size()), reference_topk(input_data, M).second);
+        }
+    }
+};
+
+TEST_F(ZeroCopyMultiOutputProducerTest, values_only) {
+    run(0, OutputBinding::ext_block);
+}
+
+TEST_F(ZeroCopyMultiOutputProducerTest, indices_only) {
+    run(1, OutputBinding::ext_block);
+}
+
+TEST_F(ZeroCopyMultiOutputProducerTest, indices_only_caller_memory) {
+    run(1, OutputBinding::caller_memory);
+}
+
+TEST_F(ZeroCopyMultiOutputProducerTest, infer_request_indices_only) {
+    run_infer_request(false);
+}
+
+TEST_F(ZeroCopyMultiOutputProducerTest, infer_request_indices_only_caller_usm_host) {
+    run_infer_request(true);
 }

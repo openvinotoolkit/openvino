@@ -14,7 +14,7 @@ guarantee across releases: build against the release that will load the extensio
 | Different topology or model family | `ArchitectureExtension` with a `ModelBuilder` factory | `load()` |
 | Add or override one mmproj encoder/projector branch | `ov::frontend::gguf::ProjectorExtension` | `load()` |
 | Add or override an operation converter | `ov::frontend::ConversionExtension` | `convert()` |
-| Prepare a stateful decoder with GenAI IO | `ov::frontend::gguf::GenAIExtension` | `convert()` |
+| Prepare a stateful decoder with GenAI IO | `ov::frontend::gguf::adapt_to_genai()` | After `convert()` |
 | Change state handling or the model interface | `ov::frontend::DecoderTransformationExtension` | `convert()` |
 
 Architecture and projector extensions apply only to native `.gguf` files; converters and passes
@@ -22,6 +22,13 @@ apply to both input paths. None of them add quantization formats, tokenization, 
 device backend. Extensions attached to an `ov::BaseOpExtension` and shared-library wrappers are
 unwrapped; a bare custom operation supplies no GGML converter. `TelemetryExtension` is stored but
 never invoked; other types are ignored.
+
+GenAI integration in [PR #4683](https://github.com/openvinotoolkit/openvino.genai/pull/4683)
+accepts extension objects or library paths through `ov::genai::extensions(...)` in C++, or
+library paths through `extensions=[...]` in Python. For `LLMPipeline` and
+`ContinuousBatchingPipeline`, also select `GGUF_READER="FRONTEND"`. Extensions are registered
+before loading on every GGUF frontend, including both language and projector frontends in
+`VLMPipeline`.
 
 ## Lifecycle
 
@@ -68,6 +75,12 @@ frontend->add_extension(std::make_shared<ArchitectureExtension>(definition));
 `ArchitectureExtension(ArchitectureDefinition)` also accepts a custom `ModelBuilder` factory with no
 RoPE mode. See [architectures.md](architectures.md) for options, builders, porting and validation.
 
+A callback returning `DecoderParameters` gives full control over decoder dimensions,
+normalization, scales, layer/RoPE/SWA settings, routing and model contracts. It bypasses the
+convenience helper's built-in architecture defaults; see [complete parameters](architectures.md#supply-complete-decoder-parameters).
+A custom whole-model factory can replace topology using generic graph operations or the shared
+blocks through `configure_decoder(parameters)`.
+
 ### Matching and replacement
 
 A handler matches on `general.architecture`, then its optional predicate. Handlers with different
@@ -91,8 +104,15 @@ in a separate projector registry. It builds one vision or audio branch; the `cli
 selects branches as described in [mmproj.md](mmproj.md#files-with-vision-and-audio-encoders), names
 outputs `vision.embeddings` / `audio.embeddings` and finishes the model.
 
+Decoder builders declare GenAI adaptation through `parameters.model_contract`. The optional
+`supports_genai_adaptation` takes precedence over `genai.enabled`; `genai` also specifies
+multimodal positions, causal or context-prefix attention, preserved inputs and auxiliary output
+mappings. Logits are first by default; `genai.logits_first` can preserve legacy ordering.
+Extensions may override these choices without changing `AdaptToGenAI`. Models saved without
+the contract use the builder-owned legacy resolver.
+
 A `ProjectorDefinition` has `id`, `architecture`, `modality` (`vision` or `audio`),
-`projector_type`, `build` and optional `match`. `build` appends to the shared `GgufGraphContext` and
+`projector_type`, `build` and optional `match`, `genai_layout` and `genai_adapter`. `build` appends to the shared `GgufGraphContext` and
 returns `ProjectorResult`: the output and optional string configuration under the modality prefix.
 It must not call `finish()` or register the primary output; extra inputs need unique names. A
 predicate may distinguish variants of one resolved type; two matching handlers are an error.
@@ -130,6 +150,48 @@ To replace one built-in branch, reuse its id (for example `clip.vision.gemma3`) 
 component list comes from `ArchRegistry::projectors().supported_projectors()`. An architecture other
 than `clip` would also need its own whole-model coordinator.
 
+The builder selects GenAI layout explicitly with `genai_layout`. Recipes describe input
+semantics (`Image`, `PaddedPatches`, `WindowedPatches`, `SplitMerger`, `PackedPatches`,
+`TemporalPackedPatches`) and are serialized with the model. `build_builtin_projector()` returns
+the recipe matching its graph. A result's explicit recipe overrides the definition. A new or
+replacement projector declaring neither gets `Unsupported`; it does not inherit a recipe from
+its projector name. Only legacy models without `vision.genai_layout` use a built-in recipe
+selected by `vision.projector`.
+
+Audio builders declare `audio_layout` separately. The Gemma 4 audio layouts select the matching
+GenAI input preprocessing and are serialized as `audio.genai_layout`; custom aliases can return
+the layout from `build_builtin_projector()`. A replacement that declares no audio layout remains
+unchanged, even if it reuses a built-in projector id. Only legacy models without
+`audio.genai_layout` use the built-in audio projector name.
+
+A projector may declare its components with `configure_model_contract()`. For `lfm3vl`, `lfm3a`
+and `lfm3a_gen` models the coordinator reads that declaration through `model_contract()` and
+adds built-in component groups only where the projector declared none; declared recurrent
+batching, outputs and state prefixes are preserved. `build_builtin_projector()` also builds
+`lfm3vl` (vision) and `lfm3a` (audio).
+
+A projector can declare equally sized feature blocks through string entries in
+`ProjectorResult.config`: `<modality>.embedding_output_count` gives the positive output count,
+and `<modality>.embedding_output.<index>` gives each nonempty, unique output name. These entries
+survive IR serialization and control generic output splitting. Built-in builders declare the
+standard feature names; the builder-owned resolver also handles legacy auxiliary-count metadata,
+or a single feature output if no count is present.
+
+A custom `genai_adapter` runs for both `EMBEDDINGS` and `VISION_ENCODERS` after generic extraction
+of the selected modality. It receives an independent model clone and returns `ModelAdapterResult`:
+the primary graph in `model` and optional named graphs in `models`. It can replace the entire
+input graph. `EMBEDDINGS` supports vision and audio and permits an empty map; when a map is
+returned, it must contain the primary graph. `VISION_ENCODERS` requires vision modality and a
+nonempty map containing the primary graph. Every map entry needs a nonempty name and a nonnull
+graph. All returned graphs are validated before the pass commits the result, so callback failures
+leave the supplied graph unchanged. A result callback overrides the definition callback; an
+explicitly empty result callback selects generic adaptation and, for `VISION_ENCODERS`, the recipe.
+
+Its implementation belongs to the owning builder or external extension. Callback lifetime is
+retained with the extension library, and callback attributes are removed from committed graphs.
+Callbacks are excluded from IR serialization; use a
+serializable recipe when adaptation must work after reloading an unadapted IR.
+
 ## Add or override an operation converter
 
 Register an `ov::frontend::ConversionExtension` whose converter takes `const NodeContext&` and returns
@@ -157,11 +219,10 @@ operation's semantics, types and layout. For a built-in converter see [how_to_ad
 ## Register normalization passes
 
 `DecoderTransformationExtension` wraps a pass or a `std::shared_ptr<ov::Model>` function and runs
-during normalization, before built-in lowerings. For a GenAI-ready decoder, register
-`GenAIExtension` instead: it owns stateful conversion and adaptation after normalization.
-Do not also register `GGUFMakeStateful` or `AdaptToGenAI` on that frontend. Register one
-`GenAIExtension` per frontend instance; it applies to every conversion on that instance.
-Its embedding lookup getters describe the latest successful conversion.
+during normalization, before built-in lowerings. For a GenAI-ready decoder, call
+`adapt_to_genai()` on the converted model instead: it owns stateful conversion and adaptation.
+Do not also register `GGUFMakeStateful` or `AdaptToGenAI` on that frontend. The deprecated
+`GenAIExtension` performs the same call during `convert()`.
 See [runtime.md](runtime.md#stateful-and-genai-conversion).
 
 ## Build and load a shared library
@@ -195,5 +256,10 @@ Load the actual library, convert a matching file and compare with the reference 
 | Two handlers claim a file | Make predicates disjoint or replace the existing handler |
 | Unsupported mmproj projector | Register a `ProjectorExtension` before `load()`; check modality and resolved type |
 | Missing operation converter | Register the exact string on the same frontend before `convert()` |
-| Cache remains stateless | Register `GenAIExtension` for GenAI IO, or `GGUFMakeStateful` for GGUF IO, before `convert()` |
+| Cache remains stateless | Call `adapt_to_genai()` for GenAI IO, or register `GGUFMakeStateful` for GGUF IO before `convert()` |
 | Outputs differ from the reference | Follow [debugging_accuracy.md](debugging_accuracy.md) |
+
+GenAI C++ callers can forward extension objects or shared-library paths using
+`ov::genai::extensions(...)`; Python uses `extensions=[...]` for library paths. Select
+`GGUF_READER="FRONTEND"` when using the language-model pipelines. These extensions are
+registered on each GGUF frontend before loading.

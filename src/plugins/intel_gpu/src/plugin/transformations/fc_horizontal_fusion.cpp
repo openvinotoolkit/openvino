@@ -58,16 +58,16 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         };
 
         const auto& fc = ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
-        const auto& input = fc->get_input_node_shared_ptr(0);
+        const auto input = fc->input_value(0);
         if (!fc->get_input_partial_shape(0).is_dynamic()) {
             return false;
         }
         size_t user_fc_count = 0;
         int32_t nodes_with_bias = 0;
         int32_t nodes_with_zp = 0;
-        for (const auto& u : input->get_users()) {
+        for (const auto& u : input.get_node_shared_ptr()->get_users()) {
             const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
-            if (!fc_user) {
+            if (!fc_user || fc_user->input_value(0) != input) {
                 continue;
             }
 
@@ -105,7 +105,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto m_fc = pattern_map.at(target_fc).get_node_shared_ptr();
-        auto input_node = m_fc->get_input_node_shared_ptr(0);
+        const auto input = m_fc->input_value(0);
+        auto input_node = input.get_node_shared_ptr();
         std::vector<std::shared_ptr<op::FullyConnectedCompressed>> fc_nodes;
         ov::NodeVector fc_nodes_vec;
         ov::OutputVector weight_nodes;
@@ -115,7 +116,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         int32_t bias_rank = -1;
         for (auto user : input_node->get_users()) {
             auto fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(user);
-            if (fc_user) {
+            if (fc_user && fc_user->input_value(0) == input) {
                 OPENVINO_ASSERT(fc_user->inputs().size() >= 4, "Compressed FC should have at least 4 inputs");
                 fc_nodes.push_back(fc_user);
                 fc_nodes_vec.push_back(fc_user);
@@ -164,7 +165,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return false;
             }
             if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
-                transpose_b_zp != fc->get_transpose_b_zp()) {
+                transpose_b_zp != fc->get_transpose_b_zp() || fc->get_weights_layout() == op::FcWeightsLayout::GNK) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -173,6 +174,21 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
         auto concat_and_fold = [](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+            const auto& reference_shape = outputs.front().get_partial_shape();
+            if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
+                return nullptr;
+            }
+            for (const auto& output : outputs) {
+                const auto& shape = output.get_partial_shape();
+                if (!shape.is_static() || shape.rank() != reference_shape.rank() || output.get_element_type() != outputs.front().get_element_type()) {
+                    return nullptr;
+                }
+                for (int64_t dim = 0; dim < shape.rank().get_length(); ++dim) {
+                    if (dim != axis && shape[dim] != reference_shape[dim]) {
+                        return nullptr;
+                    }
+                }
+            }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
             if (!folded) {
@@ -312,10 +328,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
         }
 
-        // Create new fc with merged weights, bias, scale, zp
+        // Create new fc with merged weights, bias, scale, zp. GNK FCs are rejected above, so the default NK / KN layout is correct.
         std::shared_ptr<ov::Node> new_fc;
         if (fused_zps) {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input,
                                                                     fused_weight,
                                                                     fused_bias,
                                                                     fused_scale,
@@ -325,7 +341,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fc_nodes[0]->get_transpose_b_scale(),
                                                                     fc_nodes[0]->get_transpose_b_zp());
         } else {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input,
                                                                     fused_weight,
                                                                     fused_bias,
                                                                     fused_scale,

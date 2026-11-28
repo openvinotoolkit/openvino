@@ -56,7 +56,9 @@ DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(con
     return k;
 }
 
-FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int, int /*kernel_number*/) const {
+FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params,
+                                                                                    int /*autoTuneIndex*/,
+                                                                                    int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
     if (!params.has_dynamic_tensors()) {
@@ -120,7 +122,7 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params) const {
     return true;
 }
 
-float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor) const {
+float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor) {
     FullyConnectedTuningData tuning_data;
 
     auto of_num = params.outputs[0].Feature().v;
@@ -139,7 +141,7 @@ float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& 
     return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
-FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::GetTuningParams(const fully_connected_params& params) const {
+FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::GetTuningParams(const fully_connected_params& params) {
     FullyConnectedTuningData tuning_data;
 
     auto of_num = params.outputs[0].Feature().v;

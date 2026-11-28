@@ -2,26 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gqa_compiled_model.hpp"
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gqa_compiled_model.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "llm_test_helpers.hpp"
 #include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_query_attention.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -30,13 +37,16 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "serialization.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 
+using ov::test::npuw::build_llm_test_model;
 using ov::test::npuw::MockSubCompiledModel;
 using ov::test::npuw::NullPlugin;
-using ov::test::npuw::build_llm_test_model;
 
 template <class Op>
 std::size_t count_ops(const std::shared_ptr<ov::Model>& model) {
@@ -79,11 +89,12 @@ enum class PositionSignal {
     SeqLenPair,
 };
 
-std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 4,
-                                                            int64_t kv_num_heads = 2,
-                                                            bool do_rotary = true,
-                                                            PositionSignal position_signal = PositionSignal::PositionIds,
-                                                            bool with_2bit_weights = false) {
+std::shared_ptr<ov::Model> build_full_gqa_transformer_model(
+    int64_t num_heads = 4,
+    int64_t kv_num_heads = 2,
+    bool do_rotary = true,
+    PositionSignal position_signal = PositionSignal::PositionIds,
+    bool with_2bit_weights = false) {
     // Shaped {1, num_heads, 16} so it Unsqueeze's below into QUERY's {1, num_heads, 1, 16}
     // without a volume mismatch -- identify_case() requires this Parameter to be
     // data-connected to the GQA op, not just present by name.
@@ -120,8 +131,8 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
     auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
-    ov::OutputVector gqa_inputs{query, key, value, past_key, past_value, seqlens_k, total_sequence_length,
-                               cos_cache, sin_cache};
+    ov::OutputVector
+        gqa_inputs{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache};
     if (position_ids) {
         // POSITION_IDS (index 9) -- wiring it here is what identify_case() requires as evidence.
         gqa_inputs.push_back(position_ids);
@@ -144,7 +155,7 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
         params.push_back(position_ids);
     }
     params.insert(params.end(),
-                 {key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
+                  {key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
     if (with_2bit_weights) {
         // V2 models ship weights as 2-bit group-quantized (u2) Parameters. The GQA op
         // doesn't need to consume this directly; has_2bit_group_quantized_weights() just
@@ -211,23 +222,22 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
         std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, 4, ov::Dimension::dynamic()});
     attention_mask->set_friendly_name("attention_mask");
 
-    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-        ov::OutputVector{query,
-                        key,
-                        value,
-                        past_key,
-                        past_value,
-                        seqlens_k,
-                        total_sequence_length,
-                        cos_cache,
-                        sin_cache,
-                        position_ids_placeholder,
-                        attention_mask},
-        4,
-        2,
-        0.0f,
-        true,
-        false);
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(ov::OutputVector{query,
+                                                                                        key,
+                                                                                        value,
+                                                                                        past_key,
+                                                                                        past_value,
+                                                                                        seqlens_k,
+                                                                                        total_sequence_length,
+                                                                                        cos_cache,
+                                                                                        sin_cache,
+                                                                                        position_ids_placeholder,
+                                                                                        attention_mask},
+                                                                       4,
+                                                                       2,
+                                                                       0.0f,
+                                                                       true,
+                                                                       false);
 
     auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
     present_key->set_friendly_name("present_keys_0");
@@ -236,16 +246,16 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
 
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
     ov::ParameterVector params = {input_hidden_states,
-                                 query,
-                                 key,
-                                 value,
-                                 past_key,
-                                 past_value,
-                                 seqlens_k,
-                                 total_sequence_length,
-                                 cos_cache,
-                                 sin_cache,
-                                 attention_mask};
+                                  query,
+                                  key,
+                                  value,
+                                  past_key,
+                                  past_value,
+                                  seqlens_k,
+                                  total_sequence_length,
+                                  cos_cache,
+                                  sin_cache,
+                                  attention_mask};
     auto model = std::make_shared<ov::Model>(results, params, "gqa_attention_bias_model");
     model->validate_nodes_and_infer_types();
     return model;
@@ -254,7 +264,7 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
 // Same wiring as build_gqa_model_with_dynamic_kv_cache(), but with sliding_window_cache=
 // true -- a dynamic axis here must be pinned by ReshapeToStaticGQA to its own
 // local_window_size-derived capacity, not the model-wide max_seq_len.
-std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis) {
+std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis, int64_t local_window_size = 6) {
     auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
@@ -276,18 +286,26 @@ std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis
     auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
     auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
-    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-        ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
-        /*num_heads=*/4,
-        /*kv_num_heads=*/2,
-        /*scale=*/0.0f,
-        /*do_rotary=*/true,
-        /*rotary_interleaved=*/false,
-        /*kv_cache_bit_width=*/0,
-        ov::op::internal::GroupQueryAttentionQuantType::NONE,
-        ov::op::internal::GroupQueryAttentionQuantType::NONE,
-        /*local_window_size=*/6,
-        /*sliding_window_cache=*/true);
+    auto gqa =
+        std::make_shared<ov::op::internal::GroupQueryAttention>(ov::OutputVector{query,
+                                                                                 key,
+                                                                                 value,
+                                                                                 past_key,
+                                                                                 past_value,
+                                                                                 seqlens_k,
+                                                                                 total_sequence_length,
+                                                                                 cos_cache,
+                                                                                 sin_cache},
+                                                                /*num_heads=*/4,
+                                                                /*kv_num_heads=*/2,
+                                                                /*scale=*/0.0f,
+                                                                /*do_rotary=*/true,
+                                                                /*rotary_interleaved=*/false,
+                                                                /*kv_cache_bit_width=*/0,
+                                                                ov::op::internal::GroupQueryAttentionQuantType::NONE,
+                                                                ov::op::internal::GroupQueryAttentionQuantType::NONE,
+                                                                local_window_size,
+                                                                /*sliding_window_cache=*/true);
 
     auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
     present_key->set_friendly_name("present_keys_0");
@@ -296,19 +314,133 @@ std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis
 
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
     ov::ParameterVector params = {input_hidden_states,
-                                 position_ids,
-                                 query,
-                                 key,
-                                 value,
-                                 past_key,
-                                 past_value,
-                                 seqlens_k,
-                                 total_sequence_length,
-                                 cos_cache,
-                                 sin_cache};
+                                  position_ids,
+                                  query,
+                                  key,
+                                  value,
+                                  past_key,
+                                  past_value,
+                                  seqlens_k,
+                                  total_sequence_length,
+                                  cos_cache,
+                                  sin_cache};
     auto model = std::make_shared<ov::Model>(results, params, "gqa_sliding_window_cache_model");
     model->validate_nodes_and_infer_types();
     return model;
+}
+
+// Mirrors layer 30 of the Phi --transpose_v export: past_values_30 is BNHS and reaches
+// PAST_VALUE through the exporter's "past_value_bnhs_to_bnsh" Transpose. `as_v2_model` adds the
+// input_hidden_states activation and a u2 weight so identify_case() reports Case::V2.
+std::shared_ptr<ov::Model> build_real_sliding_gqa_layer_with_transposed_value(size_t query_len,
+                                                                              bool as_v2_model = false) {
+    constexpr size_t num_heads = 40;
+    constexpr size_t kv_num_heads = 10;
+    constexpr size_t head_size = 128;
+    constexpr size_t rotary_cache_len = 32768;
+    constexpr int64_t local_window_size = 4095;
+
+    ov::ParameterVector params;
+    ov::Output<ov::Node> query;
+    if (as_v2_model) {
+        auto hidden_states =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, query_len, num_heads * head_size});
+        hidden_states->set_friendly_name("input_hidden_states");
+        auto bshd = ov::op::v0::Constant::create(ov::element::i64,
+                                                 ov::Shape{4},
+                                                 std::vector<int64_t>{1,
+                                                                      static_cast<int64_t>(query_len),
+                                                                      static_cast<int64_t>(num_heads),
+                                                                      static_cast<int64_t>(head_size)});
+        auto reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states, bshd, false);
+        auto bshd_to_bhsd = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        query = std::make_shared<ov::op::v1::Transpose>(reshaped, bshd_to_bhsd);
+        auto quantized_weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{8, 16});
+        quantized_weight->set_friendly_name("quantized_weight");
+        params = {hidden_states, quantized_weight};
+    } else {
+        auto query_param =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, num_heads, query_len, head_size});
+        query_param->set_friendly_name("query_30");
+        query = query_param;
+        params = {query_param};
+    }
+    auto key =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, kv_num_heads, query_len, head_size});
+    key->set_friendly_name("key_30");
+    auto value =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, kv_num_heads, query_len, head_size});
+    value->set_friendly_name("value_30");
+
+    auto past_key =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                ov::PartialShape{1, kv_num_heads, ov::Dimension::dynamic(), head_size});
+    past_key->set_friendly_name("past_keys_30");
+    auto past_value =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                ov::PartialShape{1, kv_num_heads, head_size, ov::Dimension::dynamic()});
+    past_value->set_friendly_name("past_values_30");
+    auto bnhs_to_bnsh = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+    auto past_value_bnsh = std::make_shared<ov::op::v1::Transpose>(past_value, bnhs_to_bnsh);
+    past_value_bnsh->set_friendly_name("/model/layers.30/self_attn/GroupQueryAttention/past_value_bnhs_to_bnsh");
+
+    auto past_seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1});
+    past_seq_len->set_friendly_name("past_seq_len");
+    auto total_seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    total_seq_len->set_friendly_name("total_seq_len");
+    auto cos_cache =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rotary_cache_len, head_size / 2});
+    cos_cache->set_friendly_name("cos_cache");
+    auto sin_cache =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rotary_cache_len, head_size / 2});
+    sin_cache->set_friendly_name("sin_cache");
+
+    auto gqa =
+        std::make_shared<ov::op::internal::GroupQueryAttention>(ov::OutputVector{query,
+                                                                                 key,
+                                                                                 value,
+                                                                                 past_key,
+                                                                                 past_value_bnsh,
+                                                                                 past_seq_len,
+                                                                                 total_seq_len,
+                                                                                 cos_cache,
+                                                                                 sin_cache},
+                                                                static_cast<int64_t>(num_heads),
+                                                                static_cast<int64_t>(kv_num_heads),
+                                                                /*scale=*/0.0f,
+                                                                /*do_rotary=*/true,
+                                                                /*rotary_interleaved=*/false,
+                                                                /*kv_cache_bit_width=*/0,
+                                                                ov::op::internal::GroupQueryAttentionQuantType::NONE,
+                                                                ov::op::internal::GroupQueryAttentionQuantType::NONE,
+                                                                local_window_size,
+                                                                /*sliding_window_cache=*/true);
+    gqa->set_friendly_name("present_keys_30");
+
+    auto attention_output = std::make_shared<ov::op::v0::Result>(gqa->output(0));
+    attention_output->set_friendly_name("/model/layers.30/self_attn/GroupQueryAttention_output_0");
+    auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+    present_key->set_friendly_name("present_keys_30");
+    auto bnsh_to_bnhs = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+    auto present_value_bnhs = std::make_shared<ov::op::v1::Transpose>(gqa->output(2), bnsh_to_bnhs);
+    auto present_value = std::make_shared<ov::op::v0::Result>(present_value_bnhs);
+    present_value->set_friendly_name("present_values_30");
+
+    params.insert(params.end(), {key, value, past_key, past_value, past_seq_len, total_seq_len, cos_cache, sin_cache});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{attention_output, present_key, present_value},
+                                             params,
+                                             "gqa_real_sliding_layer_30");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+ov::PartialShape parameter_shape(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == name) {
+            return parameter->get_partial_shape();
+        }
+    }
+    OPENVINO_THROW("Parameter '", name, "' not found");
 }
 
 // A single model with TWO independent GQA layers sharing the same dynamic axis: a
@@ -321,11 +453,11 @@ std::shared_ptr<ov::Model> build_gqa_model_with_mixed_global_and_sliding_layers(
         auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
         auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
 
-        auto past_key =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
         past_key->set_friendly_name("past_keys_" + suffix);
-        auto past_value =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                  ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
         past_value->set_friendly_name("past_values_" + suffix);
 
         auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
@@ -334,7 +466,15 @@ std::shared_ptr<ov::Model> build_gqa_model_with_mixed_global_and_sliding_layers(
         auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
         auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-            ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+            ov::OutputVector{query,
+                             key,
+                             value,
+                             past_key,
+                             past_value,
+                             seqlens_k,
+                             total_sequence_length,
+                             cos_cache,
+                             sin_cache},
             /*num_heads=*/4,
             /*kv_num_heads=*/2,
             /*scale=*/0.0f,
@@ -398,11 +538,11 @@ std::shared_ptr<ov::Model> build_gqa_model_with_rt_info_sliding_window_layers(si
         auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
         auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
 
-        auto past_key =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
         past_key->set_friendly_name("past_keys_" + suffix);
-        auto past_value =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                  ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
         past_value->set_friendly_name("past_values_" + suffix);
 
         auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
@@ -411,7 +551,15 @@ std::shared_ptr<ov::Model> build_gqa_model_with_rt_info_sliding_window_layers(si
         auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
         auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-            ov::OutputVector{query_input, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+            ov::OutputVector{query_input,
+                             key,
+                             value,
+                             past_key,
+                             past_value,
+                             seqlens_k,
+                             total_sequence_length,
+                             cos_cache,
+                             sin_cache},
             /*num_heads=*/4,
             /*kv_num_heads=*/2,
             /*scale=*/0.0f,
@@ -429,15 +577,8 @@ std::shared_ptr<ov::Model> build_gqa_model_with_rt_info_sliding_window_layers(si
         ov::ResultVector layer_results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)),
                                           present_key,
                                           present_value};
-        ov::ParameterVector layer_params = {query_param,
-                                            key,
-                                            value,
-                                            past_key,
-                                            past_value,
-                                            seqlens_k,
-                                            total_sequence_length,
-                                            cos_cache,
-                                            sin_cache};
+        ov::ParameterVector layer_params =
+            {query_param, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache};
         return std::make_tuple(layer_results, layer_params, gqa->output(0));
     };
 
@@ -467,11 +608,11 @@ std::shared_ptr<ov::Model> build_gqa_model_with_seqlens_name_hint(bool name_hint
         auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
         auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
 
-        auto past_key =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
         past_key->set_friendly_name("past_keys_" + suffix);
-        auto past_value =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                  ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
         past_value->set_friendly_name("past_values_" + suffix);
 
         auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
@@ -484,7 +625,15 @@ std::shared_ptr<ov::Model> build_gqa_model_with_seqlens_name_hint(bool name_hint
         auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
         auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-            ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+            ov::OutputVector{query,
+                             key,
+                             value,
+                             past_key,
+                             past_value,
+                             seqlens_k,
+                             total_sequence_length,
+                             cos_cache,
+                             sin_cache},
             /*num_heads=*/4,
             /*kv_num_heads=*/2,
             /*scale=*/0.0f,
@@ -530,13 +679,13 @@ std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type
         std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
     auto quantized_convert = std::make_shared<ov::op::v0::Convert>(fake_quantize, ov::element::u16);
     auto dequantized_convert = std::make_shared<ov::op::v0::Convert>(quantized_convert, ov::element::f32);
-    auto zero_point = std::make_shared<ov::op::v0::Convert>(
-        ov::op::v0::Constant::create(ov::element::u16, ov::Shape{}, {128}),
-        ov::element::f32);
+    auto zero_point =
+        std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::u16, ov::Shape{}, {128}),
+                                              ov::element::f32);
     auto subtract = std::make_shared<ov::op::v1::Subtract>(dequantized_convert, zero_point);
-    auto scale = std::make_shared<ov::op::v0::Convert>(
-        ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.1f}),
-        ov::element::f32);
+    auto scale =
+        std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.1f}),
+                                              ov::element::f32);
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
     return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(multiply)},
                                        ov::ParameterVector{input},
@@ -544,13 +693,11 @@ std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type
 }
 
 std::shared_ptr<ov::Model> build_hidden_states_model(std::size_t tokens) {
-    auto input_hidden_states =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, tokens, 16});
+    auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, tokens, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_hidden_states)},
-        ov::ParameterVector{input_hidden_states},
-        "gqa_hidden_states_model");
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_hidden_states)},
+                                       ov::ParameterVector{input_hidden_states},
+                                       "gqa_hidden_states_model");
 }
 
 std::shared_ptr<ov::Model> build_conv_to_matmul_model() {
@@ -561,9 +708,9 @@ std::shared_ptr<ov::Model> build_conv_to_matmul_model() {
     auto transpose_in = std::make_shared<ov::op::v1::Transpose>(
         activation,
         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{0, 3, 1, 2}));
-    auto scaled_weights = std::make_shared<ov::op::v1::Multiply>(
-        std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32),
-        std::make_shared<ov::op::v0::Convert>(scale, ov::element::f32));
+    auto scaled_weights =
+        std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32),
+                                               std::make_shared<ov::op::v0::Convert>(scale, ov::element::f32));
     auto convolution = std::make_shared<ov::op::v1::Convolution>(transpose_in,
                                                                  scaled_weights,
                                                                  ov::Strides{1, 1},
@@ -585,9 +732,9 @@ std::shared_ptr<ov::Model> build_dumped_gqa_conv_model() {
     auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{5120});
 
     auto converted_activation = std::make_shared<ov::op::v0::Convert>(activation, ov::element::f32);
-    auto unsqueezed_activation = std::make_shared<ov::op::v0::Unsqueeze>(
-        converted_activation,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    auto unsqueezed_activation =
+        std::make_shared<ov::op::v0::Unsqueeze>(converted_activation,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     auto transposed_activation = std::make_shared<ov::op::v1::Transpose>(
         unsqueezed_activation,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2}));
@@ -598,11 +745,11 @@ std::shared_ptr<ov::Model> build_dumped_gqa_conv_model() {
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {5120, 1, 1, 1}),
             true));
     auto convolution = std::make_shared<ov::op::v1::Convolution>(transposed_activation,
-                                                                scaled_weights,
-                                                                ov::Strides{1, 1},
-                                                                ov::CoordinateDiff{0, 0},
-                                                                ov::CoordinateDiff{0, 0},
-                                                                ov::Strides{1, 1});
+                                                                 scaled_weights,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
     auto transpose_out = std::make_shared<ov::op::v1::Transpose>(
         convolution,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1}));
@@ -659,7 +806,7 @@ private:
 class PropertyForwardingMockCompiledModel final : public ov::npuw::ICompiledModel {
 public:
     PropertyForwardingMockCompiledModel(const std::shared_ptr<ov::Model>& model,
-                                       const std::shared_ptr<const ov::IPlugin>& plugin)
+                                        const std::shared_ptr<const ov::IPlugin>& plugin)
         : ov::npuw::ICompiledModel(model, plugin) {}
 
     void export_model(std::ostream&) const override {}
@@ -685,7 +832,6 @@ public:
     ov::AnyMap last_set_properties;
 };
 
-
 class GQACompiledModelTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -700,6 +846,80 @@ protected:
         for (const auto& [key, value] : src) {
             dst[key] = value;
         }
+    }
+
+    void setup_mocks(const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                     const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                     const std::shared_ptr<testing::NiceMock<ov::MockICore>>& mock_core,
+                     const std::shared_ptr<testing::NiceMock<ov::MockICompiledModel>>& mock_compiled_model) {
+        ON_CALL(*mock_core, get_property(testing::_, testing::_, testing::_))
+            .WillByDefault(testing::Return(ov::Any("")));
+        ON_CALL(*mock_core, get_property(testing::_, testing::StrEq(ov::available_devices.name()), testing::_))
+            .WillByDefault(testing::Return(ov::Any(std::vector<std::string>{})));
+        ON_CALL(*mock_core,
+                compile_model(testing::An<const std::shared_ptr<const ov::Model>&>(),
+                              testing::An<const std::string&>(),
+                              testing::An<const ov::AnyMap&>()))
+            .WillByDefault(testing::Return(mock_compiled_model));
+
+        ON_CALL(*mock_compiled_model, inputs())
+            .WillByDefault([&model_inputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+                return model_inputs;
+            });
+        ON_CALL(*mock_compiled_model, outputs())
+            .WillByDefault([&model_outputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+                return model_outputs;
+            });
+        ON_CALL(*mock_compiled_model, get_property(testing::_)).WillByDefault(testing::Return(ov::Any("")));
+        ON_CALL(*mock_compiled_model, get_property(testing::StrEq(ov::execution_devices.name())))
+            .WillByDefault(testing::Return(ov::Any(std::vector<std::string>{"NPU.0"})));
+    }
+
+    void make_port_asserts(const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                           const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                           const std::vector<ov::Output<const ov::Node>>& inputs,
+                           const std::vector<ov::Output<const ov::Node>>& outputs) {
+        ASSERT_EQ(inputs.size(), model_inputs.size());
+        ASSERT_EQ(outputs.size(), model_outputs.size());
+        for (size_t i = 0; i < model_inputs.size(); ++i) {
+            ASSERT_EQ(model_inputs.at(i).get_partial_shape(), inputs.at(i).get_partial_shape());
+            ASSERT_EQ(model_inputs.at(i).get_element_type(), inputs.at(i).get_element_type());
+            ASSERT_EQ(model_inputs.at(i).get_node()->get_friendly_name(), inputs.at(i).get_node()->get_friendly_name());
+            ASSERT_EQ(model_inputs.at(i).get_names(), inputs.at(i).get_names());
+        }
+        for (size_t j = 0; j < model_outputs.size(); ++j) {
+            ASSERT_EQ(model_outputs.at(j).get_partial_shape(), outputs.at(j).get_partial_shape());
+            ASSERT_EQ(model_outputs.at(j).get_element_type(), outputs.at(j).get_element_type());
+            ASSERT_EQ(model_outputs.at(j).get_node()->get_friendly_name(),
+                      outputs.at(j).get_node()->get_friendly_name());
+            ASSERT_EQ(model_outputs.at(j).get_names(), outputs.at(j).get_names());
+        }
+    }
+
+    void validate_gqa_roundtrip(const size_t axis,
+                                const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                                const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                                const uint32_t max_context_len,
+                                const uint32_t sliding_window_length,
+                                const uint32_t sliding_window_headroom,
+                                const std::shared_ptr<const ov::npuw::GQACompiledModel>& gqa_compiled_model) {
+        make_port_asserts(model_inputs, model_outputs, gqa_compiled_model->inputs(), gqa_compiled_model->outputs());
+
+        size_t matched_ports = 0;
+        for (const auto& input : gqa_compiled_model->inputs()) {
+            if (input.get_node()->get_friendly_name() != "past_keys_0" &&
+                input.get_node()->get_friendly_name() != "past_values_0") {
+                continue;
+            }
+            ASSERT_TRUE(input.get_partial_shape()[axis].is_dynamic());
+            ++matched_ports;
+        }
+        ASSERT_EQ(matched_ports, 2u);
+
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::max_context_len.name()), max_context_len);
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::swa_len.name()), sliding_window_length);
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::swa_headroom.name()),
+                  sliding_window_headroom);
     }
 
     std::unique_ptr<ov::npuw::GQACompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
@@ -737,48 +957,95 @@ TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV1Models) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(
-                        build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds),
-                        {},
-                        recorder));
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds),
+                                              {},
+                                              recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
+    // V1 doesn't use online partitioning at all, so parallelizing its compilation
+    // wouldn't do anything.
+    EXPECT_EQ(call.props.count(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())), 0u);
 }
 
 TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV0Models) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(
-                        build_full_gqa_transformer_model(4, 2, true, PositionSignal::SeqLenPair),
-                        {},
-                        recorder));
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(build_full_gqa_transformer_model(4, 2, true, PositionSignal::SeqLenPair),
+                                              {},
+                                              recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
+    // V0 doesn't use online partitioning at all, so parallelizing its compilation
+    // wouldn't do anything.
+    EXPECT_EQ(call.props.count(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())), 0u);
 }
 
-TEST_F(GQACompiledModelTest, KeepsDefaultOnlinePipelineForCaseV2Models) {
+TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PrefillModels) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(
-                        build_full_gqa_transformer_model(4,
-                                                        2,
-                                                        true,
-                                                        PositionSignal::SeqLenPair,
-                                                        /*with_2bit_weights=*/true),
-                        {},
-                        recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_full_gqa_transformer_model(4,
+                                                                                      2,
+                                                                                      true,
+                                                                                      PositionSignal::SeqLenPair,
+                                                                                      /*with_2bit_weights=*/true),
+                                                     {},
+                                                     recorder));
     ASSERT_NE(compiled, nullptr);
 
-    // Unlike V0/V1, a 2-bit group-quantized (V2) model isn't forced to NONE -- it's left
-    // unset so the plugin-wide default (REG) applies.
+    // Unlike V0/V1, a 2-bit group-quantized (V2) model isn't forced to NONE -- its prefill
+    // stage still benefits from online partitioning, so it switches to the REP
+    // (repeated-block) pipeline, and compiles the resulting blocks in parallel.
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
+}
+
+TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PositionIdsPrefillModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_full_gqa_transformer_model(4,
+                                                                                      2,
+                                                                                      true,
+                                                                                      PositionSignal::PositionIds,
+                                                                                      /*with_2bit_weights=*/true),
+                                                     {},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // u2 weights take priority over position_ids, so this must not get V1's NONE pipeline.
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
+}
+
+TEST_F(GQACompiledModelTest, UsesParallelCompileWithDefaultPipelineForCaseV2GenerateModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    // num_heads == kv_num_heads == 1 so input_hidden_states' token dim is 1 -> generate stage.
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_full_gqa_transformer_model(1,
+                                                                                      1,
+                                                                                      true,
+                                                                                      PositionSignal::SeqLenPair,
+                                                                                      /*with_2bit_weights=*/true),
+                                                     {},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // REP is a prefill-only optimization -- the generate stage keeps the plugin-wide
+    // default pipeline (REG), but still compiles in parallel like the prefill stage.
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.count("NPUW_ONLINE_PIPELINE"), 0u);
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
 }
 
 TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
@@ -862,7 +1129,8 @@ TEST_F(GQACompiledModelTest, RunsUNQDQBeforeInnerCompilation) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_unqdq_model(ov::element::f16), {{"NPUW_UNQDQ", "YES"}}, recorder));
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(build_unqdq_model(ov::element::f16), {{"NPUW_UNQDQ", "YES"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
@@ -978,14 +1246,20 @@ TEST(GQACompiledModelSupportsTest, ReturnsFalseForUnconnectedActivationAndPositi
     auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
     auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
-    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-        ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache,
-                        sin_cache},
-        4,
-        2,
-        0.0f,
-        true,
-        false);
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(ov::OutputVector{query,
+                                                                                        key,
+                                                                                        value,
+                                                                                        past_key,
+                                                                                        past_value,
+                                                                                        seqlens_k,
+                                                                                        total_sequence_length,
+                                                                                        cos_cache,
+                                                                                        sin_cache},
+                                                                       4,
+                                                                       2,
+                                                                       0.0f,
+                                                                       true,
+                                                                       false);
 
     auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
     present_key->set_friendly_name("present_keys_0");
@@ -994,16 +1268,16 @@ TEST(GQACompiledModelSupportsTest, ReturnsFalseForUnconnectedActivationAndPositi
 
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
     ov::ParameterVector params = {input_hidden_states,
-                                 position_ids,
-                                 query,
-                                 key,
-                                 value,
-                                 past_key,
-                                 past_value,
-                                 seqlens_k,
-                                 total_sequence_length,
-                                 cos_cache,
-                                 sin_cache};
+                                  position_ids,
+                                  query,
+                                  key,
+                                  value,
+                                  past_key,
+                                  past_value,
+                                  seqlens_k,
+                                  total_sequence_length,
+                                  cos_cache,
+                                  sin_cache};
     auto model = std::make_shared<ov::Model>(results, params, "gqa_disconnected_ports");
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::Unknown);
 }
@@ -1064,6 +1338,17 @@ TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForSeqLenPairModelWith2BitWei
                                                   2,
                                                   true,
                                                   PositionSignal::SeqLenPair,
+                                                  /*with_2bit_weights=*/true);
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
+    make_kv_cache_dynamic(model, 2);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForPositionIdsModelWith2BitWeights) {
+    auto model = build_full_gqa_transformer_model(4,
+                                                  2,
+                                                  true,
+                                                  PositionSignal::PositionIds,
                                                   /*with_2bit_weights=*/true);
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
     make_kv_cache_dynamic(model, 2);
@@ -1147,9 +1432,9 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis2) {
     // The outer, user-facing model stays dynamic so the infer request still accepts
     // variable-length KV-cache input.
     EXPECT_TRUE(compiled->inputs().front().get_partial_shape().is_dynamic() ||
-               std::any_of(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& input) {
-                   return input.get_partial_shape().is_dynamic();
-               }));
+                std::any_of(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& input) {
+                    return input.get_partial_shape().is_dynamic();
+                }));
 }
 
 TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis3) {
@@ -1197,12 +1482,85 @@ TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveSlidingWindowCapacityIns
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
 
     ASSERT_NO_THROW(
-        compiled = create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16"}, {"NPUW_LLM_SWA_LEN", "8"}}, recorder));
+        compiled =
+            create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16"}, {"NPUW_LLM_SWA_LEN", "8"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
     ov::Any sliding_window_len;
     ASSERT_NO_THROW(sliding_window_len = compiled->get_property("NPUW_LLM_SWA_LEN"));
     EXPECT_EQ(sliding_window_len.as<uint32_t>(), 8u);
+}
+
+TEST_F(GQACompiledModelTest, GetPropertyReturnsSlidingWindowHeadroomInsteadOfThrowing) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(model,
+                                              {{"NPUW_LLM_MAX_CONTEXT_LEN", "16"}, {"NPUW_LLM_SWA_HEADROOM", "512"}},
+                                              recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(recorder.only_call().props.count("NPUW_LLM_SWA_HEADROOM"), 0u);
+
+    ov::Any headroom;
+    ASSERT_NO_THROW(headroom = compiled->get_property("NPUW_LLM_SWA_HEADROOM"));
+    EXPECT_EQ(headroom.as<uint32_t>(), 512u);
+}
+
+TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityHonorsSwaHeadroom) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
+    ASSERT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
+
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(model,
+                                              {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_SWA_HEADROOM", "512"}},
+                                              recorder));
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(call.model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+    // LLM-only option: must not leak into the inner CompiledModel.
+    EXPECT_EQ(call.props.count("NPUW_LLM_SWA_HEADROOM"), 0u);
+}
+
+TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityWithoutSwaHeadroom) {
+    RecordingFactory recorder;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
+
+    ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
+
+    // Unset option -> default 512-token headroom: align16(4095) + 512.
+    EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+}
+
+TEST_F(GQACompiledModelTest, CasePrefillSlidingCapacityCoversQueryLongerThanDefaultSwaHeadroom) {
+    RecordingFactory recorder;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1024, /*as_v2_model=*/true);
+
+    ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
+
+    // No configured headroom, so the static query length (1024) is used instead of the 512 default:
+    // align16(4095) + 1024.
+    EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 5120, 128}));
+}
+
+TEST_F(GQACompiledModelTest, NonV2SlidingCapacityHonorsSwaHeadroom) {
+    RecordingFactory recorder;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
+    // Drop the u2 weight: the same graph classifies as Case::V0.
+    model->remove_parameter(model->get_parameters().at(1));
+    ASSERT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V0);
+
+    ASSERT_NO_THROW(create_compiled_model(model,
+                                          {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_SWA_HEADROOM", "512"}},
+                                          recorder));
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(call.props.count("NPUW_LLM_SWA_HEADROOM"), 0u);
 }
 
 TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
@@ -1244,25 +1602,31 @@ TEST_F(GQACompiledModelTest, RejectsDynamicAttentionBiasAxisThatIsNotTheCapacity
 }
 
 namespace {
-// A minimal fake "inner" compiled model / infer request pair for exercising
-// GQAInferRequest::set_tensor()/get_tensor() end-to-end (unlike RecordingFactory/
-// MockSubCompiledModel, whose create_sync_infer_request() returns nullptr). Every port
-// gets a real, pre-allocated tensor -- mirrors TestInferRequest in failsafe.cpp.
+struct FakeInnerRequestState {
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> tensors;
+    std::unordered_set<std::string> allocated_ports;
+};
+
 class FakeInnerSyncInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
-        : ov::ISyncInferRequest(compiled_model) {
-        for (const auto& input : get_inputs()) {
-            ov::ISyncInferRequest::set_tensor(
-                input,
-                ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+    FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
+                              std::shared_ptr<FakeInnerRequestState> state)
+        : ov::ISyncInferRequest(compiled_model),
+          m_state(std::move(state)) {}
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        const auto& name = port.get_node()->get_friendly_name();
+        auto& tensor = m_state->tensors[name];
+        if (!tensor) {
+            tensor = ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+            std::fill_n(static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size(), uint8_t{0});
+            m_state->allocated_ports.insert(name);
         }
-        for (const auto& output : get_outputs()) {
-            ov::ISyncInferRequest::set_tensor(
-                output,
-                ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
-        }
+        return tensor;
     }
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        m_state->tensors[port.get_node()->get_friendly_name()] = tensor;
+    }
+    void check_tensors() const override {}
     void infer() override {}
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
@@ -1270,12 +1634,18 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         return {};
     }
+
+private:
+    std::shared_ptr<FakeInnerRequestState> m_state;
 };
 
 class FakeInnerCompiledModel final : public ov::npuw::ICompiledModel {
 public:
-    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::npuw::ICompiledModel(model, plugin) {}
+    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model,
+                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                           std::shared_ptr<FakeInnerRequestState> state)
+        : ov::npuw::ICompiledModel(model, plugin),
+          m_state(std::move(state)) {}
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
         return {};
@@ -1285,15 +1655,19 @@ public:
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this());
+        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this(), m_state);
     }
+
+private:
+    std::shared_ptr<FakeInnerRequestState> m_state;
 };
 
-ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory() {
-    return [](const std::shared_ptr<ov::Model>& model,
-             const std::shared_ptr<const ov::IPlugin>& plugin,
-             const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
-        return std::make_shared<FakeInnerCompiledModel>(model, plugin);
+ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory(
+    std::shared_ptr<FakeInnerRequestState> state = std::make_shared<FakeInnerRequestState>()) {
+    return [state](const std::shared_ptr<ov::Model>& model,
+                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                   const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return std::make_shared<FakeInnerCompiledModel>(model, plugin, state);
     };
 }
 
@@ -1324,6 +1698,94 @@ std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
     return std::vector<float>(data, data + t->get_size());
 }
 }  // namespace
+
+TEST_F(GQACompiledModelTest, SharedCallerKvBuffersDoNotAllocateInnerKvTensors) {
+    for (const size_t axis : {2u, 3u}) {
+        auto state = std::make_shared<FakeInnerRequestState>();
+        auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+            build_gqa_model_with_dynamic_kv_cache(axis),
+            m_plugin,
+            ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+            fake_inner_factory(state));
+        auto request = compiled->create_infer_request();
+        request->query_state();
+        EXPECT_TRUE(state->tensors.empty());
+
+        for (const auto& input : compiled->inputs()) {
+            const auto& name = input.get_node()->get_friendly_name();
+            if (name != "past_keys_0" && name != "past_values_0") {
+                continue;
+            }
+            auto empty = request->get_tensor(input);
+            EXPECT_EQ(empty->get_shape().at(axis), 0u);
+            EXPECT_EQ(state->tensors.count(name), 0u);
+            auto shape = empty->get_shape();
+            shape.at(axis) = 16;
+            auto tensor = make_f16_kv_cache_tensor(shape, 1.f);
+            request->set_tensor(input, tensor);
+            const auto output_name = name == "past_keys_0" ? "present_keys_0" : "present_values_0";
+            const auto output =
+                std::find_if(compiled->outputs().begin(), compiled->outputs().end(), [&](const auto& port) {
+                    return port.get_node()->get_friendly_name() == output_name;
+                });
+            ASSERT_NE(output, compiled->outputs().end());
+            request->set_tensor(*output, tensor);
+            EXPECT_EQ(state->tensors.at(name)._ptr, tensor._ptr);
+            EXPECT_EQ(state->tensors.at(output_name)._ptr, tensor._ptr);
+        }
+        EXPECT_TRUE(state->allocated_ports.empty());
+        ASSERT_NO_THROW(request->infer());
+        for (const auto* name : {"past_keys_0", "past_values_0", "present_keys_0", "present_values_0"}) {
+            EXPECT_EQ(state->allocated_ports.count(name), 0u);
+        }
+    }
+}
+
+TEST_F(GQACompiledModelTest, PaddingBufferIsLazyZeroedAndReleasedWhenReplaced) {
+    for (const size_t axis : {2u, 3u}) {
+        auto state = std::make_shared<FakeInnerRequestState>();
+        auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+            build_gqa_model_with_dynamic_kv_cache(axis),
+            m_plugin,
+            ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+            fake_inner_factory(state));
+        auto request = compiled->create_infer_request();
+        const auto input = std::find_if(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& port) {
+            return port.get_node()->get_friendly_name() == "past_keys_0";
+        });
+        ASSERT_NE(input, compiled->inputs().end());
+        auto shape = request->get_tensor(*input)->get_shape();
+        shape.at(axis) = 4;
+        auto short_tensor = make_f16_kv_cache_tensor(shape, 1.f);
+        request->set_tensor(*input, short_tensor);
+        EXPECT_TRUE(state->tensors.empty());
+        ASSERT_NO_THROW(request->infer());
+        const auto& padded = state->tensors.at("past_keys_0");
+        EXPECT_EQ(padded->get_shape().at(axis), 16u);
+        const auto* data = static_cast<const ov::float16*>(padded->data());
+        const auto* source_data = static_cast<const ov::float16*>(short_tensor->data());
+        const auto row_size = padded->get_shape().back();
+        for (size_t index = 0; index < padded->get_size(); ++index) {
+            const auto sequence_index = axis == 2 ? (index / row_size) % 16 : index % 16;
+            if (sequence_index >= 4) {
+                EXPECT_FLOAT_EQ(static_cast<float>(data[index]), 0.f);
+            } else {
+                const auto source_index = axis == 2 ? (index / (16 * row_size)) * 4 * row_size + index % (16 * row_size)
+                                                    : (index / 16) * 4 + index % 16;
+                EXPECT_FLOAT_EQ(static_cast<float>(data[index]), static_cast<float>(source_data[source_index]));
+            }
+        }
+        const auto& untouched = state->tensors.at("past_values_0");
+        const auto* untouched_data = static_cast<const ov::float16*>(untouched->data());
+        for (size_t index = 0; index < untouched->get_size(); ++index) {
+            EXPECT_FLOAT_EQ(static_cast<float>(untouched_data[index]), 0.f);
+        }
+        std::weak_ptr<ov::ITensor> old_padding = padded._ptr;
+        shape.at(axis) = 16;
+        request->set_tensor(*input, make_f16_kv_cache_tensor(shape));
+        EXPECT_TRUE(old_padding.expired());
+    }
+}
 
 TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTensorAfterShortTensor) {
     // Regression test: after a port's inner request got aliased onto a full-capacity
@@ -1459,10 +1921,10 @@ TEST_F(GQACompiledModelTest, GetTensorBeforeSetTensorReturnsZeroSizedDynamicAxis
     ASSERT_NE(tensor, nullptr);
     const auto shape = tensor->get_shape();
     ASSERT_EQ(shape.size(), 4u);
-    EXPECT_EQ(shape[0], 1u);        // N: static
-    EXPECT_EQ(shape[1], 2u);        // H: static
-    EXPECT_EQ(shape[2], 0u);        // S: dynamic KV-cache axis -- must be 0, not 16
-    EXPECT_EQ(shape[3], 16u);       // E: static
+    EXPECT_EQ(shape[0], 1u);   // N: static
+    EXPECT_EQ(shape[1], 2u);   // H: static
+    EXPECT_EQ(shape[2], 0u);   // S: dynamic KV-cache axis -- must be 0, not 16
+    EXPECT_EQ(shape[3], 16u);  // E: static
 }
 
 TEST_F(GQACompiledModelTest, PresentOutputLenReflectsTotalSeqLenEvenWhenPastInputNeverTouched) {
@@ -1510,7 +1972,6 @@ TEST_F(GQACompiledModelTest, PresentOutputLenReflectsTotalSeqLenEvenWhenPastInpu
     EXPECT_EQ(present_tensor->get_shape().at(2), 5u);  // total_seq_len, not the 16-capacity
 }
 
-
 TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
     // [N=1, H=2, S, E=3]: src has S1=2, dst has capacity S2=4.
     auto src = make_kv_cache_tensor({1, 2, 2, 3}, 0.f);
@@ -1520,8 +1981,7 @@ TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
 
     const auto dst_values = to_vec(dst);
     // Head 0: src rows [0..5] copied into dst's first 2 (of 4) rows; head 1 likewise.
-    EXPECT_EQ(std::vector<float>(dst_values.begin(), dst_values.begin() + 6),
-              (std::vector<float>{0, 1, 2, 3, 4, 5}));
+    EXPECT_EQ(std::vector<float>(dst_values.begin(), dst_values.begin() + 6), (std::vector<float>{0, 1, 2, 3, 4, 5}));
     EXPECT_EQ(std::vector<float>(dst_values.begin() + 12, dst_values.begin() + 18),
               (std::vector<float>{6, 7, 8, 9, 10, 11}));
 }
@@ -1556,20 +2016,16 @@ TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisM
     const std::unordered_map<std::string, size_t> axis_map{{"past_keys_0", 2u}, {"past_values_0", 2u}};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_inputs);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_outputs);
-    {
-        auto writer = ov::npuw::orc::Stream::writer(buffer);
-        writer & axis_map;
-    }
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, outer_inputs);
+    ov::npuw::GQACompiledModel::write_port_list(writer, outer_outputs);
+    writer & axis_map;
 
-    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
-    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(buffer);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(reader);
+    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(reader);
     std::unordered_map<std::string, size_t> read_axis_map;
-    {
-        auto reader = ov::npuw::orc::Stream::reader(buffer);
-        reader & read_axis_map;
-    }
+    reader & read_axis_map;
 
     ASSERT_EQ(read_parameters.size(), outer_inputs.size());
     ASSERT_EQ(read_results.size(), outer_outputs.size());
@@ -1619,8 +2075,10 @@ TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFrien
     std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
-    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, ports);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(reader);
 
     ASSERT_EQ(read_back.size(), 1u);
     EXPECT_EQ(read_back[0]->get_friendly_name(), "past_keys_0");
@@ -1673,8 +2131,10 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
-    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, ports);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(reader);
 
     ASSERT_EQ(read_back.size(), 1u);
     EXPECT_EQ(read_back[0]->get_friendly_name(), "attention_bias");
@@ -1684,21 +2144,95 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     EXPECT_EQ(read_back[0]->get_partial_shape(), shape);
 }
 
-TEST(ReshapeToStaticGQATest, PinsSlidingWindowCacheToItsOwnSmallerCapacityNotModelWideMax) {
-    // Regression test for review comment ankitm3k#4230466592 on PR
-    // openvinotoolkit/openvino#38304: sliding_window_cache=true means the KV-cache is a
-    // fixed-capacity ring buffer, so it must get its own 16-aligned+headroom capacity
-    // (6 -> 16 -> 32), independent of the much larger model-wide max_seq_len.
-    auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
-    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+TEST(ReshapeToStaticGQATest, ConfiguredSlidingWindowSizeOverridesOpLocalWindowSize) {
+    // The op declares local_window_size=6, but the configured sliding_window_size must win.
+    auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2, /*local_window_size=*/6);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*sliding_window_size=*/64);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
-    const auto& params = model->get_parameters();
-    auto it = std::find_if(params.begin(), params.end(), [](const auto& parameter) {
-        return parameter->get_friendly_name() == "past_keys_0";
-    });
-    ASSERT_NE(it, params.end());
-    EXPECT_EQ((*it)->get_partial_shape(), ov::PartialShape({1, 2, 32, 16}));
+    // align16(64) + 512 default headroom = 576
+    EXPECT_EQ(parameter_shape(model, "past_keys_0"), ov::PartialShape({1, 2, 576, 16}));
+    EXPECT_EQ(parameter_shape(model, "past_values_0"), ov::PartialShape({1, 2, 576, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerGenerateGetsWindowPlusOneBlockForKeyAndTransposedValue) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // query_len=1 means the generate stage, so the query length is not used as headroom and
+    // it goes straight to the 512 default: align16(4095) + align16(512) = 4608
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+    EXPECT_FALSE(model->is_dynamic());
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerPrefillHeadroomCoversWholeQueryChunk) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/512);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // align16(4095) + align16(512) = 4608, matching the app's sliding_window + prompt_seq_len buffer.
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+    EXPECT_FALSE(model->is_dynamic());
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerGenerateHeadroomCoversConfiguredSwaHeadroom) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
+                                                       /*sliding_window_size=*/std::nullopt,
+                                                       /*sliding_window_headroom=*/512);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // Configured headroom is used for the generate stage too: align16(4095) + align16(512) = 4608.
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerConfiguredHeadroomTakesPriorityOverStaticQueryLength) {
+    // A configured headroom is user-defined and wins even when it is smaller than the query chunk.
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1024);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
+                                                       /*sliding_window_size=*/std::nullopt,
+                                                       /*sliding_window_headroom=*/512);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // The configured 512 is used, not the 1024 query length: align16(4095) + align16(512) = 4608
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerDynamicQueryLengthWithoutHeadroomUsesConcreteFallback) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
+    for (const auto& name : {"query_30", "key_30", "value_30"}) {
+        auto it = std::find_if(model->get_parameters().begin(), model->get_parameters().end(), [&](const auto& p) {
+            return p->get_friendly_name() == name;
+        });
+        ASSERT_NE(it, model->get_parameters().end());
+        auto shape = (*it)->get_partial_shape();
+        shape[2] = ov::Dimension::dynamic();
+        (*it)->set_partial_shape(shape);
+    }
+    model->validate_nodes_and_infer_types();
+
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
+                                                       /*sliding_window_size=*/std::nullopt,
+                                                       /*sliding_window_headroom=*/std::nullopt);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // No configured headroom and no static query length: align16(4095) + 512 default.
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerUnalignedQueryChunkIsRoundedUpTo16) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/100);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // align16(4095) + align16(100) = 4096 + 112
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4208, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4208}));
 }
 
 TEST(ReshapeToStaticGQATest, MixedGlobalAndSlidingLayersKeepDistinctCapacities) {
@@ -1720,8 +2254,9 @@ TEST(ReshapeToStaticGQATest, MixedGlobalAndSlidingLayersKeepDistinctCapacities) 
 
     EXPECT_EQ(shape_of("past_keys_global"), ov::PartialShape({1, 2, 8192, 16}));
     EXPECT_EQ(shape_of("past_values_global"), ov::PartialShape({1, 2, 8192, 16}));
-    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 32, 16}));
-    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 32, 16}));
+    // align16(6) + 512 default headroom = 528
+    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 528, 16}));
+    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 528, 16}));
 }
 
 TEST(ReshapeToStaticGQATest, UsesRtInfoSlidingWindowLayersAsExactCapacityNotMaxSeqLen) {
@@ -1768,7 +2303,7 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackAppliesConfiguredDefaultCapa
     // TOTAL_SEQUENCE_LENGTH name hinting "sliding" plus a caller-configured default.
     // The sliding layer gets the configured default; the full layer keeps max_seq_len.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/true);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*sliding_window_size=*/2048);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
     const auto& params = model->get_parameters();
@@ -1805,7 +2340,7 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackDoesNothingWithoutNameHint) 
     // No rt_info, no op attribute, no "sliding" name hint -- no signal to act on, so a
     // configured default must not affect either layer.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/false);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*sliding_window_size=*/2048);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
     const auto& params = model->get_parameters();
@@ -1937,6 +2472,222 @@ TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSu
     ASSERT_EQ(map.count("present.0.value"), 1u);
     EXPECT_EQ(map.at("present.0.key"), "past_key_values.0.key");
     EXPECT_EQ(map.at("present.0.value"), "past_key_values.0.value");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQACompiledModelWithPrettyMessage) {
+    std::stringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::ICompiledModel::import_model(stream, m_plugin, {}),
+        ov::Exception,
+        "Legacy flat NPUW GQACompiledModel blobs are no longer supported. Re-export the model with "
+        "the current ORC serializer.");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsNonGQAORCSchema) {
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {});
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "Unsupported ORC schema for NPUW GQACompiledModel");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsNewerORCGQAVersion) {
+    constexpr ov::npuw::orc::Version newer_gqa_version = ov::npuw::GQACompiledModel::kOrcVersion + 1;
+
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream, ov::npuw::GQACompiledModel::kOrcType, newer_gqa_version, 0u, [&] {});
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA blob was produced by a newer NPUW");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
+    const std::vector<std::function<void(std::ostream&)>> test_section_lambdas = {
+        [](std::ostream& stream) {
+            // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
+            // section, but not before META section
+            ov::npuw::orc::with_section(stream,
+                                        ov::npuw::CompiledModel::kOrcType,
+                                        ov::npuw::CompiledModel::kOrcVersion,
+                                        0u,
+                                        [] {});
+        },
+        [](std::ostream& stream) {
+            // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
+            ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [] {});
+        }};
+    for (const auto& test_lambda_case : test_section_lambdas) {
+        std::stringstream stream;
+        ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+        ov::npuw::orc::with_section(stream,
+                                    ov::npuw::GQACompiledModel::kOrcType,
+                                    ov::npuw::GQACompiledModel::kOrcVersion,
+                                    0u,
+                                    [&] {
+                                        test_lambda_case(stream);
+                                    });
+
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                      ov::Exception,
+                                      "Expected ORC NPUW metadata section, got type");
+    }
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQARootOverrunningStream) {
+    std::stringstream stream;
+    std::streampos pos;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    pos = stream.tellp();
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [] {});
+    uint64_t total_wrote_bytes = stream.tellp();
+    stream.seekp(pos + static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::TypeId)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::Version)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::SectionFlags)),
+                 std::ios::beg);
+    uint64_t altered_meta_size = total_wrote_bytes + static_cast<std::stringstream::pos_type>(1);
+    stream.write(reinterpret_cast<const char*>(&altered_meta_size), sizeof(altered_meta_size));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA root section claims");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaOverrunningRoot) {
+    std::stringstream stream;
+    std::streampos pos;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {
+                                    pos = stream.tellp();
+                                    ov::npuw::orc::with_leaf_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, [&] {
+                                        std::fill_n(std::ostreambuf_iterator<char>(stream), 10, 0);
+                                    });
+                                });
+    stream.seekp(pos + static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::TypeId)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::Version)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::SectionFlags)),
+                 std::ios::beg);
+    uint64_t altered_meta_size = stream.tellp() + static_cast<std::stringstream::pos_type>(1);
+    stream.write(reinterpret_cast<const char*>(&altered_meta_size), sizeof(altered_meta_size));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA META section exceeds GQA root section");
+}
+
+TEST_F(GQACompiledModelTest, GQAExportImportRoundTrip) {
+    const size_t axis = 2;
+    auto model = build_gqa_model_with_dynamic_kv_cache(axis);
+    const auto& model_inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& model_outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+
+    const uint32_t max_context_len = 4096u;
+    const uint32_t sliding_window_length = 8u;
+    const uint32_t sliding_window_headroom = 512u;
+    auto test_props = base_props();
+    merge_props(test_props,
+                ov::AnyMap{ov::intel_npu::npuw::llm::max_context_len(max_context_len),
+                           ov::intel_npu::npuw::llm::swa_len(sliding_window_length),
+                           ov::intel_npu::npuw::llm::swa_headroom(sliding_window_headroom)});
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
+    m_plugin->set_core(mock_core);
+    setup_mocks(model_inputs, model_outputs, mock_core, mock_compiled_model);
+
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, test_props);
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+
+    std::shared_ptr<ov::npuw::GQACompiledModel> imported;
+    EXPECT_CALL(
+        *mock_core,
+        import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::An<const ov::AnyMap&>()))
+        .Times(testing::AtLeast(1))
+        .WillRepeatedly(testing::Return(mock_compiled_model));
+    ASSERT_NO_THROW(imported = std::dynamic_pointer_cast<ov::npuw::GQACompiledModel>(
+                        ov::npuw::ICompiledModel::import_model(stream, m_plugin, {})));
+    ASSERT_NE(imported, nullptr);
+    ASSERT_EQ(stream.peek(), EOF);
+    ASSERT_NO_FATAL_FAILURE(validate_gqa_roundtrip(axis,
+                                                   model_inputs,
+                                                   model_outputs,
+                                                   max_context_len,
+                                                   sliding_window_length,
+                                                   sliding_window_headroom,
+                                                   imported));
+}
+
+TEST_F(GQACompiledModelTest, GQAExportImportRoundTripWithEncryption) {
+    const size_t axis = 2;
+    auto model = build_gqa_model_with_dynamic_kv_cache(axis);
+    const auto& model_inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& model_outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+
+    const uint32_t max_context_len = 4096u;
+    const uint32_t sliding_window_length = 8u;
+    const uint32_t sliding_window_headroom = 512u;
+    auto test_props = base_props();
+    merge_props(
+        test_props,
+        ov::AnyMap{ov::intel_npu::npuw::llm::max_context_len(max_context_len),
+                   ov::intel_npu::npuw::llm::swa_len(sliding_window_length),
+                   ov::intel_npu::npuw::llm::swa_headroom(sliding_window_headroom),
+                   ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})});
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
+    m_plugin->set_core(mock_core);
+    setup_mocks(model_inputs, model_outputs, mock_core, mock_compiled_model);
+
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, test_props);
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+
+    std::shared_ptr<ov::npuw::GQACompiledModel> imported;
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "Blob is encrypted, but no decryption callback was provided");
+    stream.clear();
+    stream.seekg(0);
+    EXPECT_CALL(
+        *mock_core,
+        import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::An<const ov::AnyMap&>()))
+        .Times(testing::AtLeast(1))
+        .WillRepeatedly(testing::Return(mock_compiled_model));
+    ASSERT_NO_THROW(imported = std::dynamic_pointer_cast<ov::npuw::GQACompiledModel>(
+                        ov::npuw::ICompiledModel::import_model(stream, m_plugin, test_props)));
+    ASSERT_NE(imported, nullptr);
+    ASSERT_EQ(stream.peek(), EOF);
+    ASSERT_NO_FATAL_FAILURE(validate_gqa_roundtrip(axis,
+                                                   model_inputs,
+                                                   model_outputs,
+                                                   max_context_len,
+                                                   sliding_window_length,
+                                                   sliding_window_headroom,
+                                                   imported));
 }
 
 }  // namespace

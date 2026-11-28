@@ -33,20 +33,12 @@ public:
     bool is_bound() const override {
         return true;
     }
-    void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override {
-        views.weight[0] = weights.gate_w;
-        views.scale[0] = weights.gate_s;
-        views.zp[0] = weights.gate_z;
-        views.weight[1] = weights.up_w;
-        views.scale[1] = weights.up_s;
-        views.zp[1] = weights.up_z;
-        views.weight[2] = weights.down_w;
-        views.scale[2] = weights.down_s;
-        views.zp[2] = weights.down_z;
-    }
 
-    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
-    size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                            const RoutedWeightViews& inputs,
+                                                            const RoutedWeightViews& slots,
+                                                            cldnn::stream& stream) override;
+    size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
@@ -54,9 +46,11 @@ public:
 // The provider deduplicates the requested experts, assigns/streams slots, and
 // returns the slot index per requested expert.
 //
-// The resident device buffers are not owned here; they are bound at runtime via
+// The resident weight buffers are not owned here; they are bound at runtime via
 // bind() because in this back-end they alias the primitive's
-// input memory. Loading metadata (config / bin offsets / weights path) is captured
+// input memory. The scales and zero points stay fully resident in the primitive inputs; the per-expert ones
+// are copied on a miss into slot buffers that the primitive instance owns and passes to every acquisition.
+// Loading metadata (config / bin offsets / weights path) is captured
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
 public:
@@ -77,9 +71,11 @@ public:
     bool is_bound() const override {
         return _bound;
     }
-    void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
-    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
-    size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                            const RoutedWeightViews& inputs,
+                                                            const RoutedWeightViews& slot_buffers,
+                                                            cldnn::stream& stream) override;
+    size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
 
     LRUCache& cache() {
         return *_cache;
@@ -90,14 +86,19 @@ public:
     }
 
 private:
+    // The engine may re-allocate an internal buffer, and then the experts loaded into it are gone
+    void reset_cache_if_slots_changed(const RoutedWeightViews& slots);
+    void load(uint32_t expert, size_t slot, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream);
+
     size_t _capacity = 0;
     cldnn::MOECompressed::Config _config{};
     std::vector<size_t> _weight_bin_offsets;
     std::filesystem::path _weights_path;
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
-    cldnn::moe_weights* _resident = nullptr;
     bool _bound = false;
+    // Handles of the slot buffers the LRU describes, compared only to detect a re-allocation
+    std::vector<const void*> _slot_handles;
 };
 
 }  // namespace ov::intel_gpu::ocl::moe

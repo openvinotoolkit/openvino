@@ -4,6 +4,8 @@
 
 #include "intel_gpu/op/grouped_space_to_depth.hpp"
 
+#include "dimension_util.hpp"
+
 namespace ov::intel_gpu::op {
 
 GroupedSpaceToDepth::GroupedSpaceToDepth(const ov::Output<Node>& input, size_t factor_t, size_t factor_s, size_t output_channels)
@@ -38,7 +40,7 @@ void GroupedSpaceToDepth::validate_and_infer_types() {
         }
 
         output_shape[1] = ov::Dimension(static_cast<int64_t>(m_output_channels));
-        output_shape[2] = (output_shape[2] + static_cast<int64_t>(m_factor_t - 1)) / static_cast<int64_t>(m_factor_t);
+        output_shape[2] = ov::util::dim::ceil_div(output_shape[2], static_cast<int64_t>(m_factor_t));
         output_shape[3] = output_shape[3] / static_cast<int64_t>(m_factor_s);
         output_shape[4] = output_shape[4] / static_cast<int64_t>(m_factor_s);
     }

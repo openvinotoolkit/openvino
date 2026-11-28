@@ -88,9 +88,11 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gated_residual_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/group_normalization_fusion.hpp
@@ -118,9 +120,11 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/ngram_hash_function_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_vllm_rope.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/optimize_strided_slice.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pack_multi_head_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pad_fusion.hpp
@@ -200,6 +204,7 @@ set(OP_CONVERSIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_embedding_bag_packed15_downgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_quantized_legacy.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gated_residual_to_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_0d.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_downgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_matmul_to_compressed.hpp
@@ -209,6 +214,7 @@ set(OP_CONVERSIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_matmul.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate11_downgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp
@@ -287,10 +293,14 @@ set(OPSET_CONVERSIONS_HEADERS
 set(PAGED_ATTENTION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_qsa_indexer_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_sparse_attention_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/rt_info_keys.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/total_sequence_length_pattern.hpp
 )

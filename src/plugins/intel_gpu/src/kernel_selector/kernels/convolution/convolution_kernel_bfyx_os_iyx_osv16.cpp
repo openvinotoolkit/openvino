@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,7 +213,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
 
 JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolution_params& params,
                                                                   const DispatchData& dispatchData) const {
-    const convolution_params& cp = static_cast<const convolution_params&>(params);
+    const convolution_params& cp = params;
     const auto& sub_group_size = GetSubGroupSize(cp);
 
     const auto of_maps = params.outputs[0].Feature().v;

@@ -12,6 +12,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_warmup.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_schedule.cpp

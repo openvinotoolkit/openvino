@@ -1,0 +1,662 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// OpenVINO copy of woq_u2_gemm_cm_dual_v4_final.cpp (u2 weight-only-quantized GEMM on XMX/DPAS, group
+// size 64). The kernel code is unchanged; the entry name is KERNEL_NAME (set by
+// fully_connected_woq_u2.cpp; the original's `woq_matmul` by default). OpenVINO builds it with WLAYOUT=1 (N-major weights [N, K/4],
+// scales / zero points [N, K/64]) and epi_mode=0 (no epilogue). OpenVINO batch-compiles several
+// instances into one program, so (OpenVINO-only additions) the file-scope structs / helpers are
+// defined once (*_ONCE guards) and the kernel's macros are #undef'd at the end of the file. OUT_F16
+// (OpenVINO addition, default 0 = the original's f32 C) stores C as half; nothing before the store changes.
+// EPI_F16 (OpenVINO addition, default 0 = the original's f32 epi) reads epi as half and widens to float
+// right after the load; the epi_mode==1/2 math downstream is unchanged.
+#ifndef KERNEL_NAME
+#define KERNEL_NAME woq_matmul
+#endif
+#ifndef OUT_F16
+#define OUT_F16 0       // OpenVINO addition: 1 = C is half [M, N] (the f32 result rounded to nearest even)
+#endif
+#ifndef EPI_F16
+#define EPI_F16 0       // OpenVINO addition: 1 = epi is half [M, N] instead of float [M, N]
+#endif
+#include <cm/cm.h>
+
+// kernel-gen-build-options: -Qxcm_register_file_size=128 -DNCOL=2 -DMROWS=32 -DWG_M=8 -DWG_N=8 -DKS=32 -DPFD=3
+// kernel-gen-dispatch-global: (N // (16 * NCOL) + WG_N - 1) // WG_N * WG_N, ((M + MROWS - 1) // MROWS + WG_M - 1) // WG_M * WG_M
+// kernel-gen-dispatch-local: WG_N, WG_M
+
+// PTL dual v4 -- FINAL PICK. WLAYOUT 1 bottleneck: DRAM efficiency of the strided N-major rows
+// (probe: with the weights L2-resident, N=3072, WLAYOUT 1 is within 5% of WLAYOUT 0; at N >= 6144 it
+// is 19% behind). Levers: (a) banded group swizzle so both M-blocks of a column block share each
+// weight line from DRAM (only while their A slice fits L2), (b) chunked weight / scale / zp prefetch
+// (8 groups = 2 lines per column, 8 groups ahead). WLAYOUT 0 = v1.
+//
+// PTL dual v3 -- WLAYOUT 1 only. Bottleneck: line locality of the N-major weight / scale / zp
+// streams (v2 ablation: weight gather 0.28 ms, scale/zp 0.13 ms; the same weight bytes as contiguous
+// blocks cost 0.11 ms). v2 fetched each column's 64 B weight line 16 B at a time over 4 groups and
+// its scale line (32 groups) 2 B at a time. Lever: read every line ONCE -- two adjacent 32 B N8 gathers per
+// column every 4 groups (gathers above N8 do not legalize), and 16 groups of scales (U32 N8) / zero points (U32 N4) per gather when KG % 4 == 0 (else
+// v2's per-group gathers); the group's part is picked from registers.
+//
+// PTL dual v2 -- WLAYOUT 1 only (WLAYOUT 0 is v1 unchanged). Bottleneck: cache-line request rate of
+// the N-major gathers. v1's layout-1 fetch has each thread gather ONE 16-bit word from each of 16
+// columns (1280 B apart), so every column's line is requested ~32x (4 threads x 2 slices x 4 groups
+// per line): ~2800 line requests per slice per WG vs ~420 for WLAYOUT 0 (ablation: dropping weight,
+// scale/zp AND prefetch gathers together = WLAYOUT 0 speed; any one alone stays slow). Lever: each
+// thread owns 4 WHOLE columns -- one 4-lane N4 gather of each column's 16-byte group per group, 4-lane
+// scale/zp gathers -- dequantizes 4 columns x 32 k and writes the VNNI Src1 layout with one 16-lane
+// N4 SLM scatter. (Probe probe_vs_layout.cpp: vector gathers return [element][lane].)
+//
+// PTL dual v1 -- bottleneck: DRAM burst at the end of each wave. On PTL (102 GB/s vs 53.9 TFLOP/s)
+// the original's epi-tile prefetch (3 MB per wave in the last 32 slices) saturates the bus and starves
+// the weight stream feeding DPAS (single-layout study: that prefetch alone cost 0.18 ms). Lever: the
+// epi prefetch is spread evenly over the K loop, one row every EPS = 3 slices. Port of the
+// single-layout PTL final (woq_u2_gemm_cm_v6_final); its group remap is NOT ported (it regressed
+// every shape whose A exceeds L2 by up to 1.7x).
+//
+// v15 -- dual weight layout (feature, not a bottleneck lever): the v13/final kernel with the
+// quantization group size fixed by `#define GS 64` and a compile-time weight-layout switch:
+//   WLAYOUT 0 (default, the ABI): Wq [KG, N, GS/4]  scales [KG, N]  zps [KG, N]   (group-major)
+//   WLAYOUT 1 (N-major, OpenVINO compressed FC):
+//                                 Wq [N, K/4] (= [N, KG, GS/4])  scales [N, KG]  zps [N, KG]
+// Both layouts pack 4 u2 per byte, LSB first along K; zps are u8 (0..3) in both. The WLAYOUT 0
+// path is the final kernel's code unchanged. For WLAYOUT 1 the per-(group, column) scale / zero point
+// of 16 columns is strided by KG, so it is a 16-lane gather (issued once per group and reused by the
+// group's second slice), and the weight prefetch touches one line per column.
+// Gate WLAYOUT 1 with `--repack repack_nmajor.py` (transposes the const buffers to N-major); the
+// baseline still runs on the shipped layout, so both layouts are scored against the original.
+//
+// (final) = woq_u2_gemm_cm_v13_epipf.cpp:
+//
+// v13 -- bottleneck: epilogue-tile prefetch cadence. v11/v12 prefetched the epi tile in bursts (2
+// rows per slice / 4 rows per block); at EPI=0 they tie v8, at EPI=2 they lose 0.035 ms. One row per
+// slice over the last EPW=32 slices, into L2 only (the epilogue reads it back from L2 anyway), wins.
+//
+// (v12) bottleneck: v11's generic tail loop (16..21 slices of dynamic code: v11's K-slope is at the
+// DPAS roofline but its intercept grew 0.087 -> 0.131 ms). The unrolled loop now runs to NS-2 (its
+// weight prefetch clamps to the last group), the epilogue-tile prefetch is 4 rows per unrolled block
+// over the last EPW slices, and the generic tail is only the last 2..7 slices.
+//
+// (v11) bottleneck: K-loop issue. v8's loop runs exactly at the DPAS rate but with no issue headroom
+// (v9b: +14 loop instructions -> +4% time). The loop is now lean:
+//   * unrolled x6 so the SLM ring slot (period 3) and the slice parity (period 2) are compile-time
+//     constants -> every SLM address is an immediate offset, no slot arithmetic;
+//   * global offsets are running sums (no per-slice g*N multiplies);
+//   * each thread gathers only the 16-bit word of the packed weights it dequantizes (DataSize::U16),
+//     replacing a runtime-offset replicate that the compiler lowered to an indirect register move;
+//   * the epilogue-tile prefetch lives in a short generic tail loop (the last 16..21 slices).
+//
+// (v10) bottleneck: epilogue message count (v8 ablation: the whole epilogue costs 0.046 ms with the
+// DPAS array idle, and its epi loads are nearly free, so it is the 8192 load/store messages per core
+// per wave). Full row blocks now move 128 B per message (both 16-column blocks of a row at once):
+// half the messages.
+//
+// (v8) bottleneck: the epilogue (v7 ablation: EPI=0 is 0.06 ms faster). Full 8-row blocks now load
+// all their epi rows before any math and run the swish on whole accumulator rows (SIMD32 instead of
+// SIMD16, no per-row branch); only an M-tail block takes the row-by-row path.
+//
+// (v7) bottleneck: the C store (v5b ablation: -0.12 ms without it; stores into an L2-resident region
+// cost nothing, so it is DRAM write traffic). The original's accumulator is C^T, so the epilogue
+// writes every output row as 32 B half-lines through a scatter; a write-pattern probe measured that
+// 1.7x slower than full-line row stores for the same bytes. The DPAS roles are therefore swapped
+// back to the textbook mapping:
+//   Src2 (8 rows x K16, row-major) = A    : one 256 B SLM block read; A is staged in SLM as
+//                                           [k16 step][row][16 halves].
+//   Src1 (VNNI, K16 x 16 lanes)    = W    : 16 output columns; the dequant writes the VNNI pair
+//                                           layout directly (2 consecutive k per dword).
+//   Acc  (8 rows x 16 lanes, f32)  = C    : each accumulator row is 16 consecutive columns of one
+//                                           output row -> full-line 64 B block loads / stores.
+// Everything else is v5b: WG_M x WG_N work-group, KS-wide K slices in a 3-slot SLM ring with a split
+// barrier, weight / epilogue prefetch, exact 16-bit dequant.
+//
+// C[m,n] = epilogue( sum_k A[m,k] * ( (u2_weight[g,n,kk] - zp[g,n]) * scale[g,n] ) ), g = k / 64.
+// Requires N % (16*NCOL) == 0 and K % 64 == 0 (as the original). M is arbitrary (rows >= M read as 0
+// through the buffer bounds check and are never stored); a partial last column work-group keeps its
+// surplus threads in every barrier but skips their weight loads and stores.
+
+#ifndef NCOL
+#define NCOL 2          // 16-wide column blocks per thread
+#endif
+#ifndef MROWS
+#define MROWS 32        // output rows per thread (multiple of 8)
+#endif
+#ifndef WG_M
+#define WG_M 8
+#endif
+#ifndef WG_N
+#define WG_N 8
+#endif
+#ifndef KS
+#define KS 32           // K per SLM slice (16 or 32)
+#endif
+#ifndef PFD
+#define PFD 3           // weight prefetch distance, in quantization groups
+#endif
+#ifndef WLAYOUT
+#define WLAYOUT 0       // 0: group-major [KG, N, GS/4] (ABI), 1: N-major [N, K/4]
+#endif
+#define GS 64           // quantization group size along K (hard-coded)
+#if GS != 64
+#error "GS is fixed at 64: a group is 16 bytes = one 16-bit word per 8 k, 2 KS=32 slices"
+#endif
+#define GB (GS / 4)     // packed bytes per (group, column)
+#ifndef L1PF
+#define L1PF 2          // WLAYOUT 1 prefetch: 0 none, 1 per group (PFD ahead), 2 chunked (L1PC / L1PD)
+#endif
+#ifndef REMAPG
+#define REMAPG 2        // WLAYOUT 1: M-blocks per swizzle band
+#endif
+#ifndef REMAP_ABYTES
+#define REMAP_ABYTES (8 << 20)  // WLAYOUT 1: swizzle only while the band's A slice fits (half of L2)
+#endif
+#ifndef EPS
+#define EPS 3           // epilogue-tile prefetch stride: one row every EPS slices
+#endif
+#define EPW (MROWS * EPS)  // prefetch window (slices before the end); clamped to the whole loop
+
+#define NT (WG_M * WG_N)
+#define RB (MROWS / 8)                   // 8-row blocks per thread
+#define KW (KS / 16)                     // DPAS K-steps per slice
+#define SPG (GS / KS)                    // slices per quantization group
+#define HPT (NCOL * KW * 2)              // W half-pieces per column tile per slice
+#define NHW (WG_N * HPT)                 // W half-pieces per work-group per slice
+#define HPPT ((NHW + NT - 1) / NT)       // half-pieces dequantized per thread per slice
+#define WROWS (WG_M * MROWS)
+#define ARPT (WROWS / NT)                // A rows staged per thread per slice
+#define A_BYTES (KW * WROWS * 32)
+#define W_BYTES (NHW * 256)
+#define BUF_BYTES (A_BYTES + W_BYTES)
+#define NBUF 3
+#define SLM_BYTES (NBUF * BUF_BYTES)
+#define NACC (RB * NCOL)
+#define ACC(rb, cb) ((rb) * NCOL + (cb))
+// W Src1 operand (column tile ct, 16-column block cb, k-step w): 512 B = half-pieces jh = 0, 1
+// (VNNI rows j = 4*jh .. 4*jh+3, i.e. k = 8*jh .. 8*jh+7).
+#define WPIECE(ct, cb, w) ((((ct) * NCOL + (cb)) * KW) + (w))
+
+#if NHW != NT || KS != 32
+#error "v11's unrolled K loop assumes one weight half-piece per thread and KS == 32"
+#endif
+#if WLAYOUT == 1 && WG_N * NCOL * 16 != 4 * NT
+#error "WLAYOUT 1 dequant assumes 4 columns per thread"
+#endif
+
+#ifndef WOQ_U2_DUAL_HPIECE_RAW_ONCE
+#define WOQ_U2_DUAL_HPIECE_RAW_ONCE
+struct hpiece_raw {
+  vector<ushort, 16> pw;  // 16 columns: the 16-bit word (8 x u2) this thread dequantizes
+  vector<ushort, 16> sc;  // 16 halves
+  vector<uchar, 16> zp;   // 16 uchars
+};
+#endif
+
+#if WLAYOUT == 1
+#ifndef WOQ_U2_DUAL_L1_RAW_ONCE
+#define WOQ_U2_DUAL_L1_RAW_ONCE
+struct l1_raw {
+  vector<uint, 16> w;     // [dword e][column i]: e = 0..3 are the group's 16 bytes of column i
+  vector<ushort, 4> sc;   // 4 halves
+  vector<uchar, 4> zp;    // 4 uchars
+};
+#endif
+#define L1WG 4            // groups per weight line load (64 B per column)
+#ifndef L1PC
+#define L1PC 8            // L1PF == 2: groups per chunked prefetch (multiple of 4)
+#endif
+#ifndef L1PD
+#define L1PD 8            // L1PF == 2: prefetch distance, groups
+#endif
+#define L1SG 16           // groups per scale / zero-point load
+
+// WLAYOUT 1: dequantize slice PAR (bytes 8*PAR .. 8*PAR+7 of the group) of my 4 columns into the
+// VNNI Src1 layout. Slice byte b of column i holds k = 4b..4b+3; its nibble `nib` (bits 4*nib ..
+// 4*nib+3) is exactly one VNNI dword (k pair 2j, 2j+1 of k-step w) with o = w*8 + j = 2b + nib.
+// Element order [i][o] matches the [element][lane] order of the N4 SLM scatter (lane = o).
+// Arithmetic is the original's half(q | 0x6400) - half(zp | 0x6400), times scale: bit-exact.
+#ifndef WOQ_U2_DUAL_STORE_L1_ONCE
+#define WOQ_U2_DUAL_STORE_L1_ONCE
+template <int PAR>
+inline void store_l1(vector<uint, 16> soff, l1_raw &r) {
+  matrix<uchar, 4, 8> b8;
+  vector<uchar, 64> rb = r.w.format<uchar>();
+  #pragma unroll
+  for (int i = 0; i < 4; i++) {
+    b8.row(i).select<4, 1>(0) = rb.select<4, 1>(((PAR * 2) * 4 + i) * 4);
+    b8.row(i).select<4, 1>(4) = rb.select<4, 1>(((PAR * 2 + 1) * 4 + i) * 4);
+  }
+  vector<ushort, 64> by = b8.format<uchar>().replicate<32, 1, 2, 0>();   // (i, o) -> byte o/2
+  vector<ushort, 64> sh;
+  #pragma unroll
+  for (int o = 0; o < 64; o++) sh(o) = 4 * (o % 2);
+  vector<ushort, 64> q0 = ((by >> sh) & (ushort)3) | (ushort)0x6400;
+  vector<ushort, 64> q1 = ((by >> (sh + 2)) & (ushort)3) | (ushort)0x6400;
+  vector<ushort, 4> zb = vector<ushort, 4>(r.zp) | (ushort)0x6400;
+  vector<half, 64> zr = zb.format<half>().replicate<4, 1, 16, 0>();
+  vector<half, 64> sr = r.sc.format<half>().replicate<4, 1, 16, 0>();
+  vector<half, 128> wv;
+  wv.select<64, 2>(0) = (q0.format<half>() - zr) * sr;
+  wv.select<64, 2>(1) = (q1.format<half>() - zr) * sr;
+  cm_store_slm<uint, VectorSize::N4>(soff, wv.format<uint>());
+}
+#endif
+
+#endif
+
+// Dequantize one half-piece: VNNI rows j' = 0..3 of a 16-column Src1 operand, element (j', n, e) =
+// w[k = 2j' + e (within the half)][n], read from bit 2*(2j' + e) of column n's word. Arithmetic is
+// bit-exact with the original's half(short(q - zp)) * scale (see v5).
+#ifndef WOQ_U2_DUAL_STORE_HPIECE_ONCE
+#define WOQ_U2_DUAL_STORE_HPIECE_ONCE
+inline void store_hpiece(unsigned slm_off, vector<ushort, 128> shifts, hpiece_raw &r) {
+  vector<half, 16> sc = r.sc.format<half>();
+  vector<ushort, 16> zb = vector<ushort, 16>(r.zp) | (ushort)0x6400;
+  vector<ushort, 32> wd = r.pw.replicate<16, 1, 2, 0>();                      // [n][e]
+  vector<ushort, 128> q = wd.replicate<4>();
+  q = ((q >> shifts) & (ushort)3) | (ushort)0x6400;
+  vector<half, 32> zr = zb.format<half>().replicate<16, 1, 2, 0>();
+  vector<half, 32> sr = sc.replicate<16, 1, 2, 0>();
+  vector<half, 128> wv = (q.format<half>() - zr.replicate<4>()) * sr.replicate<4>();
+  cm_store_slm<uint, 64>(slm_off, wv.format<uint>());
+}
+#endif
+
+
+extern "C" _GENX_MAIN_ void
+KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],       // half  [M, K]
+           SurfaceIndex Wq [[type("buffer_t")]],      // uchar [KG, N, GS/4]  (WLAYOUT 1: [N, K/4])
+           SurfaceIndex scales [[type("buffer_t")]],  // half  [KG, N]        (WLAYOUT 1: [N, KG])
+           SurfaceIndex zps [[type("buffer_t")]],     // uchar [KG, N]        (WLAYOUT 1: [N, KG])
+           SurfaceIndex epi [[type("buffer_t")]],     // float [M, N] (EPI_F16: half [M, N])
+           SurfaceIndex C [[type("buffer_t")]],       // float [M, N]
+           int M, int K, int N, int epi_mode) {
+  cm_slm_init(SLM_BYTES);
+
+  const int lx = cm_local_id(0), ly = cm_local_id(1);
+  const int tl = ly * WG_N + lx;
+  int gn = cm_group_id(0), gm = cm_group_id(1);
+#if WLAYOUT == 1
+  // Group swizzle (WLAYOUT 1 only): bands of REMAPG M-blocks walk M first, so the M-blocks sharing a
+  // column block's N-major weights -- whose strided rows are expensive to pull from DRAM -- are
+  // co-resident and each weight line comes from DRAM once per band. Only while the band's A slice
+  // (REMAPG * WROWS * K * 2 bytes) fits in half the L2: measured -7% at K=5120, +5% at K=17920. On
+  // WLAYOUT 0 the same swizzle is worth <= 0.6% and loses on L2-sized A, so it is not used there.
+  if (REMAPG * WROWS * K * 2 <= REMAP_ABYTES) {
+    const int gx = cm_group_count(0), gy = cm_group_count(1);
+    const int lin = gm * gx + gn;
+    const int band = lin / (REMAPG * gx), r = lin % (REMAPG * gx);
+    const int bh = cm_min<int>(REMAPG, gy - band * REMAPG);        // M-blocks in this band
+    gn = r / bh;
+    gm = band * REMAPG + r % bh;
+  }
+#endif
+  const int n_wg = gn * (WG_N * NCOL * 16);
+  const int m_wg = gm * WROWS;
+  const int n_base = n_wg + lx * (NCOL * 16);
+  const int m0 = m_wg + ly * MROWS;
+  const int KG = K / GS;
+  const int NS = KG * SPG;
+  const unsigned K2 = (unsigned)(K * 2);
+
+  vector<uint, 16> lane;
+  vector<ushort, 128> shifts;                                      // 2 * (2 j' + e)
+  #pragma unroll
+  for (int i = 0; i < 16; i++) lane(i) = i;
+  #pragma unroll
+  for (int i = 0; i < 128; i++) shifts(i) = 4 * (i / 32) + 2 * (i % 2);
+
+  // A staging: my ARPT rows; SLM layout [k-step w][row][8 dwords].
+  const unsigned a_row0 = (unsigned)(m_wg + tl * ARPT) * K2;
+  const unsigned a_slm = (unsigned)(tl * ARPT * 32);
+  const unsigned a_mine = (unsigned)(ly * MROWS * 32);
+  const unsigned w_self = (unsigned)(lx * NCOL * KW);
+  // My weight half-piece h = tl: (column tile ct, 16-column block cb, k-step w, word jh).
+  const int jh = tl & 1, w_h = (tl >> 1) % KW, cb_h = (tl / (2 * KW)) % NCOL, ct_h = tl / HPT;
+  const int ncol_h = n_wg + ct_h * (NCOL * 16) + cb_h * 16;
+  const bool w_ok = ncol_h < N;                                    // false only past the last column
+  const unsigned w_slm = A_BYTES + (unsigned)tl * 256;
+  // Loop state `gN` advances by GSTEP per group; the weight byte of (group, column, word) is
+  // gN * GB + pw_off in both layouts.
+#if WLAYOUT == 0
+  const unsigned GSTEP = (unsigned)N;                              // gN = g * N
+  const vector<uint, 16> pw_off = (lane + (unsigned)ncol_h) * (unsigned)GB + (unsigned)(w_h * 4 + jh * 2);
+#else
+  const unsigned GSTEP = 1u;                                       // gN = g
+  // My 4 whole columns c4 .. c4+3 of the WG's 256; N % 32 == 0, so they are all in range or none.
+  const int c4 = n_wg + 4 * tl;
+  const bool w4_ok = c4 < N;
+  const vector<uint, 4> col4 = lane.select<4, 1>(0) + (unsigned)c4;
+  const vector<uint, 4> w_off4 = col4 * (unsigned)(K / 4);         // Wq [N, K/4]: 16 B per group
+  const vector<uint, 4> sc_off4 = col4 * (unsigned)(KG * 2);       // scales [N, KG] half
+  const vector<uint, 4> zp_off4 = col4 * (unsigned)KG;             // zps    [N, KG] uchar
+  // SLM scatter offsets (ring-slot relative): lane o = w*8 + j -> VNNI row j of k-step w, columns
+  // n0 .. n0+3 of 16-column block cb of column tile ct.
+  vector<uint, 16> soff;
+  {
+    const int cl = 4 * tl, ct = cl / (NCOL * 16), cb = (cl / 16) % NCOL, n0 = cl % 16;
+    #pragma unroll
+    for (int o = 0; o < 16; o++)
+      soff(o) = (unsigned)(A_BYTES + WPIECE(ct, cb, o / 8) * 512 + ((o % 8) * 16 + n0) * 4);
+  }
+#endif
+
+  matrix<float, NACC, 128> acc = 0.0f;
+#if WLAYOUT == 0
+  hpiece_raw raw;
+#else
+  l1_raw raw;
+  vector<uint, 4 * 4 * L1WG> wline;                                // [dword e][column i], L1WG groups
+  vector<uint, 4 * L1SG / 2> scl;                                  // [dword][column], 2 groups per dword
+  vector<uint, 4 * L1SG / 4> zpl;                                  // [dword][column], 4 groups per dword
+  const bool l1wide = (KG % 4) == 0;                               // scale / zp rows dword aligned
+#endif
+  matrix<uint, ARPT, KS / 2> ast;
+
+  // Global loads of one slice: A rows at byte offset `ao` (+ r*K2), weights of group offset gN = g*N
+  // with slice parity `par`.
+  auto fetch = [&](unsigned ao, unsigned gN, int par) {
+    #pragma unroll
+    for (int r = 0; r < ARPT; r++)
+      ast.row(r) = cm_load<uint, KS / 2>(A, ao + (unsigned)r * K2);
+#if WLAYOUT == 0
+    if (w_ok) {
+      raw.pw = cm_load<ushort, VectorSize::N1, DataSize::U16>(Wq, pw_off + (gN * (unsigned)GB + (unsigned)(par * 8)));
+      raw.sc.format<uint>() = cm_load<uint, 8>(scales, (gN + (unsigned)ncol_h) * 2u);
+      raw.zp.format<uint>() = cm_load<uint, 4>(zps, gN + (unsigned)ncol_h);
+    }
+#else
+    // On the group's first slice: every L1WG groups reload my 4 columns' weight lines, every L1SG
+    // groups their scales / zero points; then pick this group's part ([element][lane] order, so a
+    // group is a contiguous run). The second slice dequantizes the other 8 bytes of raw.w.
+    if (w4_ok && par == 0) {
+      const unsigned gw = gN % L1WG, gs = gN % L1SG;
+      if (gw == 0) {                                               // gathers are at most N8 per lane
+        wline.select<32, 1>(0) = cm_load<uint, VectorSize::N8, DataSize::U32>(Wq, w_off4 + gN * (unsigned)GB);
+        wline.select<32, 1>(32) = cm_load<uint, VectorSize::N8, DataSize::U32>(Wq, w_off4 + (gN * (unsigned)GB + 32u));
+      }
+      raw.w = wline.select<16, 1>(gw * 16);
+      if (l1wide) {
+        // 16 groups of scales are N8 dwords and of zero points N4 dwords ([dword e][column] -> group
+        // 2e+h / 4e+b): U16 / U8 vector gathers and gathers above N8 do not legalize.
+        if (gs == 0) {
+          scl = cm_load<uint, VectorSize::N8, DataSize::U32>(scales, sc_off4 + gN * 2u);
+          zpl = cm_load<uint, VectorSize::N4, DataSize::U32>(zps, zp_off4 + gN);
+        }
+        raw.sc = scl.format<ushort>().select<4, 2>((gs / 2) * 8 + (gs % 2));
+        raw.zp = zpl.format<uchar>().select<4, 4>((gs / 4) * 16 + (gs % 4));
+      } else {                                                     // KG % 4 != 0: rows not dword aligned
+        raw.sc = cm_load<ushort, VectorSize::N1, DataSize::U16>(scales, sc_off4 + gN * 2u);
+        raw.zp = cm_load<uchar, VectorSize::N1, DataSize::U8>(zps, zp_off4 + gN);
+      }
+    }
+#endif
+  };
+  auto stage = [&](unsigned slot, int par) {
+    #pragma unroll
+    for (int w = 0; w < KW; w++) {
+      matrix<uint, ARPT, 8> t = ast.select<ARPT, 1, 8, 1>(0, w * 8);
+      cm_store_slm<uint, ARPT * 8>(slot + a_slm + w * (WROWS * 32), t.format<uint>());
+    }
+#if WLAYOUT == 0
+    store_hpiece(slot + w_slm, shifts, raw);
+#else
+    if (w4_ok) {
+      if (par == 0) store_l1<0>(soff + slot, raw);
+      else          store_l1<1>(soff + slot, raw);
+    }
+#endif
+  };
+  auto prefetch_w = [&](unsigned gNp) {                            // one group of my column block
+#if WLAYOUT == 0
+    if (w_ok && jh == 0) {
+      const unsigned gn = gNp + (unsigned)ncol_h;
+      cm_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(Wq, gn * (unsigned)GB);
+      cm_prefetch<8, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(scales, gn * 2u);
+      cm_prefetch<4, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(zps, gn);
+    }
+#elif L1PF == 2
+    // Chunked: every L1PC groups, the next L1PC groups of my 4 columns -- L1PC*16 B = 4 adjacent lines
+    // per column for L1PC = 16 -- L1PD groups ahead, so DRAM sees whole runs of each column's row.
+    const unsigned gq = gNp - (unsigned)(PFD - 1) + (unsigned)L1PD;     // = current group + L1PD
+    if (w4_ok && gq % L1PC == 0 && gq < (unsigned)KG) {
+      vector<uint, 4 * (L1PC / 4)> po;
+      #pragma unroll
+      for (int l = 0; l < L1PC / 4; l++)
+        po.select<4, 1>(l * 4) = w_off4 + (gq * (unsigned)GB + (unsigned)(l * 64));
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(Wq, po);
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          scales, (sc_off4 + gq * 2u) & ~3u);
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          zps, (zp_off4 + gq) & ~3u);
+    }
+#elif L1PF
+    if (w4_ok) {                                                  // my 4 columns, one group
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          Wq, w_off4 + gNp * (unsigned)GB);
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          scales, (sc_off4 + gNp * 2u) & ~3u);
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          zps, (zp_off4 + gNp) & ~3u);
+    }
+#endif
+  };
+  auto dpas_slice = [&](unsigned cur) {
+    #pragma unroll
+    for (int w = 0; w < KW; w++) {
+      matrix<uint, RB, 64> am;                                      // Src2: 8 rows x 16 k each
+      matrix<uint, NCOL, 128> bm;                                   // Src1: 16 columns VNNI each
+      #pragma unroll
+      for (int rb = 0; rb < RB; rb++)
+        am.row(rb) = cm_load_slm<uint, 64>(cur + a_mine + rb * 256 + w * (WROWS * 32));
+      #pragma unroll
+      for (int cb = 0; cb < NCOL; cb++) {
+        const unsigned wo = cur + A_BYTES + (w_self + cb * KW + w) * 512;
+        bm.row(cb).select<64, 1>(0) = cm_load_slm<uint, 64>(wo);
+        bm.row(cb).select<64, 1>(64) = cm_load_slm<uint, 64>(wo + 256);
+      }
+      #pragma unroll
+      for (int cb = 0; cb < NCOL; cb++)
+        #pragma unroll
+        for (int rb = 0; rb < RB; rb++)
+          acc.row(ACC(rb, cb)) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, 8, 8>(
+              acc.row(ACC(rb, cb)), bm.row(cb), am.row(rb));
+    }
+  };
+
+  // Prologue: slices 0 and 1 (group 0) into ring slots 0 and 1.
+  #pragma unroll
+  for (int ps = 0; ps < 2; ps++) {
+    if (ps < NS) {
+      fetch(a_row0 + (unsigned)(ps * KS * 2), 0u, ps);
+      stage(ps * BUF_BYTES, ps);
+    }
+  }
+  cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+  cm_barrier();
+  cm_sbarrier(1);                                                  // primes the first in-loop wait
+
+  // Loop state for slice s: ao = A offset of slice s+2, gN = (group of slice s+2) * N.
+  unsigned ao = a_row0 + (unsigned)(2 * KS * 2);
+  unsigned gN = GSTEP;
+  const unsigned gN_last = (unsigned)(KG - 1) * GSTEP;       // last group's offset
+  const bool epf = epi_mode != 0 && n_base < N;
+  int er = 0;                                                      // next epilogue row to prefetch
+  // ao at which the next row is prefetched: slice max(NS - EPW - 2, 0), then every EPS slices.
+  unsigned epf_ao = ao + (unsigned)(cm_max<int>(NS - EPW - 2, 0) * KS * 2);
+
+  // One slice: prefetch (even slices), fetch slice s+2, DPAS on `cur`, then (after the wait that
+  // retires slice s-1's readers) stage slice s+2 into `nxt`, publish, signal.
+  auto slice = [&](unsigned cur, unsigned nxt, int par, bool fill, bool pfw) {
+    if (epf && er < MROWS && ao == epf_ao) {                       // one epilogue row per EPS slices
+      if (m0 + er < M)
+#if EPI_F16
+        // Transposed prefetch only supports U32/U64 granularity: same bytes, half the word count.
+        cm_prefetch<NCOL * 8, DataSize::U32, CacheHint::Uncached, CacheHint::Cached>(
+            epi, ((unsigned)(m0 + er) * N + n_base) * 2u);
+#else
+        cm_prefetch<NCOL * 16, DataSize::U32, CacheHint::Uncached, CacheHint::Cached>(
+            epi, ((unsigned)(m0 + er) * N + n_base) * 4u);
+#endif
+      er++;
+      epf_ao += EPS * KS * 2;
+    }
+    if (pfw) prefetch_w(cm_min<unsigned>(gN + (unsigned)(PFD - 1) * GSTEP, gN_last));
+    if (fill) fetch(ao, gN, par);
+    dpas_slice(cur);
+    cm_sbarrier(0);
+    if (fill) stage(nxt, par);
+    cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+    cm_sbarrier(1);
+    ao += KS * 2;
+    if (par) gN += GSTEP;
+  };
+
+  // Main loop, unrolled x6: ring slot = s % 3 and parity = s % 2 are compile-time constants. Every
+  // main iteration fills (s + 2 < NS); the weight prefetch clamps to the last group near the end.
+  const int nmain = NS >= 8 ? ((NS - 2) / 6) * 6 : 0;
+  int s = 0;
+  for (; s < nmain; s += 6) {
+    slice(0 * BUF_BYTES, 2 * BUF_BYTES, 0, true, true);
+    slice(1 * BUF_BYTES, 0 * BUF_BYTES, 1, true, false);
+    slice(2 * BUF_BYTES, 1 * BUF_BYTES, 0, true, true);
+    slice(0 * BUF_BYTES, 2 * BUF_BYTES, 1, true, false);
+    slice(1 * BUF_BYTES, 0 * BUF_BYTES, 0, true, true);
+    slice(2 * BUF_BYTES, 1 * BUF_BYTES, 1, true, false);
+  }
+  // Generic tail: the last 2..7 slices (all slices when NS < 8).
+  unsigned slot = 0;                                               // nmain % 3 == 0
+  for (; s < NS; s++) {
+    const int par = s & 1;
+    slice(slot * BUF_BYTES, (slot == 0 ? 2 : slot - 1) * BUF_BYTES, par, s + 2 < NS, false);
+    slot = (slot == 2) ? 0 : slot + 1;
+  }
+  cm_sbarrier(0);
+
+  // Epilogue: acc row ACC(rb,cb) element (i*16 + n) = C[m0 + rb*8 + i][n_base + cb*16 + n].
+  if (n_base >= N) return;                                         // surplus column tile
+  #pragma unroll
+  for (int rb = 0; rb < RB; rb++) {
+    const int mb = m0 + rb * 8;
+    if (mb + 8 <= M) {
+      // Whole 8-row block in range. Rows are assembled NCOL*16 floats wide (128 B) so each epi load /
+      // C store moves a whole thread-tile row: the last arithmetic op writes straight into that
+      // row-interleaved layout, so the interleave costs no extra instruction.
+      matrix<float, 8, NCOL * 16> ev, ov;
+      if (epi_mode != 0) {
+#if EPI_F16
+        // Transposed load only supports U32/U64 granularity: load as uint, reinterpret as half.
+        matrix<half, 8, NCOL * 16> eh;
+        #pragma unroll
+        for (int i = 0; i < 8; i++)
+          eh.row(i).format<uint>() = cm_load<uint, NCOL * 8>(epi, ((unsigned)(mb + i) * N + (unsigned)n_base) * 2u);
+        ev = eh;                                                    // widen half -> float
+#else
+        #pragma unroll
+        for (int i = 0; i < 8; i++)
+          ev.row(i) = cm_load<float, NCOL * 16>(epi, ((unsigned)(mb + i) * N + (unsigned)n_base) * 4u);
+#endif
+      }
+      #pragma unroll
+      for (int cb = 0; cb < NCOL; cb++) {
+        vector<float, 128> v = acc.row(ACC(rb, cb));
+        if (epi_mode == 1) {
+          ov.select<8, 1, 16, 1>(0, cb * 16) = v + ev.select<8, 1, 16, 1>(0, cb * 16);
+        } else if (epi_mode == 2) {
+          vector<float, 128> e = cm_exp(v * -1.4426950408889634f);   // exp(-v) = 2^(-v*log2(e))
+          v = v / (1.0f + e);                                        // swish, alpha = 1.0
+          ov.select<8, 1, 16, 1>(0, cb * 16) = v * ev.select<8, 1, 16, 1>(0, cb * 16);
+        } else {
+          ov.select<8, 1, 16, 1>(0, cb * 16) = v;
+        }
+      }
+#if OUT_F16
+      matrix<half, 8, NCOL * 16> hv = ov;                            // round to nearest even
+      #pragma unroll
+      for (int i = 0; i < 8; i++)
+        cm_store<uint, NCOL * 8>(C, ((unsigned)(mb + i) * N + (unsigned)n_base) * 2u, hv.row(i).format<uint>());
+#else
+      #pragma unroll
+      for (int i = 0; i < 8; i++)
+        cm_store<float, NCOL * 16>(C, ((unsigned)(mb + i) * N + (unsigned)n_base) * 4u, ov.row(i));
+#endif
+    } else {
+      // M tail: row by row, rows >= M are never touched (as in the original).
+      #pragma unroll
+      for (int i = 0; i < 8; i++) {
+        const int m = mb + i;
+        if (m < M) {
+          #pragma unroll
+          for (int cb = 0; cb < NCOL; cb++) {
+            const unsigned off = ((unsigned)m * N + (unsigned)(n_base + cb * 16)) * 4u;
+            vector<float, 16> v = acc.row(ACC(rb, cb)).select<16, 1>(i * 16);
+#if EPI_F16
+            // Transposed load only supports U32/U64 granularity: load as uint, reinterpret as half.
+            vector<half, 16> eh;
+            if (epi_mode != 0)
+              eh.format<uint>() = cm_load<uint, 8>(epi, off / 2u);
+            vector<float, 16> ef = eh;                                // widen half -> float
+#endif
+            if (epi_mode == 1) {
+#if EPI_F16
+              v += ef;
+#else
+              v += cm_load<float, 16>(epi, off);
+#endif
+            } else if (epi_mode == 2) {
+              vector<float, 16> e = cm_exp(v * -1.4426950408889634f);
+              v = v / (1.0f + e);
+#if EPI_F16
+              v *= ef;
+#else
+              v *= cm_load<float, 16>(epi, off);
+#endif
+            }
+#if OUT_F16
+            vector<half, 16> h = v;                                    // round to nearest even
+            cm_store<uint, 8>(C, ((unsigned)m * N + (unsigned)(n_base + cb * 16)) * 2u, h.format<uint>());
+#else
+            cm_store<float, 16>(C, off, v);
+#endif
+          }
+        }
+      }
+    }
+  }
+}
+
+// OpenVINO: keep this instance's macros out of the other kernels batched into the same program.
+#undef ACC
+#undef OUT_F16
+#undef EPI_F16
+#undef ARPT
+#undef A_BYTES
+#undef BUF_BYTES
+#undef EPS
+#undef EPW
+#undef GB
+#undef GS
+#undef HPPT
+#undef HPT
+#undef KS
+#undef KW
+#undef L1PC
+#undef L1PD
+#undef L1PF
+#undef L1SG
+#undef L1WG
+#undef MROWS
+#undef NACC
+#undef NBUF
+#undef NCOL
+#undef NHW
+#undef NT
+#undef PFD
+#undef RB
+#undef REMAPG
+#undef REMAP_ABYTES
+#undef SLM_BYTES
+#undef SPG
+#undef WG_M
+#undef WG_N
+#undef WPIECE
+#undef WROWS
+#undef W_BYTES

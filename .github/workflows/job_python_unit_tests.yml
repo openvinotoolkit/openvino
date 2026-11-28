@@ -134,6 +134,10 @@ jobs:
         if: fromJSON(inputs.affected-components).OVC.test
         run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
+      - name: Benchmark tool unit tests
+        if: fromJSON(inputs.affected-components).tools.test
+        run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/benchmark_tool/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-BenchmarkTool.xml
+
       - name: OVC Python API Tests
         if: ${{ fromJSON(inputs.affected-components).OVC.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
         run: |

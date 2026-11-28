@@ -15,12 +15,33 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
-std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
+bool is_per_expert(const cldnn::layout& layout, size_t num_expert) {
+    return layout.is_static() && layout.count() > 1 && !layout.get_shape().empty() && layout.get_shape()[0] == num_expert;
+}
+
+bool has_contiguous_expert_slices(const cldnn::layout& layout, size_t num_expert) {
+    return cldnn::format::is_simple_data_format(layout.format) && layout.format.order().front() == 'b' && layout.bytes_count() % num_expert == 0;
+}
+
+cldnn::layout get_slot_layout(const cldnn::layout& input, size_t capacity, size_t num_expert) {
+    OPENVINO_ASSERT(has_contiguous_expert_slices(input, num_expert), "OTD: expert slices of ", input.to_short_string(), " are not contiguous");
+    auto slots_shape = input.get_shape();
+    slots_shape[0] = capacity;
+    return cldnn::layout(slots_shape, input.data_type, input.format);
+}
+
+std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                                                      const RoutedWeightViews& /*inputs*/,
+                                                                                      const RoutedWeightViews& /*slots*/,
+                                                                                      cldnn::stream& /*stream*/) {
     // Resident: identity mapping, always succeeds.
     return std::vector<size_t>(experts.begin(), experts.end());
 }
 
-size_t ResidentExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& /*stream*/) {
+size_t ResidentExpertWeightProvider::acquire_one(uint32_t expert,
+                                                 const RoutedWeightViews& /*inputs*/,
+                                                 const RoutedWeightViews& /*slots*/,
+                                                 cldnn::stream& /*stream*/) {
     return expert;
 }
 
@@ -35,29 +56,53 @@ OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
       _cache(std::make_shared<LRUCache>(capacity)),
       _weight_reader(_weights_path) {}
 
-void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
-    _resident = &resident;
+void OffloadExpertWeightProvider::bind(cldnn::moe_weights& /*resident*/) {
     _cache->set_initialized();
     _bound = true;
     GPU_DEBUG_TRACE << "MOE OTD bind: resident_slots=" << _capacity << " total_experts=" << _config.num_expert
                     << " shared_expert=" << (_config.num_shared_expert > 0 ? 1 : 0) << std::endl;
 }
 
-void OffloadExpertWeightProvider::fill_routed_weight_views(cldnn::moe_weights& /*weights*/, RoutedWeightViews& views) {
-    // Offloaded: point at the LRU resident buffers (not the original weight inputs).
-    OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound");
-    views.weight[0] = _resident->gate_w;
-    views.scale[0] = _resident->gate_s;
-    views.zp[0] = _resident->gate_z;
-    views.weight[1] = _resident->up_w;
-    views.scale[1] = _resident->up_s;
-    views.zp[1] = _resident->up_z;
-    views.weight[2] = _resident->down_w;
-    views.scale[2] = _resident->down_s;
-    views.zp[2] = _resident->down_z;
+void OffloadExpertWeightProvider::reset_cache_if_slots_changed(const RoutedWeightViews& slots) {
+    std::vector<const void*> handles;
+    for (size_t i = 0; i < 3; i++) {
+        for (const auto& mem : {slots.weight[i], slots.scale[i], slots.zp[i]}) {
+            if (mem) {
+                handles.push_back(mem->get_internal_params().mem);
+            }
+        }
+    }
+    if (handles != _slot_handles) {
+        _slot_handles = std::move(handles);
+        _cache = std::make_shared<LRUCache>(_capacity);
+        _cache->set_initialized();
+    }
 }
 
-std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
+void OffloadExpertWeightProvider::load(uint32_t expert, size_t slot, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) {
+    OPENVINO_ASSERT(_weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, "Unexpected number of MOE weight offsets");
+    const size_t num_expert = _config.num_expert;
+    // The weights are streamed as stored in the weights file, the scales and zero points are copied as converted by the pipeline
+    std::vector<moe_otd::SlicedTensor> tensors;
+    for (size_t i = 0; i < 3; i++) {
+        if (slots.weight[i]) {
+            tensors.push_back({slots.weight[i], slots.weight[i]->get_layout().bytes_count() / num_expert, nullptr, _weight_bin_offsets[i]});
+        }
+        for (const auto& [slot_mem, source] : {std::pair{slots.scale[i], inputs.scale[i]}, std::pair{slots.zp[i], inputs.zp[i]}}) {
+            if (slot_mem) {
+                tensors.push_back({slot_mem, source->get_layout().bytes_count() / num_expert, source});
+            }
+        }
+    }
+    moe_otd::fill_weights_memory(stream, _weight_reader, tensors, expert, slot);
+}
+
+std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                                                     const RoutedWeightViews& inputs,
+                                                                                     const RoutedWeightViews& slot_buffers,
+                                                                                     cldnn::stream& stream) {
+    reset_cache_if_slots_changed(slot_buffers);
+
     // Deduplicate to check capacity
     std::unordered_map<uint32_t, size_t> expert_to_slot;
     expert_to_slot.reserve(experts.size());
@@ -89,8 +134,7 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
             if (perf) {
                 perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
             }
-            OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound");
-            moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weight_reader, *_resident, {expert}, {slot});
+            load(expert, slot, inputs, slot_buffers, stream);
             _cache->set_filled(slot);
         }
 
@@ -101,7 +145,8 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
     return slots;
 }
 
-size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& stream) {
+size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) {
+    reset_cache_if_slots_changed(slots);
     auto* perf = moe_otd::get_perf_counters();
 
     const auto item = _cache->get_lru_item(expert);
@@ -115,8 +160,7 @@ size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& 
         if (perf) {
             perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
         }
-        OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound");
-        moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weight_reader, *_resident, {expert}, {slot});
+        load(expert, slot, inputs, slots, stream);
         _cache->set_filled(slot);
     }
 

@@ -19,7 +19,7 @@ rjieba==0.1.11
 # - katuni4ka/tiny-random-qwen
 # - katuni4ka/tiny-random-internlm2
 transformers_stream_generator==0.0.5
-einops==0.8.0
+einops==0.8.1
 
 # librosa/pyctcdecode needed internally by some HF audio models
 librosa==0.10.2; python_version < "3.12"

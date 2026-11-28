@@ -180,6 +180,13 @@ struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
     bool internal_position_ids = false;  ///< embedding model
+
+    /// attention_mask input. The default 2D int64 mask is turned into the causal mask for SDPA. A mask of any other
+    /// rank (e.g. 4D float [B, 1, Q, K]) is a ready SDPA mask and replaces the causal mask; it cannot be combined
+    /// with sliding_window_size or use_token_type_ids, which build on the 2D mask.
+    ov::element::Type attention_mask_type = ov::element::i64;
+    ov::PartialShape attention_mask_shape = ov::PartialShape{-1, -1};
+
     bool pre_norm = true;
     bool force_gqa_broadcast = false;  ///< force 5-input SDPA (needed for SDPA isolation pattern matching)
 
@@ -281,9 +288,11 @@ public:
     // Because the interior and boundary Relu share the same metadesc, ALL blocks stay
     // in one repeated-block family regardless of head/non-head status, allowing
     // isRegularCrossGroupConsumerCase to detect the per-bank connectivity asymmetry.
+    // shared_type applies to all repeated blocks.
     std::shared_ptr<ov::Model> get_model_with_kv_sharing_repeated_blocks(
         std::size_t repetitions,
-        const std::vector<std::size_t>& head_block_indices);
+        const std::vector<std::size_t>& head_block_indices,
+        ov::element::Type shared_type = ov::element::f32);
     std::shared_ptr<ov::Model> get_model_with_multi_output_repeating_blocks(std::size_t repetitions,
                                                                             bool last_block_has_direct_result);
 

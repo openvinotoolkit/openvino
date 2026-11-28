@@ -305,12 +305,9 @@ struct format {
         }
         const auto internal_order = fmt.traits().internal_order;
         const auto weights_chars = { "o", "i" };
-        for (const auto& c : weights_chars) {
-            if (internal_order.find_first_of(c) != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
+        return std::any_of(weights_chars.begin(), weights_chars.end(), [&internal_order](const char* c) {
+            return internal_order.find_first_of(c) != std::string::npos;
+        });
     }
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(const format& fmt) {
@@ -344,7 +341,7 @@ struct format {
 
     static format adjust_to_rank(format fmt, size_t new_rank);
 
-    static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
+    static std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
     static format find_format(const std::vector<size_t>& order,
                               const std::vector<std::pair<size_t, int>>& block_sizes,
@@ -395,7 +392,9 @@ struct format {
     /// @brief Checks if @p format is of image type
     bool is_image() const { return is_image(*this); }
     /// @brief Checks if @p format is blocked format
-    bool is_blocked() { return is_blocked(*this); }
+    bool is_blocked() const {
+        return is_blocked(*this);
+    }
     /// @brief Checks if @p format is a nv12 format
     bool is_nv12() const { return is_nv12(*this); }
 

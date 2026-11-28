@@ -59,13 +59,20 @@ void vm_release(void* ptr, size_t) noexcept {
     std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
+void populate_hint(MemoryView view) noexcept {
+    if (!view.empty()) {
+        WIN32_MEMORY_RANGE_ENTRY entry{const_cast<std::byte*>(view.data()), view.size()};
+        ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
+    }
+}
+
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
         WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
         ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
-    } else {
-        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
+    } else if (const auto done = submit_page_toucher_tasks(ptr, size, num_threads); done.valid()) {
+        done.wait();
     }
 }
 
@@ -76,7 +83,7 @@ PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noex
         ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
         return {};
     }
-    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
+    return submit_page_toucher_tasks(ptr, size, num_threads);
 }
 
 }  // namespace ov::util

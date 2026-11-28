@@ -7,6 +7,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov::frontend::pytorch {
 
@@ -116,6 +117,11 @@ public:
         return m_translate_session;
     }
 
+    // Registers a side-channel Parameter that isn't part of the decoded graph.
+    void add_external_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param) const {
+        m_external_parameters->push_back(param);
+    }
+
     void add_tensor_to_context(size_t index, const Output<Node>& ov_output) const;
 
     Output<Node> get_tensor_from_model(size_t index) const {
@@ -128,6 +134,8 @@ public:
 
     Output<Node> get_tensor_from_model_or_create_input(size_t index) const;
     Output<Node> get_input_from_visible_context(size_t index) const;
+
+    Output<Node> get_input_from_visible_context(size_t index, bool resolve_sequence_constants) const;
     std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:

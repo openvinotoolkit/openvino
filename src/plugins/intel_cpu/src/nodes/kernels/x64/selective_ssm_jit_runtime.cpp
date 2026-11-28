@@ -124,6 +124,7 @@ void run_selective_ssm(const Data* state_decay_rates,
                        const CpuParallelPtr& cpu_parallel,
                        const JitKernelBase& fp32_state_kernel,
                        const JitKernelBase* direct_state_kernel) {
+    OPENVINO_ASSERT(cpu_parallel != nullptr, "SelectiveSSM JIT requires a CPU parallel executor.");
     const auto layout = make_state_work_layout(shape.num_heads,
                                                shape.num_groups,
                                                shape.head_dim,

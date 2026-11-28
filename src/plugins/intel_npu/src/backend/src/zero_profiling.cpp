@@ -148,7 +148,7 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
     if (stat_cnt != 0 && _loglevel >= ov::log::Level::WARNING) {
         /// Populate npuinferstatistics vector
         for (unsigned i = 0; i < stat_cnt; i++) {
-            ov::ProfilingInfo info;
+            ov::ProfilingInfo info{};
 
             info.status = ov::ProfilingInfo::Status::EXECUTED;
             info.real_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));

@@ -4,13 +4,14 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
 #include "assign_inst.h"
+#include "condition_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
-#include "gated_mlp_inst.h"
 #include "mvn_inst.h"
 #include "pass_manager.h"
 #include "program_node.h"
@@ -97,6 +98,62 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
         }
 
         return;
+    }
+}
+
+// condition passes its input buffers as they are to the parameters of the branch programs, and input_layout_inst::set_data()
+// requires them to be in the layout of the parameter. Reorder each input to the format and padding of the branch parameter it
+// is mapped to (the default format without padding for bodies built by the plugin), e.g. an output in a blocked format or
+// padded for another user.
+void reorder_condition_inputs(program& p, condition_node& node) {
+    for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+        const auto [input, port] = node.get_dependency_with_port(idx);
+        const auto& in_layout = input->get_output_layout(false, port);
+        if (in_layout.is_dynamic()) {
+            continue;
+        }
+
+        // Layout of the static branch parameters the input is mapped to: set_data() doesn't check dynamic ones, and the
+        // predicate is not mapped.
+        std::optional<layout> param_layout;
+        for (const auto* branch : {&node.get_branch_true(), &node.get_branch_false()}) {
+            const auto it = branch->input_map.find(input->id());
+            if (it == branch->input_map.end() || !branch->inner_program->has_node(it->second)) {
+                continue;
+            }
+            const auto& branch_layout = branch->inner_program->get_node(it->second).get_output_layout();
+            if (branch_layout.is_dynamic()) {
+                continue;
+            }
+            if (param_layout) {
+                OPENVINO_ASSERT(param_layout->format == branch_layout.format && param_layout->data_padding == branch_layout.data_padding,
+                                "[GPU] Input ",
+                                input->id(),
+                                " of condition ",
+                                node.id(),
+                                " is mapped to branch parameters with different layouts: ",
+                                param_layout->to_short_string(),
+                                " and ",
+                                branch_layout.to_short_string());
+            }
+            param_layout = branch_layout;
+        }
+        if (!param_layout) {
+            continue;
+        }
+
+        auto expected_layout = in_layout;
+        expected_layout.format = param_layout->format;
+        expected_layout.data_padding = param_layout->data_padding;
+        if (in_layout == expected_layout) {
+            continue;
+        }
+
+        auto new_reorder =
+            std::make_shared<reorder>(input->id() + "_reorder_" + node.id() + "_p" + std::to_string(idx), input_info(input->id(), port), expected_layout);
+        auto& new_reorder_node = p.get_or_create(new_reorder);
+        p.add_intermediate(new_reorder_node, node, idx);
+        new_reorder_node.recalc_output_layouts(false);
     }
 }
 }  // namespace
@@ -187,14 +244,16 @@ void add_required_reorders::run(program& p) {
         // If usr is assign and input and output data types are different
         // add reorder with usr's output data type between dep and usr
         if (usr->is_type<assign>()) {
-            auto& dep = usr->get_dependency(0);
-            auto dep_layout = dep.get_output_layout();
+            // The assigned value can be any output of a multi-output producer (e.g. a QSA indexer state).
+            const auto [dep, port] = usr->get_dependency_with_port(0);
+            auto dep_layout = dep->get_output_layout(true, port);
             auto out_layout = usr->get_output_layout();
             bool required_reorder = out_layout.data_type != dep_layout.data_type;
             if (required_reorder) {
-                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                auto new_reorder =
+                    std::make_shared<reorder>(dep->id() + "_reorder_" + usr->id(), input_info(dep->id(), port), out_layout.format, out_layout.data_type);
                 auto& new_reorder_node = p.get_or_create(new_reorder);
-                p.add_intermediate(new_reorder_node, *usr, dep);
+                p.add_intermediate(new_reorder_node, *usr, 0);
                 new_reorder_node.recalc_output_layouts(false);
             }
         }
@@ -261,6 +320,10 @@ void add_required_reorders::run(program& p) {
             }
         }
 
+        if (usr->is_type<condition>()) {
+            reorder_condition_inputs(p, usr->as<condition>());
+        }
+
         // Remove padded-inputs in spatial axes not to use ref kernel which causes huge perf drop
         if (usr->is_type<mvn>()) {
             if (usr->as<mvn>().input().is_padded_spatial()) {
@@ -286,7 +349,7 @@ void add_required_reorders::run(program& p) {
         }
 
         bool correct_layout_selected = false;
-        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>() || usr->is_type<gated_mlp>());
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
 
         layout original_layout = usr->get_output_layout();
 

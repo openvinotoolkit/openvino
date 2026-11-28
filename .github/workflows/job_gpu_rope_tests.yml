@@ -95,25 +95,25 @@ jobs:
           echo "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_LIN }}" >> "$GITHUB_ENV"
 
       - name: Download OpenVINO artifacts (package)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tokenizers_wheel)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
@@ -154,14 +154,11 @@ jobs:
 
       - name: Install RoPE test requirements
         run: |
-          # rope_gpu.txt holds GPU-only deps (diffusers + transformers bump);
-          # kept out of the shared rope.txt because the CPU RoPE flow installs
-          # that file too and diffusers breaks optimum-intel there — see
-          # rope_gpu.txt. All three resolved in one pip pass so transformers is
-          # not installed then re-installed (faster, single consistent resolve).
+          # rope_gpu.txt holds GPU-only deps (diffusers for the Flux test).
+          # All three resolved in one pip pass (single consistent resolve).
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/transformations_actual.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
 
       - name: OpenVINO GPU RoPE Tests
@@ -181,13 +178,13 @@ jobs:
           "
 
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
-            -m precommit \
+            -m "precommit and not transformations_legacy" \
             --html=${INSTALL_TEST_DIR}/TEST-gpu_rope_tests.html \
             --self-contained-html -v --tb=short -n 2
 
       - name: Upload RoPE Test Results
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-rope-${{ inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu_rope_tests.html

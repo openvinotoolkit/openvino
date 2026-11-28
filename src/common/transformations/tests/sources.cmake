@@ -67,9 +67,11 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_clamp_and_fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_moe_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_qsa_indexer_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_rotary_positional_embeddings.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fused_names_cleanup.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/gated_residual_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/gelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/glu_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/group_normalization_fusion_tests.cpp
@@ -97,14 +99,17 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mvn_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nearest_neighbor_upsampling_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngraph_fq_transpose_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngram_hash_function_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nonzero_horizontal_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nop_elimination.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_l2_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_vllm_rope_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/optimize_strided_slice_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pack_multi_head_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pad_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_qsa_indexer_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preprocessing_fusion_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pull_through_reduce_test.cpp
@@ -141,6 +146,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_reshape_elimination_for_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_sinking_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_to_reshape_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/vllm_gating_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/weights_dequantize_to_fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/wrap_interpolate_into_transposes_test.cpp
 )
@@ -178,11 +184,13 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_offsets15_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_packed15_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_fc_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gated_residual_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_0d_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_upgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_grouped_matmul_to_gather_matmul_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_grouped_matmul_to_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_interpolate11_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_interpolate1_to_interpolate4_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_matrix_nms_to_matrix_nms_ie_internal.cpp

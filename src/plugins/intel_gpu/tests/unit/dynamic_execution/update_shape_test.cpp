@@ -13,6 +13,11 @@
 #include <intel_gpu/primitives/non_zero.hpp>
 #include <intel_gpu/primitives/paged_attention.hpp>
 #include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 
 #include "program_wrapper.h"
 
@@ -573,8 +578,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
     // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
+    // The micro path has one extra buffer for the token_type_ids group bounds.
     const bool micro_layout = engine.get_device_info().supports_immad;
-    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
+    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 5u : 7u);
 }
 TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) {
     tests::random_generator rg(GET_SUITE_NAME);
@@ -846,9 +852,74 @@ TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) 
         << "size matches the generic h256 PA config with q tile 32 (aligned_seq_len " << aligned_qtile32
         << "): " << dump_sizes();
     EXPECT_EQ(intermediate_mems[0]->size(), ((aligned_qtile64 + 15) / 16) * 4) << dump_sizes();
-    if (intermediate_mems.size() > 4) {
-        ASSERT_EQ(intermediate_mems[4]->size(), 16u) << dump_sizes();
-        ASSERT_EQ(intermediate_mems[5]->size(), 16u) << dump_sizes();
+    // [4]: token_type_ids group bounds for the micro kernel, two int32 values per token
+    ASSERT_EQ(intermediate_mems.size(), 5u) << dump_sizes();
+    ASSERT_EQ(intermediate_mems[4]->size(), 200u * 2 * sizeof(int32_t)) << dump_sizes();
+}
+
+TEST(update_shape_test, fc_fused_eltwise_input_from_optimized_reshape) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const int64_t K = 16;
+    const int64_t N = 8;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto gate_w_data = rg.generate_random_1d<ov::float16>(N * K, -1, 1);
+    auto side_w_data = rg.generate_random_1d<ov::float16>(N * K, -1, 1);
+    auto gate_w = engine.allocate_memory(layout{ov::PartialShape{N, K}, data_types::f16, format::bfyx});
+    auto side_w = engine.allocate_memory(layout{ov::PartialShape{N, K}, data_types::f16, format::bfyx});
+    set_values(gate_w, gate_w_data);
+    set_values(side_w, side_w_data);
+
+    topology topology(input_layout("input", layout{ov::PartialShape{-1, 1, K}, data_types::f16, format::bfyx}),
+                      data("gate_w", gate_w),
+                      data("side_w", side_w),
+                      activation("act", input_info("input"), activation_func::relu),
+                      fully_connected("gate", input_info("act"), "gate_w", "", 3),
+                      reshape("act_2d", input_info("act"), true, std::vector<int64_t>{-1, K}, ov::PartialShape{-1, K}),
+                      fully_connected("side", input_info("act_2d"), "side_w", "", 2),
+                      reshape("side_3d", input_info("side"), true, std::vector<int64_t>{-1, 1, N}, ov::PartialShape{-1, 1, N}),
+                      eltwise("prod", {input_info("gate"), input_info("side_3d")}, eltwise_mode::prod),
+                      reorder("output", input_info("prod"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    const auto& fc_node = network.get_primitive("output")->get_node();
+    ASSERT_TRUE(fc_node.is_type<fully_connected>());
+    ASSERT_TRUE(std::any_of(fc_node.get_fused_primitives().begin(), fc_node.get_fused_primitives().end(), [](const fused_primitive_desc& fd) {
+        return fd.is_type<eltwise>();
+    })) << "eltwise prod is expected to be fused into gate";
+    ASSERT_TRUE(network.get_primitive("side_3d")->get_node().can_be_optimized());
+
+    for (const int64_t batch : {7, 1, 9}) {
+        auto input_data = rg.generate_random_1d<ov::float16>(batch * K, -1, 1);
+        auto input_mem = engine.allocate_memory(layout{ov::PartialShape{batch, 1, K}, data_types::f16, format::bfyx});
+        set_values(input_mem, input_data);
+        network.set_input_data("input", input_mem);
+
+        std::map<primitive_id, network_output> outputs;
+        OV_ASSERT_NO_THROW(outputs = network.execute());
+        ASSERT_TRUE(network.get_primitive("output")->get_impl()->is_onednn());
+
+        ASSERT_EQ(outputs.at("output").get_layout().get_partial_shape(), (ov::PartialShape{batch, 1, N}));
+        auto output_mem = outputs.at("output").get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t n = 0; n < N; ++n) {
+                float gate = 0.f;
+                float side = 0.f;
+                for (int64_t k = 0; k < K; ++k) {
+                    const float act = std::max(0.f, static_cast<float>(input_data[b * K + k]));
+                    gate += act * static_cast<float>(gate_w_data[n * K + k]);
+                    side += act * static_cast<float>(side_w_data[n * K + k]);
+                }
+                ASSERT_NEAR(output_ptr[b * N + n], gate * side, 5e-2f) << "batch " << batch << ", b " << b << ", n " << n;
+            }
+        }
     }
 }
 

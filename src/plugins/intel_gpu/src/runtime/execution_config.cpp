@@ -2,19 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/execution_config.hpp"
+
 #include <algorithm>
 #include <cstdlib>
 
+#include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
@@ -22,6 +27,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/selective_ssm.hpp"
@@ -33,7 +39,6 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -43,6 +48,8 @@
 namespace ov::intel_gpu {
 
 namespace {
+
+constexpr float optimum_intel_default_asf = 8.0F;
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
@@ -74,6 +81,17 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // cldnn::grouped_matmul (2D x 3D) and the batched FC (3D x 3D), incl. GroupedMatMulCompressed, need the original
+    // ranks; legacy shape infer pads them to 4D.
+    if (ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
+        return true;
+    }
+
+    // A READ with a write gate has two outputs, which the legacy shape inference cannot address by port.
+    if (ov::is_type<ov::intel_gpu::op::GatedResidual>(op)) {
         return true;
     }
 
@@ -173,6 +191,19 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 
+void ExecutionConfig::apply_weightless_options() {
+    const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties());
+    if (get_offload_ratio() > 0) {
+        OPENVINO_ASSERT(enable_weightless.value_or(true) &&
+                            (!is_set_by_user(ov::cache_mode) || get_cache_mode() != ov::CacheMode::OPTIMIZE_SPEED),
+                        "OFFLOAD_RATIO requires weightless cache. Do not set ENABLE_WEIGHTLESS=false or "
+                        "CACHE_MODE=OPTIMIZE_SPEED when using OFFLOAD_RATIO.");
+        set_property({ov::enable_weightless(true), ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)});
+    } else if (enable_weightless) {
+        set_property(ov::enable_weightless(*enable_weightless));
+    }
+}
+
 void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
     const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
     OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
@@ -181,7 +212,10 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
 
-    if (!is_llm || (has_lora && !info.supports_immad)) {
+    // WA: Optimum Intel writes the default ASF to every LLM IR, so only a non-default value is applied. Remove when old IRs are gone.
+    const auto asf_it = rt_info.find(ov::hint::activations_scale_factor.name());
+    const bool has_non_default_asf = asf_it != rt_info.end() && asf_it->second.as<float>() != optimum_intel_default_asf;
+    if (!is_llm || (has_lora && !info.supports_immad) || has_non_default_asf) {
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
 
@@ -190,10 +224,8 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.  OTD (MoE offload) also requires the .bin path.
-    if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
-        set_property({ov::enable_weightless(*enable_weightless)});
-    }
+    // using that mechanism. OTD (MoE offload) also requires the .bin path.
+    apply_weightless_options();
     if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
@@ -202,7 +234,8 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
     auto is_paged_attention_model = false;
     const auto is_LLM = ov::op::util::is_large_language_model(model, [&is_paged_attention_model](std::shared_ptr<ov::Node> node) {
-        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+        // PagedSparseAttention layers use the paged KV cache too, so they get the same KV cache defaults and checks.
+        if (ov::is_type_any_of<ov::op::PagedAttentionExtension, ov::op::internal::PagedSparseAttention>(node)) {
             is_paged_attention_model = true;
             return true;
         }
@@ -342,6 +375,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 }
 
 void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
+    apply_weightless_options();
+
     GPU_DEBUG_IF(get_help()) {
         print_help();
         exit(-1);
@@ -353,8 +388,23 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
+    if (!is_set_by_user(ov::intel_gpu::use_onednn)) {
+#    if defined(OV_GPU_VENDOR_NVIDIA)
+        // oneDNN is the main backend on NVIDIA GPUs
         m_use_onednn = true;
+#    else
+        if (info.supports_immad) {
+            m_use_onednn = true;
+        }
+#    endif
+    }
+    if (auto* const external_queue = dynamic_cast<const RemoteContextImpl*>(context)->get_external_queue()) {
+        m_queue_type = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().create_stream(*this, external_queue)->get_queue_type();
+        // oneDNN requires an in-order queue, including when the queue belongs to the user.
+        if (m_use_onednn && m_queue_type == QueueTypes::out_of_order) {
+            GPU_DEBUG_LOG << "oneDNN is disabled because the external OpenCL queue is out of order." << std::endl;
+            m_use_onednn = false;
+        }
     }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;

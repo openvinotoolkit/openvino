@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <future>
 #include <thread>
-#include <vector>
 
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -17,22 +16,27 @@
 
 namespace ov::util {
 
-// Touches one byte per page over [m_begin, m_end) to force the pages resident. The volatile
+/** @brief Asks the OS to read @p view in large I/Os before its pages are touched; no-op where unsupported. */
+#ifdef _WIN32
+void populate_hint(MemoryView view) noexcept;
+#else
+inline void populate_hint(MemoryView) noexcept {}
+#endif
+
+// Touches one byte per page of m_view to force the pages resident. The volatile
 // accumulator keeps the compiler from eliminating the read loop.
 struct PageToucher {
-    const uint8_t* m_begin;
-    const uint8_t* m_end;
+    const MemoryView m_view;
     const size_t m_page_size;
 
     void operator()() const noexcept {
+        populate_hint(m_view);
         volatile uint8_t local = 0;
-        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
-            local += *begin;
+        for (auto it = m_view.begin(); it < m_view.end(); it += m_page_size) {
+            local = static_cast<uint8_t>(local + static_cast<uint8_t>(*it));
         }
     }
 };
-
-class PrefetchToken;
 
 /**
  * @brief Pre-fetches a page-aligned, committed VM range into physical memory, blocking until every
@@ -47,72 +51,18 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Asynchronous variant of @ref vm_prefetch: submits page-population to the shared pool and
- * returns immediately with a @ref PrefetchToken to wait on.
+ * returns immediately with a handle reporting progress of the whole range.
  *
  * @param ptr          Page-aligned base address of the range.
  * @param size         Multiple of the system page size.
  * @param num_threads  Number of population jobs to split the range into; @c 0 requests only a
- *                     lightweight advisory OS hint instead of touching pages and returns an empty
- *                     token.
+ *                     lightweight advisory OS hint instead of touching pages and returns an invalid
+ *                     handle.
  *
- * Returns an empty token if the work could not be scheduled.
+ * The handle does not keep the populated memory alive: the caller must keep that memory valid until
+ * the handle becomes ready. Returns an invalid handle if the work could not be scheduled.
  */
 PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
-
-/**
- * @brief Move-only RAII handle for background page-population started by @ref vm_prefetch_async.
- *
- * Destruction (or an explicit @ref wait) joins the outstanding work, so nothing is ever left
- * running uncontrolled. The token does not keep the populated memory alive: the caller must keep
- * that memory valid until the token completes, is destroyed, or its futures are @ref detach "detached".
- */
-class PrefetchToken {
-public:
-    PrefetchToken() noexcept = default;
-    explicit PrefetchToken(std::vector<std::future<void>>&& tasks) noexcept : m_tasks(std::move(tasks)) {}
-
-    PrefetchToken(const PrefetchToken&) = delete;
-    PrefetchToken& operator=(const PrefetchToken&) = delete;
-    PrefetchToken(PrefetchToken&&) noexcept = default;
-
-    PrefetchToken& operator=(PrefetchToken&& other) noexcept {
-        if (this != &other) {
-            wait();
-            m_tasks = std::move(other.m_tasks);
-        }
-        return *this;
-    }
-
-    ~PrefetchToken() {
-        wait();
-    }
-
-    void wait() noexcept {
-        for (auto& task : m_tasks) {
-            if (task.valid()) {
-                task.wait();
-            }
-        }
-        m_tasks.clear();
-    }
-
-    std::vector<std::future<void>> detach() noexcept {
-        auto tasks = std::move(m_tasks);
-        m_tasks.clear();
-        return tasks;
-    }
-
-    bool valid() const noexcept {
-        return !m_tasks.empty();
-    }
-
-    explicit operator bool() const noexcept {
-        return valid();
-    }
-
-private:
-    std::vector<std::future<void>> m_tasks;
-};
 
 /**
  * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,
@@ -122,9 +72,10 @@ private:
  * @param size         Multiple of the system page size.
  * @param num_threads  Number of population jobs to split the range into.
  *
- * Returns an empty vector if the work could not be scheduled (e.g. an allocation failure).
+ * Returns a handle that becomes ready once every chunk has been touched, or an invalid handle if
+ * the work could not be scheduled (e.g. an allocation failure).
  */
-std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
+PrefetchToken submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result, rounding

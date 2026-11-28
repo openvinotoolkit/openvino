@@ -1,0 +1,12 @@
+{
+  "llama_cpp_commit": "476c01efe88aad7880a8132d5d3a415f2ca75139",
+  "shape": [
+    4,
+    256
+  ],
+  "seed": 20261026,
+  "quantizer": "quantize_row_q8_1_ref",
+  "oracle": "dequantize_row_q8_0 after copying Q8_1 d and qs into Q8_0 blocks",
+  "qbytes_sha256": "3096f2df8e8dff60a332c546ca71750dfbfe71321b04da9bdf066ef21caa2840",
+  "deq_sha256": "cac9fc77b618a9756c059948fdc95f18ad56e6f43cdfa55de620a5b52b3e0838"
+}

@@ -37,7 +37,7 @@ auto create_layout(ShapeType shape) {
 
 
 template <typename T>
-void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
+void test_moe_scatter_reduction(bool is_caching_test, size_t k, bool tokens_first = true, bool has_batch_dim = false) {
     auto& engine = get_test_engine();
     // num_tokens 30
     // hidden_size 64
@@ -54,7 +54,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
 
     ov::op::internal::MOECompressed::Config moe_config;
     moe_config.top_k = num_active_experts_per_token;
-    moe_config.has_batch_dim = false;
+    moe_config.has_batch_dim = has_batch_dim;
 
     auto input_activation_shape = ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)};
     auto input_activation_layout = create_layout<T>(input_activation_shape);
@@ -94,7 +94,9 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
                                             input_info("experts_ids"),
                                             moe_config,
                                             true));
-    auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), 1, ov::Dimension(hidden_size)};
+    auto input_data_shape = tokens_first
+        ? ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)}
+        : ov::PartialShape{ov::Dimension(1), ov::Dimension(num_tokens * num_active_experts_per_token), ov::Dimension(hidden_size)};
     auto input_data_layout = create_layout<T>(input_data_shape);
 
     std::vector<T> input_data;
@@ -195,6 +197,13 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     network.set_input_data("experts_ids", experts_ids_data_mem);
     auto outputs = network.execute();
     auto output = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output->get_layout().count(), num_tokens * hidden_size);
+    ASSERT_GE(output->get_mem_tracker() ? output->get_mem_tracker()->size() : output->size(),
+              num_tokens * hidden_size * sizeof(T));
+    const ov::PartialShape expected_out_shape = tokens_first
+        ? ov::PartialShape{ov::Dimension(num_tokens), ov::Dimension(1), ov::Dimension(hidden_size)}
+        : ov::PartialShape{ov::Dimension(1), ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
+    ASSERT_EQ(output->get_layout().get_partial_shape(), expected_out_shape);
     cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<T> ref_output;
     for (size_t i = 0; i < num_tokens; ++i) {
@@ -256,4 +265,12 @@ TEST(moe_unit, moe_scatter_reduction_test_multi_batch_unaligned_f16) {
 
 TEST(moe_unit, moe_scatter_reduction_test_cached) {
     test_moe_scatter_reduction<float>(true, 64);
+}
+
+TEST(moe_unit, moe_scatter_reduction_tokens_first_with_batch_dim_flag) {
+    test_moe_scatter_reduction<ov::float16>(false, 64, true, true);
+}
+
+TEST(moe_unit, moe_scatter_reduction_batch_first_without_batch_dim_flag) {
+    test_moe_scatter_reduction<ov::float16>(false, 64, false, false);
 }

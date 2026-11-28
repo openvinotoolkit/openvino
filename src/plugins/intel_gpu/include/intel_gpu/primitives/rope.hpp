@@ -25,7 +25,7 @@ struct rope : public primitive_base<rope> {
          const RoPE::Config& config,
          size_t gather_rank = 0,
          bool fuse_rms_norm = false,
-         float rms_epsilon = 0.0f)
+         float rms_epsilon = 0.0F)
         : primitive_base(id, inputs),
           config(config),
           gather_rank(gather_rank),
@@ -42,7 +42,7 @@ struct rope : public primitive_base<rope> {
     size_t gather_rank = 0;
     // Set when a preceding per-head RMSNorm is folded into the RoPE kernel; input 3 is then gamma.
     bool fuse_rms_norm = false;
-    float rms_epsilon = 0.0f;
+    float rms_epsilon = 0.0F;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

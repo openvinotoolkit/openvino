@@ -221,4 +221,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis5, GatherElementsLayerTes
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
+// Rank-1 data with rank-1 constant indices: the plugin stores a rank-1 constant in
+// the feature slot while rank-1 parameters and the output use batch, so this read
+// the wrong indices before the constant.cpp batch-interpretation fix.
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank1, GatherElementsLayerTest,
+    ::testing::Combine(
+        ::testing::Values(ov::test::static_shapes_to_test_representation({ov::Shape{100}})),
+        ::testing::Values(ov::Shape{4}),
+        ::testing::Values(0, -1),
+        ::testing::ValuesIn(model_types),
+        ::testing::ValuesIn(indices_types),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    GatherElementsLayerTest::getTestCaseName);
+
 }  // namespace

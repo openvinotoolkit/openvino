@@ -42,7 +42,7 @@ public:
     };
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const arg_max_min_params& params) const;
     virtual DispatchData SetDefault(const arg_max_min_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;

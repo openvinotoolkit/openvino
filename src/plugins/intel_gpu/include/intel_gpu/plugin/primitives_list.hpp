@@ -292,6 +292,7 @@ REGISTER_FACTORY(v16, SegmentMax);
 // ------------------------------ Supported v17 ops ----------------------------- //
 REGISTER_FACTORY(v17, ErfInv);
 REGISTER_FACTORY(v17, GroupedMatMul);
+REGISTER_FACTORY(v17, SparseAttention);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -309,7 +310,6 @@ REGISTER_FACTORY(internal, ReadValue);
 REGISTER_FACTORY(internal, ReadValues);
 REGISTER_FACTORY(internal, Gemm);
 REGISTER_FACTORY(internal, GLU);
-REGISTER_FACTORY(internal, GatedMLP);
 REGISTER_FACTORY(internal, IndirectGemm);
 REGISTER_FACTORY(internal, Convolution);
 REGISTER_FACTORY(internal, Placeholder);
@@ -334,6 +334,13 @@ REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
 REGISTER_FACTORY(internal, GroupedMatMulCompressed);
 REGISTER_FACTORY(internal, Atan2);
+REGISTER_FACTORY(internal, Swoosh);
 #ifdef ENABLE_MLIR_FOR_GPU
 REGISTER_FACTORY(internal, MLIR);
 #endif
+REGISTER_FACTORY(internal, GatedResidual);
+REGISTER_FACTORY(internal, PagedQSAIndexer);
+REGISTER_FACTORY(internal, QSAIndexer);
+REGISTER_FACTORY(internal, QSAIndexerInPlace);
+REGISTER_FACTORY(internal, PagedSparseAttention);
+REGISTER_FACTORY(internal, SparseSDPA);

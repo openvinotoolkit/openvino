@@ -98,6 +98,32 @@ TEST(ZeGraphExtWrappersTest, AcceptsMatchingDynamicMetadataRank) {
     EXPECT_EQ(*descriptor.shapeFromIRModel, ov::PartialShape({4, ov::Dimension(1, 32)}));
 }
 
+TEST(ZeGraphExtWrappersTest, DecodesUnboundedDimensionAsFullyDynamic) {
+    auto arg = makeArgument(2);
+    arg.dims[1] = 0;
+    auto metadata = makeMetadata(2);
+    metadata.shape[1] = std::numeric_limits<uint64_t>::max();
+
+    const auto descriptor = intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, metadata);
+
+    ASSERT_TRUE(descriptor.shapeFromIRModel.has_value());
+    EXPECT_EQ(descriptor.shapeFromCompiler, ov::PartialShape({4, 0}));
+    EXPECT_EQ(*descriptor.shapeFromIRModel, ov::PartialShape({4, ov::Dimension::dynamic()}));
+    EXPECT_TRUE(descriptor.shapeFromIRModel->compatible(ov::PartialShape({4, 4096})));
+}
+
+TEST(ZeGraphExtWrappersTest, KeepsStaticZeroDimension) {
+    auto arg = makeArgument(2);
+    arg.dims[1] = 0;
+    auto metadata = makeMetadata(2);
+    metadata.shape[1] = 0;
+
+    const auto descriptor = intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, metadata);
+
+    ASSERT_TRUE(descriptor.shapeFromIRModel.has_value());
+    EXPECT_EQ(*descriptor.shapeFromIRModel, ov::PartialShape({4, 0}));
+}
+
 TEST(ZeGraphExtWrappersTest, AcceptsPluginBatchingMetadata) {
     auto arg = makeArgument(2);
     arg.dims[0] = 1;

@@ -23,8 +23,7 @@ public:
 
     KernelsData GetKernelsData(const Params& params) const override;
     using FullyConnectedKernelBase::GetTunedKernelsDataByIndex;
-    KernelsData GetTunedKernelsDataByIndex(const Params &params,
-                                           const int autoTuneIndex = -1) const override;
+    KernelsData GetTunedKernelsDataByIndex(const Params& params, int autoTuneIndex = -1) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
 
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -93,7 +92,7 @@ protected:
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
     void SetDispatchDataFunc(KernelData& kd, const DispatchIndices& idx) const;
 
-    tune_params GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type = KernelType::DEFAULT, int idx = -1) const;
+    tune_params GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type = KernelType::DEFAULT, int idx = -1) const;
 
     std::vector<tune_params> auto_tune_params;
 };

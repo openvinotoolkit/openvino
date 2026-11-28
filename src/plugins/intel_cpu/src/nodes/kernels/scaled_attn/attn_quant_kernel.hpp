@@ -847,6 +847,47 @@ void attn_dequant_by_channel_kernel(const void* src,
     }
 }
 
+/// @brief Dequantizes `n` consecutive by-token rows of D elements. A row is a sequence of groups of `group_size`
+/// elements (0: one group per row), each stored as `[scale f32][zero point f32][group data]` (i8: `[scale f32][group
+/// data]`), so a row takes `D / sub_byte_multiplier + params_size * groups` bytes. Row r is written to dst + r *
+/// dst_stride.
+template <typename TDST, ov::element::Type_t PREC>
+void attn_dequant_rows_by_token(const void* src, TDST* dst, size_t n, size_t D, size_t group_size, size_t dst_stride) {
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(PREC);
+    constexpr size_t params_size = sizeof(float) * (PREC == ov::element::i8 ? 1 : 2);
+    const size_t gs = group_size ? group_size : D;
+    const auto* s = static_cast<const uint8_t*>(src);
+    for (size_t r = 0; r < n; r++) {
+        size_t src_offset = 0;
+        for (size_t d = 0; d < D; d += gs) {
+            const auto* params = reinterpret_cast<const float*>(s + src_offset);
+            attn_dequant_kernel<TDST, PREC>(s + src_offset + params_size, dst + r * dst_stride + d, gs, params);
+            src_offset += gs / sub_byte_multiplier + params_size;
+        }
+        s += src_offset;
+    }
+}
+
+/// @brief Dequantizes `n` rows of D elements of a by-channel page (u8 / u4), starting at row `first_row`: the page is
+/// `f32 scale[D] | f32 zero point[D] | data[page rows, D]`. Row r is written to dst + r * dst_stride.
+template <typename TDST, ov::element::Type_t PREC>
+void attn_dequant_page_rows_by_channel(const void* page,
+                                       TDST* dst,
+                                       size_t first_row,
+                                       size_t n,
+                                       size_t D,
+                                       size_t dst_stride) {
+    static_assert(ov::intel_cpu::any_of(PREC, ov::element::u8, ov::element::u4),
+                  "by-channel quantization is u8 / u4 only");
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(PREC);
+    const auto* scales = static_cast<const float*>(page);
+    const float* zps = scales + D;
+    const auto* data = reinterpret_cast<const uint8_t*>(zps + D);
+    const size_t row_stride = D / sub_byte_multiplier;
+    attn_dequant_by_channel_kernel<TDST,
+                                   PREC>(data + first_row * row_stride, dst, n, D, row_stride, dst_stride, scales, zps);
+}
+
 #if defined(HAVE_SVE)
 void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, const float* params) {
     size_t i = 0;

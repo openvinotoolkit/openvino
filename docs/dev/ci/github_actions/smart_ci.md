@@ -336,6 +336,20 @@ Build:
 This approach works because skipped checks are processed as successful by GitHub. They do not block
 the merge, unlike required workflows skipped by path filtering.
 
+Smart CI also has a shared file allowlist for agentic workflow and rerunner automation in
+[`smart_ci.py`](../../../../.github/actions/smart-ci/smart_ci.py). It covers gh-aw sources, generated
+locks, shared fragments, action configuration, CI Doctor schemas, safe-output scripts, the rerunner
+scripts/error database/tests, their compilation-check and rerunner workflows, and the agentic workflow
+skill. These paths are combined with each workflow's file skip patterns. A PR or merge-queue changeset
+containing only matching files skips expensive product validation even when `category: CI`,
+`github_actions`, or `no-match-files` would otherwise request full scope. Any nonmatching file preserves
+normal validation; post-commit runs are not skipped. Do not exempt `.github/**` generally: build/test
+workflows, shared actions and Smart CI configuration must still receive normal validation.
+
+The workflow runs themselves (including required status aggregation) still start; Smart CI skips
+their expensive jobs. Dedicated compilation, workflow scans and other independently triggered checks
+continue to run.
+
 ### Adding Smart CI for Components Outside the OpenVINO Repository
 
 Some components, like the NVIDIA plugin or ONNX Runtime, are stored in their own repositories.
@@ -374,6 +388,11 @@ This will ensure that the workflow won't be executed automatically for PRs in dr
 
 From the main page of the draft PR, go to the "Checks" tab -> in the left menu choose the workflow that you'd like to execute -> press the "Re-run all jobs" button.
 Detailed instruction: [Re-running all the jobs in a workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs#re-running-all-the-jobs-in-a-workflow)
+
+The non-blocking C++20 builds in the Ubuntu 22.04, Ubuntu 24.04 and Windows VS 2022 Release
+workflows also run when you re-run all jobs for a PR, including a non-draft PR. This re-runs the
+entire workflow, not just the C++20 build. The condition also matches automated re-runs, and
+Smart CI's usual skip rules still apply.
 
 >**NOTE**: If you add the condition above, make sure to update the triggers section of the workflow as follows, to ensure that all checks will be re-executed once the PR is converted from draft to "ready for review":
 

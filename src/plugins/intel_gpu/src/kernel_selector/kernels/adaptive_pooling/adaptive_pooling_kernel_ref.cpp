@@ -29,7 +29,7 @@ ParamsKey AdaptivePoolingRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&) const {
+KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params& /*unused*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

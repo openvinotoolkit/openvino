@@ -5,6 +5,8 @@
 #include "test_utils.h"
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/activation.hpp"
@@ -13,6 +15,8 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/range.hpp"
 #include "intel_gpu/primitives/slice_scatter.hpp"
 #include "primitive_inst.h"
 
@@ -51,6 +55,55 @@ TEST(network_test, model_with_empty_input_is_not_dynamic) {
     network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
 
     ASSERT_FALSE(net.is_dynamic());
+}
+
+static void run_zero_size_remote_tensor_input(ov::intel_gpu::TensorType tensor_type, const ov::PartialShape& port_shape) {
+    auto& engine = get_test_engine();
+    const ov::Shape zero_shape{1, 0, 2};
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto remote = std::make_shared<ov::intel_gpu::RemoteTensorImpl>(context, zero_shape, ov::element::f32, tensor_type);
+    auto input_mem = remote->get_memory();
+    ASSERT_EQ(remote->get_shape(), zero_shape);
+    ASSERT_EQ(remote->get_byte_size(), 0u);
+    ASSERT_EQ(input_mem->get_layout().get_partial_shape(), ov::PartialShape(zero_shape));
+    ASSERT_EQ(input_mem->size(), 0u);
+
+    auto const_mem = engine.allocate_memory({{1, 1, 2}, data_types::f32, format::bfyx});
+    set_values(const_mem, {1.0f, 2.0f});
+
+    topology topology;
+    topology.add(input_layout("input0", layout{port_shape, data_types::f32, format::bfyx}));
+    topology.add(data("input1", const_mem));
+    topology.add(concatenation("output", {input_info("input0"), input_info("input1")}, 1));
+
+    network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
+    OV_ASSERT_NO_THROW(net.set_input_data("input0", input_mem));
+    ASSERT_EQ(net.get_primitive("input0")->output_memory().get_layout().get_partial_shape(), ov::PartialShape(zero_shape));
+
+    // Remote memory must keep the zero dim, otherwise shape inference sees a non-empty input
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("output").get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), ov::PartialShape({1, 1, 2}));
+    mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr[0], 1.0f);
+    ASSERT_EQ(output_ptr[1], 2.0f);
+}
+
+TEST(network_test, zero_size_remote_tensor_input) {
+    auto& engine = get_test_engine();
+    std::vector<ov::intel_gpu::TensorType> tensor_types = {ov::intel_gpu::TensorType::BT_BUF_INTERNAL};
+    if (engine.supports_allocation(allocation_type::usm_device))
+        tensor_types.push_back(ov::intel_gpu::TensorType::BT_USM_DEVICE_INTERNAL);
+    if (engine.supports_allocation(allocation_type::usm_host))
+        tensor_types.push_back(ov::intel_gpu::TensorType::BT_USM_HOST_INTERNAL);
+
+    for (auto tensor_type : tensor_types) {
+        for (const auto& port_shape : {ov::PartialShape{1, 0, 2}, ov::PartialShape{1, -1, 2}}) {
+            SCOPED_TRACE(static_cast<int>(tensor_type));
+            SCOPED_TRACE(port_shape.to_string());
+            run_zero_size_remote_tensor_input(tensor_type, port_shape);
+        }
+    }
 }
 
 TEST(network_test, model_with_dynamic_input_is_dynamic) {
@@ -159,6 +212,70 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(reorder_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(activation_ev.get())->get().get() != nullptr);
+}
+
+TEST(network_test, has_proper_event_for_shape_infer_dep_chain) {
+    auto& engine = get_test_engine();
+    layout shape_layout{ov::PartialShape{4}, data_types::i64, format::bfyx};
+    layout idx_layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    layout scalar_layout{ov::PartialShape{}, data_types::i64, format::bfyx};
+    auto shape_mem = engine.allocate_memory(shape_layout);
+    auto idx_mem = engine.allocate_memory(idx_layout);
+    auto start_mem = engine.allocate_memory(scalar_layout);
+    auto step_mem = engine.allocate_memory(scalar_layout);
+    set_values<int64_t>(shape_mem, {4, 1, 2, 3});
+    set_values<int32_t>(idx_mem, {0});
+    set_values<int64_t>(start_mem, {0});
+    set_values<int64_t>(step_mem, {1});
+
+    topology topology;
+    topology.add(input_layout("shape_input", shape_layout));
+    topology.add(data("indices", idx_mem));
+    topology.add(data("start", start_mem));
+    topology.add(data("step", step_mem));
+    topology.add(gather("gather", input_info("shape_input"), input_info("indices"), 0, 1, ov::Shape{1}));
+    topology.add(reshape("squeeze", input_info("gather"), false, std::vector<int64_t>{0}, ov::PartialShape{}, reshape::reshape_mode::squeeze));
+    topology.add(range("range", {input_info("start"), input_info("squeeze"), input_info("step")}, data_types::i64));
+
+    auto impl_desc = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"gather", impl_desc}};
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net(engine, topology, config);
+
+    net.set_input_data("shape_input", shape_mem);
+    auto outputs = net.execute();
+
+    ASSERT_TRUE(net.get_primitive("squeeze")->get_node().can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("gather")->get_node().is_shape_infer_dep());
+    ASSERT_TRUE(net.get_primitive("squeeze")->get_node().is_shape_infer_dep());
+
+    ASSERT_TRUE(net.has_event("gather"));
+    ASSERT_TRUE(net.has_event("squeeze"));
+    ASSERT_TRUE(net.has_event("range"));
+
+    auto gather_ev = net.get_primitive_event("gather");
+    auto squeeze_ev = net.get_primitive_event("squeeze");
+    auto range_ev = net.get_primitive_event("range");
+
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(gather_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(range_ev.get()));
+
+    ASSERT_TRUE(downcast<ocl::ocl_base_event>(gather_ev.get())->get().get() != nullptr);
+    ASSERT_TRUE(downcast<ocl::ocl_base_event>(range_ev.get())->get().get() != nullptr);
+
+    // optimized out squeeze forwards the event of its input
+    ASSERT_EQ(squeeze_ev.get(), gather_ev.get());
+
+    mem_lock<int64_t> output_ptr{outputs.at("range").get_memory(), get_test_stream()};
+    ASSERT_EQ(output_ptr.size(), 4u);
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], static_cast<int64_t>(i));
+    }
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

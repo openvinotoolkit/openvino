@@ -24,6 +24,12 @@ inline size_t get_target_seq_len_block_size() {
     return block_size;
 }
 
+// The finalization stage keeps one value per key partition in local memory
+inline size_t get_max_partitions_num() {
+    constexpr size_t max_partitions_num = 128;
+    return max_partitions_num;
+}
+
 inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type) {
     constexpr size_t subgroup_size = 16;
     const size_t optimal_scale_factor = 2;

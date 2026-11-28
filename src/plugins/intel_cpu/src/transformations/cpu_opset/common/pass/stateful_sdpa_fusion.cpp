@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -24,15 +25,18 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -54,6 +58,86 @@
 using namespace ov::pass;
 
 namespace ov::intel_cpu {
+
+namespace {
+// ScaledDotProductAttentionWithKVCache and the CPU ScaledAttn node implement a narrower contract than v13 SDPA.
+// The fusion drops the key/value head repeat and feeds the raw caches, so it declines the graphs that the node
+// cannot execute; the unfused SDPA is then decomposed as the spec defines. Each declined case either fails to
+// compile or gives wrong results when fused, so declining slows down no graph that works today.
+bool is_supported_by_fused_node(const ov::op::v13::ScaledDotProductAttention& sdpa,
+                                const ov::Output<ov::Node>& q,
+                                const ov::Output<ov::Node>& cur_k,
+                                const ov::Output<ov::Node>& cur_v,
+                                const ov::Output<ov::Node>& past_k,
+                                const ov::Output<ov::Node>& past_v,
+                                const std::vector<size_t>& permute_axes) {
+    // The node takes a rank-4 query ([B, H, L, D] or a permutation of it) and rank-4 caches.
+    const auto& q_rank = q.get_partial_shape().rank();
+    if (q_rank.is_dynamic() || q_rank.get_length() != 4) {
+        return false;
+    }
+    for (const auto& kv : {cur_k, cur_v, past_k, past_v}) {
+        const auto& rank = kv.get_partial_shape().rank();
+        if (rank.is_static() && rank.get_length() != 4) {
+            return false;
+        }
+    }
+    // The node broadcasts a mask of rank 2 to 4 against the attention weights. A lower rank, such as the scalar
+    // zero mask a frontend adds when only the scale is given, is rejected at run time unless the SDPA is causal.
+    if (sdpa.get_input_size() > 3) {
+        const auto& mask_rank = sdpa.get_input_partial_shape(3).rank();
+        if (mask_rank.is_static() &&
+            (mask_rank.get_length() > 4 || (mask_rank.get_length() < 2 && !sdpa.get_causal()))) {
+            return false;
+        }
+    }
+    // Key and value caches must have the same number of heads, and it must divide the query's. The inputs are in
+    // their original layout: with Transposes, the head axis is the one moved to position 1.
+    const size_t head_axis = permute_axes.empty() ? 1 : permute_axes[1];
+    auto num_heads = [head_axis](const ov::Output<ov::Node>& cur, const ov::Output<ov::Node>& past) {
+        auto heads =
+            cur.get_partial_shape().rank().is_static() ? cur.get_partial_shape()[head_axis] : ov::Dimension::dynamic();
+        if (past.get_partial_shape().rank().is_static()) {
+            // A mismatch between the cache and the current key or value is already rejected by the Concat.
+            std::ignore = ov::Dimension::merge(heads, heads, past.get_partial_shape()[head_axis]);
+        }
+        return heads;
+    };
+    const auto k_heads = num_heads(cur_k, past_k);
+    const auto v_heads = num_heads(cur_v, past_v);
+    if (k_heads.is_static() && v_heads.is_static() && k_heads != v_heads) {
+        return false;
+    }
+    const auto& q_heads = q.get_partial_shape()[head_axis];
+    for (const auto& heads : {k_heads, v_heads}) {
+        if (q_heads.is_static() && heads.is_static() &&
+            (heads.get_length() == 0 || q_heads.get_length() % heads.get_length() != 0)) {
+            return false;
+        }
+    }
+    // The kernels read a zero scale as "use 1 / sqrt(head size)", while v13 multiplies by it. A scale that is not
+    // a constant is read at run time and kept. ConvertLike is not folded by get_constant_from_source, so look
+    // through it.
+    if (sdpa.get_input_size() > 4) {
+        auto scale_source = sdpa.input_value(4);
+        if (const auto convert_like = ov::as_type_ptr<ov::op::v1::ConvertLike>(scale_source.get_node_shared_ptr())) {
+            scale_source = convert_like->input_value(0);
+        }
+        if (const auto scale = ov::util::get_constant_from_source(scale_source)) {
+            const auto values = scale->cast_vector<float>();
+            if (std::any_of(values.begin(), values.end(), [](float value) {
+                    return value == 0.0F;
+                })) {
+                return false;
+            }
+        }
+    }
+    // is_causal is not checked: the fused kernels align the causal mask bottom-right while v13 aligns it top-left.
+    // Both agree when the cache is empty, which is unknown at compile time, and models traced with is_causal and
+    // made stateful expect bottom-right, so declining would slow them down and change their output.
+    return true;
+}
+}  // namespace
 
 StatefulSDPAFusion::StatefulSDPAFusion() {
     MATCHER_SCOPE(StatefulSDPAFusion);
@@ -239,9 +323,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         // past_k & past_v must be reordered by same beam_idx
         const auto gather_k_node =
-            ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::util::GatherBase>(pattern_map.at(gather_input_k).get_node_shared_ptr());
         const auto gather_v_node =
-            ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::util::GatherBase>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+        OPENVINO_ASSERT(gather_k_node && gather_v_node, "StatefulSDPAFusion: expected Gather nodes for K and V");
         if (gather_k_node->input_value(1) != gather_v_node->input_value(1) ||
             gather_k_node->get_output_target_inputs(0).size() != 1 ||
             gather_v_node->get_output_target_inputs(0).size() != 1) {
@@ -277,6 +362,16 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             for (size_t i = 0; i < permute_q.size(); i++) {
                 config.permute_axes[i] = static_cast<size_t>(permute_q[i]);
             }
+        }
+
+        if (!is_supported_by_fused_node(*sdp_node,
+                                        pattern_map.at(cur_q),
+                                        pattern_map.at(cur_k),
+                                        pattern_map.at(cur_v),
+                                        gather_k_node->input_value(0),
+                                        gather_v_node->input_value(0),
+                                        config.permute_axes)) {
+            return false;
         }
 
         const auto& old_node = sdp_node;

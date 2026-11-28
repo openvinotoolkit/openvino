@@ -4,10 +4,14 @@
 
 #include "single_op_tests/grouped_matmul.hpp"
 
+#include <algorithm>
+#include <string>
 #include <vector>
 
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace {
 using ov::test::GroupedMatMulCompressedLayerTest;
@@ -16,6 +20,18 @@ using ov::test::GroupedMatMulLayerTest;
 using ov::test::GroupedMatMulShapeParams;
 using ov::test::TokensPerExpert;
 using ov::test::utils::DecompressionType;
+
+bool immad_supported() {
+    auto core = ov::test::utils::create_core();
+    const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    return std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) != caps.end();
+}
+
+// When GroupedMatMul unsupported natively it is converted to MatMul by ConvertGroupedMatMulToMatMul:
+// the 2Dx3D case folds into per-group FullyConnected, the 3Dx3D case into a batched Gemm.
+std::string expected_primitive(const std::string& native, const std::string& decomposed) {
+    return immad_supported() ? native : decomposed;
+}
 
 class GroupedMatMulCompressedLayerTest_GPU : public GroupedMatMulCompressedLayerTest {
 protected:
@@ -29,8 +45,8 @@ protected:
         const bool has_zero_point = (subtract_type != DecompressionType::empty);
 
         auto runtime_model = compiledModel.get_runtime_model();
-        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul"});
-        ASSERT_FALSE(nodes.empty()) << "No FullyConnected or grouped_matmul node found in the runtime model";
+        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul", "Gemm"});
+        ASSERT_FALSE(nodes.empty()) << "No FullyConnected, grouped_matmul, or Gemm node found in the runtime model";
 
         for (const auto& n : nodes) {
             const auto& rt = n->get_rt_info();
@@ -72,11 +88,23 @@ const std::vector<GroupedMatMulShapeParams> shapes_3d_3d = {
     {{ov::PartialShape{8, -1, 256}, {{8, 4, 256}, {8, 1, 256}}}, {8, 512, 256}, {}},
 };
 
+const std::vector<GroupedMatMulShapeParams> shapes_3d_3d_static = {
+    // 3D x 3D with a static M dim: the whole model is static.
+    {{ov::PartialShape{4, 8, 128}, {{4, 8, 128}}}, {4, 256, 128}, {}},
+    {{ov::PartialShape{8, 1, 256}, {{8, 1, 256}}}, {8, 512, 256}, {}},
+};
+
 const std::vector<GroupedMatMulShapeParams> shapes_2d_3d = {
     // 2D x 3D: A:[T,K] x B:[G,N,K] -> [T,N], dynamic T dim.
     {{ov::PartialShape{-1, 128}, {{16, 128}, {32, 128}, {8, 128}}}, {4, 256, 128}, TokensPerExpert{{8, 0, 8, 0}, {0, 16, 0, 16}, {4, 4, 0, 0}}},
     {{ov::PartialShape{-1, 128}, {{12, 128}, {20, 128}}}, {4, 256, 128}, TokensPerExpert{{4, 5, 3, 0}, {0, 7, 6, 7}}},
     {{ov::PartialShape{-1, 256}, {{16, 256}, {32, 256}}}, {8, 512, 256}, TokensPerExpert{{4, 2, 2, 2, 2, 2, 1, 1}, {2, 6, 4, 4, 4, 4, 4, 4}}},
+};
+
+const std::vector<GroupedMatMulShapeParams> shapes_2d_3d_static = {
+    // 2D x 3D with a static T dim: the whole model is static.
+    {{ov::PartialShape{16, 128}, {{16, 128}}}, {4, 256, 128}, TokensPerExpert{{8, 0, 8, 0}}},
+    {{ov::PartialShape{10, 256}, {{10, 256}}}, {8, 512, 256}, TokensPerExpert{{3, 0, 4, 0, 0, 2, 1, 0}}},
 };
 
 const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4};
@@ -88,7 +116,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_2d3d,
                          ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("GroupedMatMul")),
+                                            ::testing::Values(expected_primitive("GroupedMatMul", "FullyConnected"))),
+                         GroupedMatMulLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_2d3d_static,
+                         GroupedMatMulLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d_static),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMul", "FullyConnected"))),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d,
@@ -96,7 +132,34 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d,
                          ::testing::Combine(::testing::ValuesIn(shapes_3d_3d),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("GroupedMatMul")),
+                                            ::testing::Values(expected_primitive("GroupedMatMul", "Gemm"))),
+                         GroupedMatMulLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d_static,
+                         GroupedMatMulLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_3d_3d_static),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMul", "MatMul"))),
+                         GroupedMatMulLayerTest::getTestCaseName);
+
+// The native 2Dx3D implementation (oneDNN grouped_gemm) supports only f16 activations, so with f32 inference
+// precision (set by core_configuration for f32 models) 2Dx3D GroupedMatMul is decomposed on every device.
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f32_2d3d,
+                         GroupedMatMulLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(std::string("FullyConnected"))),
+                         GroupedMatMulLayerTest::getTestCaseName);
+
+// 3Dx3D GroupedMatMul is lowered to a batched FullyConnected, which also supports f32, so it stays native.
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f32_3d3d,
+                         GroupedMatMulLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_3d_3d),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMul", "Gemm"))),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
@@ -111,7 +174,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("GroupedMatMulCompressed"),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
+                                            ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d_static,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d_static),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 
@@ -127,7 +206,75 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
                                             ::testing::Values(true),
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values("GroupedMatMulCompressed"),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "Gemm")),
                                             ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d_static,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_3d_3d_static),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "MatMul")),
+                                            ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_f32_2d3d,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(-1, 128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(std::string("FullyConnected")),
+                                            ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+// With dynamic inference precision (also selected by ov::hint::ExecutionMode::ACCURACY) the activation type is kept
+// as is, so 2Dx3D GroupedMatMul is decomposed for f32 activations and stays native for f16 ones.
+const ov::AnyMap dynamic_precision_config = {ov::hint::inference_precision(ov::element::dynamic)};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_DynamicPrecision_f32_2d3d,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(-1, 128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(std::string("FullyConnected")),
+                                            ::testing::Values(dynamic_precision_config)),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_DynamicPrecision_f16_2d3d,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(-1, 128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
+                                            ::testing::Values(dynamic_precision_config)),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 }  // namespace

@@ -29,7 +29,7 @@ protected:
         size_t item_groups;
     };
 
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
@@ -39,11 +39,11 @@ protected:
         };
     }
 
-    KernelsData GetMultiStageKernelsData(const mvn_params& params, bool) const;
-    MultiDispatchData SetDefaultForMulti(const mvn_params& params, bool) const;
+    KernelsData GetMultiStageKernelsData(const mvn_params& params, bool /*has_enough_data*/) const;
+    static MultiDispatchData SetDefaultForMulti(const mvn_params& params, bool /*has_enough_data*/);
 
 private:
-    Datatype GetAccumulatorType(const mvn_params& params) const;
-    std::vector<size_t> GetFinalKernelLws(const std::vector<size_t>& gws, uint64_t max_wg) const;
+    static Datatype GetAccumulatorType(const mvn_params& params);
+    static std::vector<size_t> GetFinalKernelLws(const std::vector<size_t>& gws, uint64_t max_wg);
 };
 }  // namespace kernel_selector

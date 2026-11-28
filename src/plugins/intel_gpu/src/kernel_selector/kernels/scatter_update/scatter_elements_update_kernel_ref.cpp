@@ -4,6 +4,7 @@
 
 #include "scatter_elements_update_kernel_ref.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -222,16 +223,16 @@ bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
 
     const scatter_elements_update_params& params = static_cast<const scatter_elements_update_params&>(p);
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
 }
 
-bool ScatterElementsUpdateKernelRef::SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const {
+bool ScatterElementsUpdateKernelRef::SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) {
     if (kernel_id == 0) {
         if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
             return false;

@@ -25,7 +25,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual CommonDispatchData SetDefault(const shuffle_channels_params& params) const;
     virtual JitConstants GetJitConstants(const shuffle_channels_params& params) const;
 };

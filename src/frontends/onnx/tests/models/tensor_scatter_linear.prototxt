@@ -1,0 +1,64 @@
+ir_version: 11
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "past_cache"
+    input: "update"
+    output: "present_cache"
+    op_type: "TensorScatter"
+    attribute {
+      name: "axis"
+      i: -2
+      type: INT
+    }
+    attribute {
+      name: "mode"
+      s: "linear"
+      type: STRING
+    }
+  }
+  name: "tensor_scatter_linear_graph"
+  input {
+    name: "past_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 4 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "update"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 4 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 24
+}

@@ -12,6 +12,7 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/decoder_config.hpp"
+#include "builder/metadata_checks.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -19,18 +20,14 @@ class DSparkBuilder : public ModelBuilder {
 public:
     explicit DSparkBuilder(const BuildContext& context)
         : m_metadata(context.metadata),
-          m_config(decoder_config_from_meta(detail::MetadataAccess::get(context.metadata).map),
-                   context.weights->weights,
-                   RopeMode::Neox),
-          m_emitter(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators) {}
+          m_config(resolve_decoder_parameters(context.metadata, RopeMode::Neox), context.weights->weights),
+          m_emitter(context.weights->weights, context.arch, context.weights->translators) {}
 
     std::shared_ptr<GgufGraph> build() override {
         using ov::element::f32;
         using ov::element::i32;
         const auto required_int = [&](const std::string& name) {
-            const auto value = m_metadata.get_int("dspark.dspark." + name);
-            OPENVINO_ASSERT(value && *value > 0, "[GGUF] invalid DSpark ", name);
-            return *value;
+            return require_positive_int(m_metadata, "dspark.dspark." + name, "DSpark");
         };
         const auto block = required_int("block_size");
         OPENVINO_ASSERT(block <= 4096, "[GGUF] DSpark block_size exceeds the supported maximum of 4096");
@@ -44,10 +41,9 @@ public:
         OPENVINO_ASSERT(!captures.empty(), "[GGUF] missing DSpark target_layers");
         OPENVINO_ASSERT(!m_metadata.get_bool("dspark.dspark.hidden_correction").value_or(false),
                         "[GGUF] DSpark hidden correction is not supported");
+        m_config.model_contract.supports_genai_adaptation = false;
         auto& e = m_emitter;
-        auto& graph = *e.graph();
-        graph.has_rope = true;
-        graph.rope_config = m_config.rope_config;
+        m_config.configure_graph(e, m_metadata);
         const auto kv = blocks::KvCachePlan::build(m_config);
         e.add_input("inp_tokens", i32, ps({1, 1, 1, block}));
         e.add_input("inp_pos", i32, ps({1, 1, 1, -1}));
@@ -79,8 +75,7 @@ public:
                     features.data<float>()[pos * feature_width + feature_width / 2 + i] = std::cos(angle);
                 }
             }
-            e.weights()["dspark.log_snr_features"] = features;
-            e.add_named_weight("dspark.log_snr_features");
+            e.add_generated_weight("dspark.log_snr_features", features);
             auto snr = std::string("dspark.log_snr_features");
             for (int layer = 1; layer <= 2; ++layer) {
                 const auto name = "dspark.log_snr_fc" + std::to_string(layer);
@@ -118,6 +113,7 @@ public:
         logits_value.set_names({"logits"});
         auto hidden_value = e.value(hidden);
         hidden_value.set_names({"dspark.hidden"});
+        auto& graph = *e.graph();
         graph.model_output_names.insert(graph.model_output_names.begin(), {logits, hidden});
         std::string latent;
         if (markov_rank > 0) {
@@ -147,6 +143,7 @@ public:
             confidence_value.set_names({"dspark.confidence_score"});
             graph.model_output_names.push_back(confidence);
         }
+        e.validate_hadamard();
         return e.graph();
     }
 

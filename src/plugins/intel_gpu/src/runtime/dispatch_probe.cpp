@@ -63,12 +63,14 @@ ov::DeviceCompatibilityScore probe_score(runtime_types rt, const device_info& in
 
     // The override names what a group ships, so anything else (e.g. SYCL) is ignored: honouring
     // it would drop every candidate's Intel devices and hide the device entirely.
-    if (forced_rt != "OCL" && forced_rt != "ZE")
+    if (forced_rt != "OCL" && forced_rt != "ZE") {
         return score;
+    }
     // It applies only to Intel devices (the runtimes' shared, contended set); a non-Intel GPU
     // keeps its OCL score so it stays served regardless of the override.
-    if (!intel || score == ov::PROBE_SCORE_INCOMPATIBLE)
+    if (!intel || score == ov::PROBE_SCORE_INCOMPATIBLE) {
         return score;
+    }
     return forced_rt == to_cache_tag(rt) ? ov::PROBE_SCORE_PREFERRED : ov::PROBE_SCORE_INCOMPATIBLE;
 }
 

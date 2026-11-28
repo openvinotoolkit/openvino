@@ -3,11 +3,16 @@
 //
 
 #include "condition_inst.h"
+#include "data_inst.h"
+#include "input_layout_inst.h"
+#include "program_helpers.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
+#include <algorithm>
 #include <string>
+#include <unordered_set>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
@@ -33,12 +38,10 @@ static std::map<primitive_id, layout> get_out_layout_map(cldnn::network::ptr net
 
 static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& outputs, const std::map<size_t, cldnn::primitive_id> &io_output_map) {
     std::vector<layout> out_layouts;
-    for (auto out : outputs) {
-        for (const auto& io_output : io_output_map) {
-            auto inner_prim_id = io_output.second;
-            if (out.first == inner_prim_id) {
-                out_layouts.push_back(out.second);
-            }
+    for (const auto& io_output : io_output_map) {
+        auto it = outputs.find(io_output.second);
+        if (it != outputs.end()) {
+            out_layouts.push_back(it->second);
         }
     }
     OPENVINO_ASSERT(!out_layouts.empty(), "Not found any matched output");
@@ -76,7 +79,7 @@ layout condition_inst::calc_output_layout(condition_node const& /* node */, kern
 template <class T>
 static bool convert_data(memory::ptr mem, stream& stream) {
     mem_lock<T, mem_lock_type::read> lock_data{mem, stream};
-    return (static_cast<float>(*lock_data.data()) != 0.f);
+    return (static_cast<float>(*lock_data.data()) != 0.F);
 }
 
 bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
@@ -205,6 +208,61 @@ std::string condition_inst::to_string(condition_node const& node) {
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
     return primitive_description.str();
+}
+
+std::vector<program_node*> condition_node::get_inputs_forwarded_to_outputs() const {
+    std::vector<program_node*> forwarded;
+    auto collect = [&](const condition::branch& branch) {
+        if (!branch.inner_program) {
+            return;
+        }
+        const auto& body = *branch.inner_program;
+        // condition_impl takes the outer input memory as the output of a skipped body instead of running it
+        const bool body_is_skipped = body.can_be_optimized();
+        // Body nodes whose buffer can become a body output
+        std::vector<const program_node*> candidates;
+        for (const auto& out : branch.output_map) {
+            if (body.has_node(out.second)) {
+                candidates.push_back(&body.get_node(out.second));
+            }
+        }
+        std::unordered_set<const program_node*> visited;
+        while (!candidates.empty()) {
+            const program_node* node = candidates.back();
+            candidates.pop_back();
+            if (!visited.insert(node).second) {
+                continue;
+            }
+            if (node->is_type<input_layout>()) {
+                for (const auto& in : branch.input_map) {
+                    if (in.second != node->id()) {
+                        continue;
+                    }
+                    for (const auto& dep : get_dependencies()) {
+                        if (dep.first->id() == in.first && std::find(forwarded.begin(), forwarded.end(), dep.first) == forwarded.end()) {
+                            forwarded.push_back(dep.first);
+                        }
+                    }
+                }
+            } else if (node->is_type<condition>()) {
+                // A nested condition passes its inputs through in the same way, e.g. a parameter of this body
+                for (const auto* nested_input : node->as<condition>().get_inputs_forwarded_to_outputs()) {
+                    candidates.push_back(nested_input);
+                }
+            } else if (!node->is_type<data>()) {
+                if (!node->get_dependencies().empty() && (body_is_skipped || node->can_be_optimized() || node->is_runtime_skippable())) {
+                    candidates.push_back(&node->get_dependency(0));
+                }
+                // A oneDNN in-place post-op (sum or binary_mul_inplace) writes the output into the buffer of its eltwise input
+                if (const auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node); idx >= 0) {
+                    candidates.push_back(&node->get_dependency(static_cast<size_t>(idx)));
+                }
+            }
+        }
+    };
+    collect(_branch_true);
+    collect(_branch_false);
+    return forwarded;
 }
 
 /*
