@@ -103,6 +103,25 @@ const auto testCase4D =
                        ::testing::ValuesIn(axes_in_type),
                        ::testing::ValuesIn(signal_size_in_type));
 
+/* DFT of a 1D signal */
+
+// Only a rank 2 input calls DFT::fft() with parallelize = true
+const std::vector<std::vector<ov::test::InputShape>> input_shapes_rank2 = {
+    {{ov::PartialShape{-1, 2}, {{16, 2}, {64, 2}, {10, 2}}}},
+};
+
+const std::vector<std::vector<int64_t>> signalSizesRank2 = {{}, {32}};
+
+const auto testCaseRank2 = ::testing::Combine(::testing::ValuesIn(input_shapes_rank2),
+                                              ::testing::Values(ov::element::f32),
+                                              ::testing::Values(std::vector<int64_t>{0}),
+                                              ::testing::ValuesIn(signalSizesRank2),
+                                              ::testing::ValuesIn(op_types),
+                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                              ::testing::ValuesIn(axes_in_type),
+                                              ::testing::ValuesIn(signal_size_in_type));
+
+INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_rank2, DFTLayerTest, testCaseRank2, DFTLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_1d, DFTLayerTest, testCase1D, DFTLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_2d, DFTLayerTest, testCase2D, DFTLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsDFT_3d, DFTLayerTest, testCase3D, DFTLayerTest::getTestCaseName);
