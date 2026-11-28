@@ -1740,4 +1740,57 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_kept_without_com
     EXPECT_EQ(m_cpu_compile_count.load(), 1);
     EXPECT_EQ(m_gpu0_compile_count.load(), 1);
 }
+
+TEST_F(AutoDynamicDeviceSelectionTest, adaptive_level_keeps_the_device_during_the_dwell_time) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert({"AUTO_ADAPTIVE_LEVEL", "ROUTE"});
+    // the selection moves to the CPU after the first inference, but GPU.0 is not left right away, so the CPU is
+    // never compiled
+    expect_selected_devices({"GPU.0", "GPU.0", "CPU", "CPU"});
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(_),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(1);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 3);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, adaptive_level_leaves_a_device_over_its_threshold_at_once) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert({"AUTO_ADAPTIVE_LEVEL", "ROUTE"});
+    expect_selected_devices({"GPU.0", "GPU.0", "CPU", "CPU"});
+    auto over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(over_threshold);
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(_),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(2);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    // GPU.0 serves the first inference
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    // the selection prefers the CPU, GPU.0 is below its threshold and keeps serving
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    *over_threshold = true;
+    // GPU.0 is over its threshold now, so the CPU takes over without waiting for the dwell time
+    OV_ASSERT_NO_THROW(infer_request->infer());
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, without_the_adaptive_level_the_selection_is_followed_per_inference) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    expect_selected_devices({"GPU.0", "CPU"});
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(_),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(2);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 4);
+}
 }  // namespace ov::test

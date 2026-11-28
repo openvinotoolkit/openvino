@@ -24,11 +24,18 @@ public:
     void count_switch() {
         m_switches++;
     }
+    // a switch the switch policy kept from happening
+    void count_suppressed() {
+        m_suppressed++;
+    }
     size_t inferences() const {
         return m_inferences.load();
     }
     size_t switches() const {
         return m_switches.load();
+    }
+    size_t suppressed() const {
+        return m_suppressed.load();
     }
     // one line per instance after the totals
     std::string summary(const InstanceStatsSnapshot& stats) const;
@@ -36,6 +43,7 @@ public:
 private:
     std::atomic<size_t> m_inferences = {0};
     std::atomic<size_t> m_switches = {0};
+    std::atomic<size_t> m_suppressed = {0};
 };
 
 }  // namespace auto_plugin

@@ -36,6 +36,16 @@ namespace {
 long long newest(const std::vector<long long>& samples, size_t next) {
     return samples[(next + samples.size() - 1) % samples.size()];
 }
+
+std::chrono::microseconds recent_mean(const std::vector<long long>& samples, size_t next) {
+    constexpr size_t count = 8;
+    const auto used = std::min(count, samples.size());
+    long long sum = 0;
+    for (size_t i = 1; i <= used; i++) {
+        sum += samples[(next + samples.size() - i) % samples.size()];
+    }
+    return std::chrono::microseconds(sum / static_cast<long long>(used));
+}
 }  // namespace
 
 std::optional<std::chrono::microseconds> InstanceStats::last_inference(const ModelInstanceKey& instance) const {
@@ -61,6 +71,7 @@ InstanceStatsSnapshot InstanceStats::snapshot() const {
         InstanceLatency latency;
         latency.baseline = std::chrono::microseconds(sorted[index]);
         latency.recent = std::chrono::microseconds(newest(window.samples, window.next));
+        latency.recent_mean = recent_mean(window.samples, window.next);
         latency.samples = window.samples.size();
         latency.total = window.total;
         result.instances.emplace(instance, latency);

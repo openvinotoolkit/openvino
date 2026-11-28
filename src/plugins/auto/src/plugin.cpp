@@ -16,12 +16,12 @@
 #include <unordered_set>
 #include <vector>
 
+#include "adaptive/ipf_signal_source.hpp"
 #include "auto_compiled_model.hpp"
 #include "auto_schedule.hpp"
 #include "cumulative_compiled_model.hpp"
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
-#include "utils/device_telemetry.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -31,6 +31,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/util/file_util.hpp"
+#include "utils/device_telemetry.hpp"
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
@@ -737,8 +738,37 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
     for (const auto& device : devices) {
         device_name_and_type.emplace_back(device.device_name, resolve_device_key(device.device_name).device_type);
     }
+    std::shared_ptr<SignalHub> hub;
+    {
+        std::lock_guard<std::mutex> lock(m_signal_hub_mutex);
+        hub = m_signal_hub;
+    }
+    if (hub) {
+        std::vector<std::string> names;
+        names.reserve(devices.size());
+        for (const auto& device : devices) {
+            names.push_back(device.device_name);
+        }
+        if (const auto observation = hub->read(names)) {
+            Utilizations from_hub;
+            for (const auto& device : devices) {
+                if (const auto it = observation->utilizations.find(device.device_name);
+                    it != observation->utilizations.end()) {
+                    from_hub.emplace(*it);
+                }
+            }
+            LOG_DEBUG_TAG(
+                "[IPF] utilization is %lf ms old, refreshed in the background",
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - observation->observed_at)
+                    .count());
+            return from_hub;
+        }
+    }
     const auto query_start_time = std::chrono::steady_clock::now();
-    const auto result = m_telemetry_client->utilizations(device_name_and_type);
+    const auto result = [&] {
+        std::lock_guard<std::mutex> lock(m_telemetry_mutex);
+        return m_telemetry_client->utilizations(device_name_and_type);
+    }();
     LOG_DEBUG_TAG("[IPF] utilization query took %lf ms",
                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - query_start_time).count());
     for (const auto& device : devices) {
@@ -747,6 +777,29 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
         }
     }
     return result;
+}
+
+std::shared_ptr<SignalHub::Subscription> Plugin::subscribe_telemetry(const std::vector<DeviceInformation>& devices,
+                                                                     SignalHub::StatsFn stats,
+                                                                     SignalHub::HeadroomFn headroom) {
+    std::call_once(m_telemetry_client_init_once, [this]() {
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
+    });
+    std::shared_ptr<SignalHub> hub;
+    {
+        std::lock_guard<std::mutex> lock(m_signal_hub_mutex);
+        if (!m_signal_hub) {
+            m_signal_hub =
+                std::make_shared<SignalHub>(std::make_shared<IpfSignalSource>(*m_telemetry_client, m_telemetry_mutex));
+        }
+        hub = m_signal_hub;
+    }
+    DeviceQuery query;
+    query.reserve(devices.size());
+    for (const auto& device : devices) {
+        query.emplace_back(device.device_name, resolve_device_key(device.device_name).device_type);
+    }
+    return hub->subscribe(std::move(query), std::move(stats), std::move(headroom));
 }
 
 std::optional<bool> Plugin::get_low_power_mode() {

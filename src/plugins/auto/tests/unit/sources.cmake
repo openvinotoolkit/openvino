@@ -3,6 +3,7 @@
 #
 
 set(OV_AUTO_UNIT_TESTS_SRC
+    ${CMAKE_CURRENT_LIST_DIR}/adaptive_policy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/adaptive_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/auto_unit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cache_compile_for_all_test.cpp
@@ -39,6 +40,17 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/goal.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/instance_stats.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/instance_stats.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/headroom.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/ipf_signal_source.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/observation.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/period_estimator.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/period_estimator.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/refresh_policy.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/refresh_policy.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/signal_hub.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/signal_hub.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/switch_policy.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/switch_policy.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.cpp

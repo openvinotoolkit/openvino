@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "adaptive/signal_hub.hpp"
 #include "cache_manager.hpp"
 #include "common.hpp"
 #include "compiled_model.hpp"
@@ -90,6 +91,15 @@ public:
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
 
+    /**
+     * @brief Keep the utilization of the devices up to date in the background, so that selecting a device does not
+     * query the telemetry backend.
+     * @return the subscription, which ends with its last reference
+     */
+    std::shared_ptr<SignalHub::Subscription> subscribe_telemetry(const std::vector<DeviceInformation>& devices,
+                                                                 SignalHub::StatsFn stats,
+                                                                 SignalHub::HeadroomFn headroom);
+
     // Whether the telemetry backend (IPF) is operational; without it the resource aware selection cannot work.
     MOCKTESTMACRO bool is_telemetry_available() const;
 
@@ -137,6 +147,11 @@ private:
     PluginConfig m_plugin_config;
     mutable std::once_flag m_telemetry_client_init_once;
     mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    // the telemetry client takes one query at a time
+    mutable std::mutex m_telemetry_mutex;
+    // declared after the client: its thread stops first
+    mutable std::mutex m_signal_hub_mutex;
+    std::shared_ptr<SignalHub> m_signal_hub;
     std::unique_ptr<CacheManager> m_cache_manager = std::make_unique<CacheManager>();
 };
 

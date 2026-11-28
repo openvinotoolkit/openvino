@@ -12,6 +12,9 @@ namespace auto_plugin {
 std::string DecisionLog::summary(const InstanceStatsSnapshot& stats) const {
     std::ostringstream out;
     out << "total inference:" << inferences() << ", device switch:" << switches();
+    if (suppressed() > 0) {
+        out << ", switch kept:" << suppressed();
+    }
     for (const auto& [instance, latency] : stats.instances) {
         out << "\n  " << instance.to_string() << ": inference:" << latency.total
             << ", baseline:" << latency.baseline.count() << " us, recent:" << latency.recent.count() << " us";

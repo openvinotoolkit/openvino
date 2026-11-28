@@ -10,9 +10,12 @@
 #include <map>
 
 #include "adaptive/decision_log.hpp"
-#include "schedule.hpp"
+#include "adaptive/headroom.hpp"
+#include "adaptive/signal_hub.hpp"
+#include "adaptive/switch_policy.hpp"
 #include "async_infer_request.hpp"
 #include "cache_manager.hpp"
+#include "schedule.hpp"
 #include "schedule_policies.hpp"
 
 namespace ov {
@@ -52,6 +55,8 @@ private:
                                  const DeviceName& preferred_device);
     void end_dynamic_dispatch();
     DeviceInformation select_dynamic_device();
+    // keeps the current device when the policy sees no reason to leave it for the proposed one
+    DeviceInformation apply_switch_policy(DeviceInformation proposed);
     /**
      * @brief Compile the model on the given device unless it is already cached, and create its workers.
      * @note device is updated in place when the compilation falls back to another candidate device.
@@ -99,6 +104,11 @@ private:
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
     DecisionLog                                                          m_decision_log;
+    SwitchPolicy m_switch_policy;
+    // guarded by m_gate_mutex: since when the current device serves
+    Time m_current_since{};
+    // keeps the utilization of the devices fresh in the background, only with the adaptive level set
+    std::shared_ptr<SignalHub::Subscription> m_telemetry_subscription;
 };
 } // namespace auto_plugin
 } // namespace ov

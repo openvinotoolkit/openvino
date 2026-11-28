@@ -126,6 +126,22 @@ void AutoSchedule::init() {
         }
         m_dynamic_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             ov::threading::IStreamsExecutor::Config{"AutoDynamicSchedule", 1, 0});
+        if (m_context->m_adaptive_goal.level != AdaptiveLevel::Off) {
+            auto devices = m_context->m_device_priorities;
+            if (m_context->m_low_power_device) {
+                devices.push_back(*m_context->m_low_power_device);
+            }
+            m_telemetry_subscription = m_plugin->subscribe_telemetry(
+                devices,
+                [this] {
+                    return m_instance_stats.snapshot();
+                },
+                [thresholds = m_context->m_selection_policy.utilization_thresholds](const Utilizations& utilizations) {
+                    return threshold_headroom(utilizations, thresholds);
+                });
+            LOG_INFO_TAG("[dynamic] adaptive level %s, the utilization is refreshed in the background",
+                         to_string(m_context->m_adaptive_goal.level));
+        }
         LOG_INFO_TAG("[dynamic] device is re-selected for every inference, inference is serialized per compiled model");
     }
     // initialize cpuHelpReleasetime
@@ -335,6 +351,7 @@ void AutoSchedule::init() {
             m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].request.m_meta_devices;
             const auto& initial_device = m_compile_context[ACTUALDEVICE].request.m_device_info.device_name;
             m_gate_current_device = initial_device;
+            m_current_since = std::chrono::steady_clock::now();
             m_instances.publish(ModelInstanceKey(initial_device));
             LOG_INFO_TAG("[dynamic] initial target device:%s", initial_device.c_str());
         }
@@ -677,6 +694,7 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                              m_gate_current_device.empty() ? "none" : m_gate_current_device.c_str(),
                              device_name.c_str());
                 m_gate_current_device = device_name;
+                m_current_since = std::chrono::steady_clock::now();
                 // published before the previous device can be released by release_inactive_devices()
                 m_instances.publish(ModelInstanceKey(device_name));
                 m_decision_log.count_switch();
@@ -743,11 +761,54 @@ DeviceInformation AutoSchedule::select_dynamic_device() {
                                         m_context->m_selection_policy,
                                         low_power_device);
     }
+    if (m_context->m_adaptive_goal.level != AdaptiveLevel::Off) {
+        device = apply_switch_policy(std::move(device));
+    }
     // select_device() reserves nothing in the dynamic selection
     LOG_DEBUG_TAG("[dynamic] selected device:%s in %lf ms",
                   device.device_name.c_str(),
                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());
     return device;
+}
+
+DeviceInformation AutoSchedule::apply_switch_policy(DeviceInformation proposed) {
+    SwitchInput input;
+    input.proposed = proposed.device_name;
+    input.now = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(m_gate_mutex);
+        input.current = m_gate_current_device;
+        input.current_since = m_current_since;
+    }
+    if (input.current.empty() || input.current == input.proposed) {
+        return proposed;
+    }
+    std::optional<DeviceInformation> current;
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        for (const auto& candidate : available_candidates()) {
+            if (candidate.device_name == input.current) {
+                current = candidate;
+                break;
+            }
+        }
+    }
+    input.current_available = current.has_value();
+    if (current) {
+        const auto utilizations = m_plugin->get_device_utilizations({*current});
+        const auto headroom = threshold_headroom(utilizations, m_context->m_selection_policy.utilization_thresholds);
+        input.current_over_threshold = headroom && *headroom <= 0.f;
+    }
+    const auto decision = m_switch_policy.decide(input);
+    if (decision.stay && current) {
+        LOG_DEBUG_TAG("[dynamic] keep device:%s instead of %s: %s",
+                      input.current.c_str(),
+                      input.proposed.c_str(),
+                      decision.reason);
+        m_decision_log.count_suppressed();
+        return *current;
+    }
+    return proposed;
 }
 
 bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
@@ -960,6 +1021,8 @@ void AutoSchedule::release_execution_slot() {
 }
 
 AutoSchedule::~AutoSchedule() {
+    // its callbacks read the stats of this schedule
+    m_telemetry_subscription.reset();
     std::shared_ptr<ov::threading::IStreamsExecutor> dynamic_executor;
     {
         // serialize with schedule_dynamic_task()/release_execution_slot(), which read/snapshot

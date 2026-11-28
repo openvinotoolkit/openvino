@@ -19,6 +19,8 @@ struct InstanceLatency {
     // low percentile of the recent window, what the instance does when nothing disturbs it
     std::chrono::microseconds baseline{};
     std::chrono::microseconds recent{};
+    // mean of the last few samples, steadier than recent
+    std::chrono::microseconds recent_mean{};
     // samples in the window
     size_t samples = 0;
     // every sample since the compiled model was created
