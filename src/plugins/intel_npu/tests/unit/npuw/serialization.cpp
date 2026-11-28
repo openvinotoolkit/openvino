@@ -705,6 +705,14 @@ public:
         model.m_weights_bank = std::move(bank);
     }
 
+    static void set_dev_list(CompiledModel& model, std::vector<std::string> devices) {
+        model.m_dev_list = std::move(devices);
+    }
+
+    static std::string weights_bank_device(const CompiledModel& model, std::size_t idx) {
+        return model.weights_bank_device(idx);
+    }
+
     static void run_finalize_and_wait(CompiledModel& model) {
         model.finalize_weights_bank();
         model.m_eval_future.get();
@@ -2512,6 +2520,118 @@ TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedClosureAndLazyClosur
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled),
                                   ov::Exception,
                                   kExpectedLazyClosureSizeMessage);
+}
+
+namespace {
+
+// Reports a fixed execution_devices list: empty is what an NPU compiled model returns without a physical device.
+class ExecDevicesCompiledModel final : public ov::ICompiledModel {
+public:
+    ExecDevicesCompiledModel(const std::shared_ptr<ov::Model>& model,
+                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                             std::vector<std::string> exec_devices)
+        : ov::ICompiledModel(model, plugin, nullptr, nullptr),
+          m_exec_devices(std::move(exec_devices)) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        OPENVINO_THROW("Unexpected get_runtime_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name) const override {
+        OPENVINO_ASSERT(name == ov::execution_devices.name(), "Unsupported property: ", name);
+        return ov::Any(m_exec_devices);
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        OPENVINO_THROW("Unexpected create_sync_infer_request call");
+    }
+
+private:
+    std::vector<std::string> m_exec_devices;
+};
+
+ov::SoPtr<ov::ICompiledModel> make_exec_devices_compiled_model(std::vector<std::string> exec_devices) {
+    auto plugin = std::make_shared<SerializationNullPlugin>();
+    return ov::SoPtr<ov::ICompiledModel>(
+        std::make_shared<ExecDevicesCompiledModel>(make_validation_model(1), plugin, std::move(exec_devices)));
+}
+
+}  // namespace
+
+TEST(SerializationTest, SubmodelDeviceFallsBackToNpuWhenNoExecutionDevices) {
+    using Access = ov::npuw::CompiledModelDescSerializationAccess;
+    using DescAccess = ov::npuw::CompiledModelDescTestAccessor;
+
+    auto compiled = Access::make_serialized_compiled_model();
+    Access::set_dev_list(*compiled, {"CPU", "NPU"});
+    // The submodel references are only valid until the next append
+    DescAccess::compiled_model(Access::append_submodel(*compiled)) = make_exec_devices_compiled_model({});
+    DescAccess::compiled_model(Access::append_submodel(*compiled)) = make_exec_devices_compiled_model({"NPU.0"});
+    DescAccess::compiled_model(Access::append_submodel(*compiled)) = make_exec_devices_compiled_model({"CPU"});
+    // Optimized out: no compiled model
+    Access::append_submodel(*compiled);
+    // Function call of the off-device body
+    Access::append_submodel(*compiled).replaced_by = 0;
+
+    EXPECT_EQ("NPU", compiled->submodel_device(0));
+    EXPECT_EQ("NPU.0", compiled->submodel_device(1));
+    EXPECT_EQ("CPU", compiled->submodel_device(2));
+    EXPECT_EQ("", compiled->submodel_device(3));
+    EXPECT_EQ("NPU", compiled->submodel_device(4));
+}
+
+TEST(SerializationTest, SubmodelDeviceStaysEmptyWhenNoExecutionDevicesAndNoNpuRequested) {
+    using Access = ov::npuw::CompiledModelDescSerializationAccess;
+
+    auto compiled = Access::make_serialized_compiled_model();
+    Access::set_dev_list(*compiled, {"CPU"});
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(Access::append_submodel(*compiled)) =
+        make_exec_devices_compiled_model({});
+
+    EXPECT_EQ("", compiled->submodel_device(0));
+}
+
+TEST(SerializationTest, WeightsBankDeviceIsHostWhenNoExecutionDevices) {
+    using Access = ov::npuw::CompiledModelDescSerializationAccess;
+    using DescAccess = ov::npuw::CompiledModelDescTestAccessor;
+
+    auto compiled = Access::make_serialized_compiled_model();
+    Access::set_dev_list(*compiled, {"NPU"});
+    DescAccess::compiled_model(Access::append_submodel(*compiled)) = make_exec_devices_compiled_model({});
+    DescAccess::compiled_model(Access::append_submodel(*compiled)) = make_exec_devices_compiled_model({"NPU.0"});
+    Access::append_submodel(*compiled);  // optimized out: no compiled model
+
+    EXPECT_EQ("CPU", Access::weights_bank_device(*compiled, 0));
+    EXPECT_EQ("NPU.0", Access::weights_bank_device(*compiled, 1));
+    EXPECT_EQ("CPU", Access::weights_bank_device(*compiled, 2));
+}
+
+// Without a physical device nothing can be allocated remotely: the bank must stay on the host and never ask the
+// core for a remote context (the null core here would crash if it did).
+TEST(SerializationTest, FinalizeWeightsBankKeepsOffDeviceWeightsOnHost) {
+    using Access = ov::npuw::CompiledModelDescSerializationAccess;
+
+    auto compiled = Access::make_serialized_compiled_model();
+    Access::set_dev_list(*compiled, {"NPU"});
+    auto& submodel = Access::append_submodel(*compiled);
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(submodel) = make_exec_devices_compiled_model({});
+
+    auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.f, 2.f});
+    submodel.lazy_closure.emplace_back(weights);
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.is_remote.resize(1, true);
+    closure.closure_uid.resize(1, -1);
+
+    Access::set_weights_bank(*compiled, std::make_shared<ov::npuw::weights::Bank>(nullptr, "", "test-bank-off-device"));
+    Access::run_finalize_and_wait(*compiled);
+
+    EXPECT_NE(-1, closure.closure_uid[0]);
+    EXPECT_FALSE(closure.is_remote[0]);
+    ASSERT_TRUE(closure.closure[0]);
+    ASSERT_EQ(2u, closure.closure[0].get_size());
+    EXPECT_EQ(1.f, closure.closure[0].data<float>()[0]);
+    EXPECT_EQ(2.f, closure.closure[0].data<float>()[1]);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
