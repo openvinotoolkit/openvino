@@ -94,6 +94,17 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
         state_hidden_size_1,
         " and ",
         v_head_size);
+    // gate is [batch, seq_len, v_head_nums] (one decay per head) or [batch, seq_len, v_head_nums, k_head_size]
+    // (per-key-dimension decay, as in Kimi Delta Attention).
+    if (gate_ps.rank().is_static() && gate_ps.rank().get_length() == 4) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               gate_ps[3].compatible(k_head_size),
+                               "A per-key gate must have the key head size as its last dim, but got ",
+                               gate_ps[3],
+                               " and ",
+                               k_head_size);
+    }
     // output has the same shape and type as input value, output state has the same shape and type as input
     // recurrent_state
     return output_shapes;

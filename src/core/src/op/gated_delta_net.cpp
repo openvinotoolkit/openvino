@@ -96,7 +96,7 @@ void GatedDeltaNet::validate_and_infer_types() {
     gdn_input_check(this, 1, "key", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     gdn_input_check(this, 2, "value", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     gdn_input_check(this, 3, "recurrent_state", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-    gdn_input_check(this, 4, "gate", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 4, "gate", {3, 4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     gdn_input_check(this, 5, "beta", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, get_input_element_type(0), output_shapes[0]);

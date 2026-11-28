@@ -94,7 +94,14 @@ size_t get_xe_core_count(const cldnn::device_info& info) {
 // stage's kernel.
 // TODO: Find the cause on the B70 and run the general stage on the devices with
 // more than 20 Xe cores again.
+bool has_per_key_gate(const RuntimeParams& params) {
+    return params.get_input_layout(paged_gated_delta_net::GATE).get_partial_shape().size() == 3;
+}
+
 bool uses_short_stage(const RuntimeParams& params) {
+    // The short kernel has no per-key gate path.
+    if (has_per_key_gate(params))
+        return false;
     return get_xe_core_count(params.get_device_info()) > 20 || is_short_call(params);
 }
 
@@ -129,6 +136,8 @@ protected:
         jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
         jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
+        // gate [tokens, H] (one decay per head) or [tokens, H, K] (per-key decay, KDA; ref kernel only)
+        jit.make("PER_KEY_GATE", params.get_input_layout(4).get_partial_shape().size() == 3 ? 1 : 0);
 
         return jit;
     }
@@ -364,7 +373,7 @@ public:
         // The general stage is always added, and added first: set_kernels() gives
         // the i-th compiled kernel to the i-th stage declared with make_stage().
         add_stage(paged_gated_delta_net, params);
-        if (params.is_dynamic() || uses_short_stage(params)) {
+        if ((params.is_dynamic() && !has_per_key_gate(params)) || uses_short_stage(params)) {
             add_stage(paged_gated_delta_net_short, params);
         }
     }

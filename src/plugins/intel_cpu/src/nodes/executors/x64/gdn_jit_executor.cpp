@@ -175,6 +175,10 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
 }  // namespace
 
 bool GdnJitExecutor::supports(const GatedDeltaNetConfig& config) {
+    // The JIT kernel applies one decay per head; a per-key gate (rank 4, KDA) uses the reference executor.
+    if (config.descs.at(ARG_GDN_GATE)->getShape().getRank() == 4) {
+        return false;
+    }
     const auto precision = config.descs.at(ARG_GDN_QUERY)->getPrecision();
     if (precision == ov::element::f32) {
         return mayiuse(dnnl::impl::cpu::x64::avx512_core) || mayiuse(dnnl::impl::cpu::x64::avx2);

@@ -100,8 +100,9 @@ static Output<Node> join_adjacent_qk(const Output<Node>& q, const Output<Node>& 
 
 // GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
-// IR-serializable (see docs/runtime.md). The fused op only supports scalar gating, so the
-// per-key-dimension gating case (kda) uses the serializable Loop reference path below.
+// IR-serializable (see docs/runtime.md). The per-key-dimension gating case (kda) passes a rank-4
+// gate [B, T, H_v, S_k] to the same op; the serializable Loop reference path below remains for
+// "force_ref" and for a per-key gate whose width differs from the key head size.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
@@ -128,7 +129,8 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
 
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
     // against the ggml-CPU oracle for the scalar-gate case too.
-    if (kda || context.get_attribute<bool>("force_ref", false)) {
+    const int64_t S_k = q_shape[3].get_length();
+    if ((kda && S_k != S_v) || context.get_attribute<bool>("force_ref", false)) {
         FRONT_END_OP_CONVERSION_CHECK(!split_outputs, "GATED_DELTA_NET split outputs require the fused path");
         return translate_gated_delta_net_ref(context);
     }
@@ -179,13 +181,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
 
     // Gate/beta carry a trailing singleton in the scalar-gate case; the op takes them rank-3.
     auto sq_axis_3 = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
-    g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
+    // A per-key gate (kda) stays rank-4 [B, T, H_v, S_k].
+    if (!kda)
+        g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
     if (context.has_input("chunk_valid_len")) {
         const auto& g_shape = g.get_partial_shape();
         FRONT_END_OP_CONVERSION_CHECK(
-            g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
+            g_shape.rank().is_static() && g_shape.rank().get_length() == (kda ? 4 : 3) && g_shape[1].is_static(),
             "GATED_DELTA_NET pad masking requires a static token dimension");
         const int64_t n_tokens = g_shape[1].get_length();
         std::vector<int64_t> positions(n_tokens);
@@ -193,10 +197,18 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         auto valid = std::make_shared<ov::op::v1::Less>(
             ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
             context.get_input("chunk_valid_len"));
+        const auto valid_f = std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type());
+        // [T] -> [1, T, 1] for beta and a scalar gate, [1, T, 1, 1] for a per-key gate.
         auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
-            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            valid_f,
             ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
-        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        ov::Output<ov::Node> g_mask = mask;
+        if (kda) {
+            g_mask = std::make_shared<ov::op::v0::Unsqueeze>(
+                valid_f,
+                ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 2, 3}));
+        }
+        g = std::make_shared<ov::op::v1::Multiply>(g, g_mask);
         beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
     }
 

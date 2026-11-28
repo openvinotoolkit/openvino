@@ -17,7 +17,10 @@ std::vector<TRShape> shape_infer(const PagedGatedDeltaNet* op, const std::vector
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[1].rank().compatible(3));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[2].rank().compatible(3));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[3].rank().compatible(4));
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[4].rank().compatible(2));
+    // gate: [tokens, v_heads] (one decay per head) or [tokens, v_heads, key_head_dim] (per-key decay, KDA)
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_shapes[4].rank().compatible(2) || input_shapes[4].rank().compatible(3));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[5].rank().compatible(2));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[6].rank().compatible(1));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[7].rank().compatible(1));
@@ -32,7 +35,7 @@ std::vector<TRShape> shape_infer(const PagedGatedDeltaNet* op, const std::vector
     const auto& value_ps = input_shapes[2];
     // [num_blocks, v_num_heads, value_head_dim, key_head_dim]
     const auto& state_ps = input_shapes[3];
-    // [batch_size_in_tokens, v_num_heads]
+    // [batch_size_in_tokens, v_num_heads] or [batch_size_in_tokens, v_num_heads, key_head_dim]
     const auto& gate_ps = input_shapes[4];
     const auto& beta_ps = input_shapes[5];
 

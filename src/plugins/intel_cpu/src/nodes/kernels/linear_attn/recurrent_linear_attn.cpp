@@ -102,6 +102,8 @@ static void recurrent_linear_attn_impl(const ov::intel_cpu::PlainTensor& query,
     const size_t V_HEAD_DIMS = V;
     const float q_scale = 1 / std::sqrt(static_cast<float>(K_HEAD_DIMS));
     const size_t group_size = v_heads / qk_heads;
+    // gate is [B, T, v_heads] (one decay per head) or [B, T, v_heads, K] (per-key decay, KDA).
+    const bool per_key_gate = gate.m_rank == 4;
     cpu_parallel->parallel_for3d(B, v_heads, V, [&](size_t i_b, size_t i_h, size_t i_v) {
         size_t tid = parallel_get_thread_num();
         float* init_state = temp_buffer + tid * 3 * K_HEAD_DIMS;
@@ -121,10 +123,8 @@ static void recurrent_linear_attn_impl(const ov::intel_cpu::PlainTensor& query,
         }
 
         for (size_t i = 0; i < timesteps; i++) {
-            // gate: B, T, v_heads
-            float b_g = static_cast<float>(gate.at<T>({i_b, i, i_h}));
+            // gate: B, T, v_heads (scalar) or B, T, v_heads, K (per key)
             float b_beta = static_cast<float>(beta.at<T>({i_b, i, i_h}));
-            b_g = std::exp(b_g);
             // Vectorized load of contiguous k and q
             cvt_copy(b_k, k_ptr + i * qk_heads * K_HEAD_DIMS, 1, K_HEAD_DIMS, 0, 0);
             cvt_copy(b_q, q_ptr + i * qk_heads * K_HEAD_DIMS, 1, K_HEAD_DIMS, 0, 0);
@@ -133,8 +133,18 @@ static void recurrent_linear_attn_impl(const ov::intel_cpu::PlainTensor& query,
                 l2norm(b_q, K_HEAD_DIMS, q_l2_norm_eps);
             }
             multiply_scalar(b_q, b_q, q_scale, K_HEAD_DIMS);
-            // h0 * gate
-            multiply_scalar(init_state, init_state, b_g, K_HEAD_DIMS);
+            // h0 * gate: row j of the [K, V] head state decays by exp(g) or exp(g[j])
+            if (per_key_gate) {
+                const T* g_ptr = gate.ptr<T>(i_b, i, i_h);
+                for (size_t j = 0; j < K_HEAD_DIMS; j++) {
+                    init_state[j] *= std::exp(static_cast<float>(g_ptr[j]));
+                }
+            } else {
+                multiply_scalar(init_state,
+                                init_state,
+                                std::exp(static_cast<float>(gate.at<T>({i_b, i, i_h}))),
+                                K_HEAD_DIMS);
+            }
             float h_k = dot_product(init_state, b_k, K_HEAD_DIMS, nullptr, nullptr, nullptr, 0);
             // B, T, v_heads, V
             float b_v = static_cast<float>(v_ptr[i_v + i * v_heads * V_HEAD_DIMS]);
@@ -291,11 +301,19 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
 
             multiply_scalar(b_q, b_q, q_scale, k_head_dims);
 
-            float b_g = static_cast<float>(gate.at<T>({token_u, i_h}));
             float b_beta = static_cast<float>(beta.at<T>({token_u, i_h}));
-            b_g = std::exp(b_g);
-
-            multiply_scalar(init_state, init_state, b_g, k_head_dims);
+            // gate: [tokens, v_heads] (scalar) or [tokens, v_heads, k_head_dims] (per key, KDA)
+            if (gate.m_rank == 3) {
+                const T* g_ptr = gate.ptr<T>(token_u, i_h);
+                for (size_t j = 0; j < k_head_dims; j++) {
+                    init_state[j] *= std::exp(static_cast<float>(g_ptr[j]));
+                }
+            } else {
+                multiply_scalar(init_state,
+                                init_state,
+                                std::exp(static_cast<float>(gate.at<T>({token_u, i_h}))),
+                                k_head_dims);
+            }
 
             float h_k = dot_product(init_state, b_k, k_head_dims, nullptr, nullptr, nullptr, 0);
 
