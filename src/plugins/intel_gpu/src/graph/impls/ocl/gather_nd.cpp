@@ -61,6 +61,10 @@ std::unique_ptr<primitive_impl> GatherNDImplementationManager::create_impl(const
     return typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>(static_cast<const gather_nd_node&>(node), params);
 }
 
+implementation_data_type_support GatherNDImplementationManager::query_data_types(const kernel_impl_params& params) const {
+    return typed_primitive_impl_ocl<gather_nd>::query_data_types<gather_nd_impl>(params);
+}
+
 }  // namespace ocl
 }  // namespace cldnn
 

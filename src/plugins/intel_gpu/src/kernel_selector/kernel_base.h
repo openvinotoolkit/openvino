@@ -48,6 +48,9 @@ public:
     virtual KernelsPriority GetKernelsPriority(const Params& /*params*/) const {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
     }
+    virtual bool IsSupported(const Params& /*params*/) const {
+        return true;
+    }
 
     virtual ParamsKey GetSupportedKey() const = 0;
     virtual DeviceFeaturesKey get_required_device_features_key(const Params& params) const {

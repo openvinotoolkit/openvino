@@ -82,6 +82,10 @@ public:
 };
 
 
+implementation_data_type_support ScatterUpdateImplementationManager::query_data_types(const kernel_impl_params& params) const {
+    return typed_primitive_impl_ocl<scatter_update>::query_data_types<scatter_update_impl>(params);
+}
+
 std::unique_ptr<primitive_impl> ScatterUpdateImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<scatter_update>());
     return typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>(static_cast<const scatter_update_node&>(node), params);

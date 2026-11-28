@@ -12,9 +12,11 @@
 #include "condition_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
+#include "intel_gpu/primitives/input_layout.hpp"
 #include "mvn_inst.h"
 #include "pass_manager.h"
 #include "program_node.h"
+#include "registry/implementation_manager.hpp"
 
 using namespace cldnn;
 
@@ -225,6 +227,166 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
     return node.type()->has_impl_for(node, impl_types::any, shape_types::any);
 }
 
+namespace {
+const std::set<std::string>& bf16_fallback_excluded_types() {
+    static const std::set<std::string> excluded_types = {
+        "input_layout", "data", "reorder", "assign", "read_value", "loop", "condition", "kv_cache",
+        "lstm", "lstm_dynamic_input", "lstm_dynamic_timeloop", "paged_attention", "scaled_dot_product_attention"
+    };
+    return excluded_types;
+}
+
+bool has_bf16_data_type(program_node& node) {
+    const auto& input_layouts = node.get_input_layouts();
+    return node.get_output_layout().data_type == data_types::bf16 ||
+           std::any_of(input_layouts.begin(), input_layouts.end(), [](const layout& value) {
+               return value.data_type == data_types::bf16;
+           });
+}
+}  // namespace
+
+bool add_required_reorders::needs_bf16_fallback(program_node& node) {
+    if (bf16_fallback_excluded_types().count(node.get_primitive()->type_string()) || node.get_outputs_count() != 1 ||
+        !node.is_in_data_flow() || node.is_in_shape_of_subgraph() || node.can_be_optimized() ||
+        node.is_runtime_skippable() || !has_bf16_data_type(node) ||
+        (node.get_preferred_impl_type() != impl_types::any && node.get_preferred_impl_type() != impl_types::ocl) ||
+        (node.get_forced_impl_type() != impl_types::any && node.get_forced_impl_type() != impl_types::ocl) ||
+        node.get_program().get_config().get_force_implementations().count(node.id())) {
+        return false;
+    }
+
+    const auto params = node.get_kernel_impl_params();
+    if (params->weights_layout || params->bias_layout || !params->state_layouts.empty() ||
+        !params->inner_progs.empty() || !params->inner_nets.empty()) {
+        return false;
+    }
+    bool found_ocl_manager = false;
+    const auto shape_type = ImplementationManager::get_shape_type(*params);
+    for (const auto& manager : node.type()->get_all_implementations()) {
+        if ((manager->get_shape_type() & shape_type) != shape_type)
+            continue;
+        if (manager->get_impl_type() != impl_types::ocl) {
+            if (manager->validate(node))
+                return false;
+            continue;
+        }
+        const auto native_support = manager->query_data_types(*params);
+        if (native_support != implementation_data_type_support::unsupported)
+            return false;
+        found_ocl_manager = true;
+    }
+    return found_ocl_manager;
+}
+
+bool add_required_reorders::try_bf16_fallback(program& p, program_node& node) {
+    if (!needs_bf16_fallback(node) || !node.get_fused_primitives().empty()) {
+        return false;
+    }
+
+    auto native_params = node.get_kernel_impl_params();
+    auto fp32_params = *native_params;
+    bool needs_fallback = false;
+    for (size_t idx = 0; idx < fp32_params.input_layouts.size(); ++idx) {
+        if (fp32_params.input_layouts[idx].data_type == data_types::bf16) {
+            if (node.get_dependency(idx).is_constant())
+                return false;
+            fp32_params.input_layouts[idx].data_type = data_types::f32;
+            needs_fallback = true;
+        }
+    }
+    auto original_output_layout = node.get_output_layout();
+    if (fp32_params.output_layouts[0].data_type == data_types::bf16) {
+        fp32_params.output_layouts[0].data_type = data_types::f32;
+        needs_fallback = true;
+    }
+    if (!needs_fallback)
+        return false;
+
+    auto fp32_desc = node.get_primitive()->clone();
+    fp32_desc->output_data_types[0] = fp32_params.output_layouts[0].data_type;
+    fp32_params.desc = fp32_desc;
+    auto proposed_node = node.type()->create_node(p, fp32_desc);
+    proposed_node->set_output_layout(fp32_params.output_layouts[0], false);
+    proposed_node->data_flow = node.data_flow;
+    proposed_node->impl_type = node.impl_type;
+    proposed_node->forced_impl_type = node.forced_impl_type;
+    proposed_node->preferred_input_fmts = node.preferred_input_fmts;
+    proposed_node->preferred_output_fmts = node.preferred_output_fmts;
+    std::vector<std::shared_ptr<program_node>> input_proxies;
+    for (size_t idx = 0; idx < node.get_dependencies().size(); ++idx) {
+        auto dependency = node.get_dependency_with_port(idx);
+        if (native_params->input_layouts[idx].data_type == data_types::bf16) {
+            auto proxy_desc = std::make_shared<input_layout>(node.id() + "_bf16_probe_" + std::to_string(idx),
+                                                            fp32_params.input_layouts[idx]);
+            auto proxy = proxy_desc->type->create_node(p, proxy_desc);
+            proxy->set_output_layout(fp32_params.input_layouts[idx], false);
+            dependency = {proxy.get(), 0};
+            input_proxies.push_back(std::move(proxy));
+        }
+        proposed_node->dependencies.push_back(dependency);
+    }
+
+    const auto shape_type = ImplementationManager::get_shape_type(*native_params);
+    const auto selected_manager = node.type()->choose_impl(*proposed_node, shape_type);
+    if (!selected_manager || selected_manager->get_impl_type() != impl_types::ocl ||
+        (selected_manager->get_shape_type() & shape_type) != shape_type ||
+        selected_manager->query_data_types(fp32_params) != implementation_data_type_support::supported ||
+        !selected_manager->validate(*proposed_node) || !selected_manager->support_shapes(fp32_params)) {
+        return false;
+    }
+    const auto implementation = selected_manager->create_impl(*proposed_node, fp32_params);
+    if (!implementation)
+        return false;
+
+    auto unique_id = [&p](const primitive_id& base) {
+        auto result = base;
+        size_t suffix = 0;
+        while (p.nodes_map.count(result))
+            result = base + "_" + std::to_string(++suffix);
+        return result;
+    };
+    const auto original_id = node.id();
+    const bool restore_bf16 = original_output_layout.data_type == data_types::bf16;
+    const bool was_output = node.is_output();
+    const auto original_users = node.get_users();
+    node.desc = fp32_desc;
+    if (restore_bf16) {
+        node.set_output(false);
+        p.rename(node, unique_id(original_id + "_bf16_fallback_fp32"));
+    }
+    node.set_output_layout(fp32_params.output_layouts[0], false);
+    for (size_t idx = 0; idx < native_params->input_layouts.size(); ++idx) {
+        if (native_params->input_layouts[idx].data_type != data_types::bf16)
+            continue;
+        const auto dependency = node.get_dependency_with_port(idx);
+        auto conversion = std::make_shared<reorder>(unique_id(node.id() + "_input_fp32_" + std::to_string(idx)),
+                                                    input_info(dependency.first->id(), dependency.second),
+                                                    fp32_params.input_layouts[idx]);
+        auto& conversion_node = p.get_or_create(conversion);
+        p.add_intermediate(conversion_node, node, idx);
+        conversion_node.set_output_layout(fp32_params.input_layouts[idx], false);
+    }
+    if (restore_bf16) {
+        auto conversion = std::make_shared<reorder>(original_id, input_info(node.id()), original_output_layout);
+        auto& conversion_node = p.get_or_create(conversion);
+        for (auto* user : original_users) {
+            for (size_t idx = 0; idx < user->get_dependencies().size(); ++idx) {
+                if (user->get_dependency_with_port(idx).first == &node)
+                    user->replace_dependency(idx, {&conversion_node, 0}, false);
+            }
+        }
+        p.add_connection(node, conversion_node, 0);
+        p.processing_order.insert_next(&node, &conversion_node);
+        conversion_node.set_output_layout(original_output_layout, false);
+        conversion_node.set_output(was_output);
+        for (auto& output : p.outputs) {
+            if (output == &node)
+                output = &conversion_node;
+        }
+    }
+    return true;
+}
+
 void add_required_reorders::run(program& p) {
     bool optimize_data = p.get_config().get_optimize_data();
     auto usr_itr = p.get_processing_order().begin();
@@ -343,6 +505,10 @@ void add_required_reorders::run(program& p) {
         }
 
         eliminate_pad_for_onednn_impl(p, *usr);
+
+        if (try_bf16_fallback(p, *usr)) {
+            continue;
+        }
 
         if (usr->type()->has_impl_for(*usr)) {
             continue;

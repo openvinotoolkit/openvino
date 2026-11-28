@@ -343,6 +343,7 @@ public:
     void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
+    bool SupportDataTypes(const ParamsKey& k) const;
     bool Support(const ParamsKey& k) const;
     bool isEnabledDifferentInputWeightsTypes() const {
         return key.restrict.val.different_input_weights_types != 0;

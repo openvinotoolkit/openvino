@@ -1020,7 +1020,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= legacy_fusion;
 
-            if (!should_fuse) {
+            if (!should_fuse || add_required_reorders::needs_bf16_fallback(input)) {
                 return;
             }
 
@@ -1177,7 +1177,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 
-            if (!should_fuse) {
+            if (!should_fuse || add_required_reorders::needs_bf16_fallback(input_data)) {
                 return;
             }
 
@@ -1248,6 +1248,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        lora_supports_fusings(parents[i].first->as<lora>())) ||
                                        (parents[i].first->is_type<broadcast>() &&
                                        broadcast_supports_fusings(parents[i].first->as<broadcast>()));
+            }
+
+            // Keep native BF16-unsupported nodes unfused so the later fallback can materialize a separate FP32 primitive.
+            for (size_t i = 0; i < parents.size(); i++) {
+                if (can_fuse_parents[i] && add_required_reorders::needs_bf16_fallback(*parents[i].first)) {
+                    can_fuse_parents[i] = false;
+                }
             }
 
             // Disable fusion to a node on constant path when second input is in data flow

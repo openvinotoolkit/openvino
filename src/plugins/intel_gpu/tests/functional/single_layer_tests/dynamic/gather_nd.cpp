@@ -8,8 +8,12 @@
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -145,4 +149,149 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_input_shapes_const_target_shapes, GatherN
                     ::testing::ValuesIn(model_types),          // network precision
                     ::testing::Values(true)),                     // is const indices
                 GatherNDGPUTest::getTestCaseName);
+
+using GatherNDRuntimePrecisionParams = std::tuple<ov::element::Type, bool, bool>;
+
+class GatherNDVisionRuntimePrecisionTest : public testing::WithParamInterface<GatherNDRuntimePrecisionParams>,
+                                         virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDRuntimePrecisionParams>& info) {
+        const auto& [precision, model_like, dynamic_shapes] = info.param;
+        return std::string(precision == ov::element::bf16 ? "BF16Runtime" : "F16Runtime") +
+               (model_like ? "_GatherNDMultiplyModelLike" : "_GatherNDAlone") +
+               (dynamic_shapes ? "_Dynamic" : "_Static");
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [precision, model_like, dynamic_shapes] = GetParam();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        configuration = {ov::hint::inference_precision(precision)};
+        abs_threshold = 0.02f;
+        rel_threshold = 0.02f;
+        if (dynamic_shapes) {
+            init_input_shapes({InputShape{{-1, -1, 1152}, {{2, 3, 1152}, {3, 5, 1152}}},
+                               InputShape{{-1, 2}, {{4, 2}, {7, 2}}}});
+        } else {
+            init_input_shapes({InputShape{{2, 3, 1152}, {{2, 3, 1152}}},
+                               InputShape{{4, 2}, {{4, 2}}}});
+        }
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
+        data->set_friendly_name("data");
+        indices->set_friendly_name("indices");
+        std::shared_ptr<ov::Node> gather_data = data;
+        if (model_like) {
+            auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1}, {0.75f});
+            gather_data = std::make_shared<ov::op::v1::Multiply>(data, scale);
+        }
+        std::shared_ptr<ov::Node> output = std::make_shared<ov::op::v8::GatherND>(gather_data, indices, 0);
+        output->set_friendly_name("vision_tower/GatherND");
+        if (model_like) {
+            std::vector<float> weights(1152);
+            for (size_t channel = 0; channel < weights.size(); ++channel) {
+                weights[channel] = 0.5f + static_cast<float>(channel % 13) / 16.0f;
+            }
+            auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1152}, weights);
+            output = std::make_shared<ov::op::v1::Multiply>(output, scale);
+        }
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{data, indices},
+                                               "GatherNDVisionRuntimePrecision");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& shapes) override {
+        inputs.clear();
+        ov::Tensor data(ov::element::f32, shapes[0]);
+        for (size_t index = 0; index < data.get_size(); ++index) {
+            data.data<float>()[index] = static_cast<float>(index % 37) / 32.0f - 0.5f;
+        }
+        ov::Tensor indices(ov::element::i64, shapes[1]);
+        for (size_t row = 0; row < shapes[1][0]; ++row) {
+            indices.data<int64_t>()[2 * row] = static_cast<int64_t>(row % shapes[0][0]);
+            indices.data<int64_t>()[2 * row + 1] = static_cast<int64_t>((2 * row + 1) % shapes[0][1]);
+        }
+        inputs.emplace(function->get_parameters()[0], data);
+        inputs.emplace(function->get_parameters()[1], indices);
+    }
+};
+
+TEST_P(GatherNDVisionRuntimePrecisionTest, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Gemma4Vision, GatherNDVisionRuntimePrecisionTest,
+                        ::testing::Combine(::testing::Values(ov::element::f16, ov::element::bf16),
+                                           ::testing::Values(false, true),
+                                           ::testing::Values(false, true)),
+                        GatherNDVisionRuntimePrecisionTest::getTestCaseName);
+
+using GatherNDVisionPostOpParams = std::tuple<bool, bool>;
+
+class GatherNDVisionBF16PostOpTest : public testing::WithParamInterface<GatherNDVisionPostOpParams>,
+                                    virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDVisionPostOpParams>& info) {
+        const auto& [quantize, dynamic_shapes] = info.param;
+        return std::string("BF16Runtime_") + (quantize ? "GatherNDQuantize" : "GatherNDActivation") +
+               (dynamic_shapes ? "_Dynamic" : "_Static");
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [quantize, dynamic_shapes] = GetParam();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        configuration = {ov::hint::inference_precision(ov::element::bf16)};
+        abs_threshold = 0.02f;
+        rel_threshold = 0.02f;
+        if (dynamic_shapes) {
+            init_input_shapes({InputShape{{-1, -1, 1152}, {{2, 3, 1152}, {3, 5, 1152}}},
+                               InputShape{{-1, 2}, {{4, 2}, {7, 2}}}});
+        } else {
+            init_input_shapes({InputShape{{2, 3, 1152}, {{2, 3, 1152}}},
+                               InputShape{{4, 2}, {{4, 2}}}});
+        }
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
+        auto gathered = std::make_shared<ov::op::v8::GatherND>(data, indices, 0);
+        std::shared_ptr<ov::Node> output;
+        if (quantize) {
+            output = std::make_shared<ov::op::v0::FakeQuantize>(
+                gathered,
+                ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f}),
+                ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f}),
+                ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f}),
+                ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f}),
+                256);
+        } else {
+            output = std::make_shared<ov::op::v0::Relu>(gathered);
+        }
+        output->set_friendly_name("vision_tower/GatherND_post_op");
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{data, indices},
+                                               "GatherNDVisionBF16PostOp");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& shapes) override {
+        inputs.clear();
+        ov::Tensor data(ov::element::f32, shapes[0]);
+        for (size_t index = 0; index < data.get_size(); ++index) {
+            data.data<float>()[index] = static_cast<float>(index % 37) / 32.0f - 0.5f;
+        }
+        ov::Tensor indices(ov::element::i64, shapes[1]);
+        for (size_t row = 0; row < shapes[1][0]; ++row) {
+            indices.data<int64_t>()[2 * row] = static_cast<int64_t>(row % shapes[0][0]);
+            indices.data<int64_t>()[2 * row + 1] = static_cast<int64_t>((2 * row + 1) % shapes[0][1]);
+        }
+        inputs.emplace(function->get_parameters()[0], data);
+        inputs.emplace(function->get_parameters()[1], indices);
+    }
+};
+
+TEST_P(GatherNDVisionBF16PostOpTest, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Gemma4VisionPostOp, GatherNDVisionBF16PostOpTest,
+                        ::testing::Combine(::testing::Values(false, true),
+                                           ::testing::Values(false, true)),
+                        GatherNDVisionBF16PostOpTest::getTestCaseName);
 } // namespace

@@ -15,6 +15,7 @@
 #include "eltwise_inst.h"
 #include "fully_connected_inst.h"
 #include "gather_inst.h"
+#include "gather_nd_inst.h"
 #include "pass_manager.h"
 #include "permute_inst.h"
 #include "reshape_inst.h"
@@ -23,13 +24,489 @@
 #include "dft_inst.h"
 #include "mvn_inst.h"
 #include "to_string_utils.h"
+#include "kernel_base.h"
+#include "kernel_selector.h"
+#include "intel_gpu/primitives/scatter_elements_update.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
+#include "intel_gpu/primitives/rms.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include "program_wrapper.h"
 
 #include <memory>
+#include <stdexcept>
 
 using namespace cldnn;
 using namespace ::tests;
+
+namespace {
+
+void test_bf16_scatter_fallback(bool dynamic, bool caching, bool duplicate_users = false,
+                              data_types output_type = data_types::bf16) {
+    auto& engine = get_test_engine();
+    const auto shape = dynamic ? ov::PartialShape{1, 1, 1, ov::Dimension::dynamic()} : ov::PartialShape{1, 1, 1, 4};
+    const layout data_layout{shape, data_types::bf16, format::bfyx};
+    const layout indices_layout{shape, data_types::i32, format::bfyx};
+    auto scatter = std::make_shared<scatter_elements_update>("scatter", input_info("input"), input_info("indices"),
+                                                             input_info("updates"), 3);
+    scatter->output_data_types[0] = output_type;
+    topology topology;
+    topology.add(input_layout("input", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add(input_layout("updates", data_layout));
+    topology.add_primitive(scatter);
+    if (duplicate_users)
+        topology.add(eltwise("product", {input_info("scatter"), input_info("scatter")}, eltwise_mode::prod, data_types::bf16));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (duplicate_users)
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"scatter", "product"}));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), caching);
+    for (const size_t count : (dynamic ? std::vector<size_t>{4, 2, 4} : std::vector<size_t>{4})) {
+        const ov::PartialShape runtime_shape{1, 1, 1, static_cast<int64_t>(count)};
+        auto input = engine.allocate_memory({runtime_shape, data_types::bf16, format::bfyx});
+        auto updates = engine.allocate_memory({runtime_shape, data_types::bf16, format::bfyx});
+        auto indices = engine.allocate_memory({runtime_shape, data_types::i32, format::bfyx});
+        set_values<uint16_t>(input, std::vector<uint16_t>(count, 0x3f80));
+        set_values<uint16_t>(updates, std::vector<uint16_t>(count, 0x4000));
+        std::vector<int32_t> index_values(count);
+        std::iota(index_values.begin(), index_values.end(), 0);
+        set_values<int32_t>(indices, index_values);
+        network->set_input_data("input", input);
+        network->set_input_data("indices", indices);
+        network->set_input_data("updates", updates);
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), duplicate_users ? 2 : 1);
+        auto output = outputs.at("scatter").get_memory();
+        ASSERT_EQ(output->get_layout().data_type, output_type);
+        if (output_type == data_types::bf16) {
+            mem_lock<uint16_t, mem_lock_type::read> values(output, get_test_stream());
+            for (size_t idx = 0; idx < count; ++idx)
+                EXPECT_EQ(values[idx], 0x4000);
+        } else {
+            mem_lock<float, mem_lock_type::read> values(output, get_test_stream());
+            for (size_t idx = 0; idx < count; ++idx)
+                EXPECT_EQ(values[idx], 2.f);
+        }
+        mem_lock<uint16_t, mem_lock_type::read> original_values(input, get_test_stream());
+        EXPECT_EQ(original_values[0], 0x3f80);
+    }
+    EXPECT_EQ(scatter->id, "scatter");
+    EXPECT_EQ(scatter->output_data_types[0].value(), output_type);
+    const auto& output_node = network->get_program()->get_node("scatter");
+    if (output_type == data_types::bf16) {
+        ASSERT_TRUE(output_node.is_type<reorder>());
+    }
+    const auto& compute_node = output_type == data_types::bf16 ? output_node.get_dependency(0) : output_node;
+    ASSERT_TRUE(compute_node.is_type<scatter_elements_update>());
+    EXPECT_EQ(compute_node.get_input_layout(0).data_type, data_types::f32);
+    EXPECT_EQ(compute_node.get_input_layout(1).data_type, data_types::i32);
+    EXPECT_EQ(compute_node.get_input_layout(2).data_type, data_types::f32);
+    EXPECT_EQ(compute_node.get_output_layout().data_type, data_types::f32);
+    EXPECT_EQ(network->get_program()->get_node("input").get_output_layout().data_type, data_types::bf16);
+    if (duplicate_users) {
+        const auto& product = network->get_program()->get_node("product");
+        ASSERT_EQ(product.get_dependencies().size(), 2);
+        EXPECT_EQ(product.get_dependency_with_port(0).first, &output_node);
+        EXPECT_EQ(product.get_dependency_with_port(1).first, &output_node);
+        EXPECT_EQ(product.get_dependency_with_port(0).second, 0);
+        EXPECT_EQ(product.get_dependency_with_port(1).second, 0);
+        EXPECT_TRUE(output_node.is_output());
+    }
+}
+
+void test_bf16_scatter_update_fallback(bool dynamic, bool caching) {
+    auto& engine = get_test_engine();
+    const auto count_dim = dynamic ? ov::Dimension::dynamic() : ov::Dimension(4);
+    const layout data_layout{ov::PartialShape{1, 1, 1, count_dim}, data_types::bf16, format::bfyx};
+    const layout indices_layout{ov::PartialShape{1, 1, 1, 2}, data_types::i32, format::bfyx};
+    const layout updates_layout{ov::PartialShape{1, 1, 1, 2}, data_types::bf16, format::bfyx};
+    auto scatter = std::make_shared<scatter_update>("scatter_update", input_info("input"), input_info("indices"),
+                                                   input_info("updates"), 3);
+    scatter->output_data_types[0] = data_types::bf16;
+    topology topology;
+    topology.add(input_layout("input", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add(input_layout("updates", updates_layout));
+    topology.add_primitive(scatter);
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), caching);
+    for (const size_t count : (dynamic ? std::vector<size_t>{4, 3, 4} : std::vector<size_t>{4})) {
+        auto input = engine.allocate_memory({ov::PartialShape{1, 1, 1, static_cast<int64_t>(count)}, data_types::bf16, format::bfyx});
+        auto indices = engine.allocate_memory({ov::PartialShape{1, 1, 1, 2}, data_types::i32, format::bfyx});
+        auto updates = engine.allocate_memory({ov::PartialShape{1, 1, 1, 2}, data_types::bf16, format::bfyx});
+        set_values<uint16_t>(input, std::vector<uint16_t>(count, 0x3f80));
+        set_values<int32_t>(indices, std::vector<int32_t>{1, static_cast<int32_t>(count - 1)});
+        set_values<uint16_t>(updates, std::vector<uint16_t>{0x4000, 0x4040});
+        network->set_input_data("input", input);
+        network->set_input_data("indices", indices);
+        network->set_input_data("updates", updates);
+        auto outputs = network->execute();
+        auto output = outputs.at("scatter_update").get_memory();
+        ASSERT_EQ(output->get_layout().data_type, data_types::bf16);
+        mem_lock<uint16_t, mem_lock_type::read> values(output, get_test_stream());
+        EXPECT_EQ(values[1], 0x4000);
+        EXPECT_EQ(values[count - 1], 0x4040);
+        for (size_t index = 0; index < count; ++index) {
+            if (index != 1 && index != count - 1) {
+                EXPECT_EQ(values[index], 0x3f80);
+            }
+        }
+    }
+    const auto& output_node = network->get_program()->get_node("scatter_update");
+    ASSERT_TRUE(output_node.is_type<reorder>());
+    const auto& compute_node = output_node.get_dependency(0);
+    ASSERT_TRUE(compute_node.is_type<scatter_update>());
+    EXPECT_EQ(compute_node.get_input_layout(0).data_type, data_types::f32);
+    EXPECT_EQ(compute_node.get_input_layout(1).data_type, data_types::i32);
+    EXPECT_EQ(compute_node.get_input_layout(2).data_type, data_types::f32);
+    EXPECT_EQ(compute_node.get_output_layout().data_type, data_types::f32);
+    const auto params = compute_node.get_kernel_impl_params();
+    const auto shape_type = ImplementationManager::get_shape_type(*params);
+    bool checked_ocl_manager = false;
+    for (const auto& manager : compute_node.type()->get_all_implementations()) {
+        if (manager->get_impl_type() != impl_types::ocl || (manager->get_shape_type() & shape_type) != shape_type) {
+            continue;
+        }
+        EXPECT_EQ(manager->query_data_types(*params), implementation_data_type_support::supported);
+        checked_ocl_manager = true;
+    }
+    EXPECT_TRUE(checked_ocl_manager);
+}
+
+void test_bf16_gather_nd_fallback(bool dynamic, bool caching, data_types output_type = data_types::bf16) {
+    auto& engine = get_test_engine();
+    const auto count_dim = dynamic ? ov::Dimension::dynamic() : ov::Dimension(4);
+    const layout data_layout{ov::PartialShape{1, 1, 1, count_dim}, data_types::bf16, format::bfyx};
+    const layout indices_layout{ov::PartialShape{count_dim, 4}, data_types::i32, format::bfyx};
+    auto gather = std::make_shared<gather_nd>("gather_nd", input_info("input"), input_info("indices"), 4, 2, 0, false);
+    gather->output_data_types[0] = data_types::bf16;
+    topology topology;
+    topology.add(input_layout("input", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add_primitive(gather);
+    const auto output_id = output_type == data_types::bf16 ? "gather_nd" : "gather_output";
+    if (output_type != data_types::bf16) {
+        topology.add(reorder(output_id, input_info("gather_nd"),
+                             layout{ov::PartialShape{count_dim}, output_type, format::bfyx}));
+    }
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), caching);
+    const std::vector<uint16_t> input_values{0x3f80, 0x4000, 0x4040, 0x4080};
+    for (const size_t count : (dynamic ? std::vector<size_t>{4, 2, 4} : std::vector<size_t>{4})) {
+        auto input = engine.allocate_memory({ov::PartialShape{1, 1, 1, static_cast<int64_t>(count)}, data_types::bf16, format::bfyx});
+        auto indices = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(count), 4}, data_types::i32, format::bfyx});
+        set_values<uint16_t>(input, std::vector<uint16_t>(input_values.begin(), input_values.begin() + count));
+        std::vector<int32_t> index_values(count * 4, 0);
+        for (size_t index = 0; index < count; ++index) {
+            index_values[index * 4 + 3] = static_cast<int32_t>(count - index - 1);
+        }
+        set_values<int32_t>(indices, index_values);
+        network->set_input_data("input", input);
+        network->set_input_data("indices", indices);
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), 1);
+        auto output = outputs.at(output_id).get_memory();
+        ASSERT_EQ(output->get_layout().data_type, output_type);
+        EXPECT_EQ(output->get_layout().get_partial_shape(), ov::PartialShape{static_cast<int64_t>(count)});
+        if (output_type == data_types::bf16) {
+            mem_lock<uint16_t, mem_lock_type::read> values(output, get_test_stream());
+            for (size_t index = 0; index < count; ++index) {
+                EXPECT_EQ(values[index], input_values[count - index - 1]);
+            }
+        } else {
+            mem_lock<float, mem_lock_type::read> values(output, get_test_stream());
+            for (size_t index = 0; index < count; ++index) {
+                EXPECT_EQ(values[index], static_cast<float>(count - index));
+            }
+        }
+        mem_lock<int32_t, mem_lock_type::read> original_indices(indices, get_test_stream());
+        for (size_t index = 0; index < index_values.size(); ++index) {
+            EXPECT_EQ(original_indices[index], index_values[index]);
+        }
+    }
+    const auto& processing_order = network->get_program()->get_processing_order();
+    const auto compute = std::find_if(processing_order.begin(), processing_order.end(), [](const auto* node) {
+        return node->template is_type<gather_nd>();
+    });
+    ASSERT_NE(compute, processing_order.end());
+    const auto& compute_node = **compute;
+    EXPECT_EQ(compute_node.get_input_layout(0).data_type, data_types::f32);
+    EXPECT_EQ(compute_node.get_input_layout(1).data_type, data_types::i32);
+    EXPECT_EQ(compute_node.get_output_layout().data_type, data_types::f32);
+    EXPECT_EQ(network->get_program()->get_node("input").get_output_layout().data_type, data_types::bf16);
+    EXPECT_EQ(network->get_program()->get_node("indices").get_output_layout().data_type, data_types::i32);
+    EXPECT_EQ(gather->id, "gather_nd");
+    EXPECT_EQ(gather->output_data_types[0].value(), data_types::bf16);
+    const auto& managers = compute_node.type()->get_all_implementations();
+    ASSERT_FALSE(managers.empty());
+    auto bf16_params = *compute_node.get_kernel_impl_params();
+    bf16_params.input_layouts[0].data_type = data_types::bf16;
+    bf16_params.output_layouts[0].data_type = output_type;
+    for (const auto& manager : managers) {
+        EXPECT_EQ(manager->query_data_types(bf16_params), implementation_data_type_support::unsupported);
+        EXPECT_EQ(manager->query_data_types(*compute_node.get_kernel_impl_params()), implementation_data_type_support::supported);
+    }
+}
+
+}  // namespace
+
+TEST(BF16Fallback, ScatterStatic) { test_bf16_scatter_fallback(false, false); }
+TEST(BF16Fallback, ScatterDynamicShapeChanges) { test_bf16_scatter_fallback(true, false); }
+TEST(BF16Fallback, ScatterStaticCache) { test_bf16_scatter_fallback(false, true); }
+TEST(BF16Fallback, ScatterDynamicCache) { test_bf16_scatter_fallback(true, true); }
+TEST(BF16Fallback, ScatterPublicOutputAndDuplicateUsers) { test_bf16_scatter_fallback(false, false, true); }
+TEST(BF16Fallback, ScatterPublicFP32Output) { test_bf16_scatter_fallback(false, false, false, data_types::f32); }
+TEST(BF16Fallback, ScatterUpdateStatic) { test_bf16_scatter_update_fallback(false, false); }
+TEST(BF16Fallback, ScatterUpdateDynamicShapeChanges) { test_bf16_scatter_update_fallback(true, false); }
+TEST(BF16Fallback, ScatterUpdateStaticCache) { test_bf16_scatter_update_fallback(false, true); }
+TEST(BF16Fallback, ScatterUpdateDynamicCache) { test_bf16_scatter_update_fallback(true, true); }
+
+TEST(BF16Fallback, GatherNDStatic) { test_bf16_gather_nd_fallback(false, false); }
+TEST(BF16Fallback, GatherNDDynamicShapeChanges) { test_bf16_gather_nd_fallback(true, false); }
+TEST(BF16Fallback, GatherNDStaticCache) { test_bf16_gather_nd_fallback(false, true); }
+TEST(BF16Fallback, GatherNDDynamicCache) { test_bf16_gather_nd_fallback(true, true); }
+TEST(BF16Fallback, GatherNDPublicFP32Output) { test_bf16_gather_nd_fallback(false, false, data_types::f32); }
+
+TEST(BF16Fallback, NativeBF16EltwisePreserved) {
+    auto& engine = get_test_engine();
+    const layout input_layout_value{ov::PartialShape{1, 1, 1, 4}, data_types::bf16, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_value);
+    set_values<uint16_t>(input, {0x3f80, 0x4000, 0x4040, 0x4080});
+    topology topology;
+    topology.add(input_layout("input", input_layout_value));
+    topology.add(eltwise("product", {input_info("input"), input_info("input")}, eltwise_mode::prod, data_types::bf16));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    const auto& node = network.get_program()->get_node("product");
+    ASSERT_TRUE(node.is_type<eltwise>());
+    EXPECT_EQ(node.get_input_layout(0).data_type, data_types::bf16);
+    EXPECT_EQ(node.get_output_layout().data_type, data_types::bf16);
+    bool native_support_found = false;
+    for (const auto& manager : node.type()->get_all_implementations()) {
+        native_support_found |= manager->query_data_types(*node.get_kernel_impl_params()) == implementation_data_type_support::supported;
+    }
+    EXPECT_TRUE(native_support_found);
+    auto output = outputs.at("product").get_memory();
+    mem_lock<uint16_t, mem_lock_type::read> values(output, get_test_stream());
+    EXPECT_EQ(values[0], 0x3f80);
+    EXPECT_EQ(values[1], 0x4080);
+}
+
+TEST(BF16Fallback, NativeBF16RMSPreserved) {
+    auto& engine = get_test_engine();
+    const layout input_layout_value{ov::PartialShape{1, 1, 1, 4}, data_types::bf16, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_value);
+    auto gamma = engine.allocate_memory(input_layout_value);
+    set_values<uint16_t>(input, {0x3f80, 0x3f80, 0x3f80, 0x3f80});
+    set_values<uint16_t>(gamma, {0x3f80, 0x3f80, 0x3f80, 0x3f80});
+    topology topology;
+    topology.add(input_layout("input", input_layout_value));
+    topology.add(input_layout("gamma", input_layout_value));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+    auto outputs = network.execute();
+    const auto& node = network.get_program()->get_node("rms");
+    ASSERT_TRUE(node.is_type<rms>());
+    EXPECT_EQ(node.get_input_layout(0).data_type, data_types::bf16);
+    EXPECT_EQ(node.get_output_layout().data_type, data_types::bf16);
+    auto output = outputs.at("rms").get_memory();
+    mem_lock<uint16_t, mem_lock_type::read> values(output, get_test_stream());
+    EXPECT_EQ(values[0], 0x3f80);
+}
+
+TEST(BF16Fallback, MissingForcedKernelRemainsAnError) {
+    auto& engine = get_test_engine();
+    const layout data_layout{ov::PartialShape{1, 1, 1, 4}, data_types::bf16, format::bfyx};
+    const layout indices_layout{ov::PartialShape{1, 1, 1, 4}, data_types::i32, format::bfyx};
+    topology topology;
+    topology.add(input_layout("input", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add(input_layout("updates", data_layout));
+    topology.add(scatter_elements_update("scatter", input_info("input"), input_info("indices"), input_info("updates"), 3));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"scatter", {format::bfyx, "missing_bf16_kernel", impl_types::ocl}}
+    }));
+    EXPECT_ANY_THROW(network(engine, topology, config));
+}
+
+TEST(BF16Fallback, WrongForcedBackendRemainsAnError) {
+    auto& engine = get_test_engine();
+    const layout data_layout{ov::PartialShape{1, 1, 1, 4}, data_types::bf16, format::bfyx};
+    const layout indices_layout{ov::PartialShape{1, 1, 1, 4}, data_types::i32, format::bfyx};
+    topology topology;
+    topology.add(input_layout("input", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add(input_layout("updates", data_layout));
+    topology.add(scatter_elements_update("scatter", input_info("input"), input_info("indices"), input_info("updates"), 3));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"scatter", {format::bfyx, "", impl_types::onednn}}
+    }));
+    EXPECT_ANY_THROW(network(engine, topology, config));
+}
+
+TEST(BF16Fallback, BF16ConstantInputExcluded) {
+    auto& engine = get_test_engine();
+    const layout data_layout{ov::PartialShape{1, 1, 1, 4}, data_types::bf16, format::bfyx};
+    const layout indices_layout{ov::PartialShape{1, 1, 1, 4}, data_types::i32, format::bfyx};
+    auto updates = engine.allocate_memory(data_layout);
+    set_values<uint16_t>(updates, {0x4000, 0x4000, 0x4000, 0x4000});
+    topology topology;
+    topology.add(input_layout("input", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add(data("updates", updates));
+    topology.add(scatter_elements_update("scatter", input_info("input"), input_info("indices"), input_info("updates"), 3));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    EXPECT_ANY_THROW(network(engine, topology, config));
+    EXPECT_EQ(updates->get_layout().data_type, data_types::bf16);
+}
+
+namespace {
+
+struct PrecisionQueryParams : kernel_selector::Params {
+    PrecisionQueryParams() : Params(kernel_selector::KernelType::ELTWISE, "precision_query") {}
+    kernel_selector::ParamsKey GetParamsKey() const override { return required_key; }
+    kernel_selector::ParamsKey required_key;
+};
+
+class FP32PrecisionQueryKernel : public kernel_selector::KernelBase {
+public:
+    FP32PrecisionQueryKernel() : KernelBase("fp32_precision_query") {}
+    kernel_selector::ParamsKey GetSupportedKey() const override {
+        kernel_selector::ParamsKey supported;
+        supported.EnableInputDataType(kernel_selector::Datatype::F32);
+        supported.EnableOutputDataType(kernel_selector::Datatype::F32);
+        supported.EnableInputLayout(kernel_selector::DataLayout::bfyx);
+        supported.EnableOutputLayout(kernel_selector::DataLayout::bfyx);
+        return supported;
+    }
+    kernel_selector::KernelsData GetKernelsData(const kernel_selector::Params&) const override {
+        OPENVINO_THROW("Precision queries must not generate kernels");
+    }
+};
+
+class BF16PrecisionQueryKernel : public FP32PrecisionQueryKernel {
+public:
+    std::string GetName() const override { return "bf16_precision_query"; }
+    kernel_selector::ParamsKey GetSupportedKey() const override {
+        kernel_selector::ParamsKey supported;
+        supported.EnableInputDataType(kernel_selector::Datatype::BF16);
+        supported.EnableOutputDataType(kernel_selector::Datatype::BF16);
+        supported.EnableInputLayout(kernel_selector::DataLayout::bfyx);
+        supported.EnableOutputLayout(kernel_selector::DataLayout::bfyx);
+        return supported;
+    }
+};
+
+class FP16PrecisionQueryKernel : public FP32PrecisionQueryKernel {
+public:
+    std::string GetName() const override { return "fp16_precision_query"; }
+    kernel_selector::ParamsKey GetSupportedKey() const override {
+        kernel_selector::ParamsKey supported;
+        supported.EnableInputDataType(kernel_selector::Datatype::F16);
+        supported.EnableOutputDataType(kernel_selector::Datatype::F16);
+        return supported;
+    }
+};
+
+class PrecisionQuerySelector : public kernel_selector::kernel_selector_base {
+public:
+    explicit PrecisionQuerySelector(bool with_bf16 = false, bool fp16_only = false) {
+        if (fp16_only)
+            Attach<FP16PrecisionQueryKernel>();
+        else
+            Attach<FP32PrecisionQueryKernel>();
+        if (with_bf16) {
+            Attach<BF16PrecisionQueryKernel>();
+        }
+    }
+protected:
+    kernel_selector::KernelsData GetBestKernels(const kernel_selector::Params&) const override {
+        OPENVINO_THROW("Precision queries must not select kernels");
+    }
+};
+
+}  // namespace
+
+TEST(KernelPrecisionSupport, SeparatesTypesFromLayoutAndDynamicRestrictions) {
+    FP32PrecisionQueryKernel implementation;
+    auto supported = implementation.GetSupportedKey();
+    kernel_selector::ParamsKey required;
+    required.EnableInputDataType(kernel_selector::Datatype::F32);
+    required.EnableOutputDataType(kernel_selector::Datatype::F32);
+    required.EnableInputLayout(kernel_selector::DataLayout::bfzyx);
+    required.EnableOutputLayout(kernel_selector::DataLayout::bfzyx);
+    required.EnableDynamicShapesSupport();
+    EXPECT_TRUE(supported.SupportDataTypes(required));
+    EXPECT_FALSE(supported.Support(required));
+}
+
+TEST(KernelPrecisionSupport, ChecksEveryDataAndWeightsRole) {
+    kernel_selector::ParamsKey supported;
+    supported.EnableInputDataType(kernel_selector::Datatype::F32);
+    supported.EnableOutputDataType(kernel_selector::Datatype::F32);
+    supported.EnableInputWeightsType(kernel_selector::WeightsType::F16);
+    supported.EnableOutputWeightsType(kernel_selector::WeightsType::F16);
+    for (const size_t role : {size_t{0}, size_t{1}, size_t{2}, size_t{3}}) {
+        kernel_selector::ParamsKey required;
+        if (role == 0) required.EnableInputDataType(kernel_selector::Datatype::BF16);
+        if (role == 1) required.EnableOutputDataType(kernel_selector::Datatype::BF16);
+        if (role == 2) required.EnableInputWeightsType(kernel_selector::WeightsType::BF16);
+        if (role == 3) required.EnableOutputWeightsType(kernel_selector::WeightsType::BF16);
+        EXPECT_FALSE(supported.SupportDataTypes(required));
+    }
+}
+
+TEST(KernelPrecisionSupport, DistinguishesMissingTypesFromMissingForcedKernel) {
+    PrecisionQueryParams params;
+    params.required_key.EnableInputDataType(kernel_selector::Datatype::BF16);
+    params.required_key.EnableOutputDataType(kernel_selector::Datatype::BF16);
+    PrecisionQuerySelector fp32_selector;
+    PrecisionQuerySelector bf16_selector(true);
+    EXPECT_EQ(fp32_selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::UNSUPPORTED);
+    EXPECT_EQ(bf16_selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::SUPPORTED);
+    params.forceImplementation = "fp32_precision_query";
+    EXPECT_EQ(bf16_selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::UNSUPPORTED);
+    params.forceImplementation = "missing_precision_query";
+    EXPECT_EQ(bf16_selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::UNKNOWN);
+    params.forceImplementation.clear();
+    params.required_key.EnableDynamicShapesSupport();
+    EXPECT_EQ(bf16_selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::SUPPORTED);
+}
+
+TEST(KernelPrecisionSupport, NoFP32Alternative) {
+    PrecisionQuerySelector selector(false, true);
+    PrecisionQueryParams params;
+    params.required_key.EnableInputDataType(kernel_selector::Datatype::BF16);
+    params.required_key.EnableOutputDataType(kernel_selector::Datatype::BF16);
+    EXPECT_EQ(selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::UNSUPPORTED);
+    params.required_key = {};
+    params.required_key.EnableInputDataType(kernel_selector::Datatype::F32);
+    params.required_key.EnableOutputDataType(kernel_selector::Datatype::F32);
+    EXPECT_EQ(selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::UNSUPPORTED);
+}
+
+TEST(KernelPrecisionSupport, BF16EligibleDespiteInvalidLayout) {
+    PrecisionQuerySelector selector(true);
+    PrecisionQueryParams params;
+    params.required_key.EnableInputDataType(kernel_selector::Datatype::BF16);
+    params.required_key.EnableOutputDataType(kernel_selector::Datatype::BF16);
+    params.required_key.EnableInputLayout(kernel_selector::DataLayout::bfzyx);
+    params.required_key.EnableOutputLayout(kernel_selector::DataLayout::bfzyx);
+    BF16PrecisionQueryKernel kernel;
+    EXPECT_FALSE(kernel.GetSupportedKey().Support(params.required_key));
+    EXPECT_EQ(selector.GetDataTypeSupport(params), kernel_selector::DataTypeSupport::SUPPORTED);
+}
 
 TEST(add_required_reorders, input_reorder_inside_shape_of_subgraph) {
     auto& engine = get_test_engine();

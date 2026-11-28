@@ -69,9 +69,11 @@ private:
 class add_required_reorders : public base_pass {
 public:
     add_required_reorders() : base_pass("add_required_reorders") {}
+    static bool needs_bf16_fallback(program_node& node);
 
 private:
     void run(program& p) override;
+    static bool try_bf16_fallback(program& p, program_node& node);
     static void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
     static bool test_format(cldnn::program_node& node, format requested_format);
 };

@@ -42,6 +42,7 @@ struct program {
     using cptr = std::shared_ptr<const program>;
     friend class calculate_prior_boxes;             // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
+    friend class add_required_reorders;
     friend class prepare_padding;                   // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
     friend class pre_replace_deconv;                // to be removed when possible
