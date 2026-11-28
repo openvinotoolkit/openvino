@@ -418,6 +418,37 @@ def test_roi_from_packed_tensor_when_strided_two_heads():
         assert np.array_equal(dst_slice, src_slice)
 
 
+@pytest.mark.parametrize(
+    "ov_type",
+    [
+        ov.Type.u1,
+        ov.Type.u2,
+        ov.Type.u4,
+        ov.Type.i4,
+    ],
+)
+def test_roi_from_packed_tensor_when_strided_two_heads_direct_access(ov_type):
+    ov_tensor = ov.Tensor(ov_type, [1, 2, 4095, 512])
+    row_bytes = 512 * ov_type.bitwidth // 8
+    rows = ov_tensor.data.size // row_bytes
+    ov_tensor.data[:] = np.repeat(np.arange(rows, dtype=np.int64) % 128, row_bytes).astype(ov_tensor.data.dtype)
+
+    roi_tensor = ov.Tensor(ov_tensor, [0, 0, 0, 0], [1, 2, 10, 512])
+
+    assert list(roi_tensor.shape) == [1, 2, 10, 512]
+    assert not roi_tensor.is_continuous()
+    assert np.shares_memory(ov_tensor.data, roi_tensor.data)
+
+    head_stride_bytes = 4095 * row_bytes
+    assert roi_tensor.strides[1] == head_stride_bytes
+
+    assert roi_tensor.data.shape == (1, 2, 10, row_bytes)
+    for head_idx in range(2):
+        src_start = head_idx * head_stride_bytes
+        expected = ov_tensor.data[src_start: src_start + 10 * row_bytes].reshape(10, row_bytes)
+        assert np.array_equal(roi_tensor.data[0, head_idx], expected)
+
+
 def test_roi_from_packed_tensor_when_contiguous():
     ov_tensor = ov.Tensor(ov.Type.i4, [1, 1, 4095, 512])
     ov_tensor.data[:] = np.arange(ov_tensor.data.size, dtype=ov_tensor.data.dtype)

@@ -28,6 +28,7 @@ audio branch. Built-in entries come from `projector_catalog` in
 | Vision | `lfm3vl` | temporal packed patches and streaming vision |
 | Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
 | Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
+| Vision | `inkling2v` | CLS token, resized learned positions, two-axis pair RoPE, layer scales, spatial merging |
 | Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
 | Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap |
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
@@ -118,6 +119,27 @@ The converted graph mirrors the llama.cpp encoder graph:
 The exact inputs of each projector are defined by its builder.
 [`checkpoint_inputs`](../tests/mmproj_fixtures.py) shows how tests construct them; it creates
 random pixels/features and is not a media preprocessor.
+
+## Inkling 2 vision
+
+`inkling2v` is shared by Inkling 2 Small and Mini. It uses bilinearly resized learned patch
+positions, a separate CLS embedding/position, pre-normalization, two-axis pair RoPE,
+layer-scaled ViT blocks, CLS removal, spatial patch merging and a GELU projector.
+
+Native inputs are `vision.pixel_values` (`[1,3,H,W]`), `vision.position_x`,
+`vision.position_y` and `vision.merge_indices` (I32, `[1,1,1,N]`). Position vectors prepend
+zero for CLS, then give one-based raster patch coordinates. Merge indices reorder non-CLS
+raster patches into windows, with y then x inside each window. The caller must resize/pad
+images to multiples of `patch_size * spatial_merge_size`; preprocessing is not part of the graph.
+
+A nonzero F32 llama.cpp CPU fixture at `a6ac41c757c066941766164439f6876f2deaab04` checks
+two rectangular grids, resized position tables, and request reuse through native and
+`Layout::EMBEDDINGS` interfaces. The real `ggml-org/Inkling-2-Mini-GGUF` projectors
+at revision `e8a2cecf0e78914f07cc27b9be711a9b2c7561d9` also pass NMSE below `1e-5`
+against represented-F32 CPU oracles: BF16 at 80x40 and 40x120 pixels, and Q8_0 at 160x120
+and 80x80 pixels. Each reuses the request on the first grid after the second, through both
+interfaces. `Layout::VISION_ENCODERS` and end-to-end image chat are not implemented for this
+projector.
 
 ## Runtime metadata
 

@@ -91,6 +91,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 if (!is_wei_compressed || !is_zp_compressed) {
                     LOG_AND_RETURN_FALSE(node);
                 }
+                const auto& zero_point_layout = fc_node.get_input_layout(decompression_zp_idx);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), zero_point_layout, fc_prim->weights_transposed);
+                if (!is_supported_scale_group(groups.first, groups.second)) {
+                    LOG_AND_RETURN_FALSE(node);
+                }
             }
 
             // oneDNN requires every non-unit stride of a sub-byte weights descriptor to hold a whole number of bytes.
@@ -112,11 +117,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 }
             }
 
-            // Reject u2 scale grouping oneDNN can't handle here, so another FC impl is selected instead.
-            if (wei_dt == data_types::u2 && fc_prim->decompression_scale.is_valid()) {
+            // Reject scale grouping oneDNN can't handle here, so another FC impl is selected instead.
+            if (fc_prim->decompression_scale.is_valid()) {
                 const auto& scale_layout = fc_node.get_input_layout(fc_prim->bias.is_valid() ? 3 : 2);
-                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout,
-                                                     fc_prim->weights_transposed);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout, fc_prim->weights_transposed);
                 if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }

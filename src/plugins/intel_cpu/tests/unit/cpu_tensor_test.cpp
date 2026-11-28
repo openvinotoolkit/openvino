@@ -190,6 +190,24 @@ TEST_F(CPUTensorTest, canAccessF16Tensor) {
     }
 }
 
+TEST_F(CPUTensorTest, reportsCorrectByteStridesForDenseMultiDimSubByteTensor) {
+    Shape shape{1, 3, 4, 8};
+    auto strides = ov::Strides({96, 32, 8, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::nf4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    EXPECT_EQ(t->get_strides(), ov::Strides({48, 16, 4, 1}));
+}
+
+TEST_F(CPUTensorTest, throwsForNonDenseMultiDimSubByteStrides) {
+    Shape shape{1, 3, 4, 8};
+    auto strides = ov::Strides({120, 40, 8, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::nf4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    EXPECT_THROW(t->get_strides(), ov::Exception);
+}
+
 // SetShape
 TEST_F(CPUTensorTest, canSetShape) {
     const Shape origShape = {1, 2, 3};

@@ -19,6 +19,9 @@ import numpy as np
 from mmproj_fixtures import finish, save_npz
 
 CASES = {
+    "inkling2": {},
+    "inkling2-loop": {"architecture": "inkling2_loop"},
+    "inkling2-loop-varying": {"architecture": "inkling2_loop", "varying": True},
     "afmoe": {"qk": True, "moe": True, "shared": True, "lead": 1, "post": True,
               "swa": True, "gate": True, "selection_bias": True, "sigmoid": True, "layers": 4},
     "lfm2": {},
@@ -126,6 +129,92 @@ def tensor_writer(writer, rng, f16=(), quantized=None, exact_q4_1=False):
         else:
             writer.add_tensor(name, values.astype(np.float16) if any(s in name for s in f16) else values)
     return tensor
+
+
+def write_inkling_model(path, arch, opts):
+    w = gguf.GGUFWriter(path, arch)
+    d, head, heads, kv_heads, hidden, experts, used, kernel, rel, vocab = 24, 8, 4, 2, 16, 4, 2, 3, 4, 32
+    loop = arch == "inkling2_loop"
+    layers = 6 if loop else 4
+    sliding = [i % 2 == 0 for i in range(layers)]
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(layers)
+    w.add_head_count([heads] * layers)
+    w.add_head_count_kv([kv_heads] * layers)
+    w.add_key_length(head)
+    w.add_value_length(head)
+    w.add_layer_norm_rms_eps(1e-6)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    w.add_expert_count(experts)
+    if opts.get("varying"):
+        w.add_array(f"{arch}.expert_used_count", [used] * layers)
+    else:
+        w.add_expert_used_count(used)
+    w.add_sliding_window(2)
+    w.add_sliding_window_pattern(sliding)
+    w.add_rope_dimension_count(0)
+    for key, value in {
+        "vocab_size_unpadded": vocab, "expert_feed_forward_length": hidden,
+        "shortconv.l_cache": kernel, "attn_res.block_size": 2,
+        "attention.relative_length": rel, "attention.relative_extent": 3,
+        "attention.log_scale_floor": 2,
+    }.items():
+        w.add_uint32(f"{arch}.{key}", value)
+    for key, value in {
+        "attention.qk_clip": 1.3, "attention.relative_clip": 0.8,
+        "attention.log_scale_alpha": 0.3, "activation.situ_beta": 0.4,
+        "activation.situ_linear_beta": 0.5, "expert_weights_scale": 0.0 if opts.get("varying") else 2.5,
+        "final_logit_softcapping": 3.0,
+    }.items():
+        w.add_float32(f"{arch}.{key}", value)
+    if loop:
+        for key, value in {"start": 2, "end": 4, "count": 1 if opts.get("varying") else 3, "gate_rank": 5}.items():
+            w.add_uint32(f"{arch}.loop.{key}", value)
+        w.add_bool(f"{arch}.loop.varying", opts.get("varying", False))
+    tensor = tensor_writer(w, np.random.default_rng(20261124))
+    tensor("token_embd.weight", (vocab, d))
+    tensor("token_embd_norm.weight", (d,), True)
+    tensor("output.weight", (vocab, d))
+    tensor("output_norm.weight", (d,), True)
+    tensor("output_res_query.weight", (d,))
+    for layer in range(layers):
+        p = f"blk.{layer}."
+        for name, rows in (("q", heads * head), ("k", kv_heads * head), ("v", kv_heads * head),
+                           ("gate", heads * head), ("rel", heads * rel), ("sink_proj", heads)):
+            tensor(p + f"attn_{name}.weight", (rows, d))
+        tensor(p + "attn_output.weight", (d, heads * head))
+        tensor(p + "attn_q_clip.weight", (heads, head), True)
+        tensor(p + "attn_rel_clip.weight", (heads, rel), True)
+        tensor(p + "attn_rel_bias.weight", (2 if sliding[layer] else 3, rel))
+        for name, channels in (("attn_k", kv_heads * head), ("attn_v", kv_heads * head),
+                               ("attn_post", d), ("ffn_post", d)):
+            tensor(p + name + "_conv.weight", (channels, kernel))
+        if sliding[layer]:
+            tensor(p + "attn_norm.weight", (d,), True)
+        else:
+            for name in ("q", "k", "v"):
+                tensor(p + f"attn_{name}_inp_norm.weight", (d,), True)
+            for name in ("k", "v"):
+                tensor(p + f"attn_{name}_conv_proj.weight", (kv_heads * kernel, d))
+        if layer:
+            query_shape = (d,) if sliding[layer] and opts.get("varying") else (1 if sliding[layer] else 3, d)
+            tensor(p + "attn_res_query.weight", query_shape)
+        tensor(p + "ffn_res_query.weight", (d,))
+        tensor(p + "ffn_norm.weight", (d,), True)
+        tensor(p + "ffn_gate_inp.weight", (experts, d))
+        if layer % 2 == 0:
+            tensor(p + "exp_probs_b.bias", (experts,))
+        tensor(p + "ffn_gate_up_exps.weight", (experts, 2 * hidden, d))
+        tensor(p + "ffn_down_exps.weight", (experts, d, hidden))
+        if loop and 2 <= layer < 4:
+            tensor(p + "loop_msg_query.weight", (4, d))
+            for ctrl in ("q", "k", "v", "ffn"):
+                tensor(p + f"loop_{ctrl}_ctrl_down.weight", (5, 2 * d))
+                tensor(p + f"loop_{ctrl}_ctrl_gain.weight", (d, 5))
+                tensor(p + f"loop_{ctrl}_ctrl_forget.weight", (d, 5))
+    finish(w)
 
 
 def write_mamba2_model(path, opts, arch="mamba2"):
@@ -485,6 +574,8 @@ def write_lfm_model(path, arch, opts):
 
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch.startswith("inkling2"):
+        return write_inkling_model(path, arch, opts)
     if arch == "gemma3n":
         return write_gemma3n_model(path)
     if arch in ("lfm2", "lfm2moe", "lfm3"):

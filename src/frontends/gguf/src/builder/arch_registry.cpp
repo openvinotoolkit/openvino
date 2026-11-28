@@ -10,6 +10,7 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/arch/inkling_builder.hpp"
 #include "builder/arch/lfm_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
@@ -67,6 +68,8 @@ const ArchitectureEntry architectures[] = {
     {"gpt-oss", RopeMode::Neox},
     {"hunyuan-dense", RopeMode::Neox},
     {"hunyuan-moe", RopeMode::Neox},
+    {"inkling2", make_inkling_builder},
+    {"inkling2_loop", make_inkling_builder},
     {"jais2", RopeMode::Neox},
     {"lfm2", make_lfm_builder},
     {"lfm2.audio_vocoder",

@@ -20,6 +20,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/convert_sparse_attention_to_dense.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
@@ -54,6 +55,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
@@ -181,16 +183,31 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
-void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
+std::pair<bool, std::string> apply_weights_bank_name_if_not_exist(ov::AnyMap& config, const std::string& bank_name) {
     auto it = config.find("NPUW_WEIGHTS_BANK");
     if (it != config.end()) {
         if (it->second.as<std::string>().empty()) {
             NPUW_ASSERT(false && "NPUW_WEIGHTS_BANK is empty in the provided config! Please use non-empty name to "
                                  "share the model weights.");
         }
+        return {false, it->second.as<std::string>()};
     } else {
         config["NPUW_WEIGHTS_BANK"] = bank_name;
     }
+    return {true, bank_name};
+}
+
+void assign_model_sharing_context_for_bank(
+    ov::AnyMap& config,
+    const std::string& bank_name,
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>>& shared_ctxs) {
+    if (shared_ctxs.count(bank_name) == 0) {
+        shared_ctxs[bank_name] = std::make_shared<ov::weight_sharing::Context>();
+        LOG_INFO("Created an OV Weight Sharing Context for weights bank: " << bank_name << ", total contexts count: "
+                                                                           << shared_ctxs.size());
+    }
+
+    config[ov::internal::model_sharing_context.name()] = shared_ctxs[bank_name];
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
@@ -938,6 +955,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 
+    // QSA layers reuse the lincache path; however, the prefix cache only stores and restores
+    // per-token KV blocks and never restores lincache states, so a prefix hit would leave the
+    // QSA states out of sync with the restored KV. Hence QSA models are rejected with prefix caching.
+    const bool converted_qsa =
+        ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
+    if (converted_qsa && m_enable_prefix_caching) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("QSA models do not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
+    }
+
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1257,8 +1283,29 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
-    apply_weights_bank_name(prefill_config, weights_bank_name);
-    apply_weights_bank_name(generate_config, weights_bank_name);
+
+    // Associate each weights bank name with an ov::weight_sharing::Context and pass it
+    // to the corresponding submodels through their configs. Submodels using the same
+    // bank name receive the same context, while different bank names get separate contexts.
+    // Use the generated bank name by default and preserve explicitly configured bank names.
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
+    LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
+    shared_weight_ctx_per_bank[weights_bank_name] = std::make_shared<ov::weight_sharing::Context>();
+    // Each submodel config may have a bank name preconfigured by the user. To preserve
+    // the association above, assign contexts by the resolved bank name, sharing a context
+    // only between submodels with matching bank names, whether generated or user-provided.
+    auto [prefill_applied, prefill_bank_name] = apply_weights_bank_name_if_not_exist(prefill_config, weights_bank_name);
+    LOG_INFO("Prefill config accepts the unique weights bank: " << (prefill_applied ? "yes" : "no")
+                                                                << ", bank name: " << prefill_bank_name);
+    assign_model_sharing_context_for_bank(prefill_config, prefill_bank_name, shared_weight_ctx_per_bank);
+
+    // Do the same for the generate config to ensure consistent context assignment across submodels.
+    auto [generate_applied, generate_bank_name] =
+        apply_weights_bank_name_if_not_exist(generate_config, weights_bank_name);
+    LOG_INFO("Generate config accepts the unique weights bank: " << (generate_applied ? "yes" : "no")
+                                                                 << ", bank name: " << generate_bank_name);
+    assign_model_sharing_context_for_bank(generate_config, generate_bank_name, shared_weight_ctx_per_bank);
+    LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
 
     // Handle attention hints. FIXME: Maybe it makes sense to make those
     // mutually exclusive with the precise configuration sections as well
@@ -1403,7 +1450,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             return found;
         };
-        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc && npudesc->arch == "5010" &&
+        const auto device_routed_platform =
+            npudesc && (npudesc->arch == ov::intel_npu::Platform::NPU5010 ||
+                        ov::intel_npu::Platform::standardize(npudesc->arch) == ov::intel_npu::Platform::NPU6010);
+        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && device_routed_platform &&
             npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
             m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1 && !generate_model_variants.empty() &&
             std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
@@ -1524,7 +1574,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);
-        apply_weights_bank_name(lm_head_config, weights_bank_name);
     }
 
     if (shared_vocab) {
@@ -1564,9 +1613,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                      "NPUW_HOST_GATHER in every stage.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else {
-            if (!ov::npuw::InsertVocabSub128().run_on_model(lm_head_model)) {
+            std::vector<ov::npuw::Vocab> lm_head_vocabs;
+            if (!ov::npuw::InsertVocabSub128(lm_head_vocabs).run_on_model(lm_head_model)) {
                 // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
                 LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
+            } else {
+                // The LM head model has its own copy of the dequantization nodes, so the embedding Gather in the
+                // other models is shifted separately: both readers must use the same i8 table to share it.
+                for (const auto& embedding_model : generate_model_variants) {
+                    ov::npuw::InsertEmbeddingSub128(lm_head_vocabs).run_on_model(embedding_model);
+                }
+                ov::npuw::InsertEmbeddingSub128(lm_head_vocabs).run_on_model(prefill_model);
             }
         }
     }
@@ -1583,6 +1640,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
     }
     if (lm_head_model) {
+        auto [lm_head_applied, lm_head_bank_name] =
+            apply_weights_bank_name_if_not_exist(lm_head_config, weights_bank_name);
+        LOG_INFO("LM Head config accepts the unique weights bank: " << (lm_head_applied ? "yes" : "no")
+                                                                    << ", bank name: " << lm_head_bank_name);
+        assign_model_sharing_context_for_bank(lm_head_config, lm_head_bank_name, shared_weight_ctx_per_bank);
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }
@@ -1795,14 +1857,19 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     bool is_weightless = true;
     read(stream, is_weightless);
 
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         auto stream = Stream::reader(model_stream);
         std::string bank_name;
         stream & bank_name;
 
+        shared_weight_ctx_per_bank[bank_name] = std::make_shared<ov::weight_sharing::Context>();
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            auto bank = ov::npuw::weights::bank(bank_name,
+                                                compiled->get_plugin()->get_core(),
+                                                "",
+                                                shared_weight_ctx_per_bank[bank_name]);
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);
@@ -1817,7 +1884,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            auto bank = ov::npuw::weights::bank(bank_name,
+                                                compiled->get_plugin()->get_core(),
+                                                "",
+                                                shared_weight_ctx_per_bank[bank_name]);
             stream&* bank;
 
             // Encoder embedding models are prefill-only: no kvcache/generate compiled models.
@@ -1873,7 +1943,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
     read_and_finalize_banks(stream, compiled_model);
 
-    LOG_INFO("Done.");
+    if (!shared_weight_ctx_per_bank.empty()) {
+        LOG_INFO("Done with shared weight contexts: " << shared_weight_ctx_per_bank.size());
+    } else {
+        LOG_INFO("Done.");
+    }
 
     return compiled_model;
 }
@@ -2097,6 +2171,9 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
         // A port can carry several names, so every one of them must clear the
         // exclusions; get_any_name() could return one that hides a match.
         for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_qsa_state(name)) {
+                return false;  // QSA state has no generate->prefill path
+            }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
                 return false;  // linear/hybrid state has no generate->prefill path
             }
