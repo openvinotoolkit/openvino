@@ -15,7 +15,7 @@ command_queues_builder::command_queues_builder(bool profiling, bool out_of_order
     : _profiling(profiling),
       _out_of_order(out_of_order) {}
 
-::sycl::property_list command_queues_builder::get_properties(const ::sycl::device& device) {
+::sycl::property_list command_queues_builder::get_properties(const ::sycl::device& device) const {
     bool profiling = _profiling;
     if (profiling && !device.has(::sycl::aspect::queue_profiling)) {
         profiling = false;
@@ -23,12 +23,10 @@ command_queues_builder::command_queues_builder(bool profiling, bool out_of_order
     }
 
     if (profiling) {
-        return _out_of_order ? ::sycl::property_list{::sycl::property::queue::enable_profiling()} :
-                               ::sycl::property_list{::sycl::property::queue::enable_profiling(), ::sycl::property::queue::in_order()};
-    } else {
-        return _out_of_order ? ::sycl::property_list{} :
-                               ::sycl::property_list{::sycl::property::queue::in_order()};
+        return _out_of_order ? ::sycl::property_list{::sycl::property::queue::enable_profiling()}
+                             : ::sycl::property_list{::sycl::property::queue::enable_profiling(), ::sycl::property::queue::in_order()};
     }
+    return _out_of_order ? ::sycl::property_list{} : ::sycl::property_list{::sycl::property::queue::in_order()};
 }
 
 sycl_queue_type command_queues_builder::build(const ::sycl::context& context, const ::sycl::device& device) {

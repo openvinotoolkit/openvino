@@ -11,26 +11,25 @@
 #include "gpu/intel/jit/generator.hpp"
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
-#include "sycl_device.hpp"
-#include "sycl_common.hpp"
-#include "driver_dev_id.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-
-#include <map>
-#include <string>
-#include <vector>
 #include <algorithm>
-#include <unordered_map>
-#include <string>
 #include <cassert>
-#include <time.h>
-#include <limits>
 #include <chrono>
+#include <ctime>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <map>
 #include <optional>
 #include <sstream>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
+
+#include "driver_dev_id.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "sycl_common.hpp"
+#include "sycl_device.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -42,10 +41,11 @@
 #include <windows.h>
 #include <cstring>
 #else
-#include <unistd.h>
-#include <limits.h>
-#include <link.h>
-#include <dlfcn.h>
+#    include <dlfcn.h>
+#    include <link.h>
+#    include <unistd.h>
+
+#    include <climits>
 #endif
 
 #if SYCL_EXT_ONEAPI_MATRIX
@@ -153,9 +153,9 @@ device_type get_device_type(const ::sycl::device& device) {
 bool get_imad_support(const ::sycl::device& device) {
     std::string dev_name = device.get_info<::sycl::info::device::name>();
 
-    if (dev_name.find("Gen12") != std::string::npos ||
-        dev_name.find("Xe") != std::string::npos)
+    if (dev_name.find("Gen12") != std::string::npos || dev_name.find("Xe") != std::string::npos) {
         return true;
+    }
 
     if (get_device_type(device) == device_type::integrated_gpu) {
         const std::vector<int> imad_ids = {
@@ -164,11 +164,13 @@ bool get_imad_support(const ::sycl::device& device) {
             0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9
         };
         int dev_id = driver_dev_id(get_pci_bus_info(device));
-        if (dev_id == 0)
+        if (dev_id == 0) {
             return false;
+        }
 
-        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) != imad_ids.end())
+        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) != imad_ids.end()) {
             return true;
+        }
     } else {
         return true;
     }
@@ -278,7 +280,7 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
 #if SYCL_EXT_ONEAPI_MATRIX
         auto matrix_combinations = device.get_info<::sycl::ext::oneapi::experimental::info::device::matrix_combinations>();
-        info.supports_immad = matrix_combinations.size() > 0;
+        info.supports_immad = !matrix_combinations.empty();
 #endif // SYCL_EXT_ONEAPI_MATRIX
 
 #if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
@@ -354,9 +356,10 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 }
 
 bool sycl_device::is_same(const device::ptr other) {
-    auto casted = downcast<sycl_device>(other.get());
-    if (!casted)
+    auto* casted = downcast<sycl_device>(other.get());
+    if (!casted) {
         return false;
+    }
 
     return _device == casted->get_device() && _platform == casted->get_platform();
 }
@@ -366,8 +369,9 @@ void sycl_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
 }
 
 void sycl_device::initialize() {
-    if (_is_initialized)
+    if (_is_initialized) {
         return;
+    }
 }
 
 }  // namespace sycl

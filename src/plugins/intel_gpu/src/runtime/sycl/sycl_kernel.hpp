@@ -34,7 +34,7 @@ public:
         return std::make_shared<sycl_kernel>(_compiled_kernel, _kernel_id, _spirv_binary, _build_log);
     }
     bool is_same(const kernel &other) const override {
-        auto other_ptr = dynamic_cast<const sycl_kernel*>(&other);
+        const auto* other_ptr = dynamic_cast<const sycl_kernel*>(&other);
         if (other_ptr == nullptr) {
             return false;
         }

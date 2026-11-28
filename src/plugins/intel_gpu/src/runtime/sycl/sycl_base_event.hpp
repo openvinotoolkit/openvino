@@ -19,7 +19,7 @@ namespace sycl {
 
 struct sycl_base_event : public event {
 public:
-    explicit sycl_base_event(uint64_t queue_stamp = 0) : event(), _queue_stamp(queue_stamp) { }
+    explicit sycl_base_event(uint64_t queue_stamp = 0) : _queue_stamp(queue_stamp) {}
     uint64_t get_queue_stamp() const { return _queue_stamp; }
     virtual ::sycl::event& get() = 0;
 

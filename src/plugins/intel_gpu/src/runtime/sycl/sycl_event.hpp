@@ -35,7 +35,7 @@ private:
     void wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
-    bool add_event_handler_impl(event_handler, void*) override;
+    bool add_event_handler_impl(event_handler handler, void* data) override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
     friend struct sycl_events;
@@ -65,13 +65,13 @@ private:
     bool is_set_impl() override;
 
     void update_last_sycl_event(const event::ptr& ev) {
-        if (auto base_ev = dynamic_cast<sycl_event*>(ev.get())) {
+        if (auto* base_ev = dynamic_cast<sycl_event*>(ev.get())) {
             auto current_ev_queue_stamp = base_ev->get_queue_stamp();
             if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                 _queue_stamp = current_ev_queue_stamp;
                 _last_sycl_event = base_ev->get();
             }
-        } else if (auto user_ev = dynamic_cast<sycl_user_event*>(ev.get())) {
+        } else if (auto* user_ev = dynamic_cast<sycl_user_event*>(ev.get())) {
             OPENVINO_ASSERT(user_ev->is_set(),
                             "[GPU] A user event which is not set yet can't be grouped: SYCL runtime "
                             "can't represent its completion state.");
@@ -80,7 +80,7 @@ private:
 
     void process_events(const std::vector<event::ptr>& ev) {
         for (size_t i = 0; i < ev.size(); i++) {
-            auto multiple_events = dynamic_cast<sycl_events*>(ev[i].get());
+            auto* multiple_events = dynamic_cast<sycl_events*>(ev[i].get());
             if (multiple_events) {
                 for (size_t j = 0; j < multiple_events->_events.size(); j++) {
                     update_last_sycl_event(multiple_events->_events[j]);

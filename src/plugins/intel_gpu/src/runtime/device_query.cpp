@@ -62,8 +62,7 @@ device_query::device_query(engine_types engine_type,
 #ifdef OV_GPU_WITH_SYCL_RT
     case runtime_types::sycl: {
         OPENVINO_ASSERT(engine_type == engine_types::sycl);
-        sycl::sycl_device_detector sycl_detector;
-        _available_devices = sycl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
+        _available_devices = sycl::sycl_device_detector::get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
         break;
     }
 #endif

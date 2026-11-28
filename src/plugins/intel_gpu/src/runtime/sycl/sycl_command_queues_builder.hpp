@@ -20,7 +20,7 @@ public:
 private:
     bool _profiling;
     bool _out_of_order;
-    ::sycl::property_list get_properties(const ::sycl::device& device);
+    ::sycl::property_list get_properties(const ::sycl::device& device) const;
 };
 
 }  // namespace sycl

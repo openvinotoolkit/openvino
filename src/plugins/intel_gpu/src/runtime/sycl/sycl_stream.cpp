@@ -50,7 +50,7 @@ sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& confi
 sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& config, void *handle)
     : stream(sycl_stream::detect_queue_type(handle), stream::get_expected_sync_method(config))
     , _engine(engine) {
-    auto casted_handle = static_cast<::sycl::queue*>(handle);
+    auto* casted_handle = static_cast<::sycl::queue*>(handle);
     _command_queue = *casted_handle;
 }
 
@@ -71,7 +71,7 @@ dnnl::stream& sycl_stream::get_onednn_stream() {
 #endif
 
 QueueTypes sycl_stream::detect_queue_type(void *queue_handle) {
-    auto queue = static_cast<::sycl::queue*>(queue_handle);
+    auto* queue = static_cast<::sycl::queue*>(queue_handle);
     return queue->is_in_order() ? QueueTypes::in_order : QueueTypes::out_of_order;
 }
 
@@ -101,11 +101,8 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
             }
         }
         if (has_zero_gws) {
-            GPU_DEBUG_TRACE_DETAIL << "Skip empty kernel launch: " << args_desc.layerID
-                                   << " (" << kernel.get_id() << ") gws=["
-                                   << (gws.size() > 0 ? gws[0] : 0) << ", "
-                                   << (gws.size() > 1 ? gws[1] : 0) << ", "
-                                   << (gws.size() > 2 ? gws[2] : 0) << "]" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "Skip empty kernel launch: " << args_desc.layerID << " (" << kernel.get_id() << ") gws=[" << (!gws.empty() ? gws[0] : 0)
+                                   << ", " << (gws.size() > 1 ? gws[1] : 0) << ", " << (gws.size() > 2 ? gws[2] : 0) << "]" << std::endl;
             return enqueue_marker(deps, is_output);
         }
     }
@@ -113,9 +110,10 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
     // Collect dependency events
     std::vector<::sycl::event> dep_events;
     if (m_sync_method == SyncMethods::events) {
-        for (auto& dep : deps) {
-            if (auto* sycl_base_ev = dynamic_cast<sycl_base_event*>(dep.get()))
+        for (const auto& dep : deps) {
+            if (auto* sycl_base_ev = dynamic_cast<sycl_base_event*>(dep.get())) {
                 dep_events.push_back(sycl_base_ev->get());
+            }
         }
     } else if (m_sync_method == SyncMethods::barriers) {
         sync_events(deps, is_output);
@@ -124,8 +122,9 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
     ::sycl::event ret_ev;
     try {
         ret_ev = _command_queue.submit([&](::sycl::handler& cgh) {
-            if (!dep_events.empty())
+            if (!dep_events.empty()) {
                 cgh.depends_on(dep_events);
+            }
             sycl_kern.launch(cgh, args_desc);
         });
     } catch (::sycl::exception const& err) {
@@ -162,9 +161,10 @@ event::ptr sycl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool
     if (m_sync_method == SyncMethods::events) {
         ::sycl::event ret_ev;
         std::vector<::sycl::event> dep_events;
-        for (auto& dep : deps) {
-            if (auto sycl_base_ev = dynamic_cast<sycl_base_event*>(dep.get()))
+        for (const auto& dep : deps) {
+            if (auto* sycl_base_ev = dynamic_cast<sycl_base_event*>(dep.get())) {
                 dep_events.push_back(sycl_base_ev->get());
+            }
         }
 
         try {
@@ -177,18 +177,19 @@ event::ptr sycl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool
         }
 
         return std::make_shared<sycl_event>(ret_ev, _command_queue, ++_queue_counter);
-    } else if (m_sync_method == SyncMethods::barriers) {
+    }
+    if (m_sync_method == SyncMethods::barriers) {
         sync_events(deps, is_output);
         return std::make_shared<sycl_event>(_last_barrier_ev, _command_queue, _last_barrier);
-    } else {
-        // use sycl::event as a user event
-        return std::make_shared<sycl_event>(::sycl::event(), _command_queue);
     }
+    // use sycl::event as a user event
+    return std::make_shared<sycl_event>(::sycl::event(), _command_queue);
 }
 
 event::ptr sycl_stream::group_events(std::vector<event::ptr> const& deps) {
-    if (deps.size() == 1)
+    if (deps.size() == 1) {
         return deps[0];
+    }
     return std::make_shared<sycl_events>(deps);
 }
 
@@ -207,7 +208,7 @@ event::ptr sycl_stream::create_base_event(::sycl::event& event) {
     return std::make_shared<sycl_event>(event, _command_queue, ++_queue_counter);
 }
 
-std::unique_ptr<surfaces_lock> sycl_stream::create_surfaces_lock(const std::vector<memory::ptr>&) const {
+std::unique_ptr<surfaces_lock> sycl_stream::create_surfaces_lock(const std::vector<memory::ptr>& /*mem*/) const {
     // SYCL runtime currently does not support surfaces lock
     return nullptr;
 }
@@ -234,15 +235,17 @@ void sycl_stream::wait() {
 }
 
 void sycl_stream::wait_for_events(const std::vector<event::ptr>& events) {
-    if (events.empty())
+    if (events.empty()) {
         return;
+    }
 
     std::vector<::sycl::event> syclevents;
-    for (auto& ev : events) {
-        if (!ev)
+    for (const auto& ev : events) {
+        if (!ev) {
             continue;
+        }
 
-        if (auto sycl_base_ev = downcast<sycl_base_event>(ev.get())) {
+        if (auto* sycl_base_ev = downcast<sycl_base_event>(ev.get())) {
             syclevents.push_back(sycl_base_ev->get());
         }
     }
@@ -258,7 +261,7 @@ void sycl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
 void sycl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
     bool needs_barrier = false;
-    for (auto& dep : deps) {
+    for (const auto& dep : deps) {
         auto* sycl_base_ev = downcast<sycl_base_event>(dep.get());
         if (sycl_base_ev->get_queue_stamp() > _last_barrier) {
             needs_barrier = true;
@@ -267,10 +270,11 @@ void sycl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_outpu
 
     if (needs_barrier) {
         try {
-            if (is_output)
+            if (is_output) {
                 _last_barrier_ev = _command_queue.ext_oneapi_submit_barrier();
-            else
+            } else {
                 _command_queue.ext_oneapi_submit_barrier();
+            }
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }

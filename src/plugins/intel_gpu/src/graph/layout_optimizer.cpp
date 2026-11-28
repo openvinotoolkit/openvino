@@ -776,9 +776,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
         size_t filter_x = weights_layout.spatial(0);
         size_t filter_y = weights_layout.spatial(1);
         size_t input_line_size = stride_x * (default_block_width - 1) + (filter_x - 1) * dilation_x + 1;
-        if (static_cast<size_t>(input_layout.spatial(0)) < input_line_size) {
-            input_line_size = static_cast<size_t>(input_layout.spatial(0));
-        }
+        input_line_size = std::min(input_line_size, static_cast<size_t>(input_layout.spatial(0)));
         size_t input_block_size = (input_line_size * filter_y + sg_size - 1) / sg_size;
         if (input_block_size <= 64) {
             correct_in_feature = true;

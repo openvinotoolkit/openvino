@@ -12,7 +12,11 @@
 namespace cldnn::ze {
 ze_command_list::ze_command_list(ze_stream& ze_stream, QueueTypes queue_type)
     : _stream(ze_stream)
-    ,_queue_type(queue_type) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+      ,
+      _queue_type(queue_type)
+#endif
+{
     const auto& engine = ze_stream.get_engine();
     const auto& info = engine.get_device_info();
     auto* ctx_handle = engine.get_context().handle();

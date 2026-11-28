@@ -1,4 +1,4 @@
-name: Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)
+name: Clang-tidy static analysis
 on:
   workflow_dispatch:
   pull_request:
@@ -69,7 +69,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_24_04_x64_sycl\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -82,6 +82,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
+            ov_build/ubuntu_24_04_x64_sycl
             ov_build/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
@@ -165,23 +166,84 @@ jobs:
       show-sccache-stats: false
 
   Build-gpu:
+    name: Build-gpu-${{ matrix.name }}
     needs: [Docker, Smart_CI]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: COMBINED-OCL, mode: COMBINED, target: openvino_intel_gpu_plugin_ocl}
+          - {name: COMBINED-ZE, mode: COMBINED, target: openvino_intel_gpu_plugin}
+          - {name: ZE-no-oneDNN, mode: ZE-no-oneDNN, target: openvino_intel_gpu_plugin}
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
-      sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu
+      sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_${{ matrix.mode }}
+      build-target: ${{ matrix.target }}
+      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_${{ matrix.name }}
+      cmake-extra-args: >-
+        -DENABLE_INTEL_GPU=ON
+        -DGPU_RT_TYPE=${{ matrix.mode == 'ZE-no-oneDNN' && 'ZE' || matrix.mode }}
+        -DENABLE_ONEDNN_FOR_GPU=${{ matrix.mode == 'ZE-no-oneDNN' && 'OFF' || 'ON' }}
+      build-extra-args: '--quiet -k 0'
+
+  Prepare-gpu-SYCL:
+    name: Prepare-gpu-SYCL
+    needs: [Docker, Smart_CI]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
+    uses: ./.github/workflows/job_clang_tidy.yml
+    with:
+      runner: aks-linux-16-cores-32gb
+      cmake-build-parallel-level: '15'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64_sycl }}
+      cmake-generator: 'Ninja Multi-Config'
+      sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_SYCL
       build-target: openvino_intel_gpu_plugin
-      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64
-      cmake-extra-args: '-DENABLE_INTEL_GPU=ON'
+      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_SYCL_prepare
+      prepare-only: true
+      prepared-build-artifact: clang_tidy_gpu_SYCL_prepared
+      cmake-extra-args: >-
+        -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=SYCL -DENABLE_ONEDNN_FOR_GPU=ON
+        -DCLANG_TIDY=/usr/local/bin/clang-tidy-sycl -DCLANG_TIDY_REQUIRED_VERSION=19
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_SYSTEM_OPENCL=ON -DENABLE_SYSTEM_FLATBUFFERS=OFF
+        -DENABLE_INTEL_CPU=OFF -DENABLE_INTEL_NPU=OFF
+      build-extra-args: '--quiet -k 0'
+
+  Build-gpu-SYCL:
+    name: Build-gpu-SYCL-${{ matrix.analysis }}
+    needs: [Docker, Smart_CI, Prepare-gpu-SYCL]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
+    strategy:
+      fail-fast: false
+      matrix:
+        analysis: [host, device]
+    uses: ./.github/workflows/job_clang_tidy.yml
+    with:
+      runner: aks-linux-16-cores-32gb
+      cmake-build-parallel-level: '15'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64_sycl }}
+      cmake-generator: 'Ninja Multi-Config'
+      sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_SYCL
+      build-target: openvino_intel_gpu_plugin
+      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_SYCL_${{ matrix.analysis }}
+      prepared-build-artifact: clang_tidy_gpu_SYCL_prepared
+      clang-tidy-binary: /usr/local/bin/clang-tidy-sycl-${{ matrix.analysis }}
+      cmake-extra-args: >-
+        -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=SYCL -DENABLE_ONEDNN_FOR_GPU=ON
+        -DCLANG_TIDY=/usr/local/bin/clang-tidy-sycl-${{ matrix.analysis }} -DCLANG_TIDY_REQUIRED_VERSION=19
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_SYSTEM_OPENCL=ON -DENABLE_SYSTEM_FLATBUFFERS=OFF
+        -DENABLE_INTEL_CPU=OFF -DENABLE_INTEL_NPU=OFF
       build-extra-args: '--quiet -k 0'
 
   Overall_Status:
     name: ci/gha_overall_status_clang_tidy
-    needs: [Smart_CI, Build-x86_64, Build-aarch64, Build-riscv64, Build-gpu]
+    needs: [Smart_CI, Build-x86_64, Build-aarch64, Build-riscv64, Build-gpu, Prepare-gpu-SYCL, Build-gpu-SYCL]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -48,6 +48,84 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
+RUN <<'SETUP'
+cat > /usr/local/bin/clang-tidy-sycl <<'BASH'
+#!/bin/bash
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Analyze both SYCL compilation modes and fail if either pass reports an error.
+set -u
+compiler=/opt/intel/oneapi/compiler/2024.2/bin/compiler
+database=
+for arg do
+    case "$arg" in
+        --) break;;
+        -p=*) database=${arg#-p=};;
+    esac
+done
+sycl=false
+host_args=()
+for arg do
+    case "$arg" in
+        --version) exec "$compiler/clang" -cc1 -version;;
+        --list-checks|-list-checks|--dump-config|-dump-config|--explain-config|-explain-config|--verify-config|-verify-config|--help|-help|-h|--help-hidden)
+            exec "$compiler/clang-tidy" "$@";;
+        -fsycl)
+            sycl=true
+            host_args+=(-fno-sycl -Xclang -fsycl-is-host -D__SYCL_ANY_DEVICE_HAS_ANY_ASPECT__=1
+                -isystem /opt/intel/oneapi/compiler/2024.2/include/sycl
+                -isystem /opt/intel/oneapi/compiler/2024.2/include/sycl/stl_wrappers
+                -isystem /opt/intel/oneapi/compiler/2024.2/include
+                -isystem /opt/intel/oneapi/compiler/2024.2/opt/compiler/include)
+            ;;
+        *) host_args+=("$arg");;
+    esac
+done
+if [[ -n "$database" ]]; then
+    # Keep the same compiler arguments and working directory as the CMake invocation.
+    exec python3 - "$0" "$database" "$@" <<'PYTHON'
+import json
+import os
+import shlex
+import subprocess
+import sys
+
+adapter, database, *args = sys.argv[1:]
+source = args.pop()
+options = [arg for arg in args if arg != "-p=" + database]
+with open(os.path.join(database, "compile_commands.json")) as stream:
+    commands = json.load(stream)
+commands = [command for command in commands if os.path.abspath(os.path.join(command["directory"], command["file"])) == os.path.abspath(source)]
+if not commands:
+    sys.exit("No compilation command for " + source)
+status = 0
+for command in commands:
+    argv = command.get("arguments") or shlex.split(command["command"])
+    result = subprocess.call([adapter, *command.get("tidy_args", []), *options, source, "--", *argv], cwd=command["directory"])
+    status = result or status
+sys.exit(status)
+PYTHON
+fi
+case "${0##*/}" in
+    clang-tidy-sycl-host) exec "$compiler/clang-tidy" "${host_args[@]}";;
+    clang-tidy-sycl-device)
+        "$sycl" || exit 0
+        exec "$compiler/clang-tidy" "$@"
+        ;;
+esac
+status=0
+"$compiler/clang-tidy" "$@" || status=$?
+if "$sycl"; then
+    "$compiler/clang-tidy" "${host_args[@]}" || status=$?
+fi
+exit "$status"
+BASH
+chmod +x /usr/local/bin/clang-tidy-sycl
+ln -s clang-tidy-sycl /usr/local/bin/clang-tidy-sycl-host
+ln -s clang-tidy-sycl /usr/local/bin/clang-tidy-sycl-device
+SETUP
+
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \

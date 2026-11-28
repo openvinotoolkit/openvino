@@ -6,11 +6,12 @@
 
 #pragma once
 
-#include "sycl_wrapper.hpp"
-#include "sycl_device_detector.hpp"
-#include "openvino/core/except.hpp"
-
+#include <algorithm>
 #include <vector>
+
+#include "openvino/core/except.hpp"
+#include "sycl_device_detector.hpp"
+#include "sycl_wrapper.hpp"
 
 namespace cldnn {
 namespace sycl {
@@ -26,15 +27,10 @@ public:
 #define SYCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) +  std::string(", SYCL error code: ") + std::to_string(error.code().value()))
 
 inline bool is_device_available(const device_info& info) {
-    sycl_device_detector detector;
-    auto devices = detector.get_available_devices(nullptr, nullptr);
-    for (auto& device : devices) {
-        if (device.second->get_info().uuid.uuid == info.uuid.uuid) {
-            return true;
-        }
-    }
-
-    return false;
+    auto devices = sycl_device_detector::get_available_devices(nullptr, nullptr);
+    return std::any_of(devices.begin(), devices.end(), [&info](const auto& device) {
+        return device.second->get_info().uuid.uuid == info.uuid.uuid;
+    });
 }
 
 }  // namespace sycl

@@ -111,7 +111,9 @@ struct gpu_dx_buffer : public gpu_usm {
     shared_mem_params get_internal_params(runtime_types rt_type) const override;
 private:
     void* _device;
+#ifdef _WIN32
     void* _resource;
+#endif
 };
 
 struct gpu_media_buffer : public gpu_image2d {

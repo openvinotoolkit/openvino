@@ -22,7 +22,7 @@ namespace sycl {
 
 class sycl_engine : public engine {
 public:
-    sycl_engine(const device::ptr dev, runtime_types runtime_type);
+    sycl_engine(device::ptr dev, runtime_types runtime_type);
     engine_types type() const override { return engine_types::sycl; };
     runtime_types runtime_type() const override { return runtime_types::sycl; };
     backend_types backend_type() const override;
@@ -30,8 +30,12 @@ public:
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
-    memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
-    memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only = false) override;
+    memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, layout output_layout) override;
+    memory_ptr create_hostbuffer(const void* cpu_address,
+                                 size_t data_size,
+                                 allocation_type _allocation_type,
+                                 layout output_layout,
+                                 bool host_read_only = false) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     memory_ptr import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) const override;
@@ -55,7 +59,7 @@ public:
     void create_onednn_engine(const ExecutionConfig& config) override;
 #endif
 
-    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
+    static std::shared_ptr<cldnn::engine> create(device::ptr device, runtime_types runtime_type);
 };
 
 }  // namespace sycl

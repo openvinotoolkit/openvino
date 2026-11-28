@@ -21,7 +21,7 @@ on:
         type: string
         required: true
       build-target:
-        description: 'CMake target to build under clang-tidy (e.g. openvino_intel_gpu_plugin)'
+        description: 'CMake targets to build under clang-tidy, separated by spaces'
         type: string
         required: true
       compile-commands-artifact:
@@ -47,6 +47,18 @@ on:
         description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
         type: string
         required: true
+      prepare-only:
+        description: 'Compile the shared build before running separate clang-tidy analyses'
+        type: boolean
+        default: false
+      prepared-build-artifact:
+        description: 'Artifact to upload during preparation or restore before analysis'
+        type: string
+        default: ''
+      clang-tidy-binary:
+        description: 'Run standalone analysis with this binary instead of recompiling the prepared build'
+        type: string
+        default: ''
 
 permissions: read-all
 
@@ -95,19 +107,37 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
+        if: inputs.prepare-only || inputs.prepared-build-artifact == ''
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
+          persist-credentials: ${{ inputs.prepared-build-artifact == '' }}
+
+      - name: Download prepared build
+        if: ${{ !inputs.prepare-only && inputs.prepared-build-artifact != '' }}
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: ${{ inputs.prepared-build-artifact }}
+          path: ${{ runner.temp }}
+
+      - name: Restore prepared build
+        if: ${{ !inputs.prepare-only && inputs.prepared-build-artifact != '' }}
+        run: tar -xpf "${RUNNER_TEMP}/prepared-build.tar.gz" -C "${GITHUB_WORKSPACE}"
+
+      - name: Use the preprocessor compiler cache for shared builds
+        if: inputs.prepared-build-artifact != ''
+        run: echo 'SCCACHE_DIRECT=false' >> "$GITHUB_ENV"
 
       - name: CMake configure
         env:
           CMAKE_EXTRA_ARGS: ${{ inputs.cmake-extra-args }}
+          ENABLE_CLANG_TIDY: ${{ inputs.prepare-only && 'OFF' || 'ON' }}
         run: |
           cmake \
             -G "${CMAKE_GENERATOR}" \
-            -DENABLE_CLANG_TIDY=ON \
+            -DENABLE_CLANG_TIDY="${ENABLE_CLANG_TIDY}" \
             -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
@@ -121,17 +151,70 @@ jobs:
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
 
-      - name: Cmake build with clang-tidy enabled
+      - name: CMake build
+        if: inputs.clang-tidy-binary == ''
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
           BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
         run: |
+          read -r -a build_targets <<< "${BUILD_TARGET}"
           cmake \
             --build "${BUILD_DIR}" \
             --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}" \
             --config "${CMAKE_BUILD_TYPE}" \
-            --target "${BUILD_TARGET}" \
+            --target "${build_targets[@]}" \
             -- ${BUILD_EXTRA_ARGS}
+
+      - name: Run clang-tidy
+        if: inputs.clang-tidy-binary != ''
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          CLANG_TIDY: ${{ inputs.clang-tidy-binary }}
+        run: |
+          read -r -a build_targets <<< "${BUILD_TARGET}"
+          database="${BUILD_DIR}/clang-tidy"
+          mkdir -p "$database"
+          ninja -C "${BUILD_DIR}" -f "build-${CMAKE_BUILD_TYPE}.ninja" \
+            -t compdb-targets "${build_targets[@]}" > "$database/targets.json"
+          python3 - "$database" <<'PYTHON'
+          import json
+          import os
+          import shlex
+          import sys
+
+          database = sys.argv[1]
+          commands = []
+          for command in json.load(open(os.path.join(database, "targets.json"))):
+              argv = shlex.split(command["command"])
+              tidy = next((arg for arg in argv if arg.startswith("--tidy=")), None)
+              if tidy is not None:
+                  command["arguments"] = argv[argv.index("--") + 1:]
+                  command["tidy_args"] = tidy.split("=", 1)[1].split(";")[1:]
+                  del command["command"]
+                  commands.append(command)
+          if not commands:
+              sys.exit("No clang-tidy commands in the selected target")
+          with open(os.path.join(database, "compile_commands.json"), "w") as stream:
+              json.dump(commands, stream)
+          print(f"Analyzing {len(commands)} commands")
+          PYTHON
+          /opt/intel/oneapi/compiler/2024.2/bin/run-clang-tidy \
+            -clang-tidy-binary "$CLANG_TIDY" -p "$database" -j "$CMAKE_BUILD_PARALLEL_LEVEL"
+
+      - name: Package prepared build
+        if: inputs.prepare-only
+        run: |
+          tar -I 'pigz -p 4' -cf "${RUNNER_TEMP}/prepared-build.tar.gz" \
+            -C "${GITHUB_WORKSPACE}" openvino openvino_build
+
+      - name: Upload prepared build
+        if: inputs.prepare-only
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ${{ inputs.prepared-build-artifact }}
+          path: ${{ runner.temp }}/prepared-build.tar.gz
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main

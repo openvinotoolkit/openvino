@@ -1754,7 +1754,7 @@ public:
         return default_block_size;
     }
 #else
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
+    static size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) {
         const auto default_block_size = 16;
         return default_block_size;
     }

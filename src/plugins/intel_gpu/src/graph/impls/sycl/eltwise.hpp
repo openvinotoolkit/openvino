@@ -40,17 +40,16 @@ struct EltwiseImplementationManager : public ImplementationManager {
         auto in1_dt = in1_layout.data_type;
         auto out_dt = out_layout.data_type;
 
-        if (!one_of(in0_dt, supported_types) || !one_of(in1_dt, supported_types) || !one_of(out_dt, supported_types))
+        if (!one_of(in0_dt, supported_types) || !one_of(in1_dt, supported_types) || !one_of(out_dt, supported_types)) {
             return false;
+        }
 
         if (!one_of(in0_layout.format.value, supported_formats) || !one_of(in1_layout.format.value, supported_formats) ||
-            !one_of(out_layout.format.value, supported_formats))
+            !one_of(out_layout.format.value, supported_formats)) {
             return false;
+        }
 
-        if (in0_layout.data_padding || in1_layout.data_padding || out_layout.data_padding)
-            return false;
-
-        return true;
+        return !in0_layout.data_padding && !in1_layout.data_padding && !out_layout.data_padding;
     }
 };
 

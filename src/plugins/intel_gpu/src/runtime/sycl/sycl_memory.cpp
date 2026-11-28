@@ -27,10 +27,11 @@ static inline cldnn::event::ptr create_event(sycl_stream& stream, ::sycl::event&
     return stream.create_base_event(ev);
 }
 
-gpu_buffer::gpu_buffer(sycl_engine* engine,
-                       const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::sycl_buffer, nullptr)
-    , _byte_offset(0), _root_buffer(::sycl::range<1>(size())), _buffer(_root_buffer) {
+gpu_buffer::gpu_buffer(sycl_engine* engine, const layout& layout)
+    : memory(engine, layout, allocation_type::sycl_buffer, nullptr),
+      _byte_offset(0),
+      _root_buffer(::sycl::range<1>(size())),
+      _buffer(_root_buffer) {
     GPU_DEBUG_TRACE_DETAIL << "gpu_buffer: " << &_buffer << ", size: " << size() << std::endl;
 
     // TODO: remove this if possible
@@ -59,10 +60,12 @@ gpu_buffer::gpu_buffer(sycl_engine* engine,
                        const layout& new_layout,
                        const ::sycl::buffer<std::byte, 1>& root_buffer,
                        std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::sycl_buffer, mem_tracker)
-    , _byte_offset(0), _root_buffer(root_buffer), _buffer(root_buffer) {
-        GPU_DEBUG_TRACE_DETAIL << "create gpu_buffer(buffer: " << &_buffer << ", size: " << size()
-                               << ", offset: " << _byte_offset << ", root_buffer: " << &_root_buffer << std::endl;
+    : memory(engine, new_layout, allocation_type::sycl_buffer, mem_tracker),
+      _byte_offset(0),
+      _root_buffer(root_buffer),
+      _buffer(root_buffer) {
+    GPU_DEBUG_TRACE_DETAIL << "create gpu_buffer(buffer: " << &_buffer << ", size: " << size() << ", offset: " << _byte_offset
+                           << ", root_buffer: " << &_root_buffer << std::endl;
 }
 
 gpu_buffer::gpu_buffer(sycl_engine* engine,
@@ -70,11 +73,12 @@ gpu_buffer::gpu_buffer(sycl_engine* engine,
                        const size_t byte_offset,
                        const ::sycl::buffer<std::byte, 1>& root_buffer,
                        std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::sycl_buffer, mem_tracker)
-    , _byte_offset(byte_offset), _root_buffer(root_buffer)
-    , _buffer(const_cast<::sycl::buffer<std::byte, 1>&>(root_buffer), ::sycl::id<1>(byte_offset), ::sycl::range<1>(new_layout.bytes_count())) {
-        GPU_DEBUG_TRACE_DETAIL << "create gpu_buffer(buffer: " << &_buffer << ", size: " << size()
-                               << ", offset: " << _byte_offset << ", root_buffer: " << &_root_buffer << std::endl;
+    : memory(engine, new_layout, allocation_type::sycl_buffer, mem_tracker),
+      _byte_offset(byte_offset),
+      _root_buffer(root_buffer),
+      _buffer(const_cast<::sycl::buffer<std::byte, 1>&>(root_buffer), ::sycl::id<1>(byte_offset), ::sycl::range<1>(new_layout.bytes_count())) {
+    GPU_DEBUG_TRACE_DETAIL << "create gpu_buffer(buffer: " << &_buffer << ", size: " << size() << ", offset: " << _byte_offset
+                           << ", root_buffer: " << &_root_buffer << std::endl;
 }
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
@@ -150,9 +154,8 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
         if (blocking) {
             ev.wait_and_throw();
             return nullptr;
-        } else {
-            return create_event(sycl_stream, ev);
         }
+        return create_event(sycl_stream, ev);
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
@@ -160,7 +163,7 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
 
 shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
     OPENVINO_ASSERT(rt_type == runtime_types::sycl, "[GPU] gpu_buffer can not provide internal params for non-SYCL runtime");
-    auto sycl_engine = downcast<const sycl::sycl_engine>(_engine);
+    const auto* sycl_engine = downcast<const sycl::sycl_engine>(_engine);
     return {shared_mem_type::shared_mem_buffer, const_cast<shared_handle>(static_cast<const void*>(&(sycl_engine->get_sycl_context()))), nullptr,
             const_cast<shared_handle>(static_cast<const void*>(&_buffer)),
 #ifdef _WIN32
@@ -172,13 +175,14 @@ shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
 }
 
 event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
-    if (size == 0)
+    if (size == 0) {
         return nullptr;
+    }
 
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = static_cast<const std::byte*>(data_ptr) + src_offset;
+    const auto* src_ptr = static_cast<const std::byte*>(data_ptr) + src_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
@@ -188,17 +192,17 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
         if (blocking) {
             event.wait_and_throw();
             return nullptr;
-        } else {
-            return create_event(sycl_stream, event);
         }
+        return create_event(sycl_stream, event);
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
 }
 
 event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
-    if (size == 0)
+    if (size == 0) {
         return nullptr;
+    }
 
     check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(memory&)");
 
@@ -207,13 +211,13 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
         case allocation_type::usm_shared: {
             // If other is gpu_usm, down cast to gpu_buffer is not possible.
             // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
-            auto usm_mem = downcast<const gpu_usm>(&src_mem);
+            const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
             return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
         } break;
         case allocation_type::usm_device: {
-            auto usm_mem = downcast<const gpu_usm>(&src_mem);
+            const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
             auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-            auto src_ptr = static_cast<const std::byte*>(usm_mem->buffer_ptr()) + src_offset;
+            const auto* src_ptr = static_cast<const std::byte*>(usm_mem->buffer_ptr()) + src_offset;
 
             try {
                 auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
@@ -225,9 +229,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
                 if (blocking) {
                     event.wait_and_throw();
                     return nullptr;
-                } else {
-                    return create_event(sycl_stream, event);
                 }
+                return create_event(sycl_stream, event);
             } catch (::sycl::exception const& err) {
                 OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
             }
@@ -248,9 +251,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
                 if (blocking) {
                     event.wait_and_throw();
                     return nullptr;
-                } else {
-                    return create_event(sycl_stream, event);
                 }
+                return create_event(sycl_stream, event);
             } catch (::sycl::exception const& err) {
                 OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
             }
@@ -264,15 +266,16 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 }
 
 event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
-    if (size == 0)
+    if (size == 0) {
         return nullptr;
+    }
 
     check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_buffer::copy_to(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     // const qualifier should be removed to construct ::sycl::accessor
     auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(_buffer);
-    auto dst_ptr = static_cast<std::byte*>(data_ptr) + dst_offset;
+    auto* dst_ptr = static_cast<std::byte*>(data_ptr) + dst_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
@@ -283,9 +286,8 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
         if (blocking) {
             event.wait_and_throw();
             return nullptr;
-        } else {
-            return create_event(sycl_stream, event);
         }
+        return create_event(sycl_stream, event);
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
@@ -296,7 +298,7 @@ std::shared_ptr<gpu_buffer> gpu_buffer::create_subbuffer(const layout& new_layou
     OPENVINO_ASSERT(new_layout_bytes_count + byte_offset <= size(),
                     "Sub-buffer size (", new_layout_bytes_count, ") + offset (", byte_offset,
                     ") exceeds parent buffer size (", size(), ")");
-    auto sycl_engine = downcast<sycl::sycl_engine>(_engine);
+    auto* sycl_engine = downcast<sycl::sycl_engine>(_engine);
     auto mem_tracker = get_mem_tracker();
 
     // if new buffer is the same as root buffer, just copy root buffer
@@ -317,7 +319,7 @@ std::shared_ptr<gpu_buffer> gpu_buffer::reinterpret(const layout& new_layout) co
     OPENVINO_ASSERT(new_layout_bytes_count + _byte_offset <= _root_buffer.byte_size(),
                     "Reinterpret buffer size (", new_layout_bytes_count, ") + offset (", _byte_offset,
                     ") exceeds parent buffer size (", _root_buffer.byte_size(), ")");
-    auto sycl_engine = downcast<sycl::sycl_engine>(_engine);
+    auto* sycl_engine = downcast<sycl::sycl_engine>(_engine);
     auto mem_tracker = get_mem_tracker();
 
     // if new buffer is the same as root buffer, just copy root buffer
@@ -339,12 +341,10 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
 }
 #endif
 
-gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& buffer, allocation_type type,
-                 std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, type, mem_tracker)
-    , _buffer(buffer)
-    , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
+gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
+    : memory(engine, new_layout, type, mem_tracker),
+      _buffer(buffer),
+      _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
     OPENVINO_ASSERT(new_layout.bytes_count() <= buffer.size(), "USM buffer size (", buffer.size(),
                     ") is smaller than the new layout size (", new_layout.bytes_count(), ")");
 }
@@ -358,13 +358,13 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory&
 }
 
 gpu_usm::gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type)
-    : lockable_gpu_mem()
-    , memory(engine, layout, type, nullptr)
-    , _buffer(engine->get_sycl_context(), engine->get_sycl_device())
-    , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
+    : memory(engine, layout, type, nullptr),
+      _buffer(engine->get_sycl_context(), engine->get_sycl_device()),
+      _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
     auto actual_bytes_count = _bytes_count;
-    if (actual_bytes_count == 0)
+    if (actual_bytes_count == 0) {
         actual_bytes_count = 1;
+    }
 
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
@@ -386,7 +386,7 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type
 void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
+        const auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
         if (get_allocation_type() == allocation_type::usm_device) {
             if (_bytes_count == 0) {
                 _mapped_ptr = nullptr;
@@ -424,7 +424,7 @@ void gpu_usm::unlock(const stream& stream) {
         if (get_allocation_type() == allocation_type::usm_device) {
             if (_bytes_count != 0) {
                 if (_copy_back_to_device) {
-                    auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
+                    const auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
                     try {
                         auto ev = sycl_stream.get_sycl_queue().memcpy(_buffer.get(), _host_buffer.get(), _bytes_count);
                         ev.wait_and_throw();
@@ -456,9 +456,8 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
         if (blocking) {
             ev.wait_and_throw();
             return nullptr;
-        } else {
-            return create_event(sycl_stream, ev);
         }
+        return create_event(sycl_stream, ev);
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
@@ -469,44 +468,45 @@ event::ptr gpu_usm::fill(stream& stream, const std::vector<event::ptr>& dep_even
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
-    if (size == 0)
+    if (size == 0) {
         return nullptr;
+    }
 
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = static_cast<const std::byte*>(data_ptr) + src_offset;
-    auto dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
+    const auto* src_ptr = static_cast<const std::byte*>(data_ptr) + src_offset;
+    auto* dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
 
     try {
         auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
         if (blocking) {
             ev.wait_and_throw();
             return nullptr;
-        } else {
-            return create_event(sycl_stream, ev);
         }
+        return create_event(sycl_stream, ev);
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
-    if (size == 0)
+    if (size == 0) {
         return nullptr;
+    }
 
     check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(memory&)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
 
     if (src_mem.get_allocation_type() == allocation_type::sycl_buffer) {
-        auto& sycl_mem_buffer = downcast<const gpu_buffer>(src_mem);
+        const auto& sycl_mem_buffer = downcast<const gpu_buffer>(src_mem);
         // gpu_buffer::copy_to() uses handler::copy(accessor, ptr) which targets host-accessible pointers.
         // For usm_device destination, do an explicit kernel copy from buffer accessor to USM.
         if (get_allocation_type() == allocation_type::usm_device) {
             // const qualifier should be removed to construct ::sycl::accessor
             auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(sycl_mem_buffer.get_buffer());
-            auto dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
+            auto* dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
             try {
                 auto ev = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
                     ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read> src_acc(src_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(src_offset));
@@ -524,53 +524,52 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
             }
         }
 
-        auto dst_ptr = static_cast<std::byte*>(buffer_ptr());
+        auto* dst_ptr = static_cast<std::byte*>(buffer_ptr());
         return sycl_mem_buffer.copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
-    } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
-        auto& usm_mem = downcast<const gpu_usm>(src_mem);
-        auto src_ptr = static_cast<const std::byte*>(usm_mem.buffer_ptr()) + src_offset;
-        auto dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
+    }
+    if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
+        const auto& usm_mem = downcast<const gpu_usm>(src_mem);
+        const auto* src_ptr = static_cast<const std::byte*>(usm_mem.buffer_ptr()) + src_offset;
+        auto* dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
 
         try {
             auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
             if (blocking) {
                 ev.wait_and_throw();
                 return nullptr;
-            } else {
-                return create_event(sycl_stream, ev);
             }
+            return create_event(sycl_stream, ev);
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
-    } else {
-        std::vector<std::byte> tmp_buf;
-        tmp_buf.resize(size);
-        src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
-
-        GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
-        // set blocking=true to avoid a use-after-free on tmp_buf
-        return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, true);
     }
+    std::vector<std::byte> tmp_buf;
+    tmp_buf.resize(size);
+    src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
+
+    GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
+    // set blocking=true to avoid a use-after-free on tmp_buf
+    return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, true);
 }
 
 event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
-    if (size == 0)
+    if (size == 0) {
         return nullptr;
+    }
 
     check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_usm::copy_to(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = static_cast<const std::byte*>(buffer_ptr()) + src_offset;
-    auto dst_ptr = static_cast<std::byte*>(data_ptr) + dst_offset;
+    const auto* src_ptr = static_cast<const std::byte*>(buffer_ptr()) + src_offset;
+    auto* dst_ptr = static_cast<std::byte*>(data_ptr) + dst_offset;
 
     try {
         auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
         if (blocking) {
             ev.wait_and_throw();
             return nullptr;
-        } else {
-            return create_event(sycl_stream, ev);
         }
+        return create_event(sycl_stream, ev);
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
@@ -587,7 +586,7 @@ dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset)
 
 shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
     OPENVINO_ASSERT(rt_type == runtime_types::sycl, "[GPU] gpu_usm can not provide internal params for non-SYCL runtime");
-    auto sycl_engine = downcast<const sycl::sycl_engine>(_engine);
+    const auto* sycl_engine = downcast<const sycl::sycl_engine>(_engine);
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(const_cast<::sycl::context*>(&(sycl_engine->get_sycl_context()))),  // context handle
