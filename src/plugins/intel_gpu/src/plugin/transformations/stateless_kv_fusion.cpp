@@ -384,7 +384,10 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         ov::copy_runtime_info(node_infos, stateless_kv);
         stateless_kv->output(0).set_names(result_node->output(0).get_names());
 
-        kv_sdpa_input->replace_source_output(stateless_kv->output(1));
+        // In the pure scatter-update case, only SDPA is known to handle the trimmed (present-length) KV together with a trimmed mask.
+        // Other consumers (e.g. a static Reshape/Broadcast for GQA) rely on the original full shape, so keep the full output for them.
+        const bool use_full_output = !is_slice_concat && !is_update_split && !sdpa_node;
+        kv_sdpa_input->replace_source_output(stateless_kv->output(use_full_output ? 0 : 1));
         result_node->input(0).replace_source_output(stateless_kv->output(0));
         for (auto& input : other_inputs) {
             // for full static case, need to keep other inputs to use original full shape

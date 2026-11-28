@@ -36,6 +36,8 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/constant_folding.hpp"
 
@@ -8570,8 +8572,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_large_write_index) {
 
 // TensorScatter (ONNX opset-24) with axis=-2 on a rank-4 KV-cache
 // (batch, num_heads, max_sequence_length, head_size). The sequence dimension is not
-// adjacent to batch, exercising the internal Transpose path. The write index depends
-// only on the batch sample, so all heads are updated at the same sequence position.
+// adjacent to batch; with a single-sample batch this lowers to a ScatterUpdate along `axis`
+// without a Transpose. The write index depends only on the batch sample, so all heads are
+// updated at the same sequence position.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_axis_transpose) {
     const auto model = convert_model("tensor_scatter_axis_transpose.onnx");
     auto test_case = test::TestCase(model, s_device);
@@ -8584,6 +8587,47 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_axis_transpose) {
     test_case.add_input<int64_t>(Shape{1}, {1});
     test_case.add_expected_output<float>(Shape{1, 2, 3, 2},
                                          {0.f, 1.f, 100.f, 101.f, 4.f, 5.f, 6.f, 7.f, 200.f, 201.f, 10.f, 11.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) with axis=-2 on a rank-4 KV-cache and per-batch `write_indices`
+// that differ across a batch of 2. The samples do not share one write offset, so this exercises
+// the Transpose + ScatterNDUpdate decomposition instead of the single ScatterUpdate fast path.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_axis_transpose_batch) {
+    const auto model = convert_model("tensor_scatter_axis_transpose_batch.onnx");
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterNDUpdate>(model), 1);
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterUpdate>(model), 0);
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (2, 2, 3, 2)
+    std::vector<float> past(24);
+    std::iota(past.begin(), past.end(), 0.f);
+    test_case.add_input<float>(Shape{2, 2, 3, 2}, past);
+    // update (2, 2, 1, 2)
+    test_case.add_input<float>(Shape{2, 2, 1, 2}, {100.f, 101.f, 200.f, 201.f, 300.f, 301.f, 400.f, 401.f});
+    // write_indices (2,) -> batch 0 writes at sequence position 1, batch 1 at position 2.
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 2}, {0.f,   1.f,   100.f, 101.f, 4.f,  5.f,  6.f,   7.f,
+                                                             200.f, 201.f, 10.f,  11.f,  12.f, 13.f, 14.f,  15.f,
+                                                             300.f, 301.f, 18.f,  19.f,  20.f, 21.f, 400.f, 401.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) `linear` mode without `write_indices` on a batch of 2. Every
+// sample writes from position 0, so the update lowers to a single ScatterUpdate along `axis`.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_linear_batch) {
+    const auto model = convert_model("tensor_scatter_linear_batch.onnx");
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterUpdate>(model), 1);
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterNDUpdate>(model), 0);
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (2, 3, 2)
+    test_case.add_input<float>(Shape{2, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
+    // update (2, 2, 2)
+    test_case.add_input<float>(Shape{2, 2, 2}, {100.f, 101.f, 110.f, 111.f, 200.f, 201.f, 210.f, 211.f});
+    test_case.add_expected_output<float>(
+        Shape{2, 3, 2},
+        {100.f, 101.f, 110.f, 111.f, 4.f, 5.f, 200.f, 201.f, 210.f, 211.f, 10.f, 11.f});
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 

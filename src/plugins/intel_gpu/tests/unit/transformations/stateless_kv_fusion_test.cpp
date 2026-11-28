@@ -224,6 +224,31 @@ TEST_F(TransformationTestsF, StatelessKVFusion_Update) {
     });
 }
 
+// Full static ScatterUpdate whose KV consumer is not SDPA (e.g. a static Reshape for GQA). The mask is not trimmed
+// for such a consumer, so it must keep the full-shape output(0) rather than the trimmed output(1).
+TEST_F(TransformationTestsF, StatelessKVFusion_Update_NonSDPAConsumer) {
+    static constexpr int64_t current_seqlen = 2;
+    build_stateless_kv_fusion_test<1>(this, current_seqlen, false, [](bool is_ref, const auto& parameters) {
+        const auto& [seqlens_k, query, key, value, past_key, past_value] = parameters;
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 2, 32});
+        ov::Output<ov::Node> present_key;
+        ov::Output<ov::Node> present_value;
+        if (!is_ref) {
+            const auto position_ids = make_static_posids(seqlens_k, current_seqlen).second;
+            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+            present_key = std::make_shared<ov::op::v3::ScatterUpdate>(past_key, position_ids, key, axis);
+            present_value = std::make_shared<ov::op::v3::ScatterUpdate>(past_value, position_ids, value, axis);
+        } else {
+            const auto [real_seqlen, position_ids] = make_static_posids(seqlens_k, current_seqlen);
+            present_key = std::make_shared<ov::intel_gpu::op::StatelessKV>(past_key, key, real_seqlen, position_ids, 2, true)->output(0);
+            present_value = std::make_shared<ov::intel_gpu::op::StatelessKV>(past_value, value, real_seqlen, position_ids, 2, true)->output(0);
+        }
+        auto key_reshape = std::make_shared<ov::op::v1::Reshape>(present_key, reshape_shape, false);
+        auto value_reshape = std::make_shared<ov::op::v1::Reshape>(present_value, reshape_shape, false);
+        return ov::OutputVector{key_reshape, value_reshape, present_key, present_value};
+    });
+}
+
 // Static pastKV and dynamic Q ScatterUpdate with VariadicSplit towards SDPA
 TEST_F(TransformationTestsF, StatelessKVFusion_UpdateSplit) {
     static constexpr int64_t current_seqlen = -1;
