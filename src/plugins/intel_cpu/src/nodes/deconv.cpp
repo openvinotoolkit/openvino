@@ -260,8 +260,10 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         IC = groupNum * weightDims[1];
         OC = groupNum * weightDims[2];
         expectedBiasDims = {OC};
-        withGroups = groupNum > 1;
-        isDW = withGroups && groupNum == OC && groupNum == IC;
+        // GroupConvolutionBackpropData weights always carry the group dimension [G, IC/G, OC/G, ...], also for G == 1.
+        // withGroups selects the weights dim offsets and the oneDNN grouped weights layout, so it must be true here.
+        withGroups = true;
+        isDW = groupNum > 1 && groupNum == OC && groupNum == IC;
 
         for (size_t i : groupConvBackprop->get_strides()) {
             deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
