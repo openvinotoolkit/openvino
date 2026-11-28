@@ -29,6 +29,12 @@ defined separately in `.github/CODEOWNERS`.
   behavior that changes semantics.
 - Update directly related documentation and tests for user-visible or
   behavioral changes.
+- Problems that appear only in LTO builds, such as the GCC 15
+  `-Wstringop-overflow` false positive from inserting a temporary
+  `std::string` into an `std::unordered_set`/`std::unordered_map`, are covered
+  by `.agents/skills/ov-lto-issues/SKILL.md` and
+  `.github/instructions/lto-issues.instructions.md`: fix production code in
+  code, suppress only false positives per test target.
 
 ## Validation
 

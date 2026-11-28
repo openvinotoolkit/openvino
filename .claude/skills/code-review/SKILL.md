@@ -242,6 +242,7 @@ shared tests and documentation according to the behavior exercised or described.
 | `src/bindings/`, public API changes under `src/core/include/` or `src/inference/include/` | [Bindings and public APIs](references/bindings.md) |
 | `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
 | `cmake/`, `CMakeLists.txt`, `*.cmake`, and `*.cmake.in` at any depth, toolchain files | [CMake and build system](references/cmake.md), plus [CI, build, and dependencies](references/ci.md) for dependency changes |
+| Any C++ change that matches a known LTO-only issue pattern (for example inserting temporary or moved `std::string` into `std::unordered_set` or `std::unordered_map`), and any new `-Wno-stringop-*` or other warning suppression for LTO builds | [LTO-only issues](../ov-lto-issues/SKILL.md) |
 
 This skill defines the common evidence and reporting contract. Component
 references add domain-specific checks and explicit requirements.

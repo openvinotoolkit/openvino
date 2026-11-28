@@ -86,7 +86,7 @@ if(MSVC)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
-  # GCC 15 false positive in gtest-param-util.h (reported at LTO link time)
+  # GCC 15 false positive in gtest-param-util.h (suite_name_to_info_index_.emplace; reported at LTO link time)
   target_compile_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
   target_link_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
 endif()
