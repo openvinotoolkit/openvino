@@ -386,7 +386,6 @@ function addViewTypeListeners() {
             window.localStorage.setItem('atomicResultViewType', "grid");
             viewSelectorGrid.classList.add('selected');
             viewSelectorList.classList.remove('selected');
-            viewSelectorGrid.click();
         });
     }
     
@@ -396,7 +395,6 @@ function addViewTypeListeners() {
             window.localStorage.setItem('atomicResultViewType', "list");
             viewSelectorList.classList.add('selected');
             viewSelectorGrid.classList.remove('selected');
-            viewSelectorList.click();
         });
     }
     if(viewSelectorList && viewSelectorGrid) {
