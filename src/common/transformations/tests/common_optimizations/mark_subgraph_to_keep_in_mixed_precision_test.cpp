@@ -1803,6 +1803,36 @@ TEST(TransformationTests, ConvertPrecision_keeps_forward_side_branch_in_fp16) {
         << "a forward side branch of the protected chain must still be compressed";
 }
 
+TEST(TransformationTests, ConvertPrecision_keeps_other_input_of_protected_binary_op_in_fp32) {
+    // A floating point operand that is otherwise unrelated is still part of the value being
+    // rounded before a float-to-integer conversion. The backward walk must follow both inputs
+    // of the binary operation, so that operand must stay in f32 as well.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
+    auto scaled = make_shared<Multiply>(position_f, scale);
+
+    auto offset = make_shared<Parameter>(element::f32, Shape{1});
+    auto shifted = make_shared<Add>(scaled, offset);
+    auto ceiling = make_shared<Ceiling>(shifted);
+    auto bucket = make_shared<Convert>(ceiling, element::i64);
+
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position, offset});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    EXPECT_EQ(position_f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(scaled->get_output_element_type(0), element::f32);
+    EXPECT_EQ(shifted->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ceiling->get_output_element_type(0), element::f32);
+    EXPECT_EQ(offset->get_output_element_type(0), element::f32)
+        << "the other input of a protected binary op must not be rounded to f16";
+}
+
 TEST(TransformationTests, ConvertPrecision_compresses_integer_to_float_without_integer_terminal) {
     // An integer-to-float conversion whose result stays floating point is not an index
     // computation, so it must still be compressed to f16.
