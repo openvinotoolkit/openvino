@@ -135,6 +135,16 @@ private:
      */
     mutable std::vector<std::shared_ptr<ZeroTensor>> _mainInputsAllocatedTensors;
     /**
+     * @brief Init output buffers whose contents were all found in buffers of other compiled models
+     * (NPU_SHARE_WEIGHTLESS_INIT_OUTPUTS). They are released only after the init schedules' graphs and command lists
+     * are destroyed, not right after the lookup.
+     */
+    std::vector<std::shared_ptr<ZeroTensor>> _sharedInitOutputsToRelease;
+    /**
+     * @brief NPU_SHARE_WEIGHTLESS_INIT_OUTPUTS of the configuration the graph was initialized with.
+     */
+    bool _shareInitOutputs = false;
+    /**
      * @brief Tensors pointing towards the buffers found in "_mainInputsAllocatedTensors".
      * @details Each map entry corresponds to one input of the main schedule.
      */

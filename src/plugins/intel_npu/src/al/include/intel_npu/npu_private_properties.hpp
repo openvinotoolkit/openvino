@@ -497,5 +497,16 @@ static constexpr ov::Property<bool> allow_bytecode{"NPU_ALLOW_BYTECODE"};
  */
 static constexpr ov::Property<bool> shared_common_queue{"NPU_SHARED_COMMON_QUEUE"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * Applies to weightless compiled models (their init schedules run when the model is loaded). If enabled, the weights
+ * produced by an init schedule are compared with the ones produced earlier in the process by other compiled models
+ * that are still alive; identical tensors are not kept twice - the main schedule is bound to the existing buffer and
+ * the new one is released. Meant for applications that load several compiled models over the same weights (e.g. an
+ * LLM compiled for several token block sizes or context lengths).
+ */
+static constexpr ov::Property<bool> share_weightless_init_outputs{"NPU_SHARE_WEIGHTLESS_INIT_OUTPUTS"};
+
 }  // namespace intel_npu
 }  // namespace ov
