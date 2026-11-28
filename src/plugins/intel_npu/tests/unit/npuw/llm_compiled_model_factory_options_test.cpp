@@ -20,8 +20,12 @@
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
+#include "model_builder_moe.hpp"
+#include "model_builder_weights.hpp"
+#include "moe_transformations/llm_moe.hpp"
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -31,9 +35,14 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "serialization.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -66,6 +75,27 @@ bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::s
         }
     }
     return false;
+}
+
+template <class T>
+size_t count_nodes(const std::shared_ptr<ov::Model>& model) {
+    size_t count = 0;
+    for (const auto& op : model->get_ops()) {
+        if (ov::as_type_ptr<T>(op)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+size_t count_moe_nodes(const std::shared_ptr<ov::Model>& model) {
+    size_t count = 0;
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::internal::MOE>(op)) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 class ArchAwarePlugin final : public NullPlugin {
@@ -205,6 +235,44 @@ TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
         const auto* prefill = recorder.find_suffix("_prefill");
         ASSERT_NE(prefill, nullptr);
         EXPECT_EQ(prefill->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, Npu6010PreservesFusedStageHints) {
+    struct Case {
+        bool fused_prefill;
+        bool fused_generate;
+        MoEHint expected_generate;
+    };
+    const auto plugin = std::make_shared<ArchAwarePlugin>("NPU6010", 3, (8 << 16) | 3);
+    const auto core = attach_mock_core_with_npu_device(plugin);
+    for (const auto& test : {Case{true, false, MoEHint::DEVICE_ROUTED},
+                             Case{false, true, MoEHint::FUSED},
+                             Case{true, true, MoEHint::FUSED}}) {
+        SCOPED_TRACE(test.fused_prefill);
+        SCOPED_TRACE(test.fused_generate);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_SHARED_HEAD", "NO"}};
+        if (test.fused_prefill) {
+            props["NPUW_LLM_PREFILL_MOE_HINT"] = "FUSED";
+        }
+        if (test.fused_generate) {
+            props["NPUW_LLM_GENERATE_MOE_HINT"] = "FUSED";
+        }
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        const auto* prefill = recorder.find_suffix("_prefill");
+        const auto* generate = recorder.find_contains("_kv");
+        ASSERT_NE(prefill, nullptr);
+        ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), test.expected_generate);
+        EXPECT_EQ(count_nodes<ov::op::internal::MOECompressed>(prefill->model) > 0, test.fused_prefill);
+        EXPECT_EQ(count_nodes<ov::op::internal::MOECompressed>(generate->model) > 0, test.fused_generate);
     }
 }
 
@@ -381,6 +449,52 @@ protected:
 
     std::shared_ptr<ov::Model> build_moe_llm_model() const {
         return ov::test::npuw::build_moe_llm_test_model();
+    }
+
+    std::shared_ptr<ov::Model> build_qwen3_moe_llm_model() const {
+        return ov::test::npuw::build_qwen3_moe_llm_test_model();
+    }
+
+    std::shared_ptr<ov::Model> build_qwen3_moe_llm_model_with_scalar_i4_zero_point() const {
+        using namespace ov::test::npuw;
+
+        auto cfg = make_test_model_config();
+        cfg.num_experts = 8;
+        cfg.num_experts_per_tok = 2;
+
+        const CompressedWeight symmetric_i4{ov::element::i4, 0, DCOffPattern::SYMM_NO_ZP};
+        const WeightFn mixed_weights = [symmetric_i4](const std::string& name,
+                                                      const ov::Shape& shape,
+                                                      ov::element::Type precision) {
+            auto output = symmetric_i4(name, shape, precision);
+            if (name.find("model.layers.1.") == std::string::npos) {
+                return output;
+            }
+
+            std::shared_ptr<ov::op::v1::Multiply> decompress;
+            ov::traverse_nodes(ov::NodeVector{output.get_node_shared_ptr()}, [&decompress, &name](const auto& node) {
+                if (node->get_friendly_name() == name + "_decompress") {
+                    decompress = ov::as_type_ptr<ov::op::v1::Multiply>(node);
+                }
+            });
+            OPENVINO_ASSERT(decompress != nullptr, "Missing decompression node for ", name);
+
+            auto zero_point = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{}, {0});
+            auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+            auto subtract = std::make_shared<ov::op::v1::Subtract>(decompress->input_value(0), zero_point_convert);
+            decompress->input(0).replace_source_output(subtract->output(0));
+            return output;
+        };
+        cfg.moe_factory = [mixed_weights](size_t hidden_size,
+                                          size_t intermediate_size,
+                                          size_t num_experts,
+                                          size_t top_k,
+                                          ov::element::Type precision) {
+            return Qwen3MoEFFN(hidden_size, intermediate_size, num_experts, top_k, precision, mixed_weights);
+        };
+
+        ModelBuilder builder;
+        return builder.build_llm(cfg);
     }
 
     std::shared_ptr<ov::Model> build_whisper_decoder_model() const {
@@ -1084,6 +1198,225 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelKeepsHostRoutedStageIntegrati
 
     EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintCollapsesExpertsIntoMoeCompressedOp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_qwen3_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    for (const auto* call : {&prefill, &generate}) {
+        EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u) << "Expert Tile should be fused away";
+        EXPECT_EQ(count_nodes<ov::op::v3::ScatterElementsUpdate>(call->model) +
+                      count_nodes<ov::op::v12::ScatterElementsUpdate>(call->model),
+                  0u)
+            << "Expert routing scatter should be fused away";
+        EXPECT_GE(count_moe_nodes(call->model), 1u) << "Expected at least one fused MOE(Compressed) op";
+        // FUSED carries no per-expert partitioning hints: the block is already a single opaque op.
+        expect_missing_prop(call->props, "NPUW_ONLINE_ISOLATE");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintIsIndependentPerStage) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_qwen3_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    // PREFILL was fused: no decomposed expert scaffolding left.
+    EXPECT_EQ(count_nodes<ov::op::v0::Tile>(prefill.model), 0u);
+    EXPECT_GE(count_moe_nodes(prefill.model), 1u);
+    expect_missing_prop(prefill.props, "NPUW_ONLINE_ISOLATE");
+
+    // GENERATE stayed HOST_ROUTED: the decomposed block is untouched and isolated for the
+    // online partitioner instead.
+    EXPECT_GT(count_nodes<ov::op::v0::Tile>(generate.model), 0u);
+    EXPECT_EQ(count_moe_nodes(generate.model), 0u);
+    expect_prop(generate.props, "NPUW_ONLINE_ISOLATE", "MOE");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithInterleavedActivation) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    for (const auto* call : {&prefill, &generate}) {
+        EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u) << "Expert Tile should be fused away";
+        EXPECT_GE(count_moe_nodes(call->model), 1u) << "Expected at least one fused MOE(Compressed) op";
+        expect_missing_prop(call->props, "NPUW_ONLINE_ISOLATE");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithNegativeSliceAxis) {
+    auto model = build_moe_llm_model();
+    size_t updated_slices = 0;
+    for (const auto& node : model->get_ops()) {
+        auto slice = ov::as_type_ptr<ov::op::v8::Slice>(node);
+        if (slice && (slice->get_friendly_name().find(".expert.slice_act") != std::string::npos ||
+                      slice->get_friendly_name().find(".expert.slice_gate") != std::string::npos)) {
+            slice->input(4).replace_source_output(ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1}));
+            ++updated_slices;
+        }
+    }
+    ASSERT_GE(updated_slices, 2u);
+    model->validate_nodes_and_infer_types();
+
+    RecordingFactory recorder;
+    ASSERT_NO_THROW(create_compiled_model(model,
+                                          {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                           {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                           {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"}},
+                                          recorder));
+    for (const auto* call : {&require_call(recorder, "_prefill"), &require_call_containing(recorder, "_kv")}) {
+        EXPECT_GE(count_moe_nodes(call->model), 1u);
+        EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u);
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsAccuracyCheck) {
+    for (const auto& acc_check :
+         {ov::Any("YES"), ov::Any("ON"), ov::Any("TRUE"), ov::Any("yes"), ov::Any("1"), ov::Any(true)}) {
+        for (const char* stage_hint : {"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_GENERATE_MOE_HINT"}) {
+            SCOPED_TRACE(std::string(stage_hint) + "=" + acc_check.as<std::string>());
+            RecordingFactory recorder;
+            ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_ACC_CHECK", acc_check}, {stage_hint, "FUSED"}};
+            OV_EXPECT_THROW_HAS_SUBSTRING(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder),
+                                          ov::Exception,
+                                          "NPUW_ACC_CHECK is not supported with MoE hint FUSED");
+            EXPECT_TRUE(recorder.calls().empty());
+        }
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintAllowsDisabledAccuracyCheck) {
+    for (const auto& acc_check :
+         {ov::Any("NO"), ov::Any("OFF"), ov::Any("FALSE"), ov::Any("no"), ov::Any("0"), ov::Any(false)}) {
+        SCOPED_TRACE(acc_check.as<std::string>());
+        RecordingFactory recorder;
+        ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                         {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                         {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"},
+                         {"NPUW_ACC_CHECK", acc_check}};
+        ASSERT_NO_THROW(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder));
+        EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
+        EXPECT_GT(recorder.count_contains("_kv"), 0u);
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsStageSpecificAccuracyCheck) {
+    for (const auto& stage : {std::pair{"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_PREFILL_CONFIG"},
+                              std::pair{"NPUW_LLM_GENERATE_MOE_HINT", "NPUW_LLM_GENERATE_CONFIG"}}) {
+        for (const auto& prefix : {std::string{}, std::string{"++"}}) {
+            for (const auto& value : {ov::Any("ON"), ov::Any(true)}) {
+                SCOPED_TRACE(std::string(stage.first) + " / " + prefix + stage.second);
+                RecordingFactory recorder;
+                ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                 {stage.first, "FUSED"},
+                                 {prefix + stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", value}}}};
+                OV_EXPECT_THROW_HAS_SUBSTRING(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder),
+                                              ov::Exception,
+                                              "NPUW_ACC_CHECK is not supported with MoE hint FUSED");
+                EXPECT_TRUE(recorder.calls().empty());
+            }
+        }
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintUsesEffectiveStageAccuracyCheck) {
+    for (const auto& stage : {std::pair{"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_PREFILL_CONFIG"},
+                              std::pair{"NPUW_LLM_GENERATE_MOE_HINT", "NPUW_LLM_GENERATE_CONFIG"}}) {
+        SCOPED_TRACE(stage.first);
+        RecordingFactory recorder;
+        ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                         {"NPUW_ACC_CHECK", "YES"},
+                         {stage.first, "FUSED"},
+                         {std::string("++") + stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", false}}}};
+
+        ASSERT_NO_THROW(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder));
+        const auto& fused = std::string(stage.first) == "NPUW_LLM_PREFILL_MOE_HINT"
+                                ? require_call(recorder, "_prefill")
+                                : require_call_containing(recorder, "_kv");
+        const auto& other = std::string(stage.first) == "NPUW_LLM_PREFILL_MOE_HINT"
+                                ? require_call_containing(recorder, "_kv")
+                                : require_call(recorder, "_prefill");
+        EXPECT_FALSE(fused.props.at("NPUW_ACC_CHECK").as<bool>());
+        expect_prop(other.props, "NPUW_ACC_CHECK", "YES");
+
+        RecordingFactory root_override_recorder;
+        ov::AnyMap root_override{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                 {"NPUW_ACC_CHECK", "NO"},
+                                 {stage.first, "FUSED"},
+                                 {stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", "YES"}}}};
+        ASSERT_NO_THROW(create_compiled_model(build_qwen3_moe_llm_model(), root_override, root_override_recorder));
+        const auto& root_overridden = std::string(stage.first) == "NPUW_LLM_PREFILL_MOE_HINT"
+                                          ? require_call(root_override_recorder, "_prefill")
+                                          : require_call_containing(root_override_recorder, "_kv");
+        expect_prop(root_overridden.props, "NPUW_ACC_CHECK", "NO");
+
+        RecordingFactory addition_override_recorder;
+        ov::AnyMap addition_override{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                     {"NPUW_ACC_CHECK", "NO"},
+                                     {stage.first, "FUSED"},
+                                     {stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", "NO"}}},
+                                     {std::string("++") + stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", "YES"}}}};
+        OV_EXPECT_THROW_HAS_SUBSTRING(
+            create_compiled_model(build_qwen3_moe_llm_model(), addition_override, addition_override_recorder),
+            ov::Exception,
+            "NPUW_ACC_CHECK is not supported with MoE hint FUSED");
+        EXPECT_TRUE(addition_override_recorder.calls().empty());
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsInvalidAccuracyCheck) {
+    RecordingFactory recorder;
+    ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                     {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                     {"NPUW_ACC_CHECK", "invalid"}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder),
+                                  ov::Exception,
+                                  "Failed to parse 'NPUW_ACC_CHECK'");
+    EXPECT_TRUE(recorder.calls().empty());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsPartiallyLoweredBlocks) {
+    auto model = build_qwen3_moe_llm_model_with_scalar_i4_zero_point();
+    std::string error;
+    try {
+        ov::npuw::moe::apply_moe_fusion(model);
+        FAIL() << "Expected FUSED MoE lowering to reject the residual compressed GatherMatmul.";
+    } catch (const ov::Exception& ex) {
+        error = ex.what();
+    }
+
+    EXPECT_NE(error.find("residual GatherMatmulCompressed"), std::string::npos) << error;
+    EXPECT_GE(count_nodes<ov::op::internal::MOECompressed>(model), 1u);
+    EXPECT_GT(count_nodes<ov::op::internal::GatherMatmulCompressed>(model), 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {

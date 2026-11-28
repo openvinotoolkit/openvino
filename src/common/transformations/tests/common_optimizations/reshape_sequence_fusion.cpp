@@ -340,6 +340,56 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg5_special_zero_false) {
     }
 }
 
+TEST_F(TransformationTestsF, ReshapeSequenceFusionOptInDynamicPatterns) {
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{2, 3});
+        auto pattern_a = std::make_shared<opset6::Parameter>(element::i64, Shape{2});
+        auto pattern_b = std::make_shared<opset6::Parameter>(element::i64, Shape{2});
+        auto a = std::make_shared<opset6::Reshape>(data, pattern_a, false);
+        auto b = std::make_shared<opset6::Reshape>(a, pattern_b, false);
+        model = std::make_shared<Model>(OutputVector{b}, ParameterVector{data, pattern_a, pattern_b});
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>(false, true);
+    }
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{2, 3});
+        auto pattern_a = std::make_shared<opset6::Parameter>(element::i64, Shape{2});
+        auto pattern_b = std::make_shared<opset6::Parameter>(element::i64, Shape{2});
+        auto b = std::make_shared<opset6::Reshape>(data, pattern_b, false);
+        model_ref = std::make_shared<Model>(OutputVector{b}, ParameterVector{data, pattern_a, pattern_b});
+    }
+}
+
+TEST_F(TransformationTestsF, ReshapeSequenceFusionOptInInferredDimensions) {
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+        auto a = reshape(data, {-1, 2}, false);
+        auto b = reshape(a, {-1, 3}, false);
+        model = std::make_shared<Model>(OutputVector{b}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>(false, true);
+    }
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+        auto b = reshape(data, {-1, 3}, false);
+        model_ref = std::make_shared<Model>(OutputVector{b}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ReshapeSequenceFusionOptInPreservesSpecialZero) {
+    auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+    auto a = reshape(data, {-1, 2}, false);
+    auto b = reshape(a, {0, 2}, true);
+    model = std::make_shared<Model>(OutputVector{b}, ParameterVector{data});
+    manager.register_pass<ov::pass::ReshapeSequenceFusion>(false, true);
+}
+
+TEST_F(TransformationTestsF, ReshapeSequenceFusionOptInPreservesMultipleConsumers) {
+    auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+    auto a = reshape(data, {-1, 2}, false);
+    auto b = reshape(a, {-1, 3}, false);
+    model = std::make_shared<Model>(OutputVector{a, b}, ParameterVector{data});
+    manager.register_pass<ov::pass::ReshapeSequenceFusion>(false, true);
+}
+
 TEST_F(TransformationTestsF, ReshapeSequenceFusionEliminate) {
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});

@@ -490,7 +490,10 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
     return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
 }
 
-inline std::shared_ptr<ov::Model> build_2gemm_bgm_model(bool has_batch_dim = true, bool restore_output_shape = false) {
+inline std::shared_ptr<ov::Model> build_2gemm_bgm_model(bool has_batch_dim = true,
+                                                        bool restore_output_shape = false,
+                                                        bool interleaved = true,
+                                                        int64_t lane_axis = 2) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -541,30 +544,34 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_model(bool has_batch_dim = tru
     // BGM gate_up (4 inputs: data, weight, indices, bias)
     auto bgm_gate_up = std::make_shared<GatherMatmul>(unsqueeze, gate_up_w, topk_indices, gate_up_bias);
 
-    // Activation subgraph (same as in the original 2GEMM pattern)
+    const auto slice_steps = interleaved ? std::vector<int64_t>{1, 1, 2} : std::vector<int64_t>{1, 1, 1};
+    const auto clamped_slice_starts = interleaved ? std::vector<int64_t>{0, 0, 1}
+                                                  : std::vector<int64_t>{0, 0, static_cast<int64_t>(intermediate_size)};
+    const auto swish_slice_starts = std::vector<int64_t>{0, 0, 0};
+    const auto clamped_slice_stops = std::vector<int64_t>{static_cast<int64_t>(topk),
+                                                          static_cast<int64_t>(batch),
+                                                          static_cast<int64_t>(intermediate_size * 2)};
+    const auto swish_slice_stops =
+        std::vector<int64_t>{static_cast<int64_t>(topk),
+                             static_cast<int64_t>(batch),
+                             static_cast<int64_t>(intermediate_size * (interleaved ? 2 : 1))};
+
+    // Interleaved lanes model GPT-OSS; contiguous halves are intentionally unsupported by MOE.
     auto slice1 = std::make_shared<op::v8::Slice>(
         bgm_gate_up,
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 0, 0}),
-        op::v0::Constant::create(element::i64,
-                                 Shape{3},
-                                 std::vector<int64_t>{static_cast<int64_t>(topk),
-                                                      static_cast<int64_t>(batch),
-                                                      static_cast<int64_t>(intermediate_size * 2)}),
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{1, 1, 2}),
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2}));
+        op::v0::Constant::create(element::i64, Shape{3}, clamped_slice_starts),
+        op::v0::Constant::create(element::i64, Shape{3}, clamped_slice_stops),
+        op::v0::Constant::create(element::i64, Shape{3}, slice_steps),
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, lane_axis}));
     auto clamp = std::make_shared<op::v0::Clamp>(slice1, -expert_beta, expert_beta);
     auto add1 = std::make_shared<op::v1::Add>(clamp, op::v0::Constant::create(element::f32, Shape{1}, {1.0f}));
 
     auto slice2 = std::make_shared<op::v8::Slice>(
         bgm_gate_up,
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 0}),
-        op::v0::Constant::create(element::i64,
-                                 Shape{3},
-                                 std::vector<int64_t>{static_cast<int64_t>(topk),
-                                                      static_cast<int64_t>(batch),
-                                                      static_cast<int64_t>(intermediate_size * 2)}),
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{1, 1, 2}),
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2}));
+        op::v0::Constant::create(element::i64, Shape{3}, swish_slice_starts),
+        op::v0::Constant::create(element::i64, Shape{3}, swish_slice_stops),
+        op::v0::Constant::create(element::i64, Shape{3}, slice_steps),
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, lane_axis}));
     auto minimum1 =
         std::make_shared<op::v1::Minimum>(slice2, op::v0::Constant::create(element::f32, Shape{1}, {10.0f}));
     auto swish_beta_const = op::v0::Constant::create(element::f32, Shape{}, std::vector<float>{expert_alpha});
@@ -880,6 +887,18 @@ TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_basic) {
     model = build_2gemm_bgm_model();
     manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_2gemm_bgm_to_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_negative_lane_axis) {
+    model = build_2gemm_bgm_model(true, false, true, -1);
+    manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_2gemm_bgm_to_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_rejects_contiguous_gate_up_slices) {
+    model = build_2gemm_bgm_model(true, false, false);
+    model_ref = model->clone();
+    manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
 }
 
 TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_without_batch_dim) {

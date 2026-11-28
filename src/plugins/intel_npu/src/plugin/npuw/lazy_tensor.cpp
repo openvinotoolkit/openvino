@@ -8,6 +8,7 @@
 #include <limits>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #ifdef __ANDROID__
@@ -167,9 +168,9 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-        m_read_from_bin = ov::npuw::util::tensor_from_const(it->second);
-        NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
-                    m_read_from_bin.get_element_type() == m_cached_type);
+        auto tensor = ov::npuw::util::tensor_from_const(it->second);
+        ov::npuw::util::reshape_weightless_tensor(tensor, m_cached_type, m_cached_shape, m_byte_size);
+        m_read_from_bin = std::move(tensor);
     }
 }
 

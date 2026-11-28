@@ -65,10 +65,13 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
 }
 }  // namespace
 
-ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
+ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination)
+    : ReshapeSequenceFusion(use_shape_for_elimination, false) {}
+
+ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination, bool allow_special_zero_false) {
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = pattern::any_input();
-    auto reshape_a_pattern = pattern::wrap_type<v0::Constant>();
+    auto reshape_a_pattern = allow_special_zero_false ? pattern::any_input() : pattern::wrap_type<v0::Constant>();
     auto reshape_a = pattern::wrap_type<v1::Reshape>({reshape_input, reshape_a_pattern}, pattern::consumers_count(1));
     auto reshape_b_pattern = pattern::any_input();
     auto reshape_b = pattern::wrap_type<v1::Reshape>({reshape_a, reshape_b_pattern});
@@ -80,8 +83,11 @@ ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
 
         auto pattern_a = pattern_map.at(reshape_a_pattern);
         auto pattern_b = pattern_map.at(reshape_b_pattern);
+        const auto reshape_b_node = ov::as_type_ptr<v1::Reshape>(reshape);
+        const bool independent_pattern = allow_special_zero_false && !reshape_b_node->get_special_zero();
         // skip reshapes which patterns contain special numbers like -1 or 0
-        if (!has_valid_pattern(pattern_a) || !has_valid_pattern(pattern_b)) {
+        if (!independent_pattern && (!ov::is_type<v0::Constant>(pattern_a.get_node_shared_ptr()) ||
+                                     !has_valid_pattern(pattern_a) || !has_valid_pattern(pattern_b))) {
             return false;
         }
 
@@ -89,7 +95,8 @@ ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
         NodeVector nodes{pattern_map.at(reshape_a).get_node_shared_ptr(), reshape};
         while (ov::as_type_ptr<v1::Reshape>(input.get_node_shared_ptr())) {
             auto node = input.get_node_shared_ptr();
-            if (!has_valid_pattern(node->get_input_node_shared_ptr(1)) || input.get_target_inputs().size() != 1) {
+            if ((!independent_pattern && !has_valid_pattern(node->get_input_node_shared_ptr(1))) ||
+                input.get_target_inputs().size() != 1) {
                 break;
             }
             nodes.push_back(node);

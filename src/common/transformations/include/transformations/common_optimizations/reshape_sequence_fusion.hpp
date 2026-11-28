@@ -25,4 +25,6 @@ class ov::pass::ReshapeSequenceFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ReshapeSequenceFusion");
     ReshapeSequenceFusion(bool use_shape_for_elimination = true);
+    // Opt in to bypassing intermediate reshapes when the final reshape has special_zero=false.
+    ReshapeSequenceFusion(bool use_shape_for_elimination, bool allow_special_zero_false);
 };

@@ -5,11 +5,13 @@
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 
 #include <limits>
+#include <optional>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -50,6 +52,59 @@ namespace v8 = ov::op::v8;
 static size_t weight_logical_K(const ov::Shape& shape) {
     OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4, "MOE weight must be rank 3 or 4, got rank ", shape.size());
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
+}
+
+static std::optional<size_t> get_interleaved_lane(const std::shared_ptr<ov::Node>& node) {
+    auto slice = ov::as_type_ptr<v8::Slice>(node);
+    if (slice == nullptr) {
+        return std::nullopt;
+    }
+
+    auto starts_node = ov::as_type_ptr<v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+    auto steps_node = ov::as_type_ptr<v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+    auto axes_node = ov::as_type_ptr<v0::Constant>(slice->input_value(4).get_node_shared_ptr());
+    if (starts_node == nullptr || steps_node == nullptr || axes_node == nullptr) {
+        return std::nullopt;
+    }
+
+    const auto starts = starts_node->cast_vector<int64_t>();
+    const auto steps = steps_node->cast_vector<int64_t>();
+    const auto axes = axes_node->cast_vector<int64_t>();
+    if (starts.size() != steps.size() || starts.size() != axes.size()) {
+        return std::nullopt;
+    }
+
+    const auto rank = slice->get_input_partial_shape(0).rank();
+    std::optional<size_t> lane;
+    for (size_t i = 0; i < axes.size(); ++i) {
+        auto axis = axes[i];
+        if (axis < 0) {
+            if (rank.is_dynamic() || axis < -rank.get_length()) {
+                return std::nullopt;
+            }
+            axis = static_cast<int64_t>(ov::util::normalize_axis(axis, rank.get_length()));
+        }
+        if (axis != 2) {
+            continue;
+        }
+        if (lane.has_value() || steps[i] != 2 || starts[i] < 0 || starts[i] > 1) {
+            return std::nullopt;
+        }
+        lane = static_cast<size_t>(starts[i]);
+    }
+    return lane;
+}
+
+static bool get_interleaved_gate_idx(const std::shared_ptr<ov::Node>& clamped_slice,
+                                     const std::shared_ptr<ov::Node>& swish_slice,
+                                     size_t& gate_idx) {
+    const auto clamped_lane = get_interleaved_lane(clamped_slice);
+    const auto swish_lane = get_interleaved_lane(swish_slice);
+    if (!clamped_lane.has_value() || !swish_lane.has_value() || *clamped_lane == *swish_lane) {
+        return false;
+    }
+    gate_idx = *swish_lane;
+    return true;
 }
 
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
@@ -359,24 +414,12 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
         OPENVINO_ASSERT(clamp_op, "Unexpected node type matched for clamp: ", *clamp_node);
         float expert_alpha = static_cast<float>(clamp_op->get_max());
 
-        // gate_idx = start of the swish (slice2) lane on the step-2 axis.
-        auto slice2_node = pm.at(slice2_m).get_node_shared_ptr();
-        auto slice2_start_c = ov::as_type_ptr<v0::Constant>(slice2_node->input_value(1).get_node_shared_ptr());
-        auto slice2_step_c = ov::as_type_ptr<v0::Constant>(slice2_node->input_value(3).get_node_shared_ptr());
-        if (!slice2_start_c || !slice2_step_c) {
-            return false;
-        }
-        const auto starts = slice2_start_c->cast_vector<int64_t>();
-        const auto steps = slice2_step_c->cast_vector<int64_t>();
-        if (starts.size() != steps.size()) {
-            return false;
-        }
+        // MOE only represents interleaved gate/up lanes; contiguous halves cannot be encoded by gate_idx.
         size_t gate_idx = 0;
-        for (size_t i = 0; i < steps.size(); ++i) {
-            if (steps[i] == 2) {
-                gate_idx = static_cast<size_t>(starts[i]);
-                break;
-            }
+        if (!get_interleaved_gate_idx(pm.at(slice1_m).get_node_shared_ptr(),
+                                      pm.at(slice2_m).get_node_shared_ptr(),
+                                      gate_idx)) {
+            return false;
         }
 
         std::shared_ptr<ov::Node> moe_node;

@@ -4,6 +4,7 @@
 
 #include "serialization.hpp"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -23,6 +24,7 @@
 #include "lazy_tensor.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
+#include "moe_transformations/llm_moe.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
@@ -32,12 +34,15 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "util.hpp"
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
@@ -543,6 +548,50 @@ ov::npuw::s11n::WeightsContext::ConstsCache make_consts_cache(
     }
     return cache;
 }
+
+std::shared_ptr<ov::Model> make_grouped_moe_model_with_weight_offsets() {
+    using namespace ov::test::npuw;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = [](size_t hs, size_t is, size_t ne, size_t k, ov::element::Type precision) -> FFNFn {
+        return Qwen3MoEFFN(hs, is, ne, k, precision, INT4GroupWeight{64});
+    };
+    auto model = ModelBuilder{}.build_llm(cfg);
+    std::size_t offset = 0;
+    for (const auto& node : model->get_ops()) {
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (constant) {
+            constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(constant->get_byte_size(), offset, constant->get_element_type());
+            offset += constant->get_byte_size() + 1;
+        }
+    }
+    return model;
+}
+
+class SerializableMoeSubmodel : public MockSubCompiledModel {
+public:
+    SerializableMoeSubmodel(const std::shared_ptr<ov::Model>& model,
+                            const std::shared_ptr<const ov::IPlugin>& plugin,
+                            size_t id)
+        : MockSubCompiledModel(model, plugin, {}),
+          m_id(id) {}
+
+    void export_model(std::ostream& stream) const override {
+        ov::npuw::s11n::write(stream, m_id);
+    }
+
+    ov::Any get_property(const std::string& name) const override {
+        if (name == ov::execution_devices.name()) {
+            return std::vector<std::string>{"CPU"};
+        }
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+
+private:
+    size_t m_id;
+};
 
 void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
                             const ov::npuw::compiled::Attention& actual) {
@@ -1760,6 +1809,190 @@ TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {
     EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
     expect_tensors_equal(var.eval(), res.eval());
+}
+
+TEST(SerializationTest, FusedGroupedMoeWeightsModelPtrRoundTrip) {
+    using namespace ov::npuw::s11n;
+
+    auto original = make_grouped_moe_model_with_weight_offsets();
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> original_constants;
+    for (const auto& node : original->get_ops()) {
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (constant) {
+            original_constants.push_back(constant);
+        }
+    }
+
+    auto fused = original->clone();
+    ov::npuw::moe::apply_moe_fusion(fused);
+    const auto cache = make_consts_cache(original_constants);
+    const WeightsContext import_ctx(nullptr, "", cache, {});
+    std::size_t checked_weights = 0;
+    for (const auto& node : fused->get_ops()) {
+        auto moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(node);
+        if (!moe) {
+            continue;
+        }
+        for (const auto index : {3u, 6u, 9u}) {
+            auto weight = ov::as_type_ptr<ov::op::v0::Constant>(moe->get_input_node_shared_ptr(index));
+            ASSERT_NE(weight, nullptr);
+            const auto attr = weight->get_rt_info()
+                                  .at(ov::WeightlessCacheAttribute::get_type_info_static())
+                                  .as<ov::WeightlessCacheAttribute>();
+            const auto it = cache.find({attr.bin_offset, weight->get_byte_size()});
+            ASSERT_NE(it, cache.end());
+            const auto source = ov::as_type_ptr<ov::op::v0::Constant>(it->second);
+            ASSERT_NE(source, nullptr);
+            ASSERT_EQ(source->get_shape().size(), 4u);
+            ASSERT_EQ(weight->get_shape().size(), 3u);
+
+            ov::npuw::weights::LazyTensor exported(weight), imported;
+            std::stringstream lazy_blob;
+            write(lazy_blob, exported);
+            read(lazy_blob, imported);
+            ASSERT_NO_THROW(imported.read_weight(import_ctx));
+            EXPECT_EQ(imported.eval_meta().shape, weight->get_shape());
+            expect_tensors_equal(exported.eval(), imported.eval());
+            EXPECT_EQ(imported.eval().data(), source->get_data_ptr());
+
+            std::vector<ov::Tensor> eager_export{ov::npuw::util::tensor_from_const(weight)};
+            std::vector<ov::Tensor> eager_import;
+            std::stringstream eager_blob;
+            const WeightsContext export_ctx(true, {{weight->get_data_ptr(), attr.bin_offset}});
+            write_weightless(eager_blob, eager_export, export_ctx);
+            ASSERT_NO_THROW(read_weightless(eager_blob, eager_import, import_ctx));
+            ASSERT_EQ(eager_import.size(), 1u);
+            expect_tensors_equal(eager_export.front(), eager_import.front());
+            EXPECT_NE(eager_import.front().data(), source->get_data_ptr());
+            ++checked_weights;
+        }
+    }
+    EXPECT_GE(checked_weights, 3u);
+}
+
+TEST(SerializationTest, FusedGroupedMoeLlmModelPtrExportImport) {
+    using namespace testing;
+    auto original = make_grouped_moe_model_with_weight_offsets();
+    auto plugin = std::make_shared<NullPlugin>();
+    auto core = std::make_shared<NiceMock<ov::MockICore>>();
+    plugin->set_core(core);
+    ON_CALL(*core, get_supported_property(_, _, _))
+        .WillByDefault([](const std::string&, const ov::AnyMap& props, bool) {
+            return props;
+        });
+    const auto property = [](const std::string& name) -> ov::Any {
+        if (name == ov::available_devices.name()) {
+            return std::vector<std::string>{};
+        }
+        if (name == ov::supported_properties.name() || name == ov::internal::supported_properties.name()) {
+            return std::vector<ov::PropertyName>{};
+        }
+        if (name == ov::intel_npu::compiler_version.name()) {
+            return int64_t{0};
+        }
+        if (name == ov::device::architecture.name()) {
+            return std::string{};
+        }
+        return {};
+    };
+    ON_CALL(*core, get_property(_, _)).WillByDefault([&](const std::string&, const std::string& name) {
+        return property(name);
+    });
+    ON_CALL(*core, get_property(_, _, _))
+        .WillByDefault([&](const std::string&, const std::string& name, const ov::AnyMap&) {
+            return property(name);
+        });
+    std::vector<std::shared_ptr<ov::Model>> submodels;
+    ON_CALL(
+        *core,
+        compile_model(An<const std::shared_ptr<const ov::Model>&>(), An<const std::string&>(), An<const ov::AnyMap&>()))
+        .WillByDefault([&](const std::shared_ptr<const ov::Model>& model, const std::string&, const ov::AnyMap&) {
+            const auto id = submodels.size();
+            submodels.push_back(std::const_pointer_cast<ov::Model>(model));
+            return ov::SoPtr<ov::ICompiledModel>{
+                std::make_shared<SerializableMoeSubmodel>(submodels.back(), plugin, id)};
+        });
+    ON_CALL(*core, import_model(An<std::istream&>(), An<const std::string&>(), An<const ov::AnyMap&>()))
+        .WillByDefault([&](std::istream& stream, const std::string&, const ov::AnyMap&) {
+            size_t id = 0;
+            ov::npuw::s11n::read(stream, id);
+            return ov::SoPtr<ov::ICompiledModel>{
+                std::make_shared<SerializableMoeSubmodel>(submodels.at(id), plugin, id)};
+        });
+
+    const ov::AnyMap props{{"NPUW_LLM", "YES"},
+                           {"NPUW_LLM_MAX_PROMPT_LEN", "8"},
+                           {"NPUW_LLM_MIN_RESPONSE_LEN", "8"},
+                           {"NPUW_LLM_SHARED_HEAD", "NO"},
+                           {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                           {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"},
+                           {"NPUW_DEVICES", "CPU"},
+                           {"NPUW_FOLD", "YES"},
+                           {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                           {"NPUW_ONLINE_PIPELINE", "REP"},
+                           {ov::enable_weightless.name(), true}};
+    ov::npuw::LLMCompiledModel compiled(original->clone(),
+                                        plugin,
+                                        props,
+                                        [](const std::shared_ptr<ov::Model>& model,
+                                           const std::shared_ptr<const ov::IPlugin>& device,
+                                           const ov::AnyMap& cfg) -> std::shared_ptr<ov::npuw::ICompiledModel_v0> {
+                                            return std::make_shared<ov::npuw::CompiledModel>(model, device, cfg);
+                                        });
+
+    std::size_t parameterized_weights = 0;
+    for (const auto& model : submodels) {
+        for (const auto& node : model->get_ops()) {
+            if (const auto moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(node)) {
+                for (const auto index : {3u, 6u, 9u}) {
+                    parameterized_weights += ov::is_type<ov::op::v0::Parameter>(moe->get_input_node_shared_ptr(index));
+                }
+            }
+        }
+    }
+    ASSERT_GT(parameterized_weights, 0u);
+
+    std::stringstream blob;
+    ASSERT_NO_THROW(compiled.export_model(blob));
+    const ov::AnyMap import_props{{ov::hint::model.name(), std::shared_ptr<const ov::Model>(original)}};
+    std::shared_ptr<ov::npuw::LLMCompiledModel> imported;
+    ASSERT_NO_THROW(imported = ov::npuw::LLMCompiledModel::import_model(blob, plugin, import_props));
+    ASSERT_NE(imported, nullptr);
+    EXPECT_EQ(compiled.inputs().size(), imported->inputs().size());
+    EXPECT_EQ(compiled.outputs().size(), imported->outputs().size());
+}
+
+TEST(SerializationTest, WeightlessModelPtrRejectsMismatchedMetadata) {
+    using namespace ov::npuw::s11n;
+    const auto serialized = make_weightless_constant_from_bytes(ov::element::u4, {4}, {0x21, 0x43}, 17);
+    const auto wrong_count = make_weightless_constant_from_bytes(ov::element::u4, {3}, {0x21, 0x43}, 17);
+    const auto wrong_type = make_weightless_constant_from_bytes(ov::element::i4, {4}, {0x21, 0x43}, 17);
+
+    for (const auto& source : {wrong_count, wrong_type}) {
+        SCOPED_TRACE(source->get_element_type().to_string() + " " +
+                     std::to_string(ov::shape_size(source->get_shape())));
+        const WeightsContext import_ctx(nullptr, "", make_consts_cache({source}), {});
+
+        ov::npuw::weights::LazyTensor exported(serialized), imported;
+        std::stringstream lazy_blob;
+        write(lazy_blob, exported);
+        read(lazy_blob, imported);
+        EXPECT_THROW(imported.read_weight(import_ctx), ov::Exception);
+        EXPECT_THROW(imported.read_weight(import_ctx), ov::Exception);
+
+        std::vector<ov::Tensor> eager_export{ov::npuw::util::tensor_from_const(serialized)}, eager_import;
+        std::stringstream eager_blob;
+        const WeightsContext export_ctx(true, {{serialized->get_data_ptr(), 17}});
+        write_weightless(eager_blob, eager_export, export_ctx);
+        EXPECT_THROW(read_weightless(eager_blob, eager_import, import_ctx), ov::Exception);
+    }
+
+    auto tensor = ov::npuw::util::tensor_from_const(serialized);
+    EXPECT_THROW(ov::npuw::util::reshape_weightless_tensor(tensor,
+                                                           ov::element::u4,
+                                                           ov::Shape{std::numeric_limits<std::size_t>::max(), 2},
+                                                           serialized->get_byte_size()),
+                 ov::Exception);
 }
 
 TEST(SerializationTest, OVTypes_LazyTensor_const_with_embedded_weight_roundtrip) {
