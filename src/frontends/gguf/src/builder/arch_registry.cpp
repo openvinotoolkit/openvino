@@ -101,6 +101,7 @@ const ArchitectureEntry architectures[] = {
     {"qwen3vlmoe", RopeMode::Interleaved},
     {"qwen3moe", RopeMode::Neox},
     {"smollm3", RopeMode::Normal},
+    {"spark2_5", RopeMode::Neox},
 };
 }  // namespace
 

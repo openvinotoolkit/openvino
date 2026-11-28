@@ -24,7 +24,7 @@ per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-
 | Fixtures | llama.cpp CPU oracle |
 |---|---|
 | Decoder/embedding fixtures other than the cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
-| `lfm2-encoder`, `lfm2-embed-mean`, `lfm2-embed-cls`, `lfm2-embed-last`, `lfm2-colbert`, `lfm3-d1` | Upstream `604cc430239c76ff636c443e3400bf552b750421` |
+| `lfm2-encoder`, `lfm2-embed-mean`, `lfm2-embed-cls`, `lfm2-embed-last`, `lfm2-colbert`, `lfm3-d1`, `spark2_5` | Upstream `604cc430239c76ff636c443e3400bf552b750421` |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 | `inkling2`, `inkling2-loop`, `inkling2-loop-varying` | Upstream `a6ac41c757c066941766164439f6876f2deaab04` |
@@ -33,8 +33,9 @@ The cases use distinct nonzero weights and nonuniform norm scales, four query he
 grouped-query attention (single KV head for Gemma), and token batches `[1,2,3]`, `[4]`,
 `[5,6]`. Decoder requests preserve state across all three batches. Embedding fixtures evaluate `[1,2,3]`
 without caches; their tests also change input lengths on the same request.
-Gemma2 and Muse Glimmer cross a two-token sliding window; SmolLM3 exercises its fourth,
-NoPE layer. ERNIE omits `expert_shared_count`, as the real 21B checkpoint does. Bailing
+Gemma2, Muse Glimmer and Spark 2.5 cross a two-token sliding window; SmolLM3 exercises its fourth,
+NoPE layer. Spark 2.5 (`spark2_5`) uses a boolean sliding-window pattern, per-head output gates and
+partial NEOX RoPE with a separate frequency base on its global layer. ERNIE omits `expert_shared_count`, as the real 21B checkpoint does. Bailing
 covers sigmoid routing, biased selection, group filtering, and a shared expert. EXAONE MoE
 also covers sigmoid routing with scale 2.5 and trailing NextN tensors; MiniMax and Hunyuan
 omit expert-normalization metadata to exercise their mandatory normalization defaults.

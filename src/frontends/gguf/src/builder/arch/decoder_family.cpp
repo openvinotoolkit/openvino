@@ -44,6 +44,8 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         p.activation = FfnActivation::GeGlu;
         p.scales.embedding = std::sqrt(static_cast<float>(embedding));
     }
+    if (arch == "spark2_5")
+        p.activation = FfnActivation::GeGlu;
     if (arch == "afmoe")
         p.scales.embedding = std::sqrt(static_cast<float>(embedding));
     if (arch.rfind("minicpm", 0) == 0) {
