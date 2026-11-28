@@ -308,6 +308,8 @@ OP_CONVERTER(translate_view_as_complex);
 OP_CONVERTER(translate_view_as_real);
 OP_CONVERTER(translate_weight_norm);
 OP_CONVERTER(translate_where);
+OP_CONVERTER(translate_xlogy);
+OP_CONVERTER(translate_xlogy_);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
 OP_CONVERTER(translate_quantized_cat);
@@ -772,6 +774,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sort", op::translate_sort},
         {"aten::special_expit",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
+        {"aten::special_xlogy", op::translate_xlogy},
         // aten::split - Supported in limited set of patterns
         {"aten::split_with_sizes", op::translate_split_with_sizes},
         {"aten::split_with_sizes_copy", op::translate_split_with_sizes},
@@ -830,6 +833,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::vstack", op::translate_vstack},
         {"aten::wait", op::skip_node},
         {"aten::where", op::translate_where},
+        {"aten::xlogy", op::translate_xlogy},
+        {"aten::xlogy_", op::translate_xlogy_},
         {"aten::zero", op::translate_zeros_like},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
@@ -992,6 +997,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.unsqueeze_copy.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten.var.correction", op::translate_var_fx},
         {"aten.var_mean.correction", op::translate_var_mean_fx},
+        {"aten.xlogy.Tensor", op::translate_xlogy},
+        {"aten.xlogy.Scalar_Self", op::translate_xlogy},
+        {"aten.xlogy.Scalar_Other", op::translate_xlogy},
+        {"aten.special_xlogy.default", op::translate_xlogy},
         {"aten.zero.default", op::translate_zeros_like_fx},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.out", op::translate_zeros_fx},
