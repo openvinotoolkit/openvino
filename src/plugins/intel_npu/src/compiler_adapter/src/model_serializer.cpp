@@ -624,11 +624,23 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
 
     inputsPrecisionSS << INPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
-    const auto getRankOrThrow = [](const ov::PartialShape& shape) -> size_t {
+    const auto getRankOrThrow = [](const ov::PartialShape& shape, const std::string& tensor_name) -> size_t {
+        constexpr int64_t max_supported_rank = 5;
         if (shape.rank().is_dynamic()) {
             OPENVINO_THROW("Dynamic rank is not supported for NPU plugin");
         }
-        return shape.rank().get_length();
+        const auto rank = shape.rank().get_length();
+        if (rank > max_supported_rank) {
+            // The driver compiler describes IO layouts with legacy layout strings that only cover up to 5 dimensions;
+            // failing here gives an actionable message instead of the compiler's "Failed to find BLOCKED" error.
+            OPENVINO_THROW("The NPU plugin supports tensors with at most ",
+                           max_supported_rank,
+                           " dimensions, but ",
+                           tensor_name,
+                           " has rank ",
+                           rank);
+        }
+        return rank;
     };
 
     if (!parameters.empty()) {
@@ -636,7 +648,8 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
 
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
             const auto precision = parameter->get_element_type();
-            const auto rank = getRankOrThrow(parameter->get_partial_shape());
+            const auto rank =
+                getRankOrThrow(parameter->get_partial_shape(), "input '" + parameter->get_friendly_name() + "'");
 
             if (parameterIndex != 0) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
@@ -670,7 +683,8 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
     size_t resultIndex = 0;
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
         const auto precision = result->get_element_type();
-        const auto rank = getRankOrThrow(result->get_output_partial_shape(0));
+        const auto rank = getRankOrThrow(result->get_output_partial_shape(0),
+                                         "output '" + result->get_input_node_ptr(0)->get_friendly_name() + "'");
 
         if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
