@@ -20,13 +20,16 @@ void if_reference(const std::vector<std::shared_ptr<Model>>& bodies,
     auto branch_index = (condition_value) ? op::v8::If::THEN_BODY_INDEX : op::v8::If::ELSE_BODY_INDEX;
     ov::TensorVector inputs_to_body;
     ov::TensorVector outs_from_body;
-    inputs_to_body.resize(input_descs[branch_index].size());
+    inputs_to_body.resize(bodies[branch_index]->get_parameters().size());
     auto inputs_size = args.size();
     auto output_size = out.size();
     for (const auto& input_desc : input_descs[branch_index]) {
         OPENVINO_ASSERT(inputs_size > input_desc->m_input_index,
                         "Incorrect associating! If has not input with id ",
                         input_desc->m_input_index);
+        OPENVINO_ASSERT(inputs_to_body.size() > input_desc->m_body_parameter_index,
+                        "Incorrect associating! If body has not parameter with id ",
+                        input_desc->m_body_parameter_index);
         inputs_to_body[input_desc->m_body_parameter_index] = args[input_desc->m_input_index];
     }
     reference::function(bodies[branch_index], inputs_to_body, outs_from_body);
