@@ -31,6 +31,18 @@ public:
                     const std::shared_ptr<const ov::IPlugin>& plugin,
                     const ov::AnyMap& properties);
 
+    // The model the variants are reshaped from, made once.
+    //
+    // The CB pipeline's model takes its tokens in the batch position:
+    // SDPAToPagedAttention unsqueezes input_ids and position_ids to
+    // [tokens, 1]. The variants take them as [1, tokens] instead, so their
+    // layers have the layout of the NPUW LLM models, [1, tokens, hidden],
+    // which the NPU compiler and the NPUW patterns are written for. The layers
+    // work on each token alone, so they compute the same either way. What
+    // reads the tokens first, the PA ops and the pick of the sampled rows,
+    // keeps its shapes through a Reshape.
+    static std::shared_ptr<ov::Model> prepare_variant_model(const std::shared_ptr<ov::Model>& base_model);
+
     // The NPUW config the variants compile with: the NPU defaults of the LLM
     // path plus the partitioning above, under the caller's properties, with one
     // weights bank for all.

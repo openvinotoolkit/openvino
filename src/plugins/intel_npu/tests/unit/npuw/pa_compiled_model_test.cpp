@@ -15,9 +15,12 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
@@ -161,6 +164,34 @@ std::shared_ptr<ov::Model> make_pipeline_pa_model() {
     model->add_parameters({sampled});
     model->validate_nodes_and_infer_types();
     return model;
+}
+
+// The layers of a variant take the tokens second, like the NPUW LLM models,
+// the PA ops still take them first, and the logits keep their shape.
+TEST(PAVariantModel, TakesTheTokensSecond) {
+    constexpr std::size_t tokens = 8;
+    const auto pa_model = make_pipeline_pa_model();
+    const auto model = PACompiledModel::prepare_variant_model(pa_model);
+    model->reshape({{"input_ids", ov::PartialShape{1, tokens}}, {"position_ids", ov::PartialShape{1, tokens}}});
+
+    EXPECT_EQ(model->output("logits").get_partial_shape(), pa_model->output("logits").get_partial_shape());
+    std::size_t pa_ops = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            ++pa_ops;
+            for (std::size_t i = 0; i < 3; ++i) {
+                ASSERT_EQ(node->get_input_shape(i).size(), 2u);
+                EXPECT_EQ(node->get_input_shape(i)[0], tokens);
+            }
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
+                   ov::is_type<ov::op::v1::Add>(node)) {
+            for (const auto& input : node->inputs()) {
+                const auto& shape = input.get_partial_shape();
+                EXPECT_FALSE(shape.is_static() && shape.size() >= 3 && shape[0] == tokens) << node << " " << shape;
+            }
+        }
+    }
+    EXPECT_GT(pa_ops, 0u);
 }
 
 // Runs a prefill of `prompt` tokens and one decode step for a batch of
