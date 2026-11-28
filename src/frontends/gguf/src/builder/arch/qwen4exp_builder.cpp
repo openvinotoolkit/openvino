@@ -3,9 +3,10 @@
 //
 // Qwen3.8-Flash-Next (llama.cpp "qwen4exp"): Gated DeltaNet and block-sparse attention (QSA) layers
 // with MoE, four hyper-connection residual streams in place of every norm, and hashed n-gram
-// embeddings (PLE) added to the streams before one layer. The "mtp" component converts the single
-// NextN block as a draft that reads the target's hyper-connection residual, which the
-// "mtp_target" component exports as last_hidden_state.
+// embeddings (PLE) added to the streams before one layer. The "mtp" component exports the target's
+// hyper-connection residual as last_hidden_state and converts the single NextN block as a draft
+// that reads it. A file that stores only the NextN block (an Unsloth MTP head) converts to the
+// draft alone.
 
 #include "qwen4exp_builder.hpp"
 
@@ -33,13 +34,16 @@ struct NgramConfig {
 
 class Qwen4ExpBuilder : public ModelBuilder {
 public:
-    explicit Qwen4ExpBuilder(const BuildContext& context)
-        : g(context),
-          mtp(context.component == "mtp"),
-          export_hidden(context.component == "mtp_target") {
-        OPENVINO_ASSERT(context.component.empty() || mtp || export_hidden,
+    explicit Qwen4ExpBuilder(const BuildContext& context, const GgufGraphContext* target = nullptr)
+        : context(context),
+          g(context),
+          export_hidden(context.component == "mtp"),
+          draft(target != nullptr) {
+        OPENVINO_ASSERT(context.component.empty() || export_hidden,
                         "[GGUF] unknown qwen4exp component: ",
                         context.component);
+        if (target)
+            g.share_weights_from(*target);
     }
 
     std::shared_ptr<GgufGraph> build() override {
@@ -58,6 +62,12 @@ public:
         const auto stored_layers = static_cast<size_t>(parameters.dimensions.layers);
         auto& sparse = parameters.attention.sparse;
         auto ratios = m.get_int_array(a + "attention.compress_ratios");
+        const bool has_nextn = parameters.hybrid.nextn_layers > 0;
+        // An MTP head file stores the NextN block without the target layers before it.
+        const bool head_only = has_nextn && !g.tensors().has("blk.0.hc_attn_norm.weight");
+        OPENVINO_ASSERT(!head_only || export_hidden,
+                        "[GGUF] this qwen4exp file holds only an MTP head; load it with LoadOptions{true}");
+        const bool mtp = draft || head_only;
         if (mtp)
             configure_mtp(parameters, a);
         int64_t block = 0;
@@ -85,8 +95,11 @@ public:
         g.build_attn_inp_kv();
         auto embeddings = g.build_inp_embd(weights->require("token_embd.weight"));
         const auto out_ids = g.build_inp_out_ids();
-        if (mtp)
+        if (mtp) {
+            if (head_only)
+                g.mark_mtp_draft_only();
             return build_mtp(dims.layers - 1, embeddings, out_ids);
+        }
         // The draft reads the residual of every token, so the rows are selected after the last layer.
         if (export_hidden) {
             auto contract = g.model_contract();
@@ -98,23 +111,24 @@ public:
         if (ngram.layer >= 0)
             ngram_embeddings = build_ngram_embeddings();
 
-        // [B, 1, T, n] -> hc identical streams [B, T, hc, n]
-        auto stream = reshape(embeddings, {0, -1, 1, n_embd});
+        // [B, 1, T, n] -> hc identical streams, flattened to [B, T, hc * n]. The streams carry no
+        // singleton axis, so the hyper-connection subgraphs keep the form the plugins fuse.
+        const auto stream = reshape(embeddings, {0, -1, n_embd});
         auto streams = stream;
         for (int64_t s = 1; s < hc; ++s)
-            streams = g.node("GGML_OP_CONCAT", {streams, stream}, 0, {{"concat_axis", 1}});
+            streams = g.node("GGML_OP_CONCAT", {streams, stream}, 0, {{"concat_axis", 0}});
 
         for (int layer = 0; layer < dims.layers; ++layer) {
             const auto prefix = "blk." + std::to_string(layer) + ".";
             if (layer == ngram.layer)
-                streams = build_ple(prefix, streams, ngram_embeddings, layer);
+                streams = join_streams(build_ple(prefix, split_streams(streams), ngram_embeddings, layer));
             auto attention = mix(streams, prefix + "hc_attn_");
             auto cur = g.decoder_attention(layer, attention.mixed);
             auto inject = attention.inject;
             if (layer == dims.layers - 1 && !export_hidden) {
                 cur = g.node("GGML_OP_GET_ROWS", {cur, out_ids});
-                inject = g.node("GGML_OP_GET_ROWS", {inject, out_ids});
-                streams = reshape(g.node("GGML_OP_GET_ROWS", {flat(streams), out_ids}), {0, -1, hc, n_embd});
+                inject = reshape(g.node("GGML_OP_GET_ROWS", {reshape(inject, {0, 1, -1, hc}), out_ids}), {0, -1, hc});
+                streams = select_rows(streams, out_ids);
             }
             streams = combine(streams, cur, inject);
             auto ffn = mix(streams, prefix + "hc_ffn_");
@@ -123,6 +137,8 @@ public:
         if (export_hidden)
             streams = select_rows(streams, out_ids, "last_hidden_state");
         build_logits(streams, "output_hc_");
+        if (export_hidden && has_nextn)
+            g.set_mtp_draft(Qwen4ExpBuilder(context, &g).build());
         return g.finish();
     }
 
@@ -162,9 +178,9 @@ private:
         auto e_streams = e;
         for (int64_t s = 1; s < hc; ++s)
             e_streams = g.node("GGML_OP_CONCAT", {e_streams, e}, 0, {{"concat_axis", 1}});
-        auto streams = g.node("GGML_OP_MUL_MAT",
-                              {weights->require(prefix + "nextn.eh_proj.weight"),
-                               g.node("GGML_OP_CONCAT", {e_streams, h}, 0, {{"concat_axis", 0}})});
+        auto streams = join_streams(g.node("GGML_OP_MUL_MAT",
+                                           {weights->require(prefix + "nextn.eh_proj.weight"),
+                                            g.node("GGML_OP_CONCAT", {e_streams, h}, 0, {{"concat_axis", 0}})}));
         auto attention = mix(streams, prefix + "hc_attn_");
         streams = combine(streams, g.decoder_attention(layer, attention.mixed), attention.inject);
         auto ffn = mix(streams, prefix + "hc_ffn_");
@@ -173,11 +189,12 @@ private:
         return g.finish();
     }
 
-    // Exports all rows of the streams as `name` [B, 1, T, hc * n] and returns the selected rows.
-    GgufValue select_rows(const GgufValue& streams, const GgufValue& out_ids, const std::string& name) {
+    // The rows of the streams selected by out_ids; `name` exports all rows as [B, 1, T, hc * n].
+    GgufValue select_rows(const GgufValue& streams, const GgufValue& out_ids, const std::string& name = {}) {
         const auto all = flat(streams);
-        g.set_output(all, name);
-        return reshape(g.node("GGML_OP_GET_ROWS", {all, out_ids}), {0, -1, hc, n_embd});
+        if (!name.empty())
+            g.set_output(all, name);
+        return reshape(g.node("GGML_OP_GET_ROWS", {all, out_ids}), {0, -1, hc * n_embd});
     }
 
     void build_logits(const GgufValue& streams, const std::string& mixer) {
@@ -190,7 +207,7 @@ private:
 
     struct Mix {
         GgufValue mixed;   // [B, 1, T, n]
-        GgufValue inject;  // [B, 1, T, hc], empty for the output mixer
+        GgufValue inject;  // [B, T, hc], empty for the output mixer
     };
 
     GgufValue reshape(const GgufValue& value, std::vector<int64_t> target) {
@@ -215,31 +232,46 @@ private:
         return g.node("GGML_OP_MUL", {g.node("GGML_OP_RMS_NORM", {value}, 0, {{"eps", eps}}), gain});
     }
 
+    // [B, T, hc * n] <-> [B, T, hc, n]
+    GgufValue split_streams(const GgufValue& streams) {
+        return reshape(streams, {0, -1, hc, n_embd});
+    }
+    GgufValue join_streams(const GgufValue& value) {
+        return reshape(value, {0, -1, hc * n_embd});
+    }
+
     // Hyper-connection read: a data-dependent sigmoid gate on the normalized streams, averaged
-    // into one input, and the per-stream write logits of the block output.
+    // into one input, and the per-stream write logits of the block output. The form is the one the
+    // plugins fuse into GatedResidual: the gain follows the flattened per-stream RMS norm, both 1/hc
+    // scales follow their projections and the streams are summed with one reduction.
     Mix mix(const GgufValue& streams, const std::string& prefix) {
-        const auto normalized = flat(grouped_norm(streams, prefix + "norm.weight"));
+        const auto gain = g.node("GGML_OP_RESHAPE",
+                                 {weights->require(prefix + "norm.weight")},
+                                 6,
+                                 {{"reshape_target", std::vector<int64_t>{hc * n_embd}}, {"special_zero", false}});
+        const auto normalized =
+            g.node("GGML_OP_MUL",
+                   {join_streams(g.node("GGML_OP_RMS_NORM", {split_streams(streams)}, 0, {{"eps", eps}})), gain});
         const float inv = 1.0f / static_cast<float>(hc);
-        GgufValue low, inject;
+        GgufValue down, inject_weight;
         if (weights->has(prefix + "down_inject.weight")) {
-            const auto joint =
-                scale(g.node("GGML_OP_MUL_MAT", {weights->require(prefix + "down_inject.weight"), normalized}), inv);
-            OPENVINO_ASSERT(joint.ne(0) == rank + hc, "[GGUF] unexpected rows of ", prefix, "down_inject.weight");
-            low = slice(joint, 3, 0, rank);
-            inject = slice(joint, 3, rank, hc);
+            const auto joint = weights->require(prefix + "down_inject.weight");
+            OPENVINO_ASSERT(joint.ne(1) == rank + hc, "[GGUF] unexpected rows of ", prefix, "down_inject.weight");
+            down = slice(joint, 0, 0, rank);
+            inject_weight = slice(joint, 0, rank, hc);
         } else {
-            low = scale(g.node("GGML_OP_MUL_MAT", {weights->require(prefix + "down.weight"), normalized}), inv);
+            down = weights->require(prefix + "down.weight");
             if (weights->has(prefix + "inject.weight"))
-                inject =
-                    scale(g.node("GGML_OP_MUL_MAT", {weights->require(prefix + "inject.weight"), normalized}), inv);
+                inject_weight = weights->require(prefix + "inject.weight");
         }
+        GgufValue inject;
+        if (inject_weight)
+            inject = scale(g.node("GGML_OP_MUL_MAT", {inject_weight, normalized}), inv);
+        const auto low = scale(g.node("GGML_OP_MUL_MAT", {down, normalized}), inv);
         const auto gate =
             g.node("GGML_OP_MUL_MAT", {weights->require(prefix + "up.weight"), g.node("GGML_UNARY_OP_SILU", {low})});
-        const auto gated =
-            reshape(g.node("GGML_OP_MUL", {normalized, g.node("GGML_UNARY_OP_SIGMOID", {gate})}), {0, -1, hc, n_embd});
-        auto sum = slice(gated, 2, 0, 1);
-        for (int64_t s = 1; s < hc; ++s)
-            sum = g.node("GGML_OP_ADD", {sum, slice(gated, 2, s, 1)});
+        const auto gated = split_streams(g.node("GGML_OP_MUL", {g.node("GGML_UNARY_OP_SIGMOID", {gate}), normalized}));
+        const auto sum = g.node("GGML_OP_SUM_ROWS", {gated}, 0, {{"axis", int64_t{-2}}, {"keep_dims", false}});
         return {reshape(scale(sum, inv), {0, 1, -1, n_embd}), inject};
     }
 
@@ -248,7 +280,7 @@ private:
         OPENVINO_ASSERT(inject, "[GGUF] qwen4exp blocks require hyper-connection inject weights");
         const auto weight = reshape(scale(g.node("GGML_UNARY_OP_SIGMOID", {inject}), 2.0f), {0, -1, hc, 1});
         const auto written = g.node("GGML_OP_MUL", {reshape(output, {0, -1, 1, n_embd}), weight});
-        return g.node("GGML_OP_ADD", {streams, written});
+        return join_streams(g.node("GGML_OP_ADD", {split_streams(streams), written}));
     }
 
     void read_ngram(const GgufMetadata& m, const std::string& a, int layers) {
@@ -285,6 +317,8 @@ private:
         const int64_t context = ngram.ngram_size - 1;
         const int64_t heads = context * ngram.heads_per_ngram;
         const auto history = g.add_input("ngram_history", i32, {1, context});
+        const int64_t token_limit =
+            std::max(static_cast<int64_t>(weights->require("token_embd.weight").ne(1)), ngram.eos + 1);
         auto hashed = g.node_outputs("GGUF_OP_NGRAM_HASH",
                                      {g.add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, -1})), history},
                                      2,
@@ -295,7 +329,8 @@ private:
                                       {"head_vocab_sizes", ngram.vocab_sizes},
                                       {"head_offsets", ngram.offsets},
                                       {"eos_token_id", ngram.eos},
-                                      {"history_offset", ngram.eos}});
+                                      {"history_offset", ngram.eos},
+                                      {"token_limit", token_limit}});
         g.add_recurrent_state(history, hashed[1]);
         const auto table = weights->require("per_layer_token_embd.weight");
         OPENVINO_ASSERT(table.ne(0) == ngram.head_dim, "[GGUF] n-gram table rows do not match its head dimension");
@@ -351,9 +386,10 @@ private:
         return g.node("GGML_OP_ADD", {streams, added});
     }
 
+    BuildContext context;
     GgufGraphContext g;
-    bool mtp = false;
     bool export_hidden = false;
+    bool draft = false;
     std::unique_ptr<GgufTensors> weights;
     NgramConfig ngram;
     int64_t hc = 0, rank = 0, n_embd = 0;

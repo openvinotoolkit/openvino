@@ -32,10 +32,9 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"GGUF_OP_ATTENTION_KEY_LENGTH", op::translate_attention_key_length},
         {"GGUF_OP_NGRAM_HASH", op::translate_ngram_hash},
-        {"GGUF_OP_QSA_PREPARE", op::translate_qsa_prepare},
+        {"GGUF_OP_QSA_INDEXER", op::translate_qsa_indexer},
         {"GGUF_OP_ROPE_CACHE", op::translate_rope_cache},
         {"GGUF_OP_SPARSE_ATTENTION", op::translate_sparse_attention},
-        {"GGUF_OP_SPARSE_ATTENTION_INDEXER", op::translate_sparse_attention_indexer},
         {"GGML_GLU_OP_GEGLU", op::translate_glu_geglu},
         {"GGML_GLU_OP_GEGLU_QUICK", op::translate_glu_geglu_quick},
         {"GGML_GLU_OP_SWIGLU", op::translate_glu_swiglu},

@@ -21,7 +21,7 @@ namespace {
 constexpr int64_t D = -1;
 
 // Block-sparse attention over head-major K/V states [1, kv_heads, keys, head_size] that grow by
-// concatenation. QSAPrepare keeps the pooled keys of the complete blocks and the incomplete block
+// concatenation. QSAIndexer keeps the pooled keys of the complete blocks and the incomplete block
 // as states, so no index state grows with every token. q/k/v are [1, T, heads, head_size].
 std::string sparse_attention(GraphEmitter& e,
                              const DecoderConfig& cfg,
@@ -64,33 +64,29 @@ std::string sparse_attention(GraphEmitter& e,
     e.add_input(block_keys, f32, ps({1, D, index_dim}));
     e.add_input(pending_keys, f32, ps({1, block - 1, index_dim}));
     e.add_input(pending_rope, f32, ps({1, 2 * rotary}));
-    const auto prepared = e.add_op("GGUF_OP_QSA_PREPARE",
-                                   block_keys + "_out",
-                                   {index_key,
-                                    block_keys,
-                                    "qsa_key_length",
-                                    "qsa_rope_cos",
-                                    "qsa_rope_sin",
-                                    p + "indexer.k_norm.weight",
-                                    pending_keys,
-                                    pending_rope},
-                                   0,
-                                   {{"key_block_size", block}, {"eps", cfg.rms_eps}},
-                                   {pending_keys + "_out", pending_rope + "_out"});
-    for (const auto& state : {block_keys, pending_keys, pending_rope}) {
-        graph.model_output_names.push_back(state + "_out");
-        graph.recurrent_states.emplace_back(state, state + "_out");
-    }
     const auto selected =
-        e.add_op("GGUF_OP_SPARSE_ATTENTION_INDEXER",
+        e.add_op("GGUF_OP_QSA_INDEXER",
                  p + "qsa_blocks",
-                 {index_query, p + "indexer.q_norm.weight", "qsa_rope_cos", "qsa_rope_sin", prepared, "qsa_key_length"},
+                 {index_query,
+                  p + "indexer.q_norm.weight",
+                  index_key,
+                  p + "indexer.k_norm.weight",
+                  "qsa_rope_cos",
+                  "qsa_rope_sin",
+                  "qsa_key_length",
+                  block_keys,
+                  pending_keys,
+                  pending_rope},
                  0,
                  {{"heads", int64_t{sparse.index_heads}},
                   {"key_block_size", block},
                   {"token_budget", int64_t{sparse.token_budget}},
                   {"eps", cfg.rms_eps}},
-                 {p + "qsa_block_count"});
+                 {p + "qsa_block_count", block_keys + "_out", pending_keys + "_out", pending_rope + "_out"});
+    for (const auto& state : {block_keys, pending_keys, pending_rope}) {
+        graph.model_output_names.push_back(state + "_out");
+        graph.recurrent_states.emplace_back(state, state + "_out");
+    }
 
     const int64_t kv_heads = cfg.layer_n_head_kv(il), head_size = cfg.layer_head_size(il);
     std::array<std::string, 2> caches;

@@ -256,6 +256,27 @@ void GgufGraphContext::acknowledge_component() {
     m_impl->emitter.graph()->component = m_impl->build_ctx.component;
 }
 
+void GgufGraphContext::share_weights_from(const GgufGraphContext& target) {
+    m_impl->check_open();
+    target.m_impl->check_open();
+    OPENVINO_ASSERT(m_impl->emitter.graph()->nodes.empty(), "[GGUF] share weights before emitting nodes");
+    m_impl->emitter.share_weights_from(target.m_impl->emitter);
+}
+
+void GgufGraphContext::set_mtp_draft(const std::shared_ptr<GgufGraph>& draft) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(draft && draft != m_impl->emitter.graph(), "[GGUF] invalid MTP draft graph");
+    OPENVINO_ASSERT(!m_impl->emitter.graph()->model_rt_info.count("gguf_mtp_draft_only"),
+                    "[GGUF] a draft-only graph cannot carry another draft");
+    m_impl->emitter.graph()->mtp_draft = draft;
+}
+
+void GgufGraphContext::mark_mtp_draft_only() {
+    m_impl->check_open();
+    OPENVINO_ASSERT(!m_impl->emitter.graph()->mtp_draft, "[GGUF] a draft-only graph cannot carry another draft");
+    m_impl->emitter.graph()->model_rt_info["gguf_mtp_draft_only"] = true;
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
@@ -294,7 +315,13 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
         available.insert(entry.first);
     for (const auto& node : graph->nodes) {
         for (const auto& input : node.input_names) {
-            OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
+            // Weights shared from an MTP target have no leaf node in this graph.
+            OPENVINO_ASSERT(available.count(input) || m_impl->emitter.weight_emitted(input),
+                            "[GGUF] node '",
+                            node.name,
+                            "' uses unknown value '",
+                            input,
+                            "'");
         }
         available.insert(node.output_name);
         available.insert(node.extra_output_names.begin(), node.extra_output_names.end());

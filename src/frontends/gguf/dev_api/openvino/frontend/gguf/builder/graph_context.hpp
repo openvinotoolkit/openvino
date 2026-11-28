@@ -85,6 +85,13 @@ public:
     void set_output(const GgufValue& value, const std::string& name);
     // Acknowledge that this builder handles the component selected in BuildContext.
     void acknowledge_component();
+    // MTP drafts. A draft context reuses the weight leaves `target` has emitted; `target` must stay
+    // open until the draft is finished. The finished draft is attached to the target graph, which
+    // the "mtp" component converts into one model that adapt_to_genai splits. A file that holds
+    // only the draft declares it with mark_mtp_draft_only().
+    void share_weights_from(const GgufGraphContext& target);
+    void set_mtp_draft(const std::shared_ptr<GgufGraph>& draft);
+    void mark_mtp_draft_only();
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.

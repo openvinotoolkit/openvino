@@ -13,16 +13,12 @@
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/qsa_prepare.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/sparse_attention.hpp"
-#include "openvino/op/sparse_attention_indexer.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/core.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
-#include "transformations/common_optimizations/rms_fusion.hpp"
 
 using namespace ov_gguf_test;
 
@@ -78,7 +74,12 @@ TEST(GGUFSparseAttentionOps, NgramHashMatchesUint64Reference) {
                      .attr("head_offsets", offsets)
                      .attr("eos_token_id", eos)
                      .attr("history_offset", eos)
+                     .attr("token_limit", int64_t{248320})
                      .build();
+    const auto hash = find_op<ov::op::internal::NGramHashFunction>(model);
+    ASSERT_TRUE(hash);
+    EXPECT_EQ(hash->get_heads_per_order(), (std::vector<int64_t>{2, 2}));
+    EXPECT_EQ(hash->get_multipliers(), multipliers);
     ov::Tensor ids_tensor(ov::element::i32, {1, 1, batch, tokens});
     std::copy(ids.begin(), ids.end(), ids_tensor.data<int32_t>());
     ov::Tensor history_tensor(ov::element::i32, {batch, context});
@@ -115,6 +116,31 @@ TEST(GGUFSparseAttentionOps, NgramHashMatchesUint64Reference) {
         }
         for (size_t c = 0; c < context; ++c)
             EXPECT_EQ(outputs[1].data<int32_t>()[b * context + c], sequence[tokens + c] - eos);
+    }
+}
+
+// NGramHashFunction takes a signed modulo of the 64-bit mix, which equals the unsigned one only
+// while every token product stays below 2^63.
+TEST(GGUFSparseAttentionOps, NgramHashRejectsProductsThatReachTheSignBit) {
+    for (const int64_t limit : {int64_t{1} << 20, int64_t{1} << 31}) {
+        SCOPED_TRACE("token_limit=" + std::to_string(limit));
+        auto builder = SingleOpBuilder()
+                           .op("GGUF_OP_NGRAM_HASH")
+                           .input("tokens", ov::element::i32, {1, 1, -1, -1})
+                           .input("history", ov::element::i32, {-1, 1})
+                           .output("rows", ov::element::i32, {1, 1, -1, -1})
+                           .extra_output("new_history")
+                           .attr("ngram_size", int64_t{2})
+                           .attr("heads_per_ngram", int64_t{1})
+                           .attr("multipliers", std::vector<int64_t>{int64_t{1} << 42, 3})
+                           .attr("head_vocab_sizes", std::vector<int64_t>{1009})
+                           .attr("head_offsets", std::vector<int64_t>{0})
+                           .attr("eos_token_id", int64_t{2})
+                           .attr("token_limit", limit);
+        if (limit < (int64_t{1} << 21))
+            EXPECT_NO_THROW(builder.build());
+        else
+            EXPECT_THROW(builder.build(), ov::Exception);
     }
 }
 
@@ -169,69 +195,96 @@ TEST(GGUFSparseAttentionOps, RopeCacheProducesRotateHalfImropeTables) {
     }
 }
 
-TEST(GGUFSparseAttentionOps, QsaPrepareCarriesBlockAttributes) {
+// QSAIndexer is emitted directly, with the index query norm and partial RoPE inside it, and grows
+// the block-key cache to the complete blocks of the longest row.
+TEST(GGUFSparseAttentionOps, QsaIndexerAppliesQueryNormAndRopeAndGrowsTheBlockCache) {
+    using Indexer = ov::op::internal::QSAIndexer;
+    const int64_t heads = 2, head_dim = 12, rotary = 8, block = 4;
     auto model = SingleOpBuilder()
-                     .op("GGUF_OP_QSA_PREPARE")
-                     .input("keys", ov::element::f32, {1, 1, -1, 8})
-                     .input("blocks", ov::element::f32, {1, -1, 8})
+                     .op("GGUF_OP_QSA_INDEXER")
+                     .input("query", ov::element::f32, {1, 1, -1, heads * head_dim})
+                     .input("q_norm", ov::element::f32, {1, 1, 1, head_dim})
+                     .input("keys", ov::element::f32, {1, 1, -1, head_dim})
+                     .input("k_norm", ov::element::f32, {1, 1, 1, head_dim})
+                     .input("cos", ov::element::f32, {1, -1, rotary})
+                     .input("sin", ov::element::f32, {1, -1, rotary})
                      .input("length", ov::element::i32, {1})
-                     .input("cos", ov::element::f32, {1, -1, 4})
-                     .input("sin", ov::element::f32, {1, -1, 4})
-                     .input("norm", ov::element::f32, {1, 1, 1, 8})
-                     .input("pending", ov::element::f32, {1, 3, 8})
-                     .input("pending_rope", ov::element::f32, {1, 8})
-                     .output("blocks_out", ov::element::f32, {1, -1, 8})
+                     .input("blocks", ov::element::f32, {1, -1, head_dim})
+                     .input("pending", ov::element::f32, {1, block - 1, head_dim})
+                     .input("pending_rope", ov::element::f32, {1, 2 * rotary})
+                     .output("indices", ov::element::i32, {1, 1, -1, 2})
+                     .extra_output("count")
+                     .extra_output("blocks_out")
                      .extra_output("pending_out")
                      .extra_output("pending_rope_out")
-                     .attr("key_block_size", int64_t{4})
-                     .attr("eps", 1e-5f)
+                     .attr("heads", heads)
+                     .attr("key_block_size", block)
+                     .attr("token_budget", int64_t{8})
+                     .attr("eps", 1e-6f)
                      .build();
-    const auto prepare = find_op<ov::op::v17::QSAPrepare>(model);
-    ASSERT_TRUE(prepare);
-    EXPECT_EQ(prepare->get_key_block_size(), 4);
-    EXPECT_FLOAT_EQ(prepare->get_epsilon(), 1e-5f);
-    EXPECT_EQ(prepare->get_input_partial_shape(0), (ov::PartialShape{1, -1, 8}));
-    EXPECT_EQ(prepare->get_input_partial_shape(5), (ov::PartialShape{8}));
-    EXPECT_EQ(model->get_output_size(), 3);
-}
+    const auto indexer = find_op<Indexer>(model);
+    ASSERT_TRUE(indexer);
+    const auto& config = indexer->get_config();
+    EXPECT_TRUE(config.query_norm);
+    EXPECT_TRUE(config.query_rope);
+    EXPECT_EQ(config.key_block_size, 4u);
+    EXPECT_EQ(config.block_topk, 2u);
+    EXPECT_EQ(config.num_selection_heads, 1u);
+    EXPECT_EQ(config.indexer_rotary_dim, 8u);
+    EXPECT_EQ(config.indexer_head_dim, 12u);
+    EXPECT_FLOAT_EQ(config.scale, 1.0f / std::sqrt(12.0f));
+    EXPECT_EQ(indexer->get_input_partial_shape(Indexer::InputIdx::INDEX_QUERY), (ov::PartialShape{1, -1, 2, 12}));
+    EXPECT_EQ(indexer->get_input_partial_shape(Indexer::InputIdx::RAW_INDEX_KEYS), (ov::PartialShape{1, -1, 1, 12}));
+    EXPECT_EQ(indexer->get_input_partial_shape(Indexer::InputIdx::Q_NORM_WEIGHT), (ov::PartialShape{12}));
+    EXPECT_EQ(model->get_output_size(), 5u);
+    EXPECT_EQ(model->output(3).get_partial_shape(), (ov::PartialShape{1, 3, 12}));
+    for (const auto& node : model->get_ops())
+        EXPECT_FALSE(ov::is_type<ov::op::internal::RMS>(node) || ov::is_type<ov::op::internal::RoPE>(node));
 
-// The index query must keep the RMSNorm -> Transpose -> rotate-half RoPE form that fused
-// indexers match, rotating with Unsqueeze(axis 1) of the very tables QSAPrepare takes.
-TEST(GGUFSparseAttentionOps, IndexerQueryFusesIntoRmsAndSharedTableRope) {
-    for (const int64_t head_dim : {int64_t{8}, int64_t{12}}) {
-        SCOPED_TRACE("head_dim=" + std::to_string(head_dim));
-        auto model = SingleOpBuilder()
-                         .op("GGUF_OP_SPARSE_ATTENTION_INDEXER")
-                         .input("query", ov::element::f32, {1, 1, -1, 2 * head_dim})
-                         .input("norm", ov::element::f32, {1, 1, 1, head_dim})
-                         .input("cos", ov::element::f32, {1, -1, 8})
-                         .input("sin", ov::element::f32, {1, -1, 8})
-                         .input("blocks", ov::element::f32, {1, -1, head_dim})
-                         .input("length", ov::element::i32, {1})
-                         .output("indices", ov::element::i32, {1, 1, -1, 2})
-                         .extra_output("count")
-                         .attr("heads", int64_t{2})
-                         .attr("key_block_size", int64_t{4})
-                         .attr("token_budget", int64_t{8})
-                         .attr("eps", 1e-6f)
-                         .build();
-        auto indexer = find_op<ov::op::v17::SparseAttentionIndexer>(model);
-        ASSERT_TRUE(indexer);
-        EXPECT_EQ(indexer->get_key_block_size(), 4);
-        EXPECT_EQ(indexer->get_token_budget(), 8);
-        EXPECT_EQ(indexer->get_input_partial_shape(0), (ov::PartialShape{1, 2, -1, head_dim}));
-
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::RMSFusion>(false, true);
-        manager.register_pass<ov::pass::RoPEFusion>(true);
-        manager.run_passes(model);
-        const auto rope = find_op<ov::op::internal::RoPE>(model);
-        ASSERT_TRUE(rope);
-        EXPECT_EQ(rope->get_config().rotary_ndims, 8u);
-        const auto cos = ov::as_type_ptr<ov::op::v0::Unsqueeze>(rope->get_input_node_shared_ptr(1));
-        ASSERT_TRUE(cos);
-        EXPECT_EQ(cos->get_input_node_shared_ptr(0)->get_friendly_name(), "cos");
-        EXPECT_TRUE(find_op<ov::op::internal::RMS>(model));
+    const auto filled = [](const ov::Shape& shape, float scale) {
+        ov::Tensor t(ov::element::f32, shape);
+        for (size_t i = 0; i < t.get_size(); ++i)
+            t.data<float>()[i] = std::sin(scale * static_cast<float>(i + 1));
+        return t;
+    };
+    const auto length = [](int32_t value) {
+        ov::Tensor t(ov::element::i32, {1});
+        t.data<int32_t>()[0] = value;
+        return t;
+    };
+    // Prefill of 6 tokens into empty states, then 4 more tokens.
+    std::map<std::string, ov::Tensor> inputs{{"q_norm", filled({1, 1, 1, 12}, 0.3f)},
+                                             {"k_norm", filled({1, 1, 1, 12}, 0.7f)},
+                                             {"blocks", ov::Tensor(ov::element::f32, {1, 0, 12})},
+                                             {"pending", ov::Tensor(ov::element::f32, {1, 3, 12})},
+                                             {"pending_rope", ov::Tensor(ov::element::f32, {1, 16})}};
+    std::memset(inputs["pending"].data(), 0, inputs["pending"].get_byte_size());
+    std::memset(inputs["pending_rope"].data(), 0, inputs["pending_rope"].get_byte_size());
+    for (const auto& [tokens, total] : {std::pair<size_t, int32_t>{6, 6}, std::pair<size_t, int32_t>{4, 10}}) {
+        SCOPED_TRACE("key_length=" + std::to_string(total));
+        inputs["query"] = filled({1, 1, tokens, 24}, 1.1f + total);
+        inputs["keys"] = filled({1, 1, tokens, 12}, 0.9f + total);
+        inputs["cos"] = filled({1, tokens, 8}, 0.2f + total);
+        inputs["sin"] = filled({1, tokens, 8}, 0.4f + total);
+        inputs["length"] = length(total);
+        const auto outputs = run_all(model, inputs);
+        ASSERT_EQ(outputs[0].get_shape(), (ov::Shape{1, 1, tokens, 2}));
+        ASSERT_EQ(outputs[1].get_shape(), (ov::Shape{1, 1, tokens}));
+        EXPECT_EQ(outputs[2].get_shape(), (ov::Shape{1, static_cast<size_t>(total / block), 12}));
+        EXPECT_EQ(outputs[3].get_shape(), (ov::Shape{1, 3, 12}));
+        EXPECT_EQ(outputs[4].get_shape(), (ov::Shape{1, 16}));
+        for (size_t t = 0; t < tokens; ++t) {
+            const auto count = outputs[1].data<int32_t>()[t];
+            EXPECT_GE(count, 0);
+            EXPECT_LE(count, 2);
+        }
+        for (size_t i = 0; i < outputs[2].get_size(); ++i)
+            ASSERT_TRUE(std::isfinite(outputs[2].data<float>()[i]));
+        for (const auto& [name, output] :
+             {std::pair{"blocks", 2}, std::pair{"pending", 3}, std::pair{"pending_rope", 4}}) {
+            inputs[name] = ov::Tensor(outputs[output].get_element_type(), outputs[output].get_shape());
+            outputs[output].copy_to(inputs[name]);
+        }
     }
 }
 

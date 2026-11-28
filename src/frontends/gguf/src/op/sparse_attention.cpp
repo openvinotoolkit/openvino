@@ -1,10 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Frontend operations for block-sparse attention (QSAPrepare, SparseAttentionIndexer,
-// SparseAttention) and for hashed n-gram embedding rows. They have no ggml counterpart: a native
-// builder emits them with explicit parameters. Activations use the builder layout, where a
-// [width, tokens] ggml value is the OpenVINO [batch, 1, tokens, width].
+// Frontend operations for block-sparse attention (QSAIndexer, SparseAttention) and for hashed n-gram embedding rows.
+// They have no ggml counterpart: a native builder emits them with explicit parameters. Activations use the builder
+// layout, where a [width, tokens] ggml value is the OpenVINO [batch, 1, tokens, width].
 
 #include "openvino/op/sparse_attention.hpp"
 
@@ -16,32 +15,27 @@
 
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_right_shift.hpp"
-#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/logical_and.hpp"
-#include "openvino/op/multiply.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/not_equal.hpp"
-#include "openvino/op/qsa_prepare.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/sparse_attention_indexer.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -111,81 +105,81 @@ OutputVector translate_attention_key_length(const NodeContext& context) {
     return rename_outputs_with_suffix({count}, context.get_name());
 }
 
-// QSAPrepare(raw_index_keys, past_block_index_keys, key_length, cos, sin, k_norm_weight,
-//            past_incomplete_raw_keys, past_incomplete_rope).
-// raw_index_keys is [batch, 1, tokens, Di]; the states use the operation layout.
-OutputVector translate_qsa_prepare(const NodeContext& context) {
-    num_inputs_check(context, 8, 8);
-    const auto block = context.get_attribute<int64_t>("key_block_size");
-    const auto eps = context.get_attribute<float>("eps");
-    const int64_t width = static_last_dim(context, 0, "QSAPrepare raw index keys");
-    auto raw = token_rows(context.get_input(0), width);
-    const auto type = raw.get_element_type();
-    auto prepare = std::make_shared<v17::QSAPrepare>(ov::OutputVector{raw,
-                                                                      as_type(context.get_input(1), type),
-                                                                      context.get_input(2),
-                                                                      as_type(context.get_input(3), type),
-                                                                      as_type(context.get_input(4), type),
-                                                                      flat_vector(context.get_input(5), type),
-                                                                      as_type(context.get_input(6), type),
-                                                                      as_type(context.get_input(7), type)},
-                                                     block,
-                                                     eps);
-    return rename_outputs_with_suffix(prepare->outputs(), context.get_name());
-}
-
-// SparseAttentionIndexer over an index query projection [batch, 1, tokens, heads * Di] that is
-// RMS-normalized per head and rotated with rotate-half RoPE on its first n_dims channels.
-// The query rotates with Unsqueeze(axis 1) of the tables given to QSAPrepare, the form fused
-// indexers recognize as a shared rotation.
-// Inputs: index query, q_norm_weight, cos, sin, block_index_keys, key_length.
-OutputVector translate_sparse_attention_indexer(const NodeContext& context) {
-    num_inputs_check(context, 6, 6);
+// QSAIndexer: block selection for Qwen Sparse Attention with the index query RMSNorm and rotate-half
+// RoPE (first n_dims channels) applied inside the operation. It takes the block-key cache as is and
+// returns it grown to the complete blocks of the longest row.
+// Inputs: index query [batch, 1, tokens, heads * Di], q_norm_weight, raw index keys [batch, 1, tokens, Di],
+// k_norm_weight, cos, sin [batch or 1, tokens, n_dims], key_length [batch], and the states
+// block keys [batch, blocks, Di], incomplete raw keys [batch, block - 1, Di], incomplete RoPE row
+// [batch, 2 * n_dims]. Outputs: block indices, block count and the updated states.
+OutputVector translate_qsa_indexer(const NodeContext& context) {
+    num_inputs_check(context, 10, 10);
+    using Indexer = ov::op::internal::QSAIndexer;
     const auto heads = context.get_attribute<int64_t>("heads");
     const auto block = context.get_attribute<int64_t>("key_block_size");
     const auto budget = context.get_attribute<int64_t>("token_budget");
     const auto eps = context.get_attribute<float>("eps");
-    const int64_t width = static_last_dim(context, 0, "Sparse attention index query");
-    FRONT_END_OP_CONVERSION_CHECK(heads > 0 && width % heads == 0, "Index query width must split into heads");
-    const int64_t head_dim = width / heads;
-    const int64_t rotary = static_last_dim(context, 2, "Sparse attention index RoPE table");
+    const int64_t width = static_last_dim(context, 0, "QSA index query");
+    const int64_t head_dim = static_last_dim(context, 2, "QSA raw index keys");
+    const int64_t rotary = static_last_dim(context, 4, "QSA index RoPE table");
+    FRONT_END_OP_CONVERSION_CHECK(heads > 0 && width == heads * head_dim,
+                                  "QSA index query width must split into heads");
     FRONT_END_OP_CONVERSION_CHECK(rotary > 0 && rotary % 2 == 0 && rotary <= head_dim,
-                                  "Index RoPE width must be even and within the head");
+                                  "QSA index RoPE width must be even and within the head");
+    FRONT_END_OP_CONVERSION_CHECK(block > 0 && budget > 0 && budget % block == 0,
+                                  "QSA token budget must be a positive multiple of the key block size");
 
-    auto query = std::make_shared<v1::Reshape>(context.get_input(0), i64s({0, -1, heads, head_dim}), true);
-    const auto type = query->get_output_element_type(0);
-    ov::pass::NodeRegistry registry;
-    auto normalized = ov::decomposition::rms_norm(registry,
-                                                  query,
-                                                  i64s({-1}),
-                                                  v0::Constant::create(type, {}, {eps}),
-                                                  flat_vector(context.get_input(1), type));
-    ov::Output<ov::Node> x = std::make_shared<v1::Transpose>(normalized, i64s({0, 2, 1, 3}));
+    auto raw_keys = std::make_shared<v1::Reshape>(context.get_input(2), i64s({0, -1, 1, head_dim}), true);
+    const auto type = raw_keys->get_output_element_type(0);
+    auto query =
+        std::make_shared<v1::Reshape>(as_type(context.get_input(0), type), i64s({0, -1, heads, head_dim}), true);
+    // The operation takes cos / sin per row; the shared tables may have a single row.
+    auto rows_shape = std::make_shared<v0::Concat>(
+        ov::OutputVector{std::make_shared<v8::Slice>(std::make_shared<v3::ShapeOf>(raw_keys, ov::element::i64),
+                                                     i64s({0}),
+                                                     i64s({2}),
+                                                     i64s({1})),
+                         i64s({rotary})},
+        0);
+    const auto per_row = [&](const ov::Output<ov::Node>& rows) -> ov::Output<ov::Node> {
+        return std::make_shared<v3::Broadcast>(as_type(rows, type), rows_shape);
+    };
+    const auto with_head = [&](const ov::Output<ov::Node>& state) -> ov::Output<ov::Node> {
+        return std::make_shared<v0::Unsqueeze>(as_type(state, type), i64s({1}));
+    };
 
-    auto cos = std::make_shared<v0::Unsqueeze>(as_type(context.get_input(2), type), i64s({1}));
-    auto sin = std::make_shared<v0::Unsqueeze>(as_type(context.get_input(3), type), i64s({1}));
-    // Split on the explicit last axis: the RoPE fusions match this form before constant normalization.
-    auto last_axis = v0::Constant::create(ov::element::i64, {}, {3});
-    ov::Output<ov::Node> rotated = x, passed;
-    if (rotary < head_dim) {
-        auto split = std::make_shared<v1::VariadicSplit>(x, last_axis, i64s({rotary, head_dim - rotary}));
-        rotated = split->output(0);
-        passed = split->output(1);
-    }
-    auto halves = std::make_shared<v1::VariadicSplit>(rotated, last_axis, i64s({rotary / 2, rotary / 2}));
-    auto negated = std::make_shared<v1::Multiply>(halves->output(1), v0::Constant::create(type, {}, {-1.0f}));
-    auto rotate_half = std::make_shared<v0::Concat>(ov::OutputVector{negated, halves->output(0)}, -1);
-    ov::Output<ov::Node> roped = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(rotated, cos),
-                                                           std::make_shared<v1::Multiply>(rotate_half, sin));
-    if (passed.get_node())
-        roped = std::make_shared<v0::Concat>(ov::OutputVector{roped, passed}, -1);
+    Indexer::Config config;
+    config.key_block_size = static_cast<size_t>(block);
+    config.block_topk = static_cast<size_t>(budget / block);
+    config.num_selection_heads = 1;
+    config.indexer_rotary_dim = static_cast<size_t>(rotary);
+    config.indexer_head_dim = static_cast<size_t>(head_dim);
+    config.epsilon = eps;
+    config.scale = Indexer::effective_scale(config);
+    config.query_norm = true;
+    config.query_rope = true;
+    ov::OutputVector inputs(Indexer::InputIdx::COUNT);
+    inputs[Indexer::InputIdx::INDEX_QUERY] = query;
+    inputs[Indexer::InputIdx::RAW_INDEX_KEYS] = raw_keys;
+    inputs[Indexer::InputIdx::ROPE_COS] = per_row(context.get_input(4));
+    inputs[Indexer::InputIdx::ROPE_SIN] = per_row(context.get_input(5));
+    inputs[Indexer::InputIdx::KEY_LENGTH] = as_type(context.get_input(6), ov::element::i32);
+    inputs[Indexer::InputIdx::Q_NORM_WEIGHT] = flat_vector(context.get_input(1), type);
+    inputs[Indexer::InputIdx::K_NORM_WEIGHT] = flat_vector(context.get_input(3), type);
+    inputs[Indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] = with_head(context.get_input(7));
+    inputs[Indexer::InputIdx::PAST_INCOMPLETE_RAW_K] = with_head(context.get_input(8));
+    inputs[Indexer::InputIdx::PAST_INCOMPLETE_ROPE] = as_type(context.get_input(9), type);
+    auto indexer = std::make_shared<Indexer>(inputs, config);
 
-    auto indexer = std::make_shared<v17::SparseAttentionIndexer>(roped,
-                                                                 as_type(context.get_input(4), type),
-                                                                 context.get_input(5),
-                                                                 block,
-                                                                 budget);
-    return rename_outputs_with_suffix(indexer->outputs(), context.get_name());
+    const auto without_head = [&](size_t output) -> ov::Output<ov::Node> {
+        return std::make_shared<v0::Squeeze>(indexer->output(output), i64s({1}));
+    };
+    return rename_outputs_with_suffix({indexer->output(Indexer::OutputIdx::SELECTED_BLOCK_INDICES),
+                                       indexer->output(Indexer::OutputIdx::SELECTED_BLOCK_COUNT),
+                                       without_head(Indexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE),
+                                       without_head(Indexer::OutputIdx::PAST_INCOMPLETE_RAW_K),
+                                       indexer->output(Indexer::OutputIdx::PAST_INCOMPLETE_ROPE)},
+                                      context.get_name());
 }
 
 // SparseAttention(query [batch, tokens, heads, E], key [batch, kv_heads, keys, E],
@@ -218,12 +212,11 @@ OutputVector translate_sparse_attention(const NodeContext& context) {
 // Hashed n-gram rows: for the order-n context of every token (the token and its n-1
 // predecessors, EOS before the sequence start and across an EOS),
 //   row[h] = (XOR_k back(k) * multipliers[k]) % head_vocab_sizes[h] + head_offsets[h]
-// with exact unsigned 64-bit products. Inputs: tokens [.., batch, tokens] and the history of the
+// with unsigned 64-bit products. Inputs: tokens [.., batch, tokens] and the history of the
 // previous n-1 tokens [batch, n-1], stored as token - "history_offset" so a zero state is all EOS.
 // Outputs: rows [1, 1, batch, tokens * heads] (head fastest) and the updated history.
-// Plugins run i64 arithmetic in i32 and i32 division through f32, so the hash uses only exact i32
-// operations: little-endian limbs, limb-wise products with carries, limb-wise XOR and Horner
-// remainders with conditional subtractions.
+// NGramHashFunction keeps the 64-bit arithmetic inside the operation; its signed floor modulo equals
+// the unsigned one because every product of a token below "token_limit" stays below 2^63.
 OutputVector translate_ngram_hash(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     const auto ngram = context.get_attribute<int64_t>("ngram_size");
@@ -238,39 +231,23 @@ OutputVector translate_ngram_hash(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(ngram >= 2 && per_ngram > 0 && multipliers.size() >= static_cast<size_t>(ngram) &&
                                       vocab_sizes.size() >= heads && offsets.size() >= heads,
                                   "Invalid n-gram hash configuration");
-    int64_t max_vocab = 0;
+    const auto token_limit = context.get_attribute<int64_t>("token_limit");
+    FRONT_END_OP_CONVERSION_CHECK(eos >= 0 && eos < token_limit && token_limit <= (int64_t{1} << 31),
+                                  "N-gram tokens and EOS must be non-negative int32 values below token_limit");
     for (size_t h = 0; h < heads; ++h) {
-        FRONT_END_OP_CONVERSION_CHECK(vocab_sizes[h] > 0 && vocab_sizes[h] < (int64_t{1} << 30) && offsets[h] >= 0 &&
-                                          offsets[h] + vocab_sizes[h] < (int64_t{1} << 31),
-                                      "N-gram head ranges must fit int32 rows");
-        max_vocab = std::max(max_vocab, vocab_sizes[h]);
+        FRONT_END_OP_CONVERSION_CHECK(
+            vocab_sizes[h] > 0 && offsets[h] >= 0 && offsets[h] + vocab_sizes[h] <= (int64_t{1} << 31),
+            "N-gram head ranges must fit int32 rows");
     }
-    FRONT_END_OP_CONVERSION_CHECK(eos >= 0 && eos < (int64_t{1} << 31), "N-gram EOS must be a non-negative int32");
-    int bits = 0;
-    while ((int64_t{1} << bits) <= max_vocab)
-        ++bits;
-    const int limb_bits = std::min(11, 31 - bits);
-    FRONT_END_OP_CONVERSION_CHECK(limb_bits > 0, "N-gram head vocabulary is too large");
-    const int64_t limb_base = int64_t{1} << limb_bits;
-    const int limbs = (64 + limb_bits - 1) / limb_bits;
-    const int token_limbs = (31 + limb_bits - 1) / limb_bits;
+    for (int64_t k = 0; k < ngram; ++k) {
+        const auto multiplier = static_cast<uint64_t>(multipliers[k]);
+        FRONT_END_OP_CONVERSION_CHECK(
+            multiplier < (uint64_t{1} << 63) &&
+                (multiplier == 0 || static_cast<uint64_t>(token_limit - 1) <= ((uint64_t{1} << 63) - 1) / multiplier),
+            "N-gram hash products must stay below 2^63");
+    }
     const auto i32 = [](int64_t value) {
         return v0::Constant::create(ov::element::i32, {}, {value});
-    };
-    const auto low = [&](const ov::Output<ov::Node>& x) -> ov::Output<ov::Node> {
-        return std::make_shared<v13::BitwiseAnd>(x, i32(limb_base - 1));
-    };
-    const auto high = [&](const ov::Output<ov::Node>& x, int64_t shift) -> ov::Output<ov::Node> {
-        return std::make_shared<v15::BitwiseRightShift>(x, i32(shift));
-    };
-    const auto reduce_mod = [&](ov::Output<ov::Node> x, int64_t modulus) {
-        for (int j = limb_bits - 1; j >= 0; --j) {
-            auto step = i32(modulus << j);
-            auto diff = std::make_shared<v1::Subtract>(x, step);
-            auto negative = high(diff, 31);
-            x = std::make_shared<v1::Add>(diff, std::make_shared<v13::BitwiseAnd>(step, negative));
-        }
-        return x;
     };
 
     auto tokens_in = as_type(context.get_input(0), ov::element::i32);
@@ -299,52 +276,16 @@ OutputVector translate_ngram_hash(const NodeContext& context) {
         auto not_eos = std::make_shared<v1::NotEqual>(token, eos_c);
         valid = valid.get_node() ? std::make_shared<v1::LogicalAnd>(valid, not_eos)->output(0) : not_eos->output(0);
     }
-    const auto product_limbs = [&](const ov::Output<ov::Node>& token, uint64_t multiplier) {
-        std::vector<ov::Output<ov::Node>> token_parts;
-        for (int j = 0; j < token_limbs; ++j)
-            token_parts.push_back(low(j ? high(token, limb_bits * j) : token));
-        std::vector<ov::Output<ov::Node>> result;
-        ov::Output<ov::Node> carry;
-        for (int c = 0; c < limbs; ++c) {
-            ov::Output<ov::Node> column = carry;
-            for (int j = 0; j <= std::min(c, token_limbs - 1); ++j) {
-                if (limb_bits * (c - j) >= 64)
-                    continue;
-                const auto part = static_cast<int64_t>((multiplier >> (limb_bits * (c - j))) & (limb_base - 1));
-                if (part == 0)
-                    continue;
-                ov::Output<ov::Node> term = std::make_shared<v1::Multiply>(token_parts[j], i32(part));
-                column = column.get_node() ? std::make_shared<v1::Add>(column, term)->output(0) : term;
-            }
-            if (!column.get_node())
-                column = std::make_shared<v1::Multiply>(token, i32(0));
-            result.push_back(low(column));
-            carry = high(column, limb_bits);
-        }
-        return result;
-    };
-    ov::OutputVector rows;
-    auto mix = product_limbs(back[0], static_cast<uint64_t>(multipliers[0]));
-    for (int64_t order = 2; order <= ngram; ++order) {
-        auto term = product_limbs(back[order - 1], static_cast<uint64_t>(multipliers[order - 1]));
-        for (size_t i = 0; i < mix.size(); ++i)
-            mix[i] = std::make_shared<v13::BitwiseXor>(mix[i], term[i]);
-        for (int64_t e = 0; e < per_ngram; ++e) {
-            const auto head = static_cast<size_t>((order - 2) * per_ngram + e);
-            ov::Output<ov::Node> remainder;
-            for (auto it = mix.rbegin(); it != mix.rend(); ++it) {
-                remainder =
-                    remainder.get_node()
-                        ? std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(remainder, i32(limb_base)), *it)
-                              ->output(0)
-                        : *it;
-                remainder = reduce_mod(remainder, vocab_sizes[head]);
-            }
-            auto row = std::make_shared<v1::Add>(remainder, i32(offsets[head]));
-            rows.push_back(std::make_shared<v0::Unsqueeze>(row, i64s({-1})));
-        }
-    }
-    auto row_ids = std::make_shared<v0::Concat>(rows, -1);
+    // Windows [batch, tokens, n], oldest first.
+    ov::OutputVector window;
+    for (int64_t k = context_tokens; k >= 0; --k)
+        window.push_back(std::make_shared<v0::Unsqueeze>(back[k], i64s({-1})));
+    auto row_ids = std::make_shared<ov::op::internal::NGramHashFunction>(
+        std::make_shared<v0::Concat>(window, -1),
+        std::vector<int64_t>(static_cast<size_t>(context_tokens), per_ngram),
+        std::vector<int64_t>(multipliers.begin(), multipliers.begin() + ngram),
+        std::vector<int64_t>(vocab_sizes.begin(), vocab_sizes.begin() + heads),
+        std::vector<int64_t>(offsets.begin(), offsets.begin() + heads));
     auto batch = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(tokens, ov::element::i64),
                                               i64s({0}),
                                               v0::Constant::create(ov::element::i64, {}, {0}));

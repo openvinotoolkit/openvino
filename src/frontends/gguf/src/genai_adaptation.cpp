@@ -76,6 +76,11 @@ ModelMap adapt_decoder(const std::shared_ptr<ov::Model>& model, const GenAIAdapt
         models.emplace("mtp_draft", draft.at("language"));
         return models;
     }
+    if (model->has_rt_info("gguf_mtp_draft_only")) {
+        // An MTP head stored without its target converts to the draft alone.
+        model->get_rt_info().erase("gguf_mtp_draft_only");
+        return {{"mtp_draft", adapt_decoder(model, options).at("language")}};
+    }
     if (!find_parameter(model, "beam_idx")) {
         auto live = std::make_shared<std::unordered_set<const ov::Node*>>();
         pass::SnapshotLiveParameters(live).run_on_model(model);

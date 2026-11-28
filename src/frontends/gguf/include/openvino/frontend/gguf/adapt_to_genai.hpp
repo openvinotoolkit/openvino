@@ -109,7 +109,8 @@ struct GenAIAdaptOptions {
 /// "language" and, for either embedding mode, "text_embeddings" plus "text_embeddings_per_layer"
 /// when the architecture has per-layer token embeddings.
 /// A decoder loaded with LoadOptions::include_mtp_draft also returns "mtp_draft" when
-/// the file contains a supported NextN block. The returned models share weight buffers.
+/// the file contains a supported NextN block. A file that holds only an MTP head returns
+/// "mtp_draft" alone. The returned models share weight buffers.
 ///
 /// An mmproj returns one entry per encoder:
 ///  - "vision_embeddings" with the GenAI vision encoder inputs, plus "vision_embeddings_pos" and

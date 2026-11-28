@@ -59,7 +59,7 @@ The default decoder graph mirrors the llama.cpp backend interface:
 | `cache_k_*`, `cache_v_*`, recurrent states | Previous cache/state, returned as matching outputs |
 
 `qwen4exp` declares all of its caches as recurrent states: head-major `qsa_cache_k_l*` /
-`qsa_cache_v_l*` `[1,kv_heads,keys,head]` grown by concatenation, the QSAPrepare states
+`qsa_cache_v_l*` `[1,kv_heads,keys,head]` grown by concatenation, the QSAIndexer states
 `qsa_block_keys_l*` (one pooled key per complete block), `qsa_pending_keys_l*` and
 `qsa_pending_rope_l*`, the n-gram convolution `ple_conv_state_l*` and `ngram_history`, the previous
 `ngram_size - 1` tokens stored relative to the n-gram EOS token so that zero starts a sequence. A
@@ -175,31 +175,34 @@ draft KV-head count is omitted, it is inferred from the NextN key projection.
 The frontend supplies graphs, not a sampler. A consumer must connect the target and draft
 models to its MTP strategy (llama.cpp calls its equivalent option `--spec-type draft-mtp`).
 
-Drafts are built only for the families accepted by `has_mtp_draft()` in
-`decoder_builder.cpp`, currently `qwen35`; other families reject the MTP load option. To add
+`DecoderBuilder` builds drafts only for the families accepted by `has_mtp_draft()` in
+`decoder_builder.cpp`, currently `qwen35`; `qwen4exp` builds its own (see below), and other
+families reject the MTP load option. To add
 a family, check that its NextN block builds as a regular layer of that family and compare the
 draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table (GLM-4.5) and
 chained multi-block drafts (`step35`) are not supported yet.
 
 ### Qwen3.8-Flash-Next MTP
 
-`qwen4exp` uses the same `"mtp_target"` and `"mtp"` components with its own builder,
-because its residual is four hyper-connection streams rather than one hidden vector.
-`last_hidden_state` and the draft input `hidden_states` are the hyper-connection residual
-before the output mixer, `[B,T,hc*n]`, not a normalized hidden state. The draft runs one
-block-sparse NextN block with its own caches and mixes its streams through
-`nextn.hc_head_*` before the output projection. The draft source can be:
+`qwen4exp` builds its draft in its own builder through the `GgufGraphContext` MTP API
+(`share_weights_from`, `set_mtp_draft`, `mark_mtp_draft_only`), because its residual is four
+hyper-connection streams rather than one hidden vector. `last_hidden_state` and the draft input
+`hidden_states` are the hyper-connection residual before the output mixer, `[B,T,hc*n]`, not a
+normalized hidden state. The draft runs one block-sparse NextN block with its own caches and
+mixes its streams through `nextn.hc_head_*` before the output projection. With
+`LoadOptions{true}`:
 
-- a model with embedded NextN blocks, or
+- a model with an embedded NextN block converts to the target and its draft, as above;
+- Unsloth's target files have no NextN metadata and convert to a target that exports
+  `last_hidden_state`;
 - a self-contained head such as Unsloth's `mtp-*.gguf`, which stores only the NextN block,
-  `token_embd` and `output`.
+  `token_embd` and `output`, converts to the draft alone: `adapt_to_genai()` returns only
+  `mtp_draft`. Loading such a file without `LoadOptions{true}` fails.
 
 Heads with `nextn_shared_target_tensors` borrow the target's embeddings and are rejected.
-Unsloth's target files have no NextN metadata; convert them with `"mtp_target"` and the
-draft from the separate head file. In `EMBEDS_TO_LOGITS_TEXT` mode the target keeps its
-n-gram lookup, so `input_ids` stays an input next to `inputs_embeds`. GenAI's MTP pipeline
-needs paged attention, which `qwen4exp` does not support yet, so the frontend currently
-supplies only the graphs.
+In `EMBEDS_TO_LOGITS_TEXT` mode the target keeps its n-gram lookup, so `input_ids` stays an
+input next to `inputs_embeds`. GenAI's MTP pipeline needs paged attention, which `qwen4exp`
+does not support yet, so the frontend currently supplies only the graphs.
 
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
 for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its
@@ -234,14 +237,17 @@ These core `ov::op::internal` operations can remain in the converted model:
 | `SelectiveSSM` | `SSM_SCAN`, Mamba 2 scalar decay | None |
 | `GatedDeltaNet` | `GATED_DELTA_NET`, scalar gate | `Loop` reference path for per-key gating or `force_ref`; not available with `split_outputs` |
 | `GatherMatmul` | `MUL_MAT_ID`, eligible constant expert weights | Generic Gather/MatMul for other weights |
+| `QSAIndexer` | Qwen Sparse Attention block selection (`qwen4exp`) | None |
+| `NGramHashFunction` | Hashed n-gram embedding rows (`qwen4exp`) | None |
 
 See [`ssm_scan.cpp`](../src/op/ssm_scan.cpp), [`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp)
 and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
 
-Block-sparse attention uses the public opset17 `QSAPrepare`, `SparseAttentionIndexer` and
-`SparseAttention` operations ([`sparse_attention.cpp`](../src/op/sparse_attention.cpp)). They are
-serializable, but compiling them needs plugin kernels, which the plugins provide by fusing the index
-query RMSNorm and RoPE with the first two operations; keep that form when changing the converters.
+Block-sparse attention emits `QSAIndexer` directly, with the index query RMSNorm and RoPE inside
+the operation, and the public opset17 `SparseAttention`
+([`sparse_attention.cpp`](../src/op/sparse_attention.cpp)), so no plugin fusion is needed.
+`QSAIndexer` takes the block-key cache as is and returns it grown to the complete blocks of the
+longest row, the contract of the CPU implementation.
 
 Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
 the IR frontend cannot read back, so test the save/read round trip. Compiled-model export, import

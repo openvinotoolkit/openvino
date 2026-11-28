@@ -156,8 +156,9 @@ PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_mtp_accuracy.py --oracle ./mtp_oracl
 - Unsloth-style head files that keep only the NextN block: a self-contained one with
   `token_embd`/`output`, and one with `nextn_shared_target_tensors`.
 
-`GGUFQwen4ExpMtpAccuracy` checks the plain and `mtp_target` targets, the full file and the
-self-contained head as drafts, and the rejection of the shared head. qwen4exp graphs contain extension operations that
+`GGUFQwen4ExpMtpAccuracy` checks the plain target, the `LoadOptions{true}` target and draft of
+the full file, the self-contained head converted to the draft alone, and the rejection of the
+shared head and of the head loaded without `LoadOptions{true}`. qwen4exp graphs contain extension operations that
 IR does not deserialize, so these tests skip the IR round-trip. Generate the fixture with the
 `qwen4exp` pin from the table above:
 
