@@ -207,6 +207,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_residual_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_elements_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_matmul_f4e2m1_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_nd_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_tree_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gemm_gpu_test.cpp

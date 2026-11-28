@@ -31,13 +31,8 @@ struct GatherMatmulImpl : public ImplementationManager {
             ov::element::f16,
         };
 
-        static const std::vector<ov::element::Type_t> supported_weight_types = {
-            ov::element::f16,
-            ov::element::u4,
-            ov::element::i4,
-            ov::element::i8,
-            ov::element::u8,
-        };
+        static const std::vector<ov::element::Type_t> supported_weight_types =
+            {ov::element::f16, ov::element::u4, ov::element::i4, ov::element::i8, ov::element::u8, ov::element::f4e2m1};
 
         static const std::vector<ov::element::Type_t> supported_quant_param_types = {
             ov::element::f16,
@@ -62,7 +57,7 @@ struct GatherMatmulImpl : public ImplementationManager {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
-        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f4e2m1};
         bool has_quant_weight = std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {
             return t == node.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).data_type;
         });
