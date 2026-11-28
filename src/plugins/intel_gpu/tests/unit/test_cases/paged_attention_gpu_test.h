@@ -132,6 +132,10 @@ struct PagedAttentionManager {
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
 
+    // optional relative bias [total_tokens, num_heads, relative_bias_span + 1]
+    std::vector<ov::float16> relative_bias;
+    int relative_bias_span = 0;
+
     // optional token_type_ids: one value per scheduled token (all subsequences, no past).
     // When empty, a single {0} is used (only if has_token_type_ids is false).
     std::vector<int> token_type_ids;
@@ -864,6 +868,18 @@ struct PagedAttentionManager {
         return get_memory_from_vec(qq_bias_begins);
     }
 
+    cldnn::memory::ptr get_relative_bias_memory() {
+        if (relative_bias.empty()) {
+            auto mem = test_engine.allocate_memory({ov::PartialShape{0}, cldnn::data_types::f16, cldnn::format::bfyx});
+            return mem;
+        }
+        auto mem = get_memory_from_vec(relative_bias);
+        auto layout = mem->get_layout();
+        layout.set_partial_shape(
+            ov::PartialShape{static_cast<int64_t>(relative_bias.size() / (num_heads * (relative_bias_span + 1))), num_heads, relative_bias_span + 1});
+        return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
     float get_default_scale() {
         return static_cast<float>(1.f / std::sqrt(k_head_size));
     }
@@ -1093,6 +1109,8 @@ struct PagedAttentionReference {
                 const auto subsequence_begin = pam.token_type_ids.begin() + token_offset;
                 token_type_ids.assign(subsequence_begin, subsequence_begin + subsequence_desc.num_tokens);
             }
+            const ov::float16* relative_bias_rows =
+                pam.relative_bias.empty() ? nullptr : pam.relative_bias.data() + token_offset * pam.num_heads * (pam.relative_bias_span + 1);
             token_offset += subsequence_desc.num_tokens;
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
@@ -1159,7 +1177,10 @@ struct PagedAttentionReference {
                                                          xattn_threshold,
                                                          xattn_block_size,
                                                          qq_bias_ptr,
-                                                         token_type_ids);
+                                                         token_type_ids,
+                                                         16,
+                                                         relative_bias_rows,
+                                                         pam.relative_bias_span);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(), subsequence_ref_results.first.begin(), subsequence_ref_results.first.end());
@@ -1191,7 +1212,9 @@ private:
                                                                                 size_t block_size,
                                                                                 const std::vector<uint8_t>* qq_bias = nullptr,
                                                                                 const std::vector<int>& token_type_ids = {},
-                                                                                size_t stride = 16) {
+                                                                                size_t stride = 16,
+                                                                                const ov::float16* relative_bias_rows = nullptr,
+                                                                                int relative_bias_span = 0) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
         auto value_shape = ov::PartialShape{1, num_keys, num_kv_heads, v_head_size};
@@ -1316,6 +1339,9 @@ private:
                                                          static_cast<int>(block_size),
                                                          qq_bias,
                                                          token_type_ids);
+        if (relative_bias_rows != nullptr) {
+            mask_mem = add_relative_bias_to_mask(mask_mem, num_queries, num_keys, num_heads, num_kv_heads, relative_bias_rows, relative_bias_span);
+        }
         cldnn::topology topology;
         if (num_heads == num_kv_heads) {
             topology.add(
@@ -1400,6 +1426,35 @@ private:
             output_data[i] = mem_ptr[i];
 
         return output_data;
+    }
+
+    // Expands the mask to one plane per head and adds bias[q, h, min(qpos - kpos, span)] to unmasked logits.
+    cldnn::memory::ptr
+    add_relative_bias_to_mask(cldnn::memory::ptr mask_mem, int num_queries, int num_keys, int num_heads, int num_kv_heads, const ov::float16* bias, int span) {
+        const auto& base_shape = mask_mem->get_layout().get_shape();
+        const bool per_head = base_shape[0] * base_shape[1] > 1;
+        const auto mask_shape = num_heads == num_kv_heads ? ov::PartialShape{1, num_heads, num_queries, num_keys}
+                                                          : ov::PartialShape{num_kv_heads, num_heads / num_kv_heads, num_queries, num_keys};
+        auto out = test_engine.allocate_memory(cldnn::layout{mask_shape, cldnn::data_types::f16, cldnn::format::bfyx});
+        cldnn::mem_lock<ov::float16> src(mask_mem, test_stream);
+        cldnn::mem_lock<ov::float16> dst(out, test_stream);
+        const int past = num_keys - num_queries;
+        const size_t plane = static_cast<size_t>(num_queries) * num_keys;
+        for (int h = 0; h < num_heads; ++h) {
+            for (int q = 0; q < num_queries; ++q) {
+                for (int k = 0; k < num_keys; ++k) {
+                    const size_t idx = static_cast<size_t>(q) * num_keys + k;
+                    const ov::float16 base = src[(per_head ? h * plane : 0) + idx];
+                    float value = static_cast<float>(base);
+                    if (base != std::numeric_limits<ov::float16>::lowest()) {
+                        const int distance = std::min(past + q - k, span);
+                        value += static_cast<float>(bias[(static_cast<size_t>(q) * num_heads + h) * (span + 1) + distance]);
+                    }
+                    dst[h * plane + idx] = ov::float16(value);
+                }
+            }
+        }
+        return out;
     }
 
     cldnn::memory::ptr get_mask_mem_combined_multi_head(int num_queries,
@@ -1975,6 +2030,15 @@ public:
             pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
+        if (p.relative_bias_span > 0) {
+            size_t bias_tokens = 0;
+            for (const auto& desc : pam.subsequence_descs) {
+                bias_tokens += static_cast<size_t>(desc.num_tokens);
+            }
+            pam.relative_bias_span = p.relative_bias_span;
+            pam.relative_bias = rg.generate_random_1d<ov::float16>(bias_tokens * p.num_heads * (p.relative_bias_span + 1), -1, 1);
+        }
+
         // token_type_ids: one value per scheduled token (all subsequences, no past).
         size_t total_scheduled_tokens = 0;
         for (const auto& desc : pam.subsequence_descs) {
@@ -2039,6 +2103,7 @@ public:
 
         auto qq_bias = pam.get_qq_bias_memory();
         auto qq_bias_begins = pam.get_qq_bias_begins_memory();
+        auto relative_bias_mem = pam.get_relative_bias_memory();
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
@@ -2067,6 +2132,7 @@ public:
         auto token_type_ids_layout = token_type_ids_mem->get_layout();
         auto qq_bias_layout = qq_bias->get_layout();
         auto qq_bias_begins_layout = qq_bias_begins->get_layout();
+        auto relative_bias_layout = relative_bias_mem->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads * p.k_head_size});
@@ -2098,6 +2164,9 @@ public:
         adaptive_rkv_diversity_block_set_indices_begins_layout.set_partial_shape(ov::PartialShape{-1});
         qq_bias_layout.set_partial_shape(ov::PartialShape{-1});
         qq_bias_begins_layout.set_partial_shape(ov::PartialShape{-1});
+        if (!pam.relative_bias.empty()) {
+            relative_bias_layout.set_partial_shape(ov::PartialShape{-1, p.num_heads, pam.relative_bias_span + 1});
+        }
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
@@ -2156,7 +2225,8 @@ public:
                                                     cldnn::input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                                     cldnn::input_info("token_type_ids"),
                                                     cldnn::input_info("qq_bias"),
-                                                    cldnn::input_info("qq_bias_begins")};
+                                                    cldnn::input_info("qq_bias_begins"),
+                                                    cldnn::input_info("relative_bias")};
 
         auto pa_prim = cldnn::paged_attention("paged_attention", pa_inputs);
 
@@ -2168,6 +2238,7 @@ public:
         pa_prim.has_alibi = false;
         pa_prim.has_token_type_ids = p.token_type_ids.has_value() || p.has_sink_input;
         pa_prim.has_sink_input = p.has_sink_input;
+        pa_prim.has_relative_bias = !pam.relative_bias.empty();
 
         int num_outputs = 1;
         if (p.scores_mode != ScoresMode::DISABLED)
@@ -2234,6 +2305,7 @@ public:
             topology.add(cldnn::input_layout("token_type_ids", token_type_ids_layout));
             topology.add(cldnn::input_layout("qq_bias", qq_bias_layout));
             topology.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_layout));
+            topology.add(cldnn::input_layout("relative_bias", relative_bias_layout));
         }
 
         ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
@@ -2275,6 +2347,7 @@ public:
         network->set_input_data("token_type_ids", token_type_ids_mem);
         network->set_input_data("qq_bias", qq_bias);
         network->set_input_data("qq_bias_begins", qq_bias_begins);
+        network->set_input_data("relative_bias", relative_bias_mem);
 
         last_key_cache_mem = result.key_cache_mem;
         last_block_indices = pam.block_indices;
@@ -3067,6 +3140,9 @@ struct paged_attention_test_params {
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
+
+    // When > 0, passes a random relative bias with this many distances (plus one fallback entry).
+    int relative_bias_span = 0;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

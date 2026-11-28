@@ -68,6 +68,10 @@ participates in the normalization denominator (preventing weights from summing t
 produces no contribution to the output.  This attenuates attention scores across all
 real key positions uniformly.
 
+**Relative bias** - a per-token, per-head table of additive biases indexed by the
+query-key distance ``qpos - kpos``; the last entry is a fallback for every distance at or
+beyond the table width.  Unlike ALiBi, the table may depend on the query token.
+
 **Adaptive RKV eviction** - a method for deciding which KV-cache blocks to evict by
 computing pairwise key-vector diversity within the eviction zone.  Output 2 carries the
 resulting diversity scores so the caller can rank blocks for eviction.
@@ -120,6 +124,7 @@ storage across multiple inference calls.
        token_type_ids,                                   # input 25  [T] or [T,1] or empty  i32
        qq_bias,                                            # input 26  [Nbias] or empty  u8
        qq_bias_begins,                                     # input 27  [B_seq+1] or empty  i32
+       relative_bias,                                      # input 28  [T, Hq, D+1] or empty  f16/f32
    ):
        # ---------------------------------------------------------------
        # Phase 0 - cache initialization (runs once per op node lifetime)
@@ -255,6 +260,9 @@ storage across multiple inference calls.
                        # ALiBi: linear penalty for distance (always <= 0)
                        if alibi_slopes is not None:
                            logit += alibi_slopes[h] * (kpos - qpos)
+                       if relative_bias is not None:
+                           D = relative_bias.shape[2] - 1
+                           logit += relative_bias[t, h, min(qpos - kpos, D)]
 
                        # Xattention: block-level sparsity from Phase 2.
                        # Mask covers new-to-new attention only; kpos < past is always attended to.
@@ -351,7 +359,7 @@ are used at the time the model is built or compiled.
 
    **Input ports are positional and cannot be skipped.**  OpenVINO does not support
    absent or null input ports: if port N were omitted, port N+1 would shift down to
-   position N, making all subsequent indices incorrect.  For this reason, all 28
+   position N, making all subsequent indices incorrect.  For this reason, all 29
    input ports must be present in the graph.  Features that are semantically
    optional (e.g. ALiBi, xattention, sinks) are **disabled by connecting an empty
    tensor** (zero elements) or a zero sentinel value, not by omitting the port.
@@ -507,6 +515,17 @@ are used at the time the model is built or compiled.
   sequence ``s``.  Empty = no custom bias.
   **Required (always present; empty tensor = disabled).**
 
+* **28**: ``relative_bias`` - 3D tensor of type ``f16`` or ``f32``, shape ``[T, Hq, D+1]``
+  with ``D >= 1``, or an empty 1D tensor (``size = 0``).  For query token ``t`` at position
+  ``qpos``, head ``h`` and key position ``kpos``, the logit is increased by
+  ``relative_bias[t, h, min(qpos - kpos, D)]`` after scaling and before masking and softmax;
+  entry ``D`` is the fallback for distances ``>= D``.  Positions are derived from
+  ``past_lens``, so they must start at zero and advance by one within each sequence, with
+  no gaps and no cache eviction or rotation.  The bias cannot be combined with ALiBi, cache
+  rotation, xattention, adaptive RKV eviction, ``token_type_ids`` or ``qq_bias``; plugins
+  reject such combinations.  Empty = no relative bias.
+  **Required (always present; empty tensor = disabled).**
+
 
 **Outputs**
 
@@ -634,6 +653,8 @@ reference.
 +-------------------------------------------------------------+-----+-----------+
 | QQ attention bias (``qq_bias``)                             | Y   | N         |
 +-------------------------------------------------------------+-----+-----------+
+| Relative bias (``relative_bias``; f32 inference on ARM64)   | Y   | Y         |
++-------------------------------------------------------------+-----+-----------+
 
 \* CPU produces zero score output for prefill steps when the window value is negative
 (see note 1 below).  Decode steps are not affected.
@@ -693,7 +714,7 @@ configurations.
    The CPU plugin rejects a model that contains a non-empty sinks tensor on non-x86_64
    platforms (ARM64, etc.) at ``isSupportedOperation`` time.  However, this check is
    currently guarded by ``orgInput == ID_SINKS + 1`` (i.e. 21 inputs), so for the
-   current 28-input format the rejection is inactive and the model will be accepted
+   current 29-input format the rejection is inactive and the model will be accepted
    regardless of the sinks tensor content on non-x86_64 platforms.
    The reference has no platform restriction.
 
@@ -831,6 +852,12 @@ configurations.
 * A negative ``score_aggregation_window`` value on prefill produces zero score
   output in the CPU plugin (see note 1 above for details).  Decode steps are not
   affected.
+
+* The relative bias (input 28) is supported by the CPU, GPU and reference
+  implementations.  On ARM64 the CPU plugin requires f32 inference precision for it and
+  rejects f16/bf16 at compilation.  The GPU plugin requires a head size of at least 16 and
+  runs it in the ``paged_attention_opt`` single-token, mixed and ``sdpa_opt`` prefill
+  kernels; micro-SDPA and the GQA kernels are not used with the bias yet.
 
 * Bidirectional image attention (``token_type_ids``) is supported only by the CPU
   plugin.  The GPU plugin and the reference (TEMPLATE) implementation
@@ -1130,7 +1157,13 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        <output><port id="0" precision="I32"/></output>
    </layer>
 
-   <layer id="28" name="paged_attn" type="PagedAttentionExtension" version="extension">
+   <!-- port 28: relative_bias - empty (relative bias disabled) -->
+   <layer id="28" name="relative_bias/const" type="Const" version="opset1">
+       <data element_type="f32" shape="0" offset="76" size="0"/>
+       <output><port id="0" precision="FP32"/></output>
+   </layer>
+
+   <layer id="29" name="paged_attn" type="PagedAttentionExtension" version="extension">
        <input>
            <port id="0">   <!-- query [2, 512] -->
                <dim>2</dim>
@@ -1187,16 +1220,17 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
            <port id="25" precision="I32"/> <!-- token_type_ids: empty (bidirectional image attention disabled) -->
            <port id="26" precision="U8"/>  <!-- qq_bias: empty (custom attention bias disabled) -->
            <port id="27" precision="I32"/> <!-- qq_bias_begins: empty (custom attention bias disabled) -->
+           <port id="28" precision="FP32"/> <!-- relative_bias: empty (relative bias disabled) -->
        </input>
        <output>
-           <port id="28" precision="FP32">  <!-- attention_output [T, Hq*Sv] -->
+           <port id="29" precision="FP32">  <!-- attention_output [T, Hq*Sv] -->
                <dim>2</dim>
                <dim>512</dim>
            </port>
-           <port id="29" precision="FP32">  <!-- score_aggregation [T + sum(past_lens)] = [2+32+63=97] -->
+           <port id="30" precision="FP32">  <!-- score_aggregation [T + sum(past_lens)] = [2+32+63=97] -->
                <dim>97</dim>
            </port>
-           <port id="30" precision="FP32">  <!-- diversity_scores: empty (eviction disabled) -->
+           <port id="31" precision="FP32">  <!-- diversity_scores: empty (eviction disabled) -->
            </port>
        </output>
    </layer>

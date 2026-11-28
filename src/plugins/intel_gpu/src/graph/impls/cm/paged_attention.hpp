@@ -37,6 +37,11 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
+        if (desc->has_relative_bias) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because relative bias is not supported. " << std::endl;
+            return false;
+        }
+
         // PA CM kernel only supports cases when kv_head_size is divisible by 16
         if (desc->k_head_size % 16 != 0 && desc->v_head_size % 16 != 0) {
             GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because kv_head_size is not divisible by 16. " << std::endl;

@@ -128,15 +128,19 @@ public:
             params.push_back(qq_bias_begins_param);
             pa_inputs.push_back(qq_bias_param);
             pa_inputs.push_back(qq_bias_begins_param);
+            pa_inputs.push_back(
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{}));
         } else {
             // Use empty Constants when disabled
             auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{});
             auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
             pa_inputs.push_back(qq_bias);
             pa_inputs.push_back(qq_bias_begins);
+            pa_inputs.push_back(
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{}));
         }
 
-        OPENVINO_ASSERT(pa_inputs.size() == 28);
+        OPENVINO_ASSERT(pa_inputs.size() == 29);
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(pa_inputs);
         paged_attn->get_rt_info()["num_k_heads"] = head_num;

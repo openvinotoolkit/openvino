@@ -525,7 +525,7 @@ TEST(GGUFPagedAttention, Qwen3MoeMatchesLlamaCpu) {
     for (const auto& node : model->get_ops()) {
         if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
             ++attentions;
-            EXPECT_EQ(pa->get_input_size(), 28);
+            EXPECT_EQ(pa->get_input_size(), 29);
         }
     }
     ASSERT_EQ(attentions, 2);
@@ -679,14 +679,18 @@ TEST(GGUFInkling, PagedAttentionRejectsMalformedRelativeBias) {
             continue;
         const auto fallback = ov::as_type_ptr<ov::op::v0::Constant>(select->get_input_node_shared_ptr(2));
         ASSERT_TRUE(fallback);
-        select->input(2).replace_source_output(fallback->clone_with_new_inputs({}));
+        auto values = fallback->cast_vector<int64_t>();
+        for (auto& value : values)
+            --value;
+        select->input(2).replace_source_output(
+            ov::op::v0::Constant::create(fallback->get_element_type(), fallback->get_shape(), values));
         changed = true;
         break;
     }
     ASSERT_TRUE(changed);
     OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
                     ov::Exception,
-                    testing::HasSubstr("invalid relative-distance indexing"));
+                    testing::HasSubstr("clamped distance"));
 }
 
 TEST(GGUFInkling, PagedAttentionAllowsUnrelatedGatherMask) {
@@ -724,7 +728,7 @@ TEST(GGUFInkling, PagedAttentionAllowsUnrelatedGatherMask) {
     for (const auto& node : model->get_ops()) {
         if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
             ++attentions;
-            EXPECT_EQ(pa->get_input_size(), 28);
+            EXPECT_EQ(pa->get_input_size(), 29);
         }
     }
     EXPECT_EQ(attentions, 10);

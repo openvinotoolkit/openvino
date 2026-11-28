@@ -337,7 +337,10 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
                                                           bool with_scale,
                                                           bool stateful,
                                                           bool fuse_cache_reorder,
-                                                          size_t num_groups) {
+                                                          size_t num_groups,
+                                                          bool with_sink) {
+    OPENVINO_ASSERT(!with_sink || (with_mask && with_scale && n_heads.is_static()),
+                    "SDPA sink requires a mask, a scale and a static head count");
     auto params =
         form_sdpa_params(batch, n_heads, k_features, v_features, element_type, element_type, qkv_order, num_groups);
     auto in_q = params[0];
@@ -398,7 +401,14 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
     }
 
     std::shared_ptr<ov::Node> sdpa = nullptr;
-    if (mask && scale) {
+    if (with_sink) {
+        const auto heads = static_cast<size_t>(n_heads.get_length());
+        std::vector<float> sink_values(heads);
+        for (size_t h = 0; h < heads; ++h)
+            sink_values[h] = -1.f + 2.f * static_cast<float>(h) / static_cast<float>(heads);
+        const auto sink = ov::op::v0::Constant::create(element_type, ov::Shape{1, heads, 1, 1}, sink_values);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, sink, causal);
+    } else if (mask && scale) {
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, causal);
     } else if (mask) {
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, causal);

@@ -23,7 +23,7 @@ using namespace ::tests;
 
 // Build a model with MatMul (compressed weights) + PagedAttention stub.
 // PA node triggers is_paged_attention_model detection in apply_model_specific_options.
-// PagedAttentionExtension expects exactly 28 inputs (see paged_attention.cpp::validate_and_infer_types):
+// PagedAttentionExtension expects exactly 29 inputs (see paged_attention.cpp::validate_and_infer_types):
 //  0: query          [rank 2]           f32
 //  1: key            [rank 2]           f32
 //  2: value          [rank 2]           f32
@@ -52,6 +52,7 @@ using namespace ::tests;
 // 25: token_type_ids [rank 1,2]         i32
 // 26: qq_bias        [rank 1]           u8
 // 27: qq_bias_begins [rank 1]           i32
+// 28: relative_bias  [rank 1 or 3]      f32
 static std::shared_ptr<ov::Model> make_pa_matmul_model(ov::element::Type weight_type) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16});
 
@@ -138,7 +139,8 @@ static std::shared_ptr<ov::Model> make_pa_matmul_model(ov::element::Type weight_
         pa_xattn_threshold, pa_xattn_block_size, pa_xattn_stride,      // 17-19
         pa_sinks, pa_arkv_start, pa_arkv_evict,                        // 20-22
         pa_arkv_div_idx, pa_arkv_div_begins, pa_token_type_ids,        // 23-25
-        pa_qq_bias, pa_qq_bias_begins                                   // 26-27
+        pa_qq_bias, pa_qq_bias_begins,                                  // 26-27
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, std::vector<float>{})  // 28
     };
     auto pa_node = std::make_shared<ov::op::PagedAttentionExtension>(pa_args);
 

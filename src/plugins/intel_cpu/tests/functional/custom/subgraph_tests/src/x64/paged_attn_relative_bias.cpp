@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <numeric>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "openvino/core/type/float16.hpp"
@@ -107,23 +109,41 @@ struct History {
     std::vector<std::vector<float>> values;
 };
 
-class PagedAttentionRelativeBiasTest : public testing::TestWithParam<int32_t> {};
+using PackedParams = std::tuple<int32_t, ov::element::Type, ov::element::Type>;
 
-TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeAndReuse) {
-    const auto window = GetParam();
+class PagedAttnRelativeBiasCustomTest : public testing::TestWithParam<PackedParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PackedParams>& info) {
+        const auto& [window, inference, cache] = info.param;
+        return "window=" + std::to_string(window) + "_inference=" + inference.get_type_name() +
+               "_cache=" + cache.get_type_name();
+    }
+};
+
+class PagedAttnRelativeBiasLongContextTest : public testing::TestWithParam<int32_t> {};
+
+ov::Tensor zero_cache(const ov::CompiledModel& compiled, const std::string& name, size_t blocks) {
+    auto shape = compiled.input(name).get_partial_shape();
+    shape[0] = static_cast<int64_t>(blocks);
+    ov::Tensor cache(compiled.input(name).get_element_type(), shape.to_shape());
+    std::memset(cache.data(), 0, cache.get_byte_size());
+    return cache;
+}
+
+TEST_P(PagedAttnRelativeBiasCustomTest, PackedPrefillDecodeAndReuse) {
+    const auto& [window, inference_precision, cache_precision] = GetParam();
     constexpr float sink = 0.7f;
+    const float tolerance = inference_precision != ov::element::f32 ? 3e-2f
+                            : cache_precision != ov::element::f32   ? 2e-2f
+                                                                    : 2e-5f;
     auto model = make_model(window, 64, ov::element::f32, sink);
     auto compiled = ov::Core().compile_model(model,
                                              "CPU",
-                                             ov::hint::inference_precision(ov::element::f32),
-                                             ov::hint::kv_cache_precision(ov::element::f32));
+                                             ov::hint::inference_precision(inference_precision),
+                                             ov::hint::kv_cache_precision(cache_precision));
     auto request = compiled.create_infer_request();
-    ov::Tensor key_cache(ov::element::f32, {2, 1, 32, width});
-    ov::Tensor value_cache(ov::element::f32, {2, 1, 32, width});
-    std::fill_n(key_cache.data<float>(), key_cache.get_size(), 0.f);
-    std::fill_n(value_cache.data<float>(), value_cache.get_size(), 0.f);
-    request.set_tensor("key_cache.0", key_cache);
-    request.set_tensor("value_cache.0", value_cache);
+    request.set_tensor("key_cache.0", zero_cache(compiled, "key_cache.0", 2));
+    request.set_tensor("value_cache.0", zero_cache(compiled, "value_cache.0", 2));
     request.set_tensor("block_indices", tensor<int32_t>(ov::element::i32, {2}, {0, 1}));
     request.set_tensor("block_indices_begins", tensor<int32_t>(ov::element::i32, {3}, {0, 1, 2}));
 
@@ -183,7 +203,7 @@ TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeAndReuse) {
                         float expected = 0.f;
                         for (size_t key = first; key < n; ++key)
                             expected += weights[key] * history[seq].values[key][d] / denominator;
-                        EXPECT_NEAR(actual.data<float>()[(token * heads + h) * width + d], expected, 2e-5f)
+                        EXPECT_NEAR(actual.data<float>()[(token * heads + h) * width + d], expected, tolerance)
                             << "sequence=" << seq << " token=" << local << " head=" << h << " dim=" << d;
                     }
                 }
@@ -194,8 +214,8 @@ TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeAndReuse) {
     step({1, 1});
     step({2, 1});
     history = std::vector<History>(2);
-    std::fill_n(key_cache.data<float>(), key_cache.get_size(), 0.f);
-    std::fill_n(value_cache.data<float>(), value_cache.get_size(), 0.f);
+    request.set_tensor("key_cache.0", zero_cache(compiled, "key_cache.0", 2));
+    request.set_tensor("value_cache.0", zero_cache(compiled, "value_cache.0", 2));
     step({3, 2});
 }
 
@@ -278,13 +298,22 @@ void run_long_cached_context(int32_t window, const ov::element::Type& cache_type
     }
 }
 
-TEST_P(PagedAttentionRelativeBiasTest, LongCachedContext) {
+TEST_P(PagedAttnRelativeBiasLongContextTest, LongCachedContext) {
     for (const auto& cache_type : {ov::element::f32, ov::element::f16}) {
         SCOPED_TRACE(cache_type);
         run_long_cached_context(GetParam() ? 1024 : 0, cache_type);
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(FullAndSliding, PagedAttentionRelativeBiasTest, testing::Values(0, 2));
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnRelativeBias,
+                         PagedAttnRelativeBiasCustomTest,
+                         testing::Combine(testing::Values(0, 2),
+                                          testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
+                                          testing::Values(ov::element::f32, ov::element::f16, ov::element::u8)),
+                         PagedAttnRelativeBiasCustomTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnRelativeBiasLongContext,
+                         PagedAttnRelativeBiasLongContextTest,
+                         testing::Values(0, 2));
 
 }  // namespace

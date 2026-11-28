@@ -219,7 +219,8 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         pa_arguments.push_back(v0::Constant::create(element::i32, Shape{0}, {}));  // token_type_ids
         pa_arguments.push_back(v0::Constant::create(element::u8, Shape{0}, {}));   // qq_bias
         pa_arguments.push_back(v0::Constant::create(element::i32, Shape{0}, {}));  // qq_bias_begins
-        OPENVINO_ASSERT(pa_arguments.size() == 28);
+        pa_arguments.push_back(v0::Constant::create(element::f32, Shape{0}, {}));  // relative_bias
+        OPENVINO_ASSERT(pa_arguments.size() == 29);
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, /*write_kv_cache=*/false);

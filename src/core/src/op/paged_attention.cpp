@@ -82,8 +82,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 28 || get_input_size() == 29,
-                          "PagedAttentionExtension expects 28 or 29 inputs, but it has ",
+                          get_input_size() == 29,
+                          "PagedAttentionExtension expects 29 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -116,17 +116,30 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
     input_check(this, 26, "qq_bias", {1}, {element::u8});
     input_check(this, 27, "qq_bias_begins", {1}, {element::i32});
-    if (get_input_size() == 29) {
-        input_check(this, 28, "relative_bias", {3}, {element::f16, element::f32});
+    input_check(this, 28, "relative_bias", {1, 3}, {element::f16, element::f32});
+    {
         const auto& query_shape = get_input_partial_shape(0);
         const auto& bias_shape = get_input_partial_shape(28);
-        if (query_shape.rank().is_static() && bias_shape.rank().is_static()) {
+        if (bias_shape.rank().is_static() && bias_shape.rank().get_length() == 1) {
+            NODE_VALIDATION_CHECK(this,
+                                  bias_shape[0].compatible(0),
+                                  "Rank-1 `relative_bias` must be empty, but its shape is ",
+                                  bias_shape,
+                                  ".");
+        } else if (query_shape.rank().is_static() && bias_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   query_shape[0].compatible(bias_shape[0]),
-                                  "relative_bias must have one row per query token.");
+                                  "`relative_bias` must have one row per query token, but its shape is ",
+                                  bias_shape,
+                                  " and the query shape is ",
+                                  query_shape,
+                                  ".");
             NODE_VALIDATION_CHECK(this,
                                   bias_shape[2].is_dynamic() || bias_shape[2].get_length() >= 2,
-                                  "relative_bias must contain at least one distance and one fallback entry.");
+                                  "`relative_bias` must contain at least one distance and one fallback entry, but its "
+                                  "shape is ",
+                                  bias_shape,
+                                  ".");
         }
     }
 

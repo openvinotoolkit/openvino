@@ -67,10 +67,35 @@ ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
     auto qq_bias = std::make_shared<Parameter>(element::u8, PartialShape{4});
     auto qq_bias_begins = std::make_shared<Parameter>(element::i32, PartialShape{2});
 
-    return {query,         key,   value, key_cache,  value_cache, past_lens, subseq,   block_idx,      block_beg,
-            scale,         slide, alibi, maxctx,     scorew,      rotated,   deltas,   trig,           xthr,
-            xbs,           xst,   sinks, arkv_start, arkv_evict,  arkv_idx,  arkv_beg, token_type_ids, qq_bias,
-            qq_bias_begins};
+    return {query,
+            key,
+            value,
+            key_cache,
+            value_cache,
+            past_lens,
+            subseq,
+            block_idx,
+            block_beg,
+            scale,
+            slide,
+            alibi,
+            maxctx,
+            scorew,
+            rotated,
+            deltas,
+            trig,
+            xthr,
+            xbs,
+            xst,
+            sinks,
+            arkv_start,
+            arkv_evict,
+            arkv_idx,
+            arkv_beg,
+            token_type_ids,
+            qq_bias,
+            qq_bias_begins,
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0})};
 }
 }  // namespace
 TEST(type_prop, paged_attention_static_eviction_per_block) {
@@ -137,7 +162,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
                              adaptive_rkv_diversity_block_set_indices_begins,
                              token_type_ids,
                              qq_bias,
-                             qq_bias_begins};
+                             qq_bias_begins,
+                             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0})};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -208,7 +234,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
                              adaptive_rkv_diversity_block_set_indices_begins,
                              token_type_ids,
                              qq_bias,
-                             qq_bias_begins};
+                             qq_bias_begins,
+                             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0})};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -280,7 +307,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              adaptive_rkv_diversity_block_set_indices_begins,
                              token_type_ids,
                              qq_bias,
-                             qq_bias_begins};
+                             qq_bias_begins,
+                             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0})};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
@@ -312,10 +340,10 @@ TEST(type_prop, paged_attention_invalid_rank_key_cache) {
 
 TEST(type_prop, paged_attention_invalid_input_count) {
     auto args = make_valid_pa_args();
-    args.pop_back();  // 27 instead of 28
+    args.pop_back();  // 28 instead of 29
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
                     ov::NodeValidationFailure,
-                    HasSubstr("28 inputs"));
+                    HasSubstr("29 inputs"));
 }
 
 TEST(type_prop, paged_attention_invalid_past_lens_rank) {
@@ -467,7 +495,8 @@ TEST(type_prop, paged_attention_adaptive_rkv_quantized_bychannel_diversity_shape
                          adaptive_rkv_diversity_block_set_indices_begins,
                          token_type_ids,
                          qq_bias,
-                         qq_bias_begins};
+                         qq_bias_begins,
+                         std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0})};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{32}));
@@ -532,7 +561,8 @@ static ov::OutputVector make_args_with_token_type(const std::shared_ptr<ov::op::
             adaptive_rkv_diversity_block_set_indices_begins,
             token_type_ids,
             qq_bias,
-            qq_bias_begins};
+            qq_bias_begins,
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0})};
 }
 
 TEST(type_prop, paged_attention_token_type_ids_1d) {
@@ -568,6 +598,61 @@ TEST(type_prop, paged_attention_invalid_rank_token_type_ids) {
     const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 3});
     const auto args = make_args_with_token_type(token_type_ids);
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, paged_attention_relative_bias) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 3, 5});
+    const auto op = std::make_shared<op::PagedAttentionExtension>(args);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
+}
+
+TEST(type_prop, paged_attention_relative_bias_dynamic) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{-1, 3, -1});
+    EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
+    args[28] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
+}
+
+TEST(type_prop, paged_attention_invalid_relative_bias_rank) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Rank of `relative_bias`"));
+}
+
+TEST(type_prop, paged_attention_invalid_relative_bias_type) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3, 3, 5});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Element type of `relative_bias`"));
+}
+
+TEST(type_prop, paged_attention_invalid_relative_bias_rows) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 5});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
+                    ov::NodeValidationFailure,
+                    HasSubstr("one row per query token"));
+}
+
+TEST(type_prop, paged_attention_invalid_relative_bias_fallback) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 3, 1});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
+                    ov::NodeValidationFailure,
+                    HasSubstr("one distance and one fallback entry"));
+}
+
+TEST(type_prop, paged_attention_invalid_nonempty_rank1_relative_bias) {
+    auto args = make_valid_pa_args();
+    args[28] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{4});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
+                    ov::NodeValidationFailure,
+                    HasSubstr("must be empty"));
 }
 
 }  // namespace testing

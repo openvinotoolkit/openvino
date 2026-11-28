@@ -553,6 +553,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/one_hot.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_attention_relative_bias.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/pooling.cpp

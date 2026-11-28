@@ -22,13 +22,13 @@ namespace {
 using PAExt = ov::op::PagedAttentionExtension;
 
 std::shared_ptr<ov::Model> make_pa_model_with_threshold_et(const ov::element::Type& thr_et) {
-    // Build a minimal model containing PagedAttentionExtension with valid 28 inputs.
+    // Build a minimal model containing PagedAttentionExtension with valid 29 inputs.
     // We keep shapes mostly dynamic but MUST satisfy rank/type checks in
     // ov::op::PagedAttentionExtension::validate_and_infer_types().
 
     const size_t thr_idx = cldnn::paged_attention::PagedAttentionInputIdx::XATTENTION_THRESHOLD;
 
-    ov::ParameterVector params(28);
+    ov::ParameterVector params(29);
     // 0..4: query/key/value/key_cache/value_cache
     params[0] = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(2));
     params[1] = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(2));
@@ -78,6 +78,8 @@ std::shared_ptr<ov::Model> make_pa_model_with_threshold_et(const ov::element::Ty
     // 26..27: qq_bias inputs
     params[26] = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape::dynamic(1));
     params[27] = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic(1));
+    // 28: relative_bias
+    params[28] = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0});
 
     ov::OutputVector inputs;
     inputs.reserve(params.size());

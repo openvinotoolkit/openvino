@@ -176,7 +176,8 @@ inline bool prefer_gqa_multi_tokens_fallback_kernel(size_t max_tokens, size_t ma
     return max_tokens * max_tokens * max_context_len <= 64 * 1024;
 }
 
-// GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item
+// GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item.
+// Relative bias is not implemented in the GQA paths yet.
 inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
@@ -185,7 +186,9 @@ inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& 
 
 inline void add_relative_bias_jit_constants(JitConstants& jit, const kernel_impl_params& params) {
     const auto& shape = params.input_layouts[PagedAttentionInputIdx::RELATIVE_BIAS].get_partial_shape();
-    OPENVINO_ASSERT(shape.rank().get_length() == 3 && shape[2].is_static(), "[GPU] PagedAttention relative bias must have a static distance dimension");
+    OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 3 && shape[2].is_static(),
+                    "[GPU] PagedAttention relative bias must be rank 3 with a static distance dimension, got ",
+                    shape);
     jit.make("HAS_RELATIVE_BIAS", 1);
     jit.add(make_type_jit_constants("RELATIVE_BIAS", params.input_layouts[PagedAttentionInputIdx::RELATIVE_BIAS].data_type));
     jit.make("RELATIVE_BIAS_SPAN", shape[2].get_length() - 1);
@@ -1750,7 +1753,12 @@ public:
             return false;
         }
 
-        if (desc->has_alibi || desc->has_relative_bias) {
+        if (desc->has_alibi) {
+            return false;
+        }
+
+        // Relative bias is not implemented in micro-SDPA yet; the kernel has no inherent limitation for it.
+        if (desc->has_relative_bias) {
             return false;
         }
 
@@ -1880,6 +1888,17 @@ public:
         const bool has_rotated_blocks = desc->has_rotated_blocks;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
+        if (desc->has_relative_bias) {
+            const auto& bias_shape = params.get_input_layout(PagedAttentionInputIdx::RELATIVE_BIAS).get_shape();
+            const auto& query_shape = params.get_input_layout(PagedAttentionInputIdx::QUERY).get_shape();
+            OPENVINO_ASSERT(bias_shape.size() == 3 && bias_shape[0] == query_shape[0] && bias_shape[1] == desc->heads_num,
+                            "[GPU] PagedAttention relative bias must be [tokens, heads, distances + 1] = [",
+                            query_shape[0],
+                            ", ",
+                            desc->heads_num,
+                            ", D + 1], got ",
+                            ov::PartialShape(bias_shape));
+        }
         update_stages_flags(instance);
         kernel_dump_info.clear_entries();
         auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());

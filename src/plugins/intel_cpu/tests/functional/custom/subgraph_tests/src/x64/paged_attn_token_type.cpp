@@ -113,9 +113,9 @@ public:
                                   adaptive_rkv_evictable_sizes,
                                   adaptive_rkv_diversity_block_set_indices,
                                   adaptive_rkv_diversity_block_set_indices_begins,
-                                  token_type_ids, qq_bias, qq_bias_begins};
+                                  token_type_ids, qq_bias, qq_bias_begins, std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{})};
 
-        OPENVINO_ASSERT(pa_inputs.size() == 28);
+        OPENVINO_ASSERT(pa_inputs.size() == 29);
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(pa_inputs);
         paged_attn->get_rt_info()["num_k_heads"] = head_num;

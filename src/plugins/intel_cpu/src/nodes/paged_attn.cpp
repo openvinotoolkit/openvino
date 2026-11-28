@@ -113,6 +113,12 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         return;
     }
     auto rtPrecision = getRuntimePrecision();
+#if defined(OPENVINO_ARCH_ARM64)
+    const auto& relative_bias_shape = getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS);
+    CPU_NODE_ASSERT(none_of(rtPrecision, ov::element::f16, ov::element::bf16) ||
+                        (relative_bias_shape.isStatic() && relative_bias_shape.hasZeroDims()),
+                    "relative bias on ARM requires f32 inference precision");
+#endif
 
     NodeConfig config;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -129,8 +135,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 28U || orgInputNumber == 29U,
-                    "The input number of PagedAttention should be 28 or 29.");
+    CPU_NODE_ASSERT(orgInputNumber == 29U, "The input number of PagedAttention should be 29.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -254,11 +259,10 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS_BEGINS)));
-    if (orgInputNumber == 29U) {
-        config.inConfs[PagedAttentionExecutor::ID_RELATIVE_BIAS].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS)));
-    }
+    // relative_bias, float, [B_token, H, D + 1] or empty
+    config.inConfs[PagedAttentionExecutor::ID_RELATIVE_BIAS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<report timestamp="28-11-2026 10:16:42">
+	<results>
+		<:anonymous />
+		<:anonymous />
+	</results>
+	<api_list>
+		<ov_plugin />
+		<ov_compiled_model />
+		<ov_infer_request />
+		<undefined />
+	</api_list>
+</report>

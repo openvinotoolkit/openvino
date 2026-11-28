@@ -2040,7 +2040,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 28 || inputs_size == 29);
+        OPENVINO_ASSERT(inputs_size == 29);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2255,9 +2255,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         _helper._relative_bias = PlainTensor();
-        if (inputs_size == 29) {
-            OPENVINO_ASSERT(!inputs[ID_RELATIVE_BIAS]->getShape().hasZeroDims(),
-                            "PagedAttention: relative bias cannot be empty");
+        if (!inputs[ID_RELATIVE_BIAS]->getShape().hasZeroDims()) {
             _helper._relative_bias.reset(inputs[ID_RELATIVE_BIAS]);
             _helper._relative_bias.assert_dims({B_token, H, 0}, true);
             OPENVINO_ASSERT(_helper._relative_bias.size(2) >= 2,

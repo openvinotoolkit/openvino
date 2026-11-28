@@ -29,6 +29,7 @@
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -820,35 +821,36 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
         auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
         auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
 
-        auto pa =
-            std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                       K,
-                                                                       V,
-                                                                       key_cache_0,
-                                                                       value_cache_0,
-                                                                       past_lens,
-                                                                       subsequence_begins,
-                                                                       block_indices,
-                                                                       block_indices_begins,
-                                                                       scale,
-                                                                       sliding_window,
-                                                                       alibi_slopes,
-                                                                       max_context_len,
-                                                                       score_agg_const,
-                                                                       rotated_block_indices,
-                                                                       rotation_deltas,
-                                                                       rotation_trig_lut,
-                                                                       xattention_threshold,
-                                                                       xattention_block_size,
-                                                                       xattention_stride,
-                                                                       sinks,
-                                                                       adaptive_rkv_start_size,
-                                                                       adaptive_rkv_evictable_sizes,
-                                                                       adaptive_rkv_diversity_block_set_indices,
-                                                                       adaptive_rkv_diversity_block_set_indices_begins,
-                                                                       token_type_ids,
-                                                                       qq_bias,
-                                                                       qq_bias_begins});
+        auto pa = std::make_shared<op::PagedAttentionExtension>(
+            OutputVector{Q,
+                         K,
+                         V,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_agg_const,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
 
         auto pa_aligned = Opt125mPA::align_pa_layout(pa, head_size);
         auto result = makeOP<v0::Result>({pa_aligned});
@@ -996,35 +998,36 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
 
         // PagedAttention:
-        auto pa =
-            std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                       K,
-                                                                       V,
-                                                                       key_cache_0,
-                                                                       value_cache_0,
-                                                                       past_lens,
-                                                                       subsequence_begins,
-                                                                       block_indices,
-                                                                       block_indices_begins,
-                                                                       scale,
-                                                                       sliding_window,
-                                                                       alibi_slopes,
-                                                                       max_context_len,
-                                                                       score_aggregation_window_const,
-                                                                       rotated_block_indices,
-                                                                       rotation_deltas,
-                                                                       rotation_trig_lut,
-                                                                       xattention_threshold,
-                                                                       xattention_block_size,
-                                                                       xattention_stride,
-                                                                       sinks,
-                                                                       adaptive_rkv_start_size,
-                                                                       adaptive_rkv_evictable_sizes,
-                                                                       adaptive_rkv_diversity_block_set_indices,
-                                                                       adaptive_rkv_diversity_block_set_indices_begins,
-                                                                       token_type_ids,
-                                                                       qq_bias,
-                                                                       qq_bias_begins});
+        auto pa = std::make_shared<op::PagedAttentionExtension>(
+            OutputVector{Q,
+                         K,
+                         V,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_aggregation_window_const,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -2206,7 +2209,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                              adaptive_rkv_diversity_block_set_indices_begins,
                              token_type_ids,
                              qq_bias,
-                             qq_bias_begins});
+                             qq_bias_begins,
+                             v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -2586,7 +2590,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                              adaptive_rkv_diversity_block_set_indices_begins,
                              token_type_ids,
                              qq_bias,
-                             qq_bias_begins});
+                             qq_bias_begins,
+                             v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -2922,7 +2927,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                          adaptive_rkv_diversity_block_set_indices_begins,
                          token_type_ids,
                          qq_bias,
-                         qq_bias_begins});
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -3277,7 +3283,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                          adaptive_rkv_diversity_block_set_indices_begins,
                          token_type_ids,
                          qq_bias,
-                         qq_bias_begins});
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
@@ -3946,7 +3953,8 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
                          adaptive_rkv_diversity_block_set_indices_begins,
                          token_type_ids,
                          qq_bias,
-                         qq_bias_begins});
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather4 = makeOP<v8::Gather>({ShapeOf3, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Gather4, 0});
@@ -5370,7 +5378,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
                          adaptive_rkv_diversity_block_set_indices_begins,
                          token_type_ids,
                          qq_bias,
-                         qq_bias_begins});
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
         auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});
@@ -5935,35 +5944,36 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Constant24 = v0::Constant::create(element::i32, Shape{0}, {});
         auto Constant25 = makeConst(element::u8, ov::Shape({0}), {0});
         auto Constant26 = makeConst(element::i32, ov::Shape({0}), {0});
-        auto PagedAttentionExtension0 =
-            make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape4,
-                                                                      Reshape6,
-                                                                      Reshape8,
-                                                                      key_cache_0,
-                                                                      value_cache_0,
-                                                                      past_lens,
-                                                                      subsequence_begins,
-                                                                      block_indices,
-                                                                      block_indices_begins,
-                                                                      Constant12,
-                                                                      Constant13,
-                                                                      Multiply4,
-                                                                      max_context_len,
-                                                                      score_aggregation_window,
-                                                                      Constant14,
-                                                                      Constant15,
-                                                                      Constant16,
-                                                                      Constant17,
-                                                                      Constant18,
-                                                                      Constant19,
-                                                                      Constant11,
-                                                                      Constant20,
-                                                                      Constant21,
-                                                                      Constant22,
-                                                                      Constant23,
-                                                                      Constant24,
-                                                                      Constant25,
-                                                                      Constant26});
+        auto PagedAttentionExtension0 = make_shared<ov::op::PagedAttentionExtension>(
+            OutputVector{Reshape4,
+                         Reshape6,
+                         Reshape8,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         Constant12,
+                         Constant13,
+                         Multiply4,
+                         max_context_len,
+                         score_aggregation_window,
+                         Constant14,
+                         Constant15,
+                         Constant16,
+                         Constant17,
+                         Constant18,
+                         Constant19,
+                         Constant11,
+                         Constant20,
+                         Constant21,
+                         Constant22,
+                         Constant23,
+                         Constant24,
+                         Constant25,
+                         Constant26,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
         auto ShapeOf1 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<v8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Gather2, 0});
@@ -6353,35 +6363,36 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
 
         auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
         auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
-        auto PagedAttentionExtension0 =
-            make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape1,
-                                                                      Reshape4,
-                                                                      Reshape7,
-                                                                      key_cache_0,
-                                                                      value_cache_0,
-                                                                      past_lens,
-                                                                      subsequence_begins,
-                                                                      block_indices,
-                                                                      block_indices_begins,
-                                                                      scale,
-                                                                      sliding_window,
-                                                                      alibi_slopes,
-                                                                      max_context_len,
-                                                                      score_aggregation_window,
-                                                                      rotated_block_indices,
-                                                                      rotation_deltas,
-                                                                      rotation_trig_lut,
-                                                                      xattention_threshold,
-                                                                      xattention_block_size,
-                                                                      xattention_stride,
-                                                                      sinks,
-                                                                      adaptive_rkv_start_size,
-                                                                      adaptive_rkv_evictable_sizes,
-                                                                      adaptive_rkv_diversity_block_set_indices,
-                                                                      adaptive_rkv_diversity_block_set_indices_begins,
-                                                                      token_type_ids_stub,
-                                                                      qq_bias,
-                                                                      qq_bias_begins});
+        auto PagedAttentionExtension0 = make_shared<ov::op::PagedAttentionExtension>(
+            OutputVector{Reshape1,
+                         Reshape4,
+                         Reshape7,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_aggregation_window,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids_stub,
+                         qq_bias,
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
 
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose4}, {{"output_type", "i64"}});
         auto Gather13 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
@@ -6670,7 +6681,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
                          adaptive_rkv_diversity_block_set_indices_begins,
                          token_type_ids_i32,
                          qq_bias,
-                         qq_bias_begins});
+                         qq_bias_begins,
+                         v0::Constant::create(element::f32, Shape{0}, {})});
 
         auto ShapeOf_v = makeOP<v3::ShapeOf>({Transpose_v2}, {{"output_type", "i64"}});
         auto Gather_dim = makeOP<v8::Gather>({ShapeOf_v, -1, 0}, {{"batch_dims", 0}});
@@ -7852,7 +7864,8 @@ std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size, 
                           adaptive_rkv_diversity_block_set_indices_begins,
                           token_type_ids,
                           qq_bias,
-                          qq_bias_begins};
+                          qq_bias_begins,
+                          v0::Constant::create(element::f32, Shape{0}, {})};
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(args, /*write_kv_cache=*/false);
         pa->get_rt_info()["num_k_heads"] = int64_t{num_kv_heads};
         pa->get_rt_info()["k_head_size"] = int64_t{k_head_size};
@@ -8320,3 +8333,176 @@ entire SDPAToPA transformation
 const std::vector<element::Type> element_types = {element::f16, element::f32};
 
 INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion, SDPAToPATest, testing::ValuesIn(element_types));
+
+namespace {
+
+enum class RelativeBiasVariant { Full, Sliding, WrongFallback, UnrelatedIndex };
+
+std::shared_ptr<ov::Model> make_relative_bias_model(RelativeBiasVariant variant, int64_t window_offset = -512) {
+    const int heads = 2, head_dim = 8, hidden = heads * head_dim, rel = 4, span = 6;
+    auto input_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN, DYN}, "input_ids");
+    auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{DYN, DYN}, "attention_mask");
+    auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN, DYN}, "position_ids");
+    auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+    ParameterVector params{input_ids, attention_mask, position_ids, beam_idx};
+
+    auto embed = makeOP<v8::Gather>({makeConst(element::f32, ov::Shape{32, (size_t)hidden}, MOCK_VALUE), input_ids, 0},
+                                    {{"batch_dims", 0}});
+    auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+    auto projection = [&](int out, int h, int d) {
+        auto w = makeConst(element::f32, ov::Shape{(size_t)out, (size_t)hidden}, MOCK_VALUE);
+        auto mm = makeOP<v0::MatMul>({embed, w}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto reshape = makeOP<v1::Reshape>({mm, {0, 0, h, d}}, {{"special_zero", true}});
+        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    };
+    SinkVector sinks;
+    auto kv_cache = [&](std::shared_ptr<ov::Node> cur, const std::string& id) {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, heads, DYN, head_dim}, element::f32, id});
+        auto init = makeOP<v3::Broadcast>(
+            {0.0f, makeOP<v0::Concat>({batch_dim, {(int64_t)heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}})},
+            {{"mode", "numpy"}});
+        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+        auto past = makeOP<v8::Gather>({read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+        sinks.push_back(std::make_shared<v6::Assign>(concat, var));
+        return concat;
+    };
+    auto q = projection(hidden, heads, head_dim);
+    auto k = kv_cache(projection(hidden, heads, head_dim), "past_key_values.0.key");
+    auto v = kv_cache(projection(hidden, heads, head_dim), "past_key_values.0.value");
+
+    // Cached key positions: i32 state reordered by beam_idx and appended with the current positions.
+    auto pos_var = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{DYN, DYN, 1, 1}, element::i32, "cache_positions"});
+    auto pos_init = makeOP<v3::Broadcast>({0, makeOP<v0::Concat>({batch_dim, {0l}, {1l}, {1l}}, {{"axis", 0}})},
+                                          {{"mode", "numpy"}});
+    std::shared_ptr<ov::Node> pos_read = std::make_shared<v6::ReadValue>(pos_init, pos_var);
+    auto pos_past = makeOP<v8::Gather>({pos_read, beam_idx, 0}, {{"batch_dims", 0}});
+    auto pos_i32 = makeOP<v0::Convert>({position_ids}, {{"destination_type", "i32"}});
+    auto pos_cur = makeOP<v1::Reshape>({pos_i32, {1, -1, 1, 1}}, {{"special_zero", false}});
+    auto cached = makeOP<v0::Concat>({pos_past, pos_cur}, {{"axis", 1}});
+    sinks.push_back(std::make_shared<v6::Assign>(cached, pos_var));
+    auto key_pos = makeOP<v1::Reshape>({makeOP<v0::Convert>({cached}, {{"destination_type", "i64"}}), {1, 1, 1, -1}},
+                                       {{"special_zero", true}});
+    auto query_src = makeOP<v1::Reshape>({position_ids, {0, 1, 1, -1}}, {{"special_zero", true}});
+    auto query_pos = makeOP<v1::Reshape>({query_src, {0, 1, -1, 1}}, {{"special_zero", true}});
+    auto distance = makeOP<v1::Subtract>({query_pos, key_pos}, {numpy_broadcast});
+    const int64_t fallback = variant == RelativeBiasVariant::WrongFallback ? span - 1 : span;
+    auto valid = makeOP<v1::LogicalAnd>({makeOP<v1::GreaterEqual>({distance, {0l}}, {numpy_broadcast}),
+                                         makeOP<v1::Less>({distance, {(int64_t)span}}, {numpy_broadcast})},
+                                        {numpy_broadcast});
+    std::shared_ptr<ov::Node> index = makeOP<v1::Select>({valid, distance, {fallback}}, {numpy_broadcast});
+    if (variant == RelativeBiasVariant::UnrelatedIndex) {
+        auto index_param = ov::test::utils::make_param(element::i64, PartialShape{DYN, 1, DYN, DYN}, "bias_index");
+        params.push_back(index_param);
+        index = index_param;
+    }
+    auto distance_shape = makeOP<v3::ShapeOf>({distance}, {{"output_type", "i64"}});
+    auto index_shape = makeOP<v0::Concat>({makeOP<v8::Gather>({distance_shape, {0}, 0}, {{"batch_dims", 0}}),
+                                           {(int64_t)heads},
+                                           makeOP<v8::Gather>({distance_shape, {2, 3}, 0}, {{"batch_dims", 0}})},
+                                          {{"axis", 0}});
+    auto broadcast = makeOP<v3::Broadcast>({index, index_shape}, {{"mode", "numpy"}});
+    auto rel_states = projection(heads * rel, heads, rel);
+    auto table =
+        makeOP<v0::MatMul>({rel_states, makeConst(element::f32, ov::Shape{(size_t)span + 1, (size_t)rel}, MOCK_VALUE)},
+                           {{"transpose_a", false}, {"transpose_b", true}});
+    auto gathered = makeOP<v6::GatherElements>({table, broadcast}, {{"axis", 3}});
+    auto sink = projection(heads, heads, 1);
+    auto shifted = makeOP<v1::Subtract>({gathered, sink}, {numpy_broadcast});
+
+    std::shared_ptr<ov::Node> mask;
+    if (variant == RelativeBiasVariant::Sliding) {
+        auto len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+        auto kv_idx = makeOP<v0::Unsqueeze>(
+            {makeOP<v0::Unsqueeze>({makeOP<v4::Range>({0, len, 1}, {{"output_type", "i64"}}), 0}), 0});
+        auto q_idx = makeOP<v0::Unsqueeze>(
+            {makeOP<v0::Unsqueeze>(
+                 {makeOP<v0::Unsqueeze>({makeOP<v4::Range>({0, len, 1}, {{"output_type", "i64"}}), 0}), 0}),
+             3});
+        auto causal = makeOP<v1::LessEqual>({kv_idx, q_idx}, {numpy_broadcast});
+        auto offset = makeConst(element::i64, ov::Shape({1, 1, 1, 1}), {(int)window_offset});
+        auto greater =
+            makeOP<v1::Greater>({kv_idx, makeOP<v1::Add>({q_idx, offset}, {numpy_broadcast})}, {numpy_broadcast});
+        auto true_c = makeConst(element::boolean, ov::Shape({}), {1});
+        auto and0 = makeOP<v13::BitwiseAnd>({true_c, greater}, {{"auto_broadcast", "numpy"}});
+        auto and1 = makeOP<v13::BitwiseAnd>({and0, causal}, {{"auto_broadcast", "numpy"}});
+        auto and2 = makeOP<v13::BitwiseAnd>({true_c, and1}, {{"auto_broadcast", "numpy"}});
+        auto attn = makeOP<v1::Reshape>(
+            {makeOP<v0::Convert>({attention_mask}, {{"destination_type", "boolean"}}), {0, 1, 1, -1}},
+            {{"special_zero", true}});
+        auto and3 = makeOP<v13::BitwiseAnd>({and2, attn}, {{"auto_broadcast", "numpy"}});
+        auto len_unsq = makeOP<v0::Unsqueeze>({len, 0});
+        auto shape = makeOP<v0::Concat>({batch_dim, {1l}, len_unsq, len_unsq}, {{"axis", 0}});
+        auto select =
+            makeOP<v1::Select>({makeOP<v3::Broadcast>({and3, shape}, {{"mode", "bidirectional"}}), 0.0f, -65504.0f},
+                               {numpy_broadcast});
+        auto squeezed = makeOP<v0::Squeeze>({select, {1l}});
+        mask = makeOP<v0::Unsqueeze>({makeOP<v1::Multiply>({squeezed, 0.5f}, {numpy_broadcast}), {1l}});
+    } else {
+        mask = ov::test::utils::make_param(element::f32, PartialShape{DYN, 1, DYN, DYN}, "causal_mask");
+        params.push_back(ov::as_type_ptr<v0::Parameter>(mask));
+    }
+    auto bias = makeOP<v1::Add>({shifted, mask}, {numpy_broadcast});
+    auto sdpa = makeOP<v13::ScaledDotProductAttention>({q, k, v, bias, 0.5f}, {{"causal", false}});
+    return std::make_shared<ov::Model>(OutputVector{std::make_shared<v0::Result>(sdpa)}, sinks, params);
+}
+
+std::shared_ptr<ov::op::PagedAttentionExtension> single_pa(const std::shared_ptr<ov::Model>& model) {
+    std::shared_ptr<ov::op::PagedAttentionExtension> pa;
+    for (const auto& op : model->get_ordered_ops())
+        if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op))
+            pa = node;
+    return pa;
+}
+
+}  // namespace
+
+TEST(SDPAToPA, RelativeBias_FullAttention) {
+    auto model = make_relative_bias_model(RelativeBiasVariant::Full);
+    ov::pass::SDPAToPagedAttention().run_on_model(model);
+    const auto pa = single_pa(model);
+    ASSERT_NE(pa, nullptr);
+    ASSERT_EQ(pa->get_input_size(), 29);
+    EXPECT_EQ(pa->get_input_partial_shape(28), (PartialShape{DYN, 2, 7}));
+    const auto window = ov::as_type_ptr<v0::Constant>(pa->get_input_node_shared_ptr(10));
+    ASSERT_NE(window, nullptr);
+    EXPECT_EQ(window->cast_vector<int32_t>()[0], 0);
+    for (const auto& op : model->get_ops())
+        EXPECT_FALSE(ov::is_type<ov::op::util::ReadValueBase>(op)) << op->get_friendly_name();
+}
+
+TEST(SDPAToPA, RelativeBias_SlidingWindow) {
+    auto model = make_relative_bias_model(RelativeBiasVariant::Sliding, -512);
+    ov::pass::SDPAToPagedAttention().run_on_model(model);
+    const auto pa = single_pa(model);
+    ASSERT_NE(pa, nullptr);
+    const auto window = ov::as_type_ptr<v0::Constant>(pa->get_input_node_shared_ptr(10));
+    ASSERT_NE(window, nullptr);
+    EXPECT_EQ(window->cast_vector<int32_t>()[0], 512);
+}
+
+TEST(SDPAToPA, RelativeBias_WrongFallbackThrows) {
+    auto model = make_relative_bias_model(RelativeBiasVariant::WrongFallback);
+    OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
+                    ov::Exception,
+                    testing::HasSubstr("clamped distance"));
+}
+
+TEST(SDPAToPA, RelativeBias_UnmatchedGatheredBiasThrows) {
+    auto model = make_relative_bias_model(RelativeBiasVariant::UnrelatedIndex);
+    OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
+                    ov::Exception,
+                    testing::HasSubstr("does not match the relative-bias contract"));
+}
+
+TEST(SDPAToPA, RelativeBias_IncompatibleOptionsThrow) {
+    for (const auto& [per_layer, scores] : std::vector<std::pair<bool, bool>>{{true, false}, {false, true}}) {
+        auto model = make_relative_bias_model(RelativeBiasVariant::Full);
+        OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention(per_layer, scores).run_on_model(model),
+                        ov::Exception,
+                        testing::HasSubstr("incompatible with cache rotation"));
+    }
+}

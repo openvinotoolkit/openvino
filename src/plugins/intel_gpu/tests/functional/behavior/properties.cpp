@@ -86,7 +86,8 @@ std::shared_ptr<ov::Model> make_4bit_pa_model() {
                                   adaptive_rkv_div_begins,
                                   token_type_ids,
                                   qq_bias,
-                                  qq_bias_begins};
+                                  qq_bias_begins,
+                                  std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{})};
     auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
 
     return std::make_shared<ov::Model>(ov::OutputVector{matmul, paged_attention->output(0)},

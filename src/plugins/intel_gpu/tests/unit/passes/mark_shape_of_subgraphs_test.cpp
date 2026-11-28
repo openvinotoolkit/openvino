@@ -475,6 +475,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto qq_bias = layout{ ov::PartialShape{1, 4, 4}, data_types::u8, format::bfyx };
     auto qq_bias_begins = layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx};;
+    auto relative_bias = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -503,7 +504,8 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("token_type_ids"),
                                          input_info("qq_bias"),
-                                         input_info("qq_bias_begins")
+                                         input_info("qq_bias_begins"),
+                                         input_info("relative_bias")
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -546,6 +548,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     topology.add(input_layout("token_type_ids", token_type_ids_layout));
     topology.add(input_layout("qq_bias", qq_bias));
     topology.add(input_layout("qq_bias_begins", qq_bias_begins));
+    topology.add(input_layout("relative_bias", relative_bias));
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("target_shape", target_shape));
     topology.add(data("subtract_one", subtract_one));

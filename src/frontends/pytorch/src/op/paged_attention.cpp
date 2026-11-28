@@ -279,6 +279,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
     auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
     auto qq_bias = v0::Constant::create(element::u8, Shape{0}, std::vector<uint8_t>{});
     auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
+    auto relative_bias = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
 
     OutputVector pa_inputs = {
         query,                                            // 0
@@ -309,6 +310,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         token_type_ids,                                   // 25
         qq_bias,                                          // 26
         qq_bias_begins,                                   // 27
+        relative_bias,                                    // 28
     };
 
     auto pa = context.mark_node(std::make_shared<PagedAttentionExtension>(pa_inputs));
