@@ -3,6 +3,7 @@
 #
 
 set(OV_AUTO_UNIT_TESTS_SRC
+    ${CMAKE_CURRENT_LIST_DIR}/adaptive_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/auto_unit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cache_compile_for_all_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_metric_test.cpp
@@ -33,6 +34,11 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/set_log_level_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/startup_fallback_property_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stateful_model_test.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/decision_log.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/decision_log.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/goal.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/instance_stats.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/adaptive/instance_stats.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.cpp

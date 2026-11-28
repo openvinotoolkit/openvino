@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include "adaptive/instance_stats.hpp"
 #include "common.hpp"
 #include "compile_service.hpp"
 #include "instance_registry.hpp"
@@ -74,8 +75,8 @@ protected:
     Time                                                                 m_cpuhelp_release_time;
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
     std::mutex                                                           m_dev_infer_mutex;
-    // dynamic selection only: written before the execution slot is released, read by the next dispatch
-    double                                                               m_last_infer_ms = -1.0;
+    // dynamic selection only: written before the execution slot is released
+    InstanceStats                                                        m_instance_stats;
     std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
 };
 

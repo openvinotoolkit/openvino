@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include "adaptive/goal.hpp"
 #include <atomic>
 #include <filesystem>
 #include <map>
@@ -102,6 +103,8 @@ struct WorkerInferRequest {
     bool                          m_dispatch_failed = false;
     // served by the CPU helper, which is released while its requests are still alive
     bool                          m_is_cpu_helper = false;
+    // when the dispatched inference started, only set by the dynamic device selection
+    Time                          m_infer_started{};
 };
 
 // flags the worker as not dispatched unless dismissed, i.e. when its scope is left by an exception
@@ -237,6 +240,7 @@ public:
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
     bool                                           m_compile_for_all = false;
+    AdaptiveGoal                                   m_adaptive_goal;
     std::shared_ptr<ov::Model>                     m_model;
     std::filesystem::path                          m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;

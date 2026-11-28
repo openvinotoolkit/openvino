@@ -649,16 +649,14 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
         const bool is_pinned = !preferred_device.empty();
         const auto requested_device_name = device.device_name;
         DeviceName previous_device;
-        double previous_infer_ms = -1.0;
         {
             std::lock_guard<std::mutex> lock(m_gate_mutex);
             previous_device = m_gate_current_device;
-            previous_infer_ms = m_last_infer_ms;
         }
-        if (previous_infer_ms >= 0.0) {
+        if (const auto previous_infer = m_instance_stats.last_inference(ModelInstanceKey(previous_device))) {
             LOG_DEBUG_TAG("[dynamic] previous inference on device:%s took %lf ms",
                           previous_device.c_str(),
-                          previous_infer_ms);
+                          std::chrono::duration<double, std::milli>(*previous_infer).count());
         }
         OPENVINO_ASSERT(ensure_device_ready(device),
                         get_log_tag(),
@@ -681,10 +679,11 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                 m_gate_current_device = device_name;
                 // published before the previous device can be released by release_inactive_devices()
                 m_instances.publish(ModelInstanceKey(device_name));
-                m_dynamic_switch_count++;
+                m_decision_log.count_switch();
+                m_instance_stats.set_active(ModelInstanceKey(device_name));
             }
         }
-        m_dynamic_infer_count++;
+        m_decision_log.count_inference();
         get_device_context(device_name).mark_used(std::chrono::steady_clock::now());
         const bool dispatched =
             run_pipeline_task(pipeline_task, get_device_context(device_name).pool());
@@ -975,9 +974,7 @@ AutoSchedule::~AutoSchedule() {
         });
     }
     if (dynamic_executor) {
-        LOG_INFO_TAG("[dynamic] total inference:%lu, device switch:%lu",
-                     static_cast<unsigned long>(m_dynamic_infer_count.load()),
-                     static_cast<unsigned long>(m_dynamic_switch_count.load()));
+        LOG_INFO_TAG("[dynamic] %s", m_decision_log.summary(m_instance_stats.snapshot()).c_str());
         // do not clear the executor manager's "AutoDynamicSchedule" entry here: clear() works by name and would
         // also evict the executors of other alive AutoSchedule instances. get_idle_cpu_streams_executor() only
         // hands out an executor nobody else holds, so instances never share one; just drop our own reference

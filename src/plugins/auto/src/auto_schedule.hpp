@@ -9,6 +9,7 @@
 #include <deque>
 #include <map>
 
+#include "adaptive/decision_log.hpp"
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
 #include "cache_manager.hpp"
@@ -97,8 +98,7 @@ private:
     std::condition_variable                                              m_dispatch_done;
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
-    std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
-    std::atomic<size_t>                                                  m_dynamic_switch_count = {0};
+    DecisionLog                                                          m_decision_log;
 };
 } // namespace auto_plugin
 } // namespace ov

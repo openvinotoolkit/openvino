@@ -199,15 +199,13 @@ void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledMod
                     // try to return the request to the idle list (fails if the overall object destruction has began)
                     const bool returned_to_idle = lease.give_back();
                     if (m_context->m_dynamic_device_selection) {
-                        // only recorded here, it is logged by the next dispatch so the slot is released without delay
-                        INFO_RUN([&] {
-                            if (!worker_request_ptr->m_start_times.empty()) {
-                                m_last_infer_ms = std::chrono::duration<double, std::milli>(
-                                                      std::chrono::steady_clock::now() -
-                                                      worker_request_ptr->m_start_times.back())
-                                                      .count();
-                            }
-                        });
+                        if (worker_request_ptr->m_exception_ptr == nullptr &&
+                            worker_request_ptr->m_infer_started != Time{}) {
+                            m_instance_stats.record_inference(
+                                device_context->key(),
+                                std::chrono::duration_cast<std::chrono::microseconds>(
+                                    std::chrono::steady_clock::now() - worker_request_ptr->m_infer_started));
+                        }
                         // released unconditionally, otherwise queued requests would hang once destruction has began
                         release_execution_slot();
                     } else if (returned_to_idle) {
@@ -335,7 +333,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
             // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
             // then sets the device-agnostic tensors to the actual (device-specific) request
             Stage {
-                /*TaskExecutor*/std::dynamic_pointer_cast<ov::threading::ITaskExecutor>(shared_from_this()), /*task*/ [&infer_request, worker_infer_request]() {
+                /*TaskExecutor*/std::dynamic_pointer_cast<ov::threading::ITaskExecutor>(shared_from_this()), /*task*/ [this, &infer_request, worker_infer_request]() {
                     if (m_this_scheduling_exception) {
                         auto scheduling_exception = m_this_scheduling_exception;
                         m_this_scheduling_exception = nullptr;
@@ -356,6 +354,9 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     INFO_RUN([worker_infer_request]() {
                         (*worker_infer_request)->m_start_times.push_back(std::chrono::steady_clock::now());
                         });
+                    if (m_context->m_dynamic_device_selection) {
+                        (*worker_infer_request)->m_infer_started = std::chrono::steady_clock::now();
+                    }
                 }},
             // final task in the pipeline:
             Stage {

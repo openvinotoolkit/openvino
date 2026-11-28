@@ -627,6 +627,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
     auto_s_context->m_compile_for_all = load_config.get_property(ov::intel_auto::compile_for_all);
+    auto_s_context->m_adaptive_goal.level = *parse_adaptive_level(load_config.get_property(adaptive_level));
     if (auto_s_context->m_compile_for_all) {
         std::vector<const DeviceInformation*> precompile_candidates;
         for (const auto& device : auto_s_context->m_device_priorities_initial) {

@@ -9,6 +9,8 @@ endif()
 set (TARGET_NAME "openvino_auto_plugin")
 
 set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/adaptive/decision_log.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/adaptive/instance_stats.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_schedule.cpp

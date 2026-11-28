@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include "adaptive/goal.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "utils/log.hpp"
@@ -114,6 +115,21 @@ public:
     }
 };
 
+class AdaptiveLevelValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        try {
+            return parse_adaptive_level(v.as<std::string>()).has_value();
+        } catch (const ov::Exception&) {
+            return false;
+        }
+    }
+
+    ov::Any convert(const ov::Any& v) const override {
+        return ov::Any(std::string(to_string(*parse_adaptive_level(v.as<std::string>()))));
+    }
+};
+
 class PluginConfig {
 public:
     PluginConfig();
@@ -128,6 +144,8 @@ public:
     bool is_supported(const std::string& name) const;
 
     void register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator = nullptr);
+    // accepted like any other property, but not listed in the supported properties
+    void register_private_property(const ov::AnyMap::value_type& property, BaseValidator::Ptr validator);
 
     template <typename T, ov::PropertyMutability mutability>
     void register_property_impl(const ov::Property<T, mutability>&);
