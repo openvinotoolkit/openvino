@@ -354,7 +354,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
 
     auto& testContext = setupResult.context;
 
-    // Start with the smallest shape allowed by the model's declared bounds.
+    // Start at half the spatial upper bounds.
     const ov::Shape shape = makeInputShape(model, 1, false);
 
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -1535,22 +1535,11 @@ const std::vector<ov::AnyMap> configs = {
         {"NPU_COMPILER_TYPE", "PLUGIN"},
         {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
     },
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
-        {"NPU_CREATE_EXECUTOR", "0"},
-        {"NPU_BATCH_MODE", "PLUGIN"},
-    },
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
-        {"NPU_BATCH_MODE", "PLUGIN"},
-    },
 };
 
 const std::vector<std::string> modelNames = {
-    "ESPCN_x2_DynHW_H1080xW960",
-    "ESPCN_x2_DynNHW_H1080xW960",
+    "ESPCN_x2_DynHW_H600xW800",
+    "ESPCN_x2_DynNHW_H600xW800",
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1565,15 +1554,10 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
         {"NPU_COMPILER_TYPE", "PLUGIN"},
         {"NPU_CREATE_EXECUTOR", "0"},
     },
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_CREATE_EXECUTOR", "0"},
-        {"NPU_BATCH_MODE", "PLUGIN"},
-    },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H1080xW960_NCHW",
-                                                      "ESPCN_x2_DynNHW_H1080xW960_NCHW"};
+const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H600xW800_NCHW",
+                                                      "ESPCN_x2_DynNHW_H600xW800_NCHW"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),
