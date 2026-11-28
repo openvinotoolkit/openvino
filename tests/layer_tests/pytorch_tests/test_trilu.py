@@ -44,6 +44,15 @@ class TestTriuTril(PytorchLayerTest):
         self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version,
         kwargs_to_prepare_input={"shape": (4, 6), "dtype": dtype})
 
+    @pytest.mark.parametrize("diagonal", [2**32, -(2**32)])
+    @pytest.mark.parametrize("op", ["triu", "tril"])
+    @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
+    def test_trilu_large_diagonal(self, diagonal, op, ie_device, precision, ir_version):
+        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"shape": (2, 2), "dtype": "float32"})
+
 
 class TestTriuTrilTensor(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
