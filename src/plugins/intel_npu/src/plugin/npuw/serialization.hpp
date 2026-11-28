@@ -228,6 +228,9 @@ struct SubmodelDeserializeCtx {
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
+// Maps constant data pointers to weightless bin offsets. A pointer that maps to several offsets is dropped.
+std::unordered_map<const void*, std::size_t> collect_const_offsets(const std::shared_ptr<ov::Model>& model);
+
 // The NPUW stream type IS the ORC stream.
 using Stream = ::ov::npuw::orc::Stream;
 
