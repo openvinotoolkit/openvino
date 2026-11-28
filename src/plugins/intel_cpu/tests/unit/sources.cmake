@@ -4,6 +4,7 @@
 
 set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/caseless_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/cpu_convert_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cpu_tensor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cpu_tensor_test_ext.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_memory_desc_test.cpp
