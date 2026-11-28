@@ -92,7 +92,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                     LOG_AND_RETURN_FALSE(node);
                 }
                 const auto& zero_point_layout = fc_node.get_input_layout(decompression_zp_idx);
-                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), zero_point_layout, fc_prim->weights_transposed);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false),
+                                                     zero_point_layout,
+                                                     fc_prim->weights_transposed,
+                                                     fc_prim->transpose_b_zp,
+                                                     fc_prim->input_size);
                 if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
@@ -120,7 +124,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             // Reject scale grouping oneDNN can't handle here, so another FC impl is selected instead.
             if (fc_prim->decompression_scale.is_valid()) {
                 const auto& scale_layout = fc_node.get_input_layout(fc_prim->bias.is_valid() ? 3 : 2);
-                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout, fc_prim->weights_transposed);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout,
+                                                     fc_prim->weights_transposed,
+                                                     fc_prim->transpose_b_scale,
+                                                     fc_prim->input_size);
                 if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }

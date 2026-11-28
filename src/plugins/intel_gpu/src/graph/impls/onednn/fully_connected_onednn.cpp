@@ -382,13 +382,23 @@ public:
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
             const auto weights_layout_for_scale = arg.get_dependency(1).get_output_layout();
-            const auto ngroups = get_ngroups(weights_layout_for_scale, scale_layout, prim->weights_transposed);
+            const auto ngroups = get_ngroups(weights_layout_for_scale,
+                                             scale_layout,
+                                             prim->weights_transposed,
+                                             prim->transpose_b_scale,
+                                             prim->input_size);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1 && !has_batch_dim) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
+                const auto broadcast_mask = get_decompression_broadcast_mask(weights_layout_for_scale,
+                                                                              scale_layout,
+                                                                              prim->weights_transposed,
+                                                                              prim->transpose_b_scale,
+                                                                              prim->input_size);
+                const auto mask = grouped & ~broadcast_mask;
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, mask, {_ds_group_size, 1}, _ds_data_type);
             }
         }
 
@@ -403,11 +413,21 @@ public:
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
                     const auto weights_layout_for_zp = arg.get_dependency(1).get_output_layout();
-                    const auto [ngroups, zero_point_group_size] = get_scale_groups(weights_layout_for_zp, dzp_layout, prim->weights_transposed);
+                    const auto [ngroups, zp_group_size] = get_scale_groups(weights_layout_for_zp,
+                                                                           dzp_layout,
+                                                                           prim->weights_transposed,
+                                                                           prim->transpose_b_zp,
+                                                                           prim->input_size);
                     if (ngroups == 1 && !has_batch_dim) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
-                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {zero_point_group_size, 1}, _dzp_data_type);
+                        const auto broadcast_mask = get_decompression_broadcast_mask(weights_layout_for_zp,
+                                                                                      dzp_layout,
+                                                                                      prim->weights_transposed,
+                                                                                      prim->transpose_b_zp,
+                                                                                      prim->input_size);
+                        const auto mask = grouped & ~broadcast_mask;
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, mask, {zp_group_size, 1}, _dzp_data_type);
                     }
                 }
             }
@@ -489,7 +509,11 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                const auto [ngroups, scale_group_size] = get_scale_groups(weights_layout, scale_layout, prim->weights_transposed);
+                const auto [ngroups, scale_group_size] = get_scale_groups(weights_layout,
+                                                                          scale_layout,
+                                                                          prim->weights_transposed,
+                                                                          prim->transpose_b_scale,
+                                                                          prim->input_size);
                 group_size = static_cast<int>(scale_group_size);
                 OPENVINO_ASSERT(is_supported_scale_group(ngroups, group_size),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
@@ -502,7 +526,13 @@ public:
                     // Example:
                     // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
                     // set scale group as [32, 2088, 1]
-                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
+                    const auto broadcast_mask = get_decompression_broadcast_mask(weights_layout,
+                                                                                  scale_layout,
+                                                                                  prim->weights_transposed,
+                                                                                  prim->transpose_b_scale,
+                                                                                  prim->input_size);
+                    const auto mask = grouped & ~broadcast_mask;
+                    attr->set_scales(DNNL_ARG_WEIGHTS, mask, {group_size, 1}, ds_data_type);
                 }
             }
 
@@ -518,12 +548,22 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    const auto [ngroups, zero_point_group_size] = get_scale_groups(weights_layout, dzp_layout, prim->weights_transposed);
+                    const auto [ngroups, zp_group_size] = get_scale_groups(weights_layout,
+                                                                           dzp_layout,
+                                                                           prim->weights_transposed,
+                                                                           prim->transpose_b_zp,
+                                                                           prim->input_size);
                     if (ngroups == 1 && dzp_rank <= 2 && !has_batch_dim) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {zero_point_group_size, 1}, dzp_data_type);
+                        const auto broadcast_mask = get_decompression_broadcast_mask(weights_layout,
+                                                                                      dzp_layout,
+                                                                                      prim->weights_transposed,
+                                                                                      prim->transpose_b_zp,
+                                                                                      prim->input_size);
+                        const auto mask = grouped & ~broadcast_mask;
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, mask, {zp_group_size, 1}, dzp_data_type);
                     }
                 }
             }
