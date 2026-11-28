@@ -143,6 +143,7 @@ std::vector<Case> make_cases() {
         numeric_case<::intel_npu::NPUW_LLM_MAX_LORA_RANK>("NPUW_LLM_MAX_LORA_RANK", "64", uint32_t{64}),
         bool_case<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>("NPUW_LLM_OPTIMIZE_V_TENSORS", "NO", false),
         bool_case<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>("NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT", "NO", false),
+        bool_case<::intel_npu::NPUW_LLM_DECOMPOSE_SDPA>("NPUW_LLM_DECOMPOSE_SDPA", "NO", false),
         bool_case<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>("NPUW_LLM_OPTIMIZE_FP8", "YES", true),
         bool_case<::intel_npu::NPUW_LLM_CACHE_ROPE>("NPUW_LLM_CACHE_ROPE", "NO", false),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>("NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED", "HOST_ROUTED"),

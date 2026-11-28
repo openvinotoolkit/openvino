@@ -5,6 +5,7 @@
 
 #include <common_test_utils/test_common.hpp>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
@@ -61,6 +62,7 @@ public:
         auto test = OptimizeVTTestParams{GetParam()};
 
         auto isValidSubgraph = test.withTranspose;
+        ov::npuw::util::DecomposeSDPA(test.withHpAttenMask).run_on_model(model);
         ASSERT_EQ(isValidSubgraph, ov::npuw::util::OptimizeValueTensors(test.withHpAttenMask).run_on_model(model));
 
         // std::shared_ptr<ov::Model> model = ...;  // your model
@@ -832,4 +834,289 @@ TEST(TransposeVTShapeComputeTest, smoke_WhisperPrefill_ShapeOfTranspose) {
 
     ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(true, true).run_on_model(model));
     expect_shape_results(model, ov::ParameterVector{value, scores}, {{B, H, S, D}});
+}
+
+// NPUW_LLM_DECOMPOSE_SDPA=NO: SDPA ops are kept, the V-cache is transposed as usual and
+// an explicit Transpose{0,1,3,2} right before SDPA.V restores the layout SDPA expects.
+namespace {
+
+constexpr size_t B = 1, H = 4, S = 8, D = 64;
+
+std::shared_ptr<ov::Node> make_transpose(const ov::Output<ov::Node>& input, const std::vector<int32_t>& order) {
+    return std::make_shared<ov::op::v1::Transpose>(
+        input,
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{order.size()}, order));
+}
+
+//   past_value[1,4,8,64]   new_v[1,1,4,64] -> transpose{0,2,1,3}
+//        +------concat(axis=2)[1,4,9,64]----> present_value
+//                      |
+//                    SDPA.V
+std::shared_ptr<ov::Model> build_mha_sdpa_model(bool with_sink = false) {
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S, D});
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, H, D});
+    auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, D});
+    auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S + 1, D});
+    auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, 1, S + 1});
+    ov::ParameterVector params{past_value, new_v, q, k, mask};
+
+    auto concat =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, make_transpose(new_v, {0, 2, 1, 3})}, 2);
+    std::shared_ptr<ov::Node> sdpa;
+    if (with_sink) {
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, 1});
+        params.push_back(sink);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, concat, mask, scale, sink, false);
+    } else {
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, concat, mask, false);
+    }
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sdpa), std::make_shared<ov::op::v0::Result>(concat)},
+        params);
+}
+
+//   past_value[1,4,64,8]   new_v[1,1,4,64] -> transpose{0,2,3,1}
+//        +------concat(axis=3)[1,4,64,9]----> present_value
+//                      |
+//              transpose{0,1,3,2}
+//                      |
+//                    SDPA.V
+std::shared_ptr<ov::Model> build_mha_sdpa_model_ref() {
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, D, S});
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, H, D});
+    auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, D});
+    auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S + 1, D});
+    auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, 1, S + 1});
+
+    auto concat =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, make_transpose(new_v, {0, 2, 3, 1})}, 3);
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q,
+                                                                         k,
+                                                                         make_transpose(concat, {0, 1, 3, 2}),
+                                                                         mask,
+                                                                         false);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sdpa), std::make_shared<ov::op::v0::Result>(concat)},
+        ov::ParameterVector{past_value, new_v, q, k, mask});
+}
+
+// MHA, two SDPAs read the V-concat directly. With second_without_mask the second SDPA has 3 inputs (no mask).
+//
+//   past_value[1,4,8,64]   new_v[1,1,4,64] -> transpose{0,2,1,3}
+//        +------concat(axis=2)[1,4,9,64]----> present_value
+//                 |              |
+//               SDPA1.V        SDPA2.V
+std::shared_ptr<ov::Model> build_mha_two_sdpa_model(bool second_without_mask = false) {
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S, D});
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, H, D});
+    auto concat =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, make_transpose(new_v, {0, 2, 1, 3})}, 2);
+
+    ov::ParameterVector params{past_value, new_v};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    for (int i = 0; i < 2; ++i) {
+        auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, D});
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S + 1, D});
+        std::shared_ptr<ov::Node> sdpa;
+        if (second_without_mask && i == 1) {
+            params.insert(params.end(), {q, k});
+            sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, concat, true);
+        } else {
+            auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, 1, S + 1});
+            params.insert(params.end(), {q, k, mask});
+            sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, concat, mask, false);
+        }
+        results.push_back(std::make_shared<ov::op::v0::Result>(sdpa));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+// Each SDPA gets its own restoring Transpose:
+//   past_value[1,4,64,8]   new_v[1,1,4,64] -> transpose{0,2,3,1}
+//        +------concat(axis=3)[1,4,64,9]----> present_value
+//                 |                         |
+//         transpose{0,1,3,2}        transpose{0,1,3,2}
+//                 |                         |
+//               SDPA1.V                   SDPA2.V
+std::shared_ptr<ov::Model> build_mha_two_sdpa_model_ref(bool second_without_mask = false) {
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, D, S});
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, H, D});
+    auto concat =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, make_transpose(new_v, {0, 2, 3, 1})}, 3);
+
+    ov::ParameterVector params{past_value, new_v};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    for (int i = 0; i < 2; ++i) {
+        auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, D});
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S + 1, D});
+        auto v = make_transpose(concat, {0, 1, 3, 2});
+        std::shared_ptr<ov::Node> sdpa;
+        if (second_without_mask && i == 1) {
+            params.insert(params.end(), {q, k});
+            sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, true);
+        } else {
+            auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, 1, S + 1});
+            params.insert(params.end(), {q, k, mask});
+            sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, false);
+        }
+        results.push_back(std::make_shared<ov::op::v0::Result>(sdpa));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+constexpr size_t KV = 1, QH = 8, N = 4;
+
+// Gemma4-like: MQA (Reshape as a fake transpose), GQA broadcast chain shared by two SDPAs.
+//
+//   past_value[1,1,8,64]   new_v[1,4,1,64] -> Reshape (fake transpose) [1,1,4,64]
+//        +------concat(axis=2)[1,1,12,64]----> present_value
+//                      |
+//         unsqueeze -> broadcast[1,1,8,12,64] -> reshape[1,8,12,64]
+//                                                 |            |
+//                                               SDPA1.V      SDPA2.V
+std::shared_ptr<ov::Model> build_mqa_shared_sdpa_model() {
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, KV, S, D});
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, N, KV, D});
+    auto new_v_t = std::make_shared<ov::op::v1::Reshape>(
+        new_v,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {B, KV, N, D}),
+        false);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, new_v_t}, 2);
+
+    auto unsqueeze =
+        std::make_shared<ov::op::v0::Unsqueeze>(concat, ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(
+        unsqueeze,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {B, KV, QH, S + N, D}),
+        ov::op::BroadcastType::BIDIRECTIONAL);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(
+        broadcast,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {B, QH, S + N, D}),
+        false);
+
+    ov::ParameterVector params{past_value, new_v};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    for (int i = 0; i < 2; ++i) {
+        auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, QH, N, D});
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, QH, S + N, D});
+        auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, N, S + N});
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, reshape, mask, scale, false);
+        params.insert(params.end(), {q, k, mask});
+        results.push_back(std::make_shared<ov::op::v0::Result>(sdpa));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+// The MQA Reshape becomes a real Transpose, the V-cache is transposed, the chain works on the transposed
+// layout and each SDPA gets a restoring Transpose:
+//   past_value[1,1,64,8]   new_v[1,4,1,64] -> transpose{0,2,3,1} [1,1,64,4]
+//        +------concat(axis=3)[1,1,64,12]----> present_value
+//                      |
+//         unsqueeze -> broadcast[1,1,8,64,12] -> reshape[1,8,64,12]
+//                                                 |                     |
+//                                       transpose{0,1,3,2}    transpose{0,1,3,2}
+//                                                 |                     |
+//                                               SDPA1.V               SDPA2.V
+std::shared_ptr<ov::Model> build_mqa_shared_sdpa_model_ref() {
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, KV, D, S});
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, N, KV, D});
+    auto concat =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past_value, make_transpose(new_v, {0, 2, 3, 1})}, 3);
+
+    // the pass writes the swapped targets as i32 constants
+    auto unsqueeze =
+        std::make_shared<ov::op::v0::Unsqueeze>(concat, ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(
+        unsqueeze,
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, {B, KV, QH, D, S + N}),
+        ov::op::BroadcastType::BIDIRECTIONAL);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(
+        broadcast,
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {B, QH, D, S + N}),
+        false);
+
+    ov::ParameterVector params{past_value, new_v};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    for (int i = 0; i < 2; ++i) {
+        auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, QH, N, D});
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, QH, S + N, D});
+        auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, N, S + N});
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        auto v = make_transpose(reshape, {0, 1, 3, 2});
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, false);
+        params.insert(params.end(), {q, k, mask});
+        results.push_back(std::make_shared<ov::op::v0::Result>(sdpa));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+class TransposeVTKeepSDPATest : public TransformationTestsF {
+public:
+    TransposeVTKeepSDPATest() {
+        // the pass rewrites transpose orders, broadcast/reshape targets and the concat axis
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
+        // the V-transpose matchers don't propagate rt_info to the constants they create
+        disable_rt_info_check();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::npuw::util::OptimizeValueTensors>(true);
+    }
+};
+
+}  // namespace
+
+TEST_F(TransposeVTKeepSDPATest, MHA_ExplicitTransposeBeforeSDPA) {
+    model = build_mha_sdpa_model();
+    model_ref = build_mha_sdpa_model_ref();
+}
+
+TEST_F(TransposeVTKeepSDPATest, MHA_TwoSDPAsShareConcat_TransposePerSDPA) {
+    model = build_mha_two_sdpa_model();
+    model_ref = build_mha_two_sdpa_model_ref();
+}
+
+// A 3-input SDPA (no mask) gets the restoring Transpose as well: the V-cache layout is model-wide
+TEST_F(TransposeVTKeepSDPATest, MHA_TwoSDPAsWithAndWithoutMask_TransposePerSDPA) {
+    model = build_mha_two_sdpa_model(true);
+    model_ref = build_mha_two_sdpa_model_ref(true);
+}
+
+// The broadcast chain runs on the transposed layout, the restoring Transpose sits right before each SDPA
+TEST_F(TransposeVTKeepSDPATest, MQA_SharedSDPA_TransposeBeforeSDPA) {
+    model = build_mqa_shared_sdpa_model();
+    model_ref = build_mqa_shared_sdpa_model_ref();
+}
+
+// SDPA with sink isn't a V consumer: the model is left as is (LLMCompiledModel decomposes it beforehand)
+TEST_F(TransposeVTKeepSDPATest, SDPAWithSink_NotTransposed) {
+    model = build_mha_sdpa_model(true);
+    model_ref = build_mha_sdpa_model(true);
+}
+
+// DecomposeSDPA uses the core decomposition for SDPA with sink, then the V-cache gets transposed as usual
+TEST(TransposeVTKeepSDPA, SDPAWithSink_DecomposedAndTransposed) {
+    auto model = build_mha_sdpa_model(true);
+    ASSERT_TRUE(ov::npuw::util::has_sdpa_with_sink(model));
+    ASSERT_TRUE(ov::npuw::util::DecomposeSDPA(true).run_on_model(model));
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(true).run_on_model(model));
+    EXPECT_EQ(model->get_parameters()[0]->get_partial_shape(), ov::PartialShape({B, H, D, S}));
+}
+
+// is_whisper doesn't decompose SDPA: LLMCompiledModel runs DecomposeSDPA for Whisper
+TEST_F(TransformationTestsF, TransposeVTKeepSDPA_Whisper_KeepsSDPA) {
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+    model = build_mha_sdpa_model();
+    model_ref = build_mha_sdpa_model_ref();
+    manager.register_pass<ov::npuw::util::OptimizeValueTensors>(false, true);
 }

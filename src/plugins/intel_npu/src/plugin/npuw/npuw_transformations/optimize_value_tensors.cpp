@@ -16,6 +16,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/util/pp.hpp"
@@ -76,12 +77,29 @@ public:
     };
 
 protected:
-    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
-    void transpose_matmul_b(Context::Ref ctx,
-                            const std::shared_ptr<ov::op::v0::Parameter>& matched_param,
-                            const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
-                            const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
-                            const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
+    // V consumer: MatMul of the decomposed SDPA or SDPA itself when it is kept (NPUW_LLM_DECOMPOSE_SDPA=NO)
+    static std::shared_ptr<ov::Node> v_consumer(const std::shared_ptr<ov::Node>& v) {
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        // Softmax output maybe sliced when SDPA with sink input is decomposed (e.g. GPT-OSS)
+        auto maybe_slice = opp::optional<ov::op::v8::Slice>(
+            {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, v});
+        auto sdpa_no_mask =
+            opp::wrap_type<ov::op::v13::ScaledDotProductAttention>({opp::any_input(), opp::any_input(), v});
+        auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {opp::any_input(), opp::any_input(), v, opp::any_input()});
+        auto sdpa_scale = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {opp::any_input(), opp::any_input(), v, opp::any_input(), opp::any_input()});
+        using ov::pass::operator|;
+        return matmul | sdpa_no_mask | sdpa | sdpa_scale;
+    }
+
+    // generic part of matchers, to transpose v-tensors, and concat, and update the V consumer (MatMul or kept SDPA)
+    void transpose_v_tensors(Context::Ref ctx,
+                             const std::shared_ptr<ov::op::v0::Parameter>& matched_param,
+                             const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
+                             const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
+                             const std::shared_ptr<ov::Node>& matched_v_consumer) {
         // NB: The same param->concat pair may be matched multiple times when the
         // V-concat output feeds more than one downstream branch (e.g. shared KV-cache
         // across attention layers in Gemma4).  Guard the shared-state mutations so they
@@ -113,21 +131,29 @@ protected:
             ctx.get().track(matched_transpose->output(0));
         }
         ctx.get().track(matched_concat->output(0));
-        matched_matmul->set_transpose_b(true);
+        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(matched_v_consumer)) {
+            matmul->set_transpose_b(true);
+        } else {
+            // SDPA is kept: explicit Transpose restores the V layout SDPA expects
+            auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 1, 3, 2});
+            auto restore = std::make_shared<ov::op::v1::Transpose>(matched_v_consumer->input_value(2), order_cst);
+            restore->set_friendly_name(matched_v_consumer->get_friendly_name() + "/vt_restore");
+            ov::copy_runtime_info(matched_v_consumer, {restore, order_cst});
+            matched_v_consumer->input(2).replace_source_output(restore);
+        }
         ctx.get().bTransposed = true;
     }
 
-    void transpose_matmul_b(Context::Ref ctx,
-                            const std::shared_ptr<ov::Node>& node_param,
-                            const std::shared_ptr<ov::Node>& node_concat,
-                            const std::shared_ptr<ov::Node>& node_transpose,
-                            const std::shared_ptr<ov::Node>& node_matmul) {
+    void transpose_v_tensors(Context::Ref ctx,
+                             const std::shared_ptr<ov::Node>& node_param,
+                             const std::shared_ptr<ov::Node>& node_concat,
+                             const std::shared_ptr<ov::Node>& node_transpose,
+                             const std::shared_ptr<ov::Node>& node_v_consumer) {
         auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
         auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
         auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
-        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
 
-        transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
+        transpose_v_tensors(ctx, matched_param, matched_concat, matched_transpose, node_v_consumer);
     }
 };
 
@@ -226,11 +252,7 @@ private:
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
-        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        // Softmax output maybe sliced when SDPA with sink input is decomposed
-        auto maybe_slice = opp::optional<ov::op::v8::Slice>(
-            {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, concat});
+        auto v_cons = v_consumer(concat);
 
         auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -238,17 +260,13 @@ private:
             auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_v_cons = node_to_output.at(v_cons).get_node_shared_ptr();
 
-            transpose_matmul_b(ctx,
-                               matched_node_param,
-                               matched_node_concat,
-                               matched_node_transpose,
-                               matched_node_matmul);
+            transpose_v_tensors(ctx, matched_node_param, matched_node_concat, matched_node_transpose, matched_v_cons);
             LOG_DEBUG("vtensors transposed: MHA pattern");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_MHA"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(v_cons, "TransposeValueTensors_MHA"), std::move(callback));
     }
 };
 
@@ -277,12 +295,7 @@ private:
         auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
         auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
 
-        // v8 softmax? what? can be other softmaxes
-        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        // Softmax output maybe sliced when SDPA with sink input is decomposed (e.g. GPT-OSS)
-        auto maybe_slice = opp::optional<ov::op::v8::Slice>(
-            {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, reshape});
+        auto v_cons = v_consumer(reshape);
 
         auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -290,16 +303,16 @@ private:
             auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_v_cons = node_to_output.at(v_cons).get_node_shared_ptr();
             auto matched_node_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
             auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
             auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
             auto matched_node_reshape = node_to_output.at(reshape).get_node_shared_ptr();
 
             // MQA: Replace it with a
-            // real Transpose so that transpose_matmul_b can set the permutation order
+            // real Transpose so that transpose_v_tensors can set the permutation order
             // uniformly.  The placeholder order {0,2,1,3} will be overwritten to
-            // {0,2,3,1} by transpose_matmul_b.
+            // {0,2,3,1} by transpose_v_tensors.
             if (ov::is_type<ov::op::v1::Reshape>(matched_node_transpose)) {
                 // Only accept a Reshape that is semantically a genuine MQA fake-transpose:
                 //   [B, Snew, 1, D] → [B, 1, Snew, D]
@@ -331,7 +344,6 @@ private:
             auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
             auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
             auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
@@ -359,14 +371,14 @@ private:
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
-            transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
+            transpose_v_tensors(ctx, matched_param, matched_concat, matched_transpose, matched_v_cons);
             ctx.get().track(matched_unsqueeze->output(0));
             ctx.get().track(matched_broadcast->output(0));
             ctx.get().track(matched_reshape->output(0));
             LOG_DEBUG("vtensors transposed: GQA pattern");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_GQA"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(v_cons, "TransposeValueTensors_GQA"), std::move(callback));
     }
 };
 
@@ -486,26 +498,27 @@ public:
 
 }  // namespace
 
-bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool ov::npuw::util::has_sdpa_with_sink(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ops();
+    return std::any_of(ops.begin(), ops.end(), [](const auto& op) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        return sdpa && sdpa->get_input_size() == 6;
+    });
+}
+
+bool ov::npuw::util::DecomposeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
-
-    // Check if any SDPA has sink input
-    bool has_sdpa_with_sink = false;
-    for (const auto& op : model->get_ops()) {
-        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
-            if (sdpa->get_input_size() == 6) {
-                has_sdpa_with_sink = true;
-                break;
-            }
-        }
-    }
-
-    if (has_sdpa_with_sink) {
+    if (has_sdpa_with_sink(model)) {
         // TODO:  evaluate performance by older npu-drivers
         rewr.add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
     } else {
-        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(m_is_prefill);
+        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(m_use_high_precision_on_add);
     }
+    return rewr.run_on_model(model);
+}
+
+bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
 
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
