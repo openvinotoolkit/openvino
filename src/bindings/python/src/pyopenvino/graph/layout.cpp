@@ -48,4 +48,16 @@ void regclass_graph_Layout(py::module m) {
     layout.def("__repr__", [](const ov::Layout& self) {
         return "<" + Common::get_class_name(self) + ": " + self.to_string() + ">";
     });
+
+    // Layout is immutable, so copies can share the original object.
+    layout.def("__copy__", [](py::object& self) {
+        return self;
+    });
+
+    layout.def(
+        "__deepcopy__",
+        [](py::object& self, py::dict) {
+            return self;
+        },
+        "memo");
 }

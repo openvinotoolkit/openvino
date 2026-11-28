@@ -221,5 +221,16 @@ void regclass_graph_Dimension(py::module m) {
         return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 
+    dim.def("__copy__", [](const ov::Dimension& self) -> ov::Dimension {
+        return ov::Dimension(self);
+    });
+
+    dim.def(
+        "__deepcopy__",
+        [](const ov::Dimension& self, py::dict) -> ov::Dimension {
+            return ov::Dimension(self);
+        },
+        "memo");
+
     dim.def("to_string", &ov::Dimension::to_string);
 }

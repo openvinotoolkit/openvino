@@ -7,7 +7,7 @@ import copy
 import numpy as np
 import pytest
 
-from openvino import Dimension, Model, PartialShape, Shape
+from openvino import Dimension, Layout, Model, PartialShape, Shape, Type
 
 import openvino.opset13 as ov
 
@@ -468,3 +468,46 @@ def test_shape_slicing_step(shape_type):
     assert list(shape[1::2]) == [2, 4]
     assert list(shape[::-1]) == [5, 4, 3, 2, 1]
     assert list(shape[::-2]) == [5, 3, 1]
+
+
+@pytest.mark.parametrize("copy_func", [copy.copy, copy.deepcopy])
+@pytest.mark.parametrize(
+    "value",
+    [
+        Shape([1, 3, 224, 224]),
+        Shape(),
+        Dimension(5),
+        Dimension(2, 8),
+        Dimension(),
+    ],
+)
+def test_copy_of_mutable_value_types(copy_func, value):
+    copied = copy_func(value)
+
+    assert type(copied) is type(value)
+    assert copied == value
+    assert copied is not value
+
+
+@pytest.mark.parametrize("copy_func", [copy.copy, copy.deepcopy])
+@pytest.mark.parametrize(
+    "value",
+    [
+        Layout("NCHW"),
+        Layout("N...C"),
+        Layout(),
+        Type.f32,
+        Type.string,
+        Type.dynamic,
+    ],
+)
+def test_copy_of_immutable_value_types(copy_func, value):
+    assert copy_func(value) is value
+
+
+def test_deepcopy_of_container_with_value_types():
+    shapes = {"input": Shape([1, 3]), "dim": Dimension(1, 4), "layout": Layout("NC"), "type": Type.i64}
+
+    copied = copy.deepcopy(shapes)
+
+    assert copied == shapes
