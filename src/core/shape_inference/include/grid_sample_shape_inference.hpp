@@ -19,26 +19,47 @@ std::vector<TRShape> shape_infer(const GridSample* op, const std::vector<TShape>
                           input_shapes.size() == 2,
                           "Incorrect number of input shapes in GridSample's shape inference function");
     const auto& data_shape = input_shapes[0];
-    NODE_VALIDATION_CHECK(op, data_shape.rank().compatible(4), "The supported shape of the input data tensor is 4D.");
     const auto& grid_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, grid_shape.rank().compatible(4), "The supported shape of the grid tensor is 4D.");
+
+    NODE_VALIDATION_CHECK(op,
+                          data_shape.rank().compatible(4) || data_shape.rank().compatible(5),
+                          "The supported shape of the input data tensor is 4D or 5D.");
+    NODE_VALIDATION_CHECK(op,
+                          grid_shape.rank().compatible(4) || grid_shape.rank().compatible(5),
+                          "The supported shape of the grid tensor is 4D or 5D.");
+
+    if (data_shape.rank().is_static() && grid_shape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              data_shape.size() == grid_shape.size(),
+                              "The rank of the data and grid input tensors must be equal.");
+    }
+
+    if (data_shape.rank().is_dynamic() && grid_shape.rank().is_dynamic()) {
+        return {PartialShape::dynamic()};
+    }
+    const size_t out_rank = data_shape.rank().is_static() ? data_shape.size() : grid_shape.size();
+    const size_t spatial_rank = out_rank - 2;
+
+    NODE_VALIDATION_CHECK(op,
+                          out_rank != 5 || op->get_attributes().mode != GridSample::InterpolationMode::BICUBIC,
+                          "GridSample does not support bicubic interpolation for 5D (volumetric) input.");
 
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes.front();
-    output_shape.resize(4);
+    output_shape.resize(out_rank);
 
     auto& batch_dim = output_shape[0];
     auto& channel_dim = output_shape[1];
-    auto& H_out_dim = output_shape[2];
-    auto& W_out_dim = output_shape[3];
 
     if (grid_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              grid_shape[3].compatible(2),
-                              "The last dimension of grid tensor's shape has to be equal to 2.");
+                              grid_shape[spatial_rank + 1].compatible(static_cast<int64_t>(spatial_rank)),
+                              "The last dimension of the grid tensor's shape has to be equal to the number of "
+                              "spatial dimensions of the data tensor.");
         batch_dim = grid_shape[0];
-        H_out_dim = grid_shape[1];
-        W_out_dim = grid_shape[2];
+        for (size_t i = 0; i < spatial_rank; ++i) {
+            output_shape[2 + i] = grid_shape[1 + i];
+        }
 
         if (data_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(

@@ -75,7 +75,12 @@ void GridSampleLayerTestCPU::SetUp() {
     if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
         selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
     } else {
-        auto execType = dataPrecision == ov::element::i32 ? ov::element::i32 : ov::element::f32;
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        // The ARM decomposition keeps nearest GridSample as a Reference node that runs in f32 for i32 data.
+        const auto execType = ov::element::f32;
+#else
+        const auto execType = dataPrecision == ov::element::i32 ? ov::element::i32 : ov::element::f32;
+#endif
         selectedType = makeSelectedTypeStr(selectedType, execType);
     }
     if (gridPrecision == ov::element::bf16) {
@@ -93,7 +98,7 @@ void GridSampleLayerTestCPU::SetUp() {
 
 TEST_P(GridSampleLayerTestCPU, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "GridSample");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"GridSample", "Reference"});
 }
 
 namespace GridSample {
