@@ -361,6 +361,21 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::getCompilerTyp
     return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
 }
 
+std::string PluginPropertyManager::resolveCompilationPlatform(const ov::AnyMap& arguments) const {
+    const auto deviceId = getDeviceIdOrDefault(arguments);
+    const auto platformArg = getPlatformOrDefault(arguments);
+
+    if (_platformCache && std::get<0>(*_platformCache) == deviceId && std::get<1>(*_platformCache) == platformArg) {
+        return std::get<2>(*_platformCache);
+    }
+
+    auto device = utils::getDeviceById(_backend, deviceId);
+    auto result =
+        utils::getCompilationPlatform(_backend, platformArg, device == nullptr ? deviceId : device->getName());
+    _platformCache.emplace(deviceId, platformArg, result);
+    return result;
+}
+
 std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompilerType(
     const ov::AnyMap& arguments) const {
     auto compilerType = getCompilerTypeOrDefault(arguments);
@@ -369,11 +384,8 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
     }
 
     try {
-        const auto deviceId = getDeviceIdOrDefault(arguments);
-        auto device = utils::getDeviceById(_backend, deviceId);
-        auto compilationPlatform = utils::getCompilationPlatform(_backend,
-                                                                 getPlatformOrDefault(arguments),
-                                                                 device == nullptr ? deviceId : device->getName());
+        auto device = utils::getDeviceById(_backend, getDeviceIdOrDefault(arguments));
+        auto compilationPlatform = resolveCompilationPlatform(arguments);
 
         _compilerAdapterFactory->decideCompilerType(compilerType.value(), device, compilationPlatform);
         return compilerType;
@@ -912,13 +924,7 @@ void PluginPropertyManager::registerProperties() {
             }
             std::string compilationPlatform;
             if (compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-                auto deviceId = getDeviceIdOrDefault(arguments);
-                auto device = utils::getDeviceById(_backend, deviceId);
-                compilationPlatform = utils::getCompilationPlatform(
-                    _backend,
-                    getPlatformOrDefault(arguments),
-                    device == nullptr ? deviceId : device->getName()
-                    );
+                compilationPlatform = resolveCompilationPlatform(arguments);
             }
 
             try {
@@ -932,12 +938,7 @@ void PluginPropertyManager::registerProperties() {
             OPENVINO_ASSERT(compilerType.has_value(), "Compiler type is not specified in properties.");
             std::string compilationPlatform;
             if (compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-                auto deviceId = getDeviceIdOrDefault(arguments);
-                auto device = utils::getDeviceById(_backend, deviceId);
-                compilationPlatform = utils::getCompilationPlatform(
-                    _backend,
-                    getPlatformOrDefault(arguments),
-                    device == nullptr ? deviceId : device->getName());
+                compilationPlatform = resolveCompilationPlatform(arguments);
             }
 
             return _compilerAdapterFactory->getCompiler(compilerType.value(), compilationPlatform)->get_version();

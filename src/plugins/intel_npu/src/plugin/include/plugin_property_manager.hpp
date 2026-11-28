@@ -56,6 +56,10 @@ private:
     std::optional<ov::intel_npu::CompilerType> getCompilerTypeOrDefault(const ov::AnyMap& arguments) const;
     std::optional<ov::intel_npu::CompilerType> resolveCompilerType(const ov::AnyMap& arguments) const;
 
+    // getDeviceById() plus getCompilationPlatform() can be costly, and the same (deviceId, platform) pair is
+    // frequently re-resolved by multiple property predicates/getters for a single call; cache the last result.
+    std::string resolveCompilationPlatform(const ov::AnyMap& arguments) const;
+
     void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
     Config _config;
@@ -66,6 +70,9 @@ private:
     Logger& _logger;
 
     mutable std::mutex _mutex;
+
+    // {deviceIdArg, platformArg, result}
+    mutable std::optional<std::tuple<std::string, std::string, std::string>> _platformCache;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {

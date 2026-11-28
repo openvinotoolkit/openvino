@@ -224,6 +224,66 @@ TEST_P(CompileLogLevelPropertyTests, IsIndependentFromLogLevel) {
     ASSERT_EQ(pluginLevel.as<ov::log::Level>(), ov::log::Level::DEBUG);
 }
 
+using ResolveCompilationPlatformCacheTests = PropertiesManagerTests;
+
+// NPU_COMPILER_TYPE=PREFER_PLUGIN resolution looks up the device and the compilation platform for the
+// (deviceId, platform) argument pair on every compiler-gated property access. PluginPropertyManager caches the
+// last resolved (deviceId, platform) -> platform result in resolveCompilationPlatform() so repeated resolutions for
+// the same pair skip the costly device lookup. Observe this through the "device not found" warning logged by
+// utils::getDeviceById(): resolveCompilerType() always performs its own direct lookup, while
+// resolveCompilationPlatform() performs a second lookup only when its cache misses.
+TEST_P(ResolveCompilationPlatformCacheTests, CachesDeviceLookupForIdenticalArguments) {
+    const auto countOccurrences = [](const std::string& haystack, const std::string& needle) {
+        size_t count = 0;
+        for (size_t pos = haystack.find(needle); pos != std::string::npos;
+             pos = haystack.find(needle, pos + needle.size())) {
+            ++count;
+        }
+        return count;
+    };
+    const auto notFoundMessage = [](const std::string& deviceId) {
+        return "The specified device (\"" + deviceId + "\") was not found.";
+    };
+
+    std::string logs;
+    std::mutex logs_mutex;
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    utils::LogCallbackGuard log_callback_guard(log_cb);
+    utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+
+    const std::string unknownDeviceId = "RESOLVE_COMPILATION_PLATFORM_UNKNOWN_DEVICE";
+    const ov::AnyMap arguments = {{ov::device::id(unknownDeviceId)},
+                                  {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PREFER_PLUGIN)}};
+
+    // First resolution for this (deviceId, platform) pair: both the direct getDeviceById() call performed by
+    // resolveCompilerType() and the one performed internally by resolveCompilationPlatform() run, logging the
+    // "device not found" warning twice.
+    propertiesManager->isPropertySupported(ov::cache_mode.name(), arguments);
+    ASSERT_EQ(countOccurrences(logs, notFoundMessage(unknownDeviceId)), 2u);
+
+    // Second resolution with the exact same arguments: resolveCompilationPlatform() must reuse the cached result,
+    // so only the direct lookup in resolveCompilerType() repeats.
+    propertiesManager->isPropertySupported(ov::cache_mode.name(), arguments);
+    ASSERT_EQ(countOccurrences(logs, notFoundMessage(unknownDeviceId)), 3u);
+
+    // A different device id invalidates the cache: both lookups run again for the new id.
+    const std::string anotherUnknownDeviceId = unknownDeviceId + "_2";
+    const ov::AnyMap otherDeviceArguments = {{ov::device::id(anotherUnknownDeviceId)},
+                                             {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PREFER_PLUGIN)}};
+    propertiesManager->isPropertySupported(ov::cache_mode.name(), otherDeviceArguments);
+    ASSERT_EQ(countOccurrences(logs, notFoundMessage(anotherUnknownDeviceId)), 2u);
+
+    // Going back to the first device id misses the cache again, since the single-entry cache only remembers the
+    // most recently resolved (deviceId, platform) pair.
+    propertiesManager->isPropertySupported(ov::cache_mode.name(), arguments);
+    ASSERT_EQ(countOccurrences(logs, notFoundMessage(unknownDeviceId)), 5u);
+}
+
 using CompatibilityCheckTests = PropertiesManagerTests;
 
 TEST_P(CompatibilityCheckTests, ExpectArgumentIsNotSupported) {
@@ -1121,6 +1181,12 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          CompatibilityCheckTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         ResolveCompilationPlatformCacheTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
