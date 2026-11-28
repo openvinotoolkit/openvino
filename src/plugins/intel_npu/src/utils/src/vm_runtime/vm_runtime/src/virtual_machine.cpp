@@ -3,27 +3,6 @@
 //
 
 #include "vm_runtime/virtual_machine.h"
-#include "npu_bytecode_utils/bytecode_reader.hpp"
-#include "npu_bytecode_utils/instructions.hpp"
-#include "npu_bytecode_utils/logger.hpp"
-#include "npu_bytecode_utils/managed_vector.hpp"
-#include "npu_bytecode_utils/network_description.hpp"
-#include "npu_bytecode_utils/print_utils.hpp"
-#include "npu_bytecode_utils/section_header_table.hpp"
-#include "npu_bytecode_utils/span.hpp"
-#include "npu_bytecode_utils/type_section.hpp"
-#include "utils/allocator_core.hpp"
-#include "utils/buffer.hpp"
-#include "utils/buffer_metadata.hpp"
-#include "utils/call_frame.hpp"
-#include "utils/function.hpp"
-#include "utils/host_allocator.hpp"
-#include "utils/kernel_execution.hpp"
-#include "utils/level_zero_allocator.hpp"
-#include "utils/math.hpp"
-#include "utils/network_metadata.hpp"
-#include "utils/parameters.hpp"
-#include "vm_runtime/npu_vm_runtime.hpp"
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>
@@ -50,6 +29,28 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "npu_bytecode_utils/bytecode_reader.hpp"
+#include "npu_bytecode_utils/instructions.hpp"
+#include "npu_bytecode_utils/logger.hpp"
+#include "npu_bytecode_utils/managed_vector.hpp"
+#include "npu_bytecode_utils/network_description.hpp"
+#include "npu_bytecode_utils/print_utils.hpp"
+#include "npu_bytecode_utils/section_header_table.hpp"
+#include "npu_bytecode_utils/span.hpp"
+#include "npu_bytecode_utils/type_section.hpp"
+#include "utils/allocator_core.hpp"
+#include "utils/buffer.hpp"
+#include "utils/buffer_metadata.hpp"
+#include "utils/call_frame.hpp"
+#include "utils/function.hpp"
+#include "utils/host_allocator.hpp"
+#include "utils/kernel_execution.hpp"
+#include "utils/level_zero_allocator.hpp"
+#include "utils/math.hpp"
+#include "utils/network_metadata.hpp"
+#include "utils/parameters.hpp"
+#include "vm_runtime/npu_vm_runtime.hpp"
 
 using namespace intel_npu;
 using namespace intel_npu::vm;
@@ -175,7 +176,9 @@ inline int64_t saturatingFloatToInt(FloatT src) noexcept {
     return static_cast<int64_t>(static_cast<IntT>(src));
 }
 
-bool decodeInstruction(const uint8_t* pc, size_t bytesAvailable, intel_npu::vm::OpCode& opcode,
+bool decodeInstruction(const uint8_t* pc,
+                       size_t bytesAvailable,
+                       intel_npu::vm::OpCode& opcode,
                        size_t& instructionSize) {
     if (bytesAvailable < intel_npu::vm::OPCODE_SIZE) {
         NPU_VM_LOG_ERROR("Reached end of function body while decoding opcode. This likely means the function body "
@@ -245,7 +248,9 @@ class BytecodeModule {
             for (const auto& dataInfo : constantSectionInfo->dataInfos) {
                 if (dataInfo.offset > section.size() || dataInfo.size > section.size() - dataInfo.offset) {
                     NPU_VM_LOG_ERROR("Constant data exceeds section bounds: offset={}, size={}, sectionSize={}",
-                                     dataInfo.offset, dataInfo.size, section.size());
+                                     dataInfo.offset,
+                                     dataInfo.size,
+                                     section.size());
                     return false;
                 }
                 _constants.emplace_back(section.subspan(dataInfo.offset, dataInfo.size), /*copyData=*/copyBytecode);
@@ -272,9 +277,10 @@ class BytecodeModule {
                 const auto functionNameOpt = reader.getString(funcInfo.nameIndex);
                 if (!functionNameOpt.has_value()) {
                     NPU_VM_LOG_ERROR(
-                            "Failed to retrieve function name string for function at index {} in function section "
-                            "header {}",
-                            i, headerIdx);
+                        "Failed to retrieve function name string for function at index {} in function section "
+                        "header {}",
+                        i,
+                        headerIdx);
                     return false;
                 }
                 auto functionName = functionNameOpt.value();
@@ -284,8 +290,9 @@ class BytecodeModule {
                 const auto functionTypeOpt = reader.getFunctionType(funcInfo.functionTypeIndex);
                 if (!functionTypeOpt.has_value()) {
                     NPU_VM_LOG_ERROR(
-                            "Failed to retrieve function type for function at index {} in function section header {}",
-                            i, headerIdx);
+                        "Failed to retrieve function type for function at index {} in function section header {}",
+                        i,
+                        headerIdx);
                     return false;
                 }
                 const auto& functionType = functionTypeOpt.value();
@@ -294,9 +301,11 @@ class BytecodeModule {
                     auto paramType = intel_npu::vm::extractFuncParamResType(reader, paramTypeIndex);
                     if (!paramType.has_value()) {
                         NPU_VM_LOG_ERROR(
-                                "Failed to extract parameter type for param type index {} in function at index {} "
-                                "in function section header {}",
-                                paramTypeIndex, i, headerIdx);
+                            "Failed to extract parameter type for param type index {} in function at index {} "
+                            "in function section header {}",
+                            paramTypeIndex,
+                            i,
+                            headerIdx);
                         return false;
                     }
                     paramTypes.push_back(std::move(paramType.value()));
@@ -306,9 +315,11 @@ class BytecodeModule {
                     auto resultType = intel_npu::vm::extractFuncParamResType(reader, resultTypeIndex);
                     if (!resultType.has_value()) {
                         NPU_VM_LOG_ERROR(
-                                "Failed to extract result type for result type index {} in function at index {} "
-                                "in function section header {}",
-                                resultTypeIndex, i, headerIdx);
+                            "Failed to extract result type for result type index {} in function at index {} "
+                            "in function section header {}",
+                            resultTypeIndex,
+                            i,
+                            headerIdx);
                         return false;
                     }
                     resultTypes.push_back(std::move(resultType.value()));
@@ -319,12 +330,16 @@ class BytecodeModule {
                     NPU_VM_LOG_ERROR("Function '{}' does not have enough general registers to hold all parameters. "
                                      "Required: {}, "
                                      "available: {}.",
-                                     functionName, paramTypes.size(), numGeneralRegisters);
+                                     functionName,
+                                     paramTypes.size(),
+                                     numGeneralRegisters);
                     return false;
                 }
                 if (numGeneralRegisters > std::numeric_limits<int16_t>::max()) {
                     NPU_VM_LOG_ERROR("Function '{}' has too many general registers: {}. Maximum supported is {}.",
-                                     functionName, numGeneralRegisters, std::numeric_limits<int16_t>::max());
+                                     functionName,
+                                     numGeneralRegisters,
+                                     std::numeric_limits<int16_t>::max());
                     return false;
                 }
 
@@ -335,8 +350,13 @@ class BytecodeModule {
                     return false;
                 }
                 const auto functionBody = section.subspan(funcInfo.bodyOffset, funcInfo.bodySize);
-                _functions.emplace_back(functionName, numGeneralRegisters, isEntrypoint, std::move(paramTypes),
-                                        std::move(resultTypes), functionBody, /*copyBody=*/copyBytecode);
+                _functions.emplace_back(functionName,
+                                        numGeneralRegisters,
+                                        isEntrypoint,
+                                        std::move(paramTypes),
+                                        std::move(resultTypes),
+                                        functionBody,
+                                        /*copyBody=*/copyBytecode);
 
                 if (!_functions.back().parseInstructionOffsets()) {
                     NPU_VM_LOG_ERROR("Failed to pre-decode instruction offsets for function '{}'",
@@ -366,7 +386,9 @@ class BytecodeModule {
             for (auto& dataInfo : kernelSectionInfo->dataInfos) {
                 if (dataInfo.offset > section.size() || dataInfo.size > section.size() - dataInfo.offset) {
                     NPU_VM_LOG_ERROR("Kernel binary exceeds section bounds: offset={}, size={}, sectionSize={}",
-                                     dataInfo.offset, dataInfo.size, section.size());
+                                     dataInfo.offset,
+                                     dataInfo.size,
+                                     section.size());
                     return false;
                 }
                 const auto kernelBinary = section.subspan(dataInfo.offset, dataInfo.size);
@@ -394,7 +416,9 @@ class BytecodeModule {
             for (auto& dataInfo : stringSectionInfo->dataInfos) {
                 if (dataInfo.offset > section.size() || dataInfo.size > section.size() - dataInfo.offset) {
                     NPU_VM_LOG_ERROR("String data exceeds section bounds: offset={}, size={}, sectionSize={}",
-                                     dataInfo.offset, dataInfo.size, section.size());
+                                     dataInfo.offset,
+                                     dataInfo.size,
+                                     section.size());
                     return false;
                 }
                 const auto rawString = section.subspan(dataInfo.offset, dataInfo.size);
@@ -619,11 +643,11 @@ class EngineState {
 
     using kernel_binary_handle_t = void*;
     std::unordered_map<kernel_binary_handle_t, KernelInfo>
-            _kernelInfos;  // Metadata for created kernels, keyed by their handles
+        _kernelInfos;  // Metadata for created kernels, keyed by their handles
 
     ExecutionContext _executionContext;
     ze_graph_dditable_ext_t* _graphDdiTableHandle =
-            nullptr;  // Ddi table handle provided at execution time, used for kernel execution
+        nullptr;  // Ddi table handle provided at execution time, used for kernel execution
 
 public:
     EngineState() = default;
@@ -711,8 +735,11 @@ public:
     }
 };
 
-bool applyJump(EngineState& engineState, int64_t jumpOffset, const uint8_t* functionBodyStart,
-               const uint8_t* functionBodyEnd, const Function& function) {
+bool applyJump(EngineState& engineState,
+               int64_t jumpOffset,
+               const uint8_t* functionBodyStart,
+               const uint8_t* functionBodyEnd,
+               const Function& function) {
     if (jumpOffset == 0) {
         return false;
     }
@@ -734,7 +761,10 @@ bool applyJump(EngineState& engineState, int64_t jumpOffset, const uint8_t* func
     if (!function.isValidInstructionOffset(static_cast<size_t>(targetIndex))) {
         NPU_VM_LOG_ERROR("Jump target offset {} in function '{}' does not land on an instruction boundary "
                          "(jumpOffset={}, currentIndex={})",
-                         targetIndex, function.getName(), jumpOffset, currentIndex);
+                         targetIndex,
+                         function.getName(),
+                         jumpOffset,
+                         currentIndex);
         return false;
     }
     engineState.setPC(std::next(pc, static_cast<std::ptrdiff_t>(jumpOffset)));
@@ -752,7 +782,8 @@ class VMEngine {
 
     // Interprets the instruction stream of the given function until a RET instruction is encountered or an unknown
     // opcode halts execution
-    bool inferImpl(std::string_view functionName, Span<npu_vm_runtime_mem_ref_handle_t> inputMemRefs,
+    bool inferImpl(std::string_view functionName,
+                   Span<npu_vm_runtime_mem_ref_handle_t> inputMemRefs,
                    Span<npu_vm_runtime_mem_ref_handle_t> outputMemRefs);
 
     // Interprets the instruction stream of the given function until a RET instruction is encountered or an unknown
@@ -861,18 +892,25 @@ bool VMEngine::loadModule(std::shared_ptr<BytecodeModule> bytecodeModule, npu_vm
         auto batchMode = (loadParams) ? loadParams->batchMode : npu_vm_batch_mode_none;
         auto batchSize = (loadParams) ? loadParams->batchSize : 1;
         bool result =
-                executionContext.initialize(contextType, static_cast<uint32_t>(metadata->numCmdLists),
-                                            static_cast<uint32_t>(metadata->inputs.size() + metadata->outputs.size()),
-                                            concurrentJobCount, counterBasedEventSupported, batchMode, batchSize);
+            executionContext.initialize(contextType,
+                                        static_cast<uint32_t>(metadata->numCmdLists),
+                                        static_cast<uint32_t>(metadata->inputs.size() + metadata->outputs.size()),
+                                        concurrentJobCount,
+                                        counterBasedEventSupported,
+                                        batchMode,
+                                        batchSize);
         if (result == false) {
             NPU_VM_LOG_ERROR("Failed to initialize execution context");
             return false;
         }
 
         if (params) {
-            auto initResult = executionContext.initializeExecutionObjects(
-                    params->ctx, params->device, params->commandQueue, params->graphDdiTableExt,
-                    params->commandQueueDdiTableExt, loadParams->internalCommandQueue);
+            auto initResult = executionContext.initializeExecutionObjects(params->ctx,
+                                                                          params->device,
+                                                                          params->commandQueue,
+                                                                          params->graphDdiTableExt,
+                                                                          params->commandQueueDdiTableExt,
+                                                                          loadParams->internalCommandQueue);
             if (initResult != ZE_RESULT_SUCCESS) {
                 NPU_VM_LOG_ERROR("Failed to initialize execution context");
                 return false;
@@ -961,14 +999,16 @@ bool VMEngine::call(std::string_view name, Span<const npu_vm_value> arguments, S
     const auto& paramTypes = function->getParamTypes();
     if (arguments.size() != paramTypes.size()) {
         NPU_VM_LOG_ERROR("Number of arguments passed ({}) does not match the function's parameter count ({})",
-                         arguments.size(), paramTypes.size());
+                         arguments.size(),
+                         paramTypes.size());
         return false;
     }
 
     const auto& resultTypes = function->getResultTypes();
     if (results.size() != resultTypes.size()) {
         NPU_VM_LOG_ERROR("Number of result slots provided ({}) does not match the function's result count ({}).",
-                         results.size(), resultTypes.size());
+                         results.size(),
+                         resultTypes.size());
         return false;
     }
 
@@ -1010,7 +1050,8 @@ bool VMEngine::call(std::string_view name, Span<const npu_vm_value> arguments, S
                 frame.setReg(static_cast<int16_t>(firstParamRegIndex + i), value);
                 NPU_VM_LOG_DEBUG("  Setting parameter {} (type {}) to value: {}", i, isSigned ? "i64" : "u64", value);
             } else {
-                NPU_VM_LOG_ERROR("Unsupported integer bit width for argument {}: {} bits", i,
+                NPU_VM_LOG_ERROR("Unsupported integer bit width for argument {}: {} bits",
+                                 i,
                                  static_cast<int>(bitWidth));
                 return false;
             }
@@ -1146,7 +1187,9 @@ bool VMEngine::call(std::string_view name, Span<const npu_vm_value> arguments, S
                 // responsible for ensuring that the provided buffer has sufficient size to hold the result.
                 if (resultBuffer.size < buffer.getSize()) {
                     NPU_VM_LOG_ERROR("Provided buffer for result {} is too small. Required size: {}, provided size: {}",
-                                     i, buffer.getSize(), resultBuffer.size);
+                                     i,
+                                     buffer.getSize(),
+                                     resultBuffer.size);
                     return false;
                 }
             }
@@ -1161,7 +1204,8 @@ bool VMEngine::call(std::string_view name, Span<const npu_vm_value> arguments, S
     return _state.getExecState() == ExecState::Finalized;
 }
 
-bool VMEngine::inferImpl(std::string_view functionName, Span<npu_vm_runtime_mem_ref_handle_t> inputMemRefs,
+bool VMEngine::inferImpl(std::string_view functionName,
+                         Span<npu_vm_runtime_mem_ref_handle_t> inputMemRefs,
                          Span<npu_vm_runtime_mem_ref_handle_t> outputMemRefs) {
     if (_bytecodeModule == nullptr) {
         NPU_VM_LOG_ERROR("No bytecode module loaded in the engine");
@@ -1176,7 +1220,8 @@ bool VMEngine::inferImpl(std::string_view functionName, Span<npu_vm_runtime_mem_
     const auto funcNumParams = function->getParamTypes().size();
     if (funcNumParams != (inputMemRefs.size() + outputMemRefs.size())) {
         NPU_VM_LOG_ERROR("Number of inputs and outputs passed ({}) does not match the function's parameter count ({})",
-                         inputMemRefs.size() + outputMemRefs.size(), funcNumParams);
+                         inputMemRefs.size() + outputMemRefs.size(),
+                         funcNumParams);
         return false;
     }
 
@@ -1186,9 +1231,12 @@ bool VMEngine::inferImpl(std::string_view functionName, Span<npu_vm_runtime_mem_
     const auto firstOutputParamRegIndex = firstInputParamRegIndex + inputMemRefs.size();
 
     for (uint32_t i = 0; i < inputMemRefs.size(); ++i) {
-        auto handle =
-                extractMemRef(inputMemRefs.at(i), _state.getBufferManager(), _state.getBufferMetadata(),
-                              Permission::Read, function->getParamTypes().at(i), _bytecodeModule->getTypeByteSizes());
+        auto handle = extractMemRef(inputMemRefs.at(i),
+                                    _state.getBufferManager(),
+                                    _state.getBufferMetadata(),
+                                    Permission::Read,
+                                    function->getParamTypes().at(i),
+                                    _bytecodeModule->getTypeByteSizes());
         if (!handle.has_value()) {
             NPU_VM_LOG_ERROR("Failed to extract memref for input {}", i);
             return false;
@@ -1198,8 +1246,11 @@ bool VMEngine::inferImpl(std::string_view functionName, Span<npu_vm_runtime_mem_
     }
     for (uint32_t i = 0; i < outputMemRefs.size(); ++i) {
         const auto outputMemRef = outputMemRefs.at(i);
-        auto handle = extractMemRef(outputMemRef, _state.getBufferManager(), _state.getBufferMetadata(),
-                                    Permission::ReadWrite, function->getParamTypes().at(i + inputMemRefs.size()),
+        auto handle = extractMemRef(outputMemRef,
+                                    _state.getBufferManager(),
+                                    _state.getBufferMetadata(),
+                                    Permission::ReadWrite,
+                                    function->getParamTypes().at(i + inputMemRefs.size()),
                                     _bytecodeModule->getTypeByteSizes());
         if (!handle.has_value()) {
             NPU_VM_LOG_ERROR("Failed to extract memref for output {}", i);
@@ -1301,8 +1352,8 @@ bool VMEngine::predictOutputShape(npu_vm_runtime_predict_output_shape_params_t2*
     }
 
     const auto outputStoragePtr =
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-            reinterpret_cast<npu_vm_runtime_mem_ref_handle_t*>(predictedOutputShapeMemrefPtrs.data());
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        reinterpret_cast<npu_vm_runtime_mem_ref_handle_t*>(predictedOutputShapeMemrefPtrs.data());
     // Inputs and outputs are passed as function arguments to the output shape prediction function
     if (!inferImpl(NPU_VM_OUTPUT_SHAPE_PREDICTION_FUNCTION_NAME,
                    Span<npu_vm_runtime_mem_ref_handle_t>(params->pInputs, params->numOfInputs),
@@ -1355,8 +1406,10 @@ void VMEngine::execute(CallFrame entryFrame) {
     const Function& entryFunction = callStack.back().getFunction();
     _state.setPC(entryFunction.getBody().begin());
 
-    NPU_VM_LOG_DEBUG("Executing function '{}' with {} parameter(s) and {} result(s)", entryFunction.getName(),
-                     entryFunction.getParamTypes().size(), entryFunction.getResultTypes().size());
+    NPU_VM_LOG_DEBUG("Executing function '{}' with {} parameter(s) and {} result(s)",
+                     entryFunction.getName(),
+                     entryFunction.getParamTypes().size(),
+                     entryFunction.getResultTypes().size());
     NPU_VM_LOG_DEBUG("  call depth: {}", callStack.size() - 1);
     NPU_VM_LOG_DEBUG("  pc: {}", static_cast<const void*>(_state.getPC()));
 
@@ -1400,8 +1453,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, static_cast<int64_t>(lhs + rhs));
-            NPU_VM_LOG_DEBUG("  add.i64 {}, {}, {} ({} + {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  add.i64 {}, {}, {} ({} + {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::SET: {
@@ -1444,8 +1502,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, static_cast<int64_t>(lhs * rhs));
-            NPU_VM_LOG_DEBUG("  mul.i64 {}, {}, {} ({} * {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  mul.i64 {}, {}, {} ({} * {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::MIN_I64: {
@@ -1453,8 +1516,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcReg1Num = getOperand(pc, 1);
             const auto srcReg2Num = getOperand(pc, 2);
             frame.setReg(dstRegNum, std::min(frame.getReg(srcReg1Num), frame.getReg(srcReg2Num)));
-            NPU_VM_LOG_DEBUG("  min.i64 {}, {}, {} (min({}, {}) = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  min.i64 {}, {}, {} (min({}, {}) = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::MAX_I64: {
@@ -1462,8 +1530,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcReg1Num = getOperand(pc, 1);
             const auto srcReg2Num = getOperand(pc, 2);
             frame.setReg(dstRegNum, std::max(frame.getReg(srcReg1Num), frame.getReg(srcReg2Num)));
-            NPU_VM_LOG_DEBUG("  max.i64 {}, {}, {} (max({}, {}) = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  max.i64 {}, {}, {} (max({}, {}) = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::CMP_I64: {
@@ -1475,13 +1548,18 @@ void VMEngine::execute(CallFrame entryFrame) {
             const bool isSigned = (flag >> 8) & 0x1;
             const auto result = isSigned ? evaluateCmp(frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), cmpType)
                                          : evaluateCmp(static_cast<uint64_t>(frame.getReg(srcReg1Num)),
-                                                       static_cast<uint64_t>(frame.getReg(srcReg2Num)), cmpType);
+                                                       static_cast<uint64_t>(frame.getReg(srcReg2Num)),
+                                                       cmpType);
             if (!result.has_value()) {
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             frame.setReg(dstRegNum, *result);
-            NPU_VM_LOG_DEBUG("  cmp.i64 {}, {}, {}, {} (cmp({}, {}) = {})", dstRegNum, srcReg1Num, srcReg2Num, flag,
+            NPU_VM_LOG_DEBUG("  cmp.i64 {}, {}, {}, {} (cmp({}, {}) = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             flag,
                              isSigned ? frame.getReg(srcReg1Num) : static_cast<uint64_t>(frame.getReg(srcReg1Num)),
                              isSigned ? frame.getReg(srcReg2Num) : static_cast<uint64_t>(frame.getReg(srcReg2Num)),
                              *result);
@@ -1502,8 +1580,14 @@ void VMEngine::execute(CallFrame entryFrame) {
                 break;
             }
             frame.setReg(dstRegNum, *result);
-            NPU_VM_LOG_DEBUG("  cmp.f64 {}, {}, {}, {} (cmp({}, {}) = {})", dstRegNum, srcReg1Num, srcReg2Num, flag,
-                             lhs, rhs, *result);
+            NPU_VM_LOG_DEBUG("  cmp.f64 {}, {}, {}, {} (cmp({}, {}) = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             flag,
+                             lhs,
+                             rhs,
+                             *result);
             break;
         }
         case OpCode::SUB_I64: {
@@ -1514,8 +1598,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, static_cast<int64_t>(lhs - rhs));
-            NPU_VM_LOG_DEBUG("  sub.i64 {}, {}, {} ({} - {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  sub.i64 {}, {}, {} ({} - {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::DIV_I64: {
@@ -1537,8 +1626,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             } else {
                 frame.setReg(dstRegNum, lhs / rhs);
             }
-            NPU_VM_LOG_DEBUG("  div.i64 {}, {}, {} ({} / {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  div.i64 {}, {}, {} ({} / {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::DIV_U64: {
@@ -1553,7 +1647,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             }
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs / rhs));
-            NPU_VM_LOG_DEBUG("  div.u64 {}, {}, {} ({} / {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
+            NPU_VM_LOG_DEBUG("  div.u64 {}, {}, {} ({} / {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
                              static_cast<uint64_t>(frame.getReg(srcReg1Num)),
                              static_cast<uint64_t>(frame.getReg(srcReg2Num)),
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
@@ -1566,7 +1663,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::min(lhs, rhs)));
-            NPU_VM_LOG_DEBUG("  min.u64 {}, {}, {} (min({}, {}) = {})", dstRegNum, srcReg1Num, srcReg2Num, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  min.u64 {}, {}, {} (min({}, {}) = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             lhs,
+                             rhs,
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1577,7 +1679,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs + rhs));
-            NPU_VM_LOG_DEBUG("  add.u64 {}, {}, {} ({} + {} = {})", dstRegNum, srcReg1Num, srcReg2Num, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  add.u64 {}, {}, {} ({} + {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             lhs,
+                             rhs,
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1588,7 +1695,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::max(lhs, rhs)));
-            NPU_VM_LOG_DEBUG("  max.u64 {}, {}, {} (max({}, {}) = {})", dstRegNum, srcReg1Num, srcReg2Num, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  max.u64 {}, {}, {} (max({}, {}) = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             lhs,
+                             rhs,
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1599,7 +1711,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs * rhs));
-            NPU_VM_LOG_DEBUG("  mul.u64 {}, {}, {} ({} * {} = {})", dstRegNum, srcReg1Num, srcReg2Num, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  mul.u64 {}, {}, {} ({} * {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             lhs,
+                             rhs,
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1615,7 +1732,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             }
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs % rhs));
-            NPU_VM_LOG_DEBUG("  rem.u64 {}, {}, {} ({} %% {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
+            NPU_VM_LOG_DEBUG("  rem.u64 {}, {}, {} ({} %% {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
                              static_cast<uint64_t>(frame.getReg(srcReg1Num)),
                              static_cast<uint64_t>(frame.getReg(srcReg2Num)),
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
@@ -1628,7 +1748,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = static_cast<uint64_t>(frame.getReg(srcReg1Num));
             const auto rhs = static_cast<uint64_t>(frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs - rhs));
-            NPU_VM_LOG_DEBUG("  sub.u64 {}, {}, {} ({} - {} = {})", dstRegNum, srcReg1Num, srcReg2Num, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  sub.u64 {}, {}, {} ({} - {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             lhs,
+                             rhs,
                              static_cast<uint64_t>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1650,8 +1775,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             } else {
                 frame.setReg(dstRegNum, lhs % rhs);
             }
-            NPU_VM_LOG_DEBUG("  rem.i64 {}, {}, {} ({} % {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  rem.i64 {}, {}, {} ({} % {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::ABS_I64: {
@@ -1665,7 +1795,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             } else {
                 frame.setReg(dstRegNum, std::abs(value));
             }
-            NPU_VM_LOG_DEBUG("  abs.i64 {}, {} (abs({}) = {})", dstRegNum, srcRegNum, frame.getReg(srcRegNum),
+            NPU_VM_LOG_DEBUG("  abs.i64 {}, {} (abs({}) = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             frame.getReg(srcRegNum),
                              frame.getReg(dstRegNum));
             break;
         }
@@ -1674,15 +1807,23 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcReg1Num = getOperand(pc, 1);
             const auto srcReg2Num = getOperand(pc, 2);
             frame.setReg(dstRegNum, frame.getReg(srcReg1Num) & frame.getReg(srcReg2Num));
-            NPU_VM_LOG_DEBUG("  and.64 {}, {}, {} ({} & {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  and.64 {}, {}, {} ({} & {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::NOT_64: {
             const auto dstRegNum = getOperand(pc, 0);
             const auto srcRegNum = getOperand(pc, 1);
             frame.setReg(dstRegNum, ~frame.getReg(srcRegNum));
-            NPU_VM_LOG_DEBUG("  not.64 {}, {} (~{} = {})", dstRegNum, srcRegNum, frame.getReg(srcRegNum),
+            NPU_VM_LOG_DEBUG("  not.64 {}, {} (~{} = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             frame.getReg(srcRegNum),
                              frame.getReg(dstRegNum));
             break;
         }
@@ -1691,8 +1832,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcReg1Num = getOperand(pc, 1);
             const auto srcReg2Num = getOperand(pc, 2);
             frame.setReg(dstRegNum, frame.getReg(srcReg1Num) | frame.getReg(srcReg2Num));
-            NPU_VM_LOG_DEBUG("  or.64 {}, {}, {} ({} | {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  or.64 {}, {}, {} ({} | {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::XOR_64: {
@@ -1700,8 +1846,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcReg1Num = getOperand(pc, 1);
             const auto srcReg2Num = getOperand(pc, 2);
             frame.setReg(dstRegNum, frame.getReg(srcReg1Num) ^ frame.getReg(srcReg2Num));
-            NPU_VM_LOG_DEBUG("  xor.64 {}, {}, {} ({} ^ {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), frame.getReg(srcReg2Num), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  xor.64 {}, {}, {} ({} ^ {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             frame.getReg(srcReg2Num),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::SLL_64: {
@@ -1713,8 +1864,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto unsignedResult = static_cast<uint64_t>(frame.getReg(srcReg1Num)) << shiftAmount;
             const auto signedResult = convertUnsignedToSignedPreserveBits<int64_t>(unsignedResult);
             frame.setReg(dstRegNum, signedResult);
-            NPU_VM_LOG_DEBUG("  sll.64 {}, {}, {} ({} << {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), shiftAmount, signedResult);
+            NPU_VM_LOG_DEBUG("  sll.64 {}, {}, {} ({} << {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             shiftAmount,
+                             signedResult);
             break;
         }
         case OpCode::SRL_64: {
@@ -1726,8 +1882,13 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto unsignedResult = static_cast<uint64_t>(frame.getReg(srcReg1Num)) >> shiftAmount;
             const auto signedResult = convertUnsignedToSignedPreserveBits<int64_t>(unsignedResult);
             frame.setReg(dstRegNum, signedResult);
-            NPU_VM_LOG_DEBUG("  srl.64 {}, {}, {} ({} >> {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), shiftAmount, signedResult);
+            NPU_VM_LOG_DEBUG("  srl.64 {}, {}, {} ({} >> {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             shiftAmount,
+                             signedResult);
             break;
         }
         case OpCode::SRA_64: {
@@ -1737,10 +1898,15 @@ void VMEngine::execute(CallFrame entryFrame) {
             // Arithmetic right shift with defined behavior for negative operands.
             // Returns int64_t directly; no sign extension needed.
             const auto shiftedValue =
-                    arithmeticShiftRightDefined<int64_t>(frame.getReg(srcReg1Num), frame.getReg(srcReg2Num));
+                arithmeticShiftRightDefined<int64_t>(frame.getReg(srcReg1Num), frame.getReg(srcReg2Num));
             frame.setReg(dstRegNum, shiftedValue);
-            NPU_VM_LOG_DEBUG("  sra.64 {}, {}, {} ({} >> {} = {})", dstRegNum, srcReg1Num, srcReg2Num,
-                             frame.getReg(srcReg1Num), (frame.getReg(srcReg2Num) & 63), frame.getReg(dstRegNum));
+            NPU_VM_LOG_DEBUG("  sra.64 {}, {}, {} ({} >> {} = {})",
+                             dstRegNum,
+                             srcReg1Num,
+                             srcReg2Num,
+                             frame.getReg(srcReg1Num),
+                             (frame.getReg(srcReg2Num) & 63),
+                             frame.getReg(dstRegNum));
             break;
         }
         case OpCode::SELECT: {
@@ -1750,8 +1916,14 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto falseRegNum = getOperand(pc, 3);
             const auto result = frame.getReg(condRegNum) != 0 ? frame.getReg(trueRegNum) : frame.getReg(falseRegNum);
             frame.setReg(dstRegNum, result);
-            NPU_VM_LOG_DEBUG("  select {}, {}, {}, {} (if {} then {} else {} = {})", dstRegNum, condRegNum, trueRegNum,
-                             falseRegNum, frame.getReg(condRegNum), frame.getReg(trueRegNum), frame.getReg(falseRegNum),
+            NPU_VM_LOG_DEBUG("  select {}, {}, {}, {} (if {} then {} else {} = {})",
+                             dstRegNum,
+                             condRegNum,
+                             trueRegNum,
+                             falseRegNum,
+                             frame.getReg(condRegNum),
+                             frame.getReg(trueRegNum),
+                             frame.getReg(falseRegNum),
                              result);
             break;
         }
@@ -1762,7 +1934,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs + rhs));
-            NPU_VM_LOG_DEBUG("  add.f64 {}, {}, {} ({} + {} = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  add.f64 {}, {}, {} ({} + {} = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1773,7 +1950,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs - rhs));
-            NPU_VM_LOG_DEBUG("  sub.f64 {}, {}, {} ({} - {} = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  sub.f64 {}, {}, {} ({} - {} = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1784,7 +1966,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs * rhs));
-            NPU_VM_LOG_DEBUG("  mul.f64 {}, {}, {} ({} * {} = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  mul.f64 {}, {}, {} ({} * {} = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1795,7 +1982,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(lhs / rhs));
-            NPU_VM_LOG_DEBUG("  div.f64 {}, {}, {} ({} / {} = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  div.f64 {}, {}, {} ({} / {} = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1806,7 +1998,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::fmod(lhs, rhs)));
-            NPU_VM_LOG_DEBUG("  rem.f64 {}, {}, {} ({} % {} = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  rem.f64 {}, {}, {} ({} % {} = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1817,7 +2014,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::fmax(lhs, rhs)));
-            NPU_VM_LOG_DEBUG("  max.f64 {}, {}, {} (max({}, {}) = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  max.f64 {}, {}, {} (max({}, {}) = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1828,7 +2030,12 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto lhs = vmBitCast<double>(frame.getReg(lhsRegNum));
             const auto rhs = vmBitCast<double>(frame.getReg(rhsRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::fmin(lhs, rhs)));
-            NPU_VM_LOG_DEBUG("  min.f64 {}, {}, {} (min({}, {}) = {})", dstRegNum, lhsRegNum, rhsRegNum, lhs, rhs,
+            NPU_VM_LOG_DEBUG("  min.f64 {}, {}, {} (min({}, {}) = {})",
+                             dstRegNum,
+                             lhsRegNum,
+                             rhsRegNum,
+                             lhs,
+                             rhs,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1837,7 +2044,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcRegNum = getOperand(pc, 1);
             const auto src = vmBitCast<double>(frame.getReg(srcRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::fabs(src)));
-            NPU_VM_LOG_DEBUG("  abs.f64 {}, {} (abs({}) = {})", dstRegNum, srcRegNum, src,
+            NPU_VM_LOG_DEBUG("  abs.f64 {}, {} (abs({}) = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             src,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1846,7 +2056,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcRegNum = getOperand(pc, 1);
             const auto src = vmBitCast<double>(frame.getReg(srcRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(-src));
-            NPU_VM_LOG_DEBUG("  neg.f64 {}, {} (-{} = {})", dstRegNum, srcRegNum, src,
+            NPU_VM_LOG_DEBUG("  neg.f64 {}, {} (-{} = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             src,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1855,7 +2068,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcRegNum = getOperand(pc, 1);
             const auto src = vmBitCast<double>(frame.getReg(srcRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::ceil(src)));
-            NPU_VM_LOG_DEBUG("  ceil.f64 {}, {} (ceil({}) = {})", dstRegNum, srcRegNum, src,
+            NPU_VM_LOG_DEBUG("  ceil.f64 {}, {} (ceil({}) = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             src,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1864,7 +2080,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcRegNum = getOperand(pc, 1);
             const auto src = vmBitCast<double>(frame.getReg(srcRegNum));
             frame.setReg(dstRegNum, vmBitCast<int64_t>(std::floor(src)));
-            NPU_VM_LOG_DEBUG("  floor.f64 {}, {} (floor({}) = {})", dstRegNum, srcRegNum, src,
+            NPU_VM_LOG_DEBUG("  floor.f64 {}, {} (floor({}) = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             src,
                              vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
@@ -1914,8 +2133,12 @@ void VMEngine::execute(CallFrame entryFrame) {
                 break;
             }
             frame.setReg(dstRegNum, vmBitCast<int64_t>(result));
-            NPU_VM_LOG_DEBUG("  round.f64 {}, {}, {} (round({}) = {})", dstRegNum, srcRegNum,
-                             static_cast<int16_t>(mode), src, vmBitCast<double>(frame.getReg(dstRegNum)));
+            NPU_VM_LOG_DEBUG("  round.f64 {}, {}, {} (round({}) = {})",
+                             dstRegNum,
+                             srcRegNum,
+                             static_cast<int16_t>(mode),
+                             src,
+                             vmBitCast<double>(frame.getReg(dstRegNum)));
             break;
         }
         case OpCode::BUFFER_CREATE: {
@@ -1928,10 +2151,11 @@ void VMEngine::execute(CallFrame entryFrame) {
                 break;
             }
             const auto elemByteSize =
-                    intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
+                intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
             if (elemByteSize == 0) {
                 NPU_VM_LOG_ERROR("buffer.create references unknown or non-primitive type index {}, type table size={}",
-                                 elemTypeIdx, _bytecodeModule->getTypeByteSizes().size());
+                                 elemTypeIdx,
+                                 _bytecodeModule->getTypeByteSizes().size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -1954,17 +2178,22 @@ void VMEngine::execute(CallFrame entryFrame) {
             if (!byteSize.has_value()) {
                 NPU_VM_LOG_ERROR("buffer.create size overflows the addressable range, shape={}, strides={}, element "
                                  "byte size={}",
-                                 intel_npu::vm::formatVector(meta.shape), intel_npu::vm::formatVector(meta.strides),
+                                 intel_npu::vm::formatVector(meta.shape),
+                                 intel_npu::vm::formatVector(meta.strides),
                                  meta.elemByteSize);
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             NPU_VM_LOG_DEBUG("  buffer.create request dstReg={} shape={} strides={} elemByteSize={} byteSize={}",
-                             dstReg, intel_npu::vm::formatVector(meta.shape),
-                             intel_npu::vm::formatVector(meta.strides), meta.elemByteSize, *byteSize);
+                             dstReg,
+                             intel_npu::vm::formatVector(meta.shape),
+                             intel_npu::vm::formatVector(meta.strides),
+                             meta.elemByteSize,
+                             *byteSize);
             try {
                 const auto handle = _state.getBufferManager().create(static_cast<size_t>(*byteSize),
-                                                                     Permission::ReadWrite, /*zeroInitialized*/ true);
+                                                                     Permission::ReadWrite,
+                                                                     /*zeroInitialized*/ true);
                 _state.getBufferMetadata().emplace(handle, std::move(meta));
                 frame.setReg(dstReg, static_cast<int64_t>(handle));
                 NPU_VM_LOG_DEBUG("  buffer.create -> handle {}, ({} bytes)", handle, *byteSize);
@@ -1981,16 +2210,19 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto rank = static_cast<int64_t>(getOperand(pc, 3));
             if (constantIndex < 0 || rank < 0 || rank > intel_npu::vm::BufferType::MAX_RANK) {
                 NPU_VM_LOG_ERROR(
-                        "buffer.from_const requires non-negative constant index and rank in [0, {}], got {} and {}",
-                        intel_npu::vm::BufferType::MAX_RANK, constantIndex, rank);
+                    "buffer.from_const requires non-negative constant index and rank in [0, {}], got {} and {}",
+                    intel_npu::vm::BufferType::MAX_RANK,
+                    constantIndex,
+                    rank);
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             const auto elemByteSize =
-                    intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
+                intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
             const auto& constants = _constantPool.getConstants();
             if (elemByteSize == 0 || static_cast<size_t>(constantIndex) >= constants.size()) {
-                NPU_VM_LOG_ERROR("buffer.from_const references unknown type {} or constant {}", elemTypeIdx,
+                NPU_VM_LOG_ERROR("buffer.from_const references unknown type {} or constant {}",
+                                 elemTypeIdx,
                                  constantIndex);
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2012,14 +2244,17 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto constantData = constants.at(static_cast<size_t>(constantIndex));
             if (!byteSize.has_value() || *byteSize != constantData.size()) {
                 NPU_VM_LOG_ERROR("buffer.from_const descriptor size {} does not match constant {} size {}",
-                                 byteSize.has_value() ? std::to_string(*byteSize) : "<overflow>", constantIndex,
+                                 byteSize.has_value() ? std::to_string(*byteSize) : "<overflow>",
+                                 constantIndex,
                                  constantData.size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             try {
-                const auto handle = _state.getBufferManager().createFromMemory(
-                        const_cast<uint8_t*>(constantData.data()), constantData.size(), Permission::Read);
+                const auto handle =
+                    _state.getBufferManager().createFromMemory(const_cast<uint8_t*>(constantData.data()),
+                                                               constantData.size(),
+                                                               Permission::Read);
                 _state.getBufferMetadata().emplace(handle, std::move(meta));
                 frame.setReg(dstReg, static_cast<int64_t>(handle));
                 NPU_VM_LOG_DEBUG("  buffer.from_const -> handle {}, constant {}", handle, constantIndex);
@@ -2045,14 +2280,21 @@ void VMEngine::execute(CallFrame entryFrame) {
             }
             const auto& shape = it->second.shape;
             if (dim < 0 || static_cast<size_t>(dim) >= shape.size()) {
-                NPU_VM_LOG_ERROR("buffer.get_dim dimension index {} is out of range for buffer {} with rank {}", dim,
-                                 handle, shape.size());
+                NPU_VM_LOG_ERROR("buffer.get_dim dimension index {} is out of range for buffer {} with rank {}",
+                                 dim,
+                                 handle,
+                                 shape.size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             frame.setReg(dstReg, shape.at(static_cast<size_t>(dim)));
-            NPU_VM_LOG_DEBUG("  buffer.get_dim {}, {}, {} (source handle {}, dim {}, value {})", dstReg, bufReg, dimReg,
-                             handle, dim, frame.getReg(dstReg));
+            NPU_VM_LOG_DEBUG("  buffer.get_dim {}, {}, {} (source handle {}, dim {}, value {})",
+                             dstReg,
+                             bufReg,
+                             dimReg,
+                             handle,
+                             dim,
+                             frame.getReg(dstReg));
             break;
         }
         case OpCode::BUFFER_SUBVIEW: {
@@ -2073,7 +2315,9 @@ void VMEngine::execute(CallFrame entryFrame) {
                 static_cast<int64_t>(srcIt->second.strides.size()) != rank) {
                 NPU_VM_LOG_ERROR("buffer.subview invalid handle or rank mismatch: handle={}, encoded rank={}, buffer "
                                  "rank={}, stride rank={}",
-                                 srcHandle, rank, srcIt != bufferMetadata.end() ? srcIt->second.shape.size() : 0,
+                                 srcHandle,
+                                 rank,
+                                 srcIt != bufferMetadata.end() ? srcIt->second.shape.size() : 0,
                                  srcIt != bufferMetadata.end() ? srcIt->second.strides.size() : 0);
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2104,7 +2348,9 @@ void VMEngine::execute(CallFrame entryFrame) {
                 int64_t composedStride = 0;
                 if (!checkedMultiplyNonNegative(strides.at(dimIdx), srcIt->second.strides.at(dimIdx), composedStride)) {
                     NPU_VM_LOG_ERROR("buffer.subview stride overflows at dim {}: subview stride={}, source stride={}",
-                                     i, strides.at(dimIdx), srcIt->second.strides.at(dimIdx));
+                                     i,
+                                     strides.at(dimIdx),
+                                     srcIt->second.strides.at(dimIdx));
                     _state.setExecState(ExecState::Halted);
                     break;
                 }
@@ -2121,7 +2367,10 @@ void VMEngine::execute(CallFrame entryFrame) {
                 if (!byteSize.has_value() || !checkedMultiply(*startElem, elemByteSize, byteOffset)) {
                     NPU_VM_LOG_ERROR("buffer.subview byte range overflows for source handle {}: start element={}, "
                                      "element byte size={}, byte offset={}, byte size={}",
-                                     srcHandle, *startElem, elemByteSize, byteOffset,
+                                     srcHandle,
+                                     *startElem,
+                                     elemByteSize,
+                                     byteOffset,
                                      byteSize.has_value() ? std::to_string(*byteSize) : "<overflow>");
                     _state.setExecState(ExecState::Halted);
                     break;
@@ -2130,7 +2379,10 @@ void VMEngine::execute(CallFrame entryFrame) {
                 bufferMetadata.emplace(newHandle, std::move(newMeta));
                 frame.setReg(dstReg, static_cast<int64_t>(newHandle));
                 NPU_VM_LOG_DEBUG("  buffer.subview -> handle {}, (source handle {}, byteOffset {}, byteSize {})",
-                                 newHandle, srcHandle, byteOffset, *byteSize);
+                                 newHandle,
+                                 srcHandle,
+                                 byteOffset,
+                                 *byteSize);
             } catch (const std::exception& e) {
                 NPU_VM_LOG_ERROR("buffer.subview failed: {}", e.what());
                 _state.setExecState(ExecState::Halted);
@@ -2159,10 +2411,11 @@ void VMEngine::execute(CallFrame entryFrame) {
             }
             const auto byteOffset = static_cast<uint64_t>(frame.getReg(byteOffsetReg));
             const auto elemByteSize =
-                    intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
+                intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
             if (elemByteSize == 0) {
                 NPU_VM_LOG_ERROR("buffer.view references unknown or non-primitive type index {}, type table size={}",
-                                 elemTypeIdx, _bytecodeModule->getTypeByteSizes().size());
+                                 elemTypeIdx,
+                                 _bytecodeModule->getTypeByteSizes().size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -2185,16 +2438,19 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto byteSize = intel_npu::vm::computeLogicalByteSize(newMeta);
             if (!byteSize.has_value()) {
                 NPU_VM_LOG_ERROR(
-                        "buffer.view size overflows the addressable range, shape={}, strides={}, element byte size={}",
-                        intel_npu::vm::formatVector(newMeta.shape), intel_npu::vm::formatVector(newMeta.strides),
-                        newMeta.elemByteSize);
+                    "buffer.view size overflows the addressable range, shape={}, strides={}, element byte size={}",
+                    intel_npu::vm::formatVector(newMeta.shape),
+                    intel_npu::vm::formatVector(newMeta.strides),
+                    newMeta.elemByteSize);
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             const auto& srcBuf = bufferManager.getBuffer(srcHandle);
             if (byteOffset > srcBuf.getSize() || *byteSize > srcBuf.getSize() - byteOffset) {
-                NPU_VM_LOG_ERROR("buffer.view byte offset {} + view size {} exceeds source buffer size {}", byteOffset,
-                                 *byteSize, srcBuf.getSize());
+                NPU_VM_LOG_ERROR("buffer.view byte offset {} + view size {} exceeds source buffer size {}",
+                                 byteOffset,
+                                 *byteSize,
+                                 srcBuf.getSize());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -2227,7 +2483,9 @@ void VMEngine::execute(CallFrame entryFrame) {
                 static_cast<int64_t>(it->second.strides.size()) != rank) {
                 NPU_VM_LOG_ERROR("buffer.store invalid handle or rank mismatch: handle={}, encoded rank={}, buffer "
                                  "rank={}, stride rank={}",
-                                 handle, rank, it != bufferMetadata.end() ? it->second.shape.size() : 0,
+                                 handle,
+                                 rank,
+                                 it != bufferMetadata.end() ? it->second.shape.size() : 0,
                                  it != bufferMetadata.end() ? it->second.strides.size() : 0);
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2240,15 +2498,21 @@ void VMEngine::execute(CallFrame entryFrame) {
                 const auto dimIdx = static_cast<size_t>(i);
                 if (idx < 0 || idx >= meta.shape.at(dimIdx) || meta.strides.at(dimIdx) < 0) {
                     NPU_VM_LOG_ERROR(
-                            "buffer.store index {} at dim {} is out of range for buffer {} (shape={}, strides={})", idx,
-                            i, handle, intel_npu::vm::formatVector(meta.shape),
-                            intel_npu::vm::formatVector(meta.strides));
+                        "buffer.store index {} at dim {} is out of range for buffer {} (shape={}, strides={})",
+                        idx,
+                        i,
+                        handle,
+                        intel_npu::vm::formatVector(meta.shape),
+                        intel_npu::vm::formatVector(meta.strides));
                     indexFailure = true;
                     break;
                 }
-                if (!checkedAddProduct(static_cast<uint64_t>(idx), static_cast<uint64_t>(meta.strides.at(dimIdx)),
+                if (!checkedAddProduct(static_cast<uint64_t>(idx),
+                                       static_cast<uint64_t>(meta.strides.at(dimIdx)),
                                        elemOffset)) {
-                    NPU_VM_LOG_ERROR("buffer.store linear offset overflows at dim {}: index={}, stride={}", i, idx,
+                    NPU_VM_LOG_ERROR("buffer.store linear offset overflows at dim {}: index={}, stride={}",
+                                     i,
+                                     idx,
                                      meta.strides.at(dimIdx));
                     indexFailure = true;
                     break;
@@ -2262,8 +2526,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto elemByteSize = static_cast<uint64_t>(meta.elemByteSize);
             if (!checkedMultiply(elemOffset, elemByteSize, byteOffset)) {
                 NPU_VM_LOG_ERROR(
-                        "buffer.store byte offset overflows for handle {}: element offset={}, element byte size={}",
-                        handle, elemOffset, elemByteSize);
+                    "buffer.store byte offset overflows for handle {}: element offset={}, element byte size={}",
+                    handle,
+                    elemOffset,
+                    elemByteSize);
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -2276,22 +2542,28 @@ void VMEngine::execute(CallFrame entryFrame) {
                 }
                 if ((byteOffset > buf.getSize()) || (elemByteSize > (buf.getSize() - byteOffset))) {
                     NPU_VM_LOG_ERROR("buffer.store out-of-bounds: byteOffset={}, elemByteSize={}, buffer size={}",
-                                     byteOffset, elemByteSize, buf.getSize());
+                                     byteOffset,
+                                     elemByteSize,
+                                     buf.getSize());
                     _state.setExecState(ExecState::Halted);
                     break;
                 }
                 const int64_t valueWord = frame.getReg(valReg);
                 if (elemByteSize > sizeof(valueWord)) {
                     NPU_VM_LOG_ERROR("buffer.store element size {} exceeds register-backed value width {}",
-                                     elemByteSize, sizeof(valueWord));
+                                     elemByteSize,
+                                     sizeof(valueWord));
                     _state.setExecState(ExecState::Halted);
                     break;
                 }
                 std::array<uint8_t, sizeof(valueWord)> valueBytes{};
                 std::memcpy(valueBytes.data(), &valueWord, sizeof(valueWord));
                 buf.writeData(byteOffset, valueBytes.data(), static_cast<size_t>(elemByteSize));
-                NPU_VM_LOG_DEBUG("  buffer.store handle={}, byteOffset={}, elemByteSize={}, value={}", handle,
-                                 byteOffset, elemByteSize, valueWord);
+                NPU_VM_LOG_DEBUG("  buffer.store handle={}, byteOffset={}, elemByteSize={}, value={}",
+                                 handle,
+                                 byteOffset,
+                                 elemByteSize,
+                                 valueWord);
             } catch (const std::exception& e) {
                 NPU_VM_LOG_ERROR("buffer.store failed: {}", e.what());
                 _state.setExecState(ExecState::Halted);
@@ -2318,7 +2590,9 @@ void VMEngine::execute(CallFrame entryFrame) {
                 static_cast<int64_t>(it->second.strides.size()) != rank) {
                 NPU_VM_LOG_ERROR("buffer.load invalid handle or rank mismatch: handle={}, encoded rank={}, buffer "
                                  "rank={}, stride rank={}",
-                                 handle, rank, it != bufferMetadata.end() ? it->second.shape.size() : 0,
+                                 handle,
+                                 rank,
+                                 it != bufferMetadata.end() ? it->second.shape.size() : 0,
                                  it != bufferMetadata.end() ? it->second.strides.size() : 0);
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2334,16 +2608,22 @@ void VMEngine::execute(CallFrame entryFrame) {
                 // element offset. The VM only supports forward linearization for direct buffer loads
                 if (idx < 0 || idx >= meta.shape.at(dimIdx) || meta.strides.at(dimIdx) < 0) {
                     NPU_VM_LOG_ERROR(
-                            "buffer.load index {} at dim {} is out of range for buffer {} (shape={}, strides={})", idx,
-                            i, handle, intel_npu::vm::formatVector(meta.shape),
-                            intel_npu::vm::formatVector(meta.strides));
+                        "buffer.load index {} at dim {} is out of range for buffer {} (shape={}, strides={})",
+                        idx,
+                        i,
+                        handle,
+                        intel_npu::vm::formatVector(meta.shape),
+                        intel_npu::vm::formatVector(meta.strides));
                     indexFailure = true;
                     break;
                 }
                 // Accumulate the logical element offset using the precomputed stride for each dimension
-                if (!checkedAddProduct(static_cast<uint64_t>(idx), static_cast<uint64_t>(meta.strides.at(dimIdx)),
+                if (!checkedAddProduct(static_cast<uint64_t>(idx),
+                                       static_cast<uint64_t>(meta.strides.at(dimIdx)),
                                        elemOffset)) {
-                    NPU_VM_LOG_ERROR("buffer.load linear offset overflows at dim {}: index={}, stride={}", i, idx,
+                    NPU_VM_LOG_ERROR("buffer.load linear offset overflows at dim {}: index={}, stride={}",
+                                     i,
+                                     idx,
                                      meta.strides.at(dimIdx));
                     indexFailure = true;
                     break;
@@ -2360,13 +2640,16 @@ void VMEngine::execute(CallFrame entryFrame) {
             // centralized in the checked multiply helper
             if (!checkedMultiply(elemOffset, elemByteSize, byteOffset)) {
                 NPU_VM_LOG_ERROR(
-                        "buffer.load byte offset overflows for handle {}: element offset={}, element byte size={}",
-                        handle, elemOffset, elemByteSize);
+                    "buffer.load byte offset overflows for handle {}: element offset={}, element byte size={}",
+                    handle,
+                    elemOffset,
+                    elemByteSize);
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             if (elemByteSize > sizeof(int64_t)) {
-                NPU_VM_LOG_ERROR("buffer.load element size {} exceeds register-backed value width {}", elemByteSize,
+                NPU_VM_LOG_ERROR("buffer.load element size {} exceeds register-backed value width {}",
+                                 elemByteSize,
                                  sizeof(int64_t));
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2379,8 +2662,11 @@ void VMEngine::execute(CallFrame entryFrame) {
                 auto& valueWord = frame.getReg(dstReg);
                 valueWord = 0;
                 buf.readData(byteOffset, reinterpret_cast<uint8_t*>(&valueWord), static_cast<size_t>(elemByteSize));
-                NPU_VM_LOG_DEBUG("  buffer.load handle={}, byteOffset={}, elemByteSize={}, value={}", handle,
-                                 byteOffset, elemByteSize, valueWord);
+                NPU_VM_LOG_DEBUG("  buffer.load handle={}, byteOffset={}, elemByteSize={}, value={}",
+                                 handle,
+                                 byteOffset,
+                                 elemByteSize,
+                                 valueWord);
             } catch (const std::exception& e) {
                 NPU_VM_LOG_ERROR("buffer.load failed: {}", e.what());
                 _state.setExecState(ExecState::Halted);
@@ -2406,8 +2692,12 @@ void VMEngine::execute(CallFrame entryFrame) {
                 dstMeta.strides != srcMeta.strides) {
                 NPU_VM_LOG_ERROR("buffer.copy requires matching buffer descriptors: dst={} elemType={} shape={} "
                                  "strides={}, src={} elemType={} shape={} strides={}",
-                                 dstHandle, dstMeta.elemTypeIndex, intel_npu::vm::formatVector(dstMeta.shape),
-                                 intel_npu::vm::formatVector(dstMeta.strides), srcHandle, srcMeta.elemTypeIndex,
+                                 dstHandle,
+                                 dstMeta.elemTypeIndex,
+                                 intel_npu::vm::formatVector(dstMeta.shape),
+                                 intel_npu::vm::formatVector(dstMeta.strides),
+                                 srcHandle,
+                                 srcMeta.elemTypeIndex,
                                  intel_npu::vm::formatVector(srcMeta.shape),
                                  intel_npu::vm::formatVector(srcMeta.strides));
                 _state.setExecState(ExecState::Halted);
@@ -2504,7 +2794,8 @@ void VMEngine::execute(CallFrame entryFrame) {
             if (static_cast<size_t>(kernelIndex) >= kernelBinaries.size()) {
                 NPU_VM_LOG_ERROR("kernel_create with explicit kernel index is not supported in this stub. index: {}, "
                                  "kernelBinaries.size(): {}",
-                                 kernelIndex, kernelBinaries.size());
+                                 kernelIndex,
+                                 kernelBinaries.size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -2519,10 +2810,14 @@ void VMEngine::execute(CallFrame entryFrame) {
                 KernelInfo kernelInfo;
                 auto& rawStrings = _bytecodeModule->getRawStrings();
                 const auto kernelName = (static_cast<size_t>(kernelNameIndex) >= rawStrings.size())
-                                                ? "Unknown"
-                                                : std::string(rawStrings.at(kernelNameIndex).get().begin(),
-                                                              rawStrings.at(kernelNameIndex).get().end());
-                if (createKernel(_state.getExecutionContext(), kernelBlob, kernelBinary.size(), kernelName, graphHandle,
+                                            ? "Unknown"
+                                            : std::string(rawStrings.at(kernelNameIndex).get().begin(),
+                                                          rawStrings.at(kernelNameIndex).get().end());
+                if (createKernel(_state.getExecutionContext(),
+                                 kernelBlob,
+                                 kernelBinary.size(),
+                                 kernelName,
+                                 graphHandle,
                                  kernelInfo) != ZE_RESULT_SUCCESS) {
                     _state.setExecState(ExecState::Halted);
                     break;
@@ -2648,7 +2943,8 @@ void VMEngine::execute(CallFrame entryFrame) {
             // Per bytecode spec: callee frame has G general registers + P parameter registers,
             // where P = M (argument count). So M <= num_general_registers must hold
             if (m > callee.getNumGeneralRegisters()) {
-                NPU_VM_LOG_ERROR("CALL passes {} argument registers, but callee frame has only {} registers.", m,
+                NPU_VM_LOG_ERROR("CALL passes {} argument registers, but callee frame has only {} registers.",
+                                 m,
                                  callee.getNumGeneralRegisters());
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2657,8 +2953,10 @@ void VMEngine::execute(CallFrame entryFrame) {
             // Validate: argument count must exactly match the callee parameter count.
             // CALL frame setup uses M to define the parameter register window
             if (m != static_cast<uint16_t>(callee.getParamTypes().size())) {
-                NPU_VM_LOG_ERROR("CALL passes {} arguments, but callee function {} expects {} parameters.", m,
-                                 callee.getName(), callee.getParamTypes().size());
+                NPU_VM_LOG_ERROR("CALL passes {} arguments, but callee function {} expects {} parameters.",
+                                 m,
+                                 callee.getName(),
+                                 callee.getParamTypes().size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -2667,7 +2965,9 @@ void VMEngine::execute(CallFrame entryFrame) {
             // This ensures caller provides exactly the right number of result storage slots
             if (n != static_cast<uint16_t>(callee.getResultTypes().size())) {
                 NPU_VM_LOG_ERROR("CALL specifies {} destination registers, but callee function {} returns {} values.",
-                                 n, callee.getName(), callee.getResultTypes().size());
+                                 n,
+                                 callee.getName(),
+                                 callee.getResultTypes().size());
                 _state.setExecState(ExecState::Halted);
                 break;
             }
@@ -2700,8 +3000,11 @@ void VMEngine::execute(CallFrame entryFrame) {
                 calleeFrame.setReg(static_cast<int16_t>(g + i), argValues.at(i));
             }
 
-            NPU_VM_LOG_DEBUG("  call '{}' (index {}), arguments={}, destRegs={}", callee.getName(), funcIndex,
-                             intel_npu::vm::formatVector(argValues), intel_npu::vm::formatVector(destRegs));
+            NPU_VM_LOG_DEBUG("  call '{}' (index {}), arguments={}, destRegs={}",
+                             callee.getName(),
+                             funcIndex,
+                             intel_npu::vm::formatVector(argValues),
+                             intel_npu::vm::formatVector(destRegs));
 
             // 5. Transfer control to the callee by pushing its frame and jumping to its body
             callStack.push_back(std::move(calleeFrame));
@@ -2727,7 +3030,8 @@ void VMEngine::execute(CallFrame entryFrame) {
 
             // Validate return value count matches function signature
             if (static_cast<size_t>(numResults) != results.size()) {
-                NPU_VM_LOG_ERROR("RETV instruction specifies {} results, but function signature expects {}", numResults,
+                NPU_VM_LOG_ERROR("RETV instruction specifies {} results, but function signature expects {}",
+                                 numResults,
                                  results.size());
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2755,13 +3059,17 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto returnAddr = frame.getReturnAddress();
             if (returnAddr == EXIT_RETURN_ADDR) {
                 // Returning from entrypoint function: signal end of execution
-                NPU_VM_LOG_DEBUG("  retv {} (values={}, return address={}) (finishing execution)", numResults,
-                                 formatPtrVectorContent(results), static_cast<const void*>(returnAddr));
+                NPU_VM_LOG_DEBUG("  retv {} (values={}, return address={}) (finishing execution)",
+                                 numResults,
+                                 formatPtrVectorContent(results),
+                                 static_cast<const void*>(returnAddr));
                 _state.setExecState(ExecState::Finalized);
             } else {
                 // Nested call: resume the caller frame. Result sinks have already been written above
-                NPU_VM_LOG_DEBUG("  retv {} (values={}, return address={})", numResults,
-                                 formatPtrVectorContent(results), static_cast<const void*>(returnAddr));
+                NPU_VM_LOG_DEBUG("  retv {} (values={}, return address={})",
+                                 numResults,
+                                 formatPtrVectorContent(results),
+                                 static_cast<const void*>(returnAddr));
                 _state.setPC(returnAddr);
             }
             callStack.pop_back();
@@ -2772,7 +3080,9 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto offset = get64BitImm(pc, 0);
             if (!applyJump(_state, offset, functionBodyStart, endOfFunction, function)) {
                 const auto pcOffset = static_cast<int64_t>(_state.getPC() - functionBodyStart);
-                NPU_VM_LOG_ERROR("jmp invalid target: pc+{} offset={} target={}", pcOffset, offset,
+                NPU_VM_LOG_ERROR("jmp invalid target: pc+{} offset={} target={}",
+                                 pcOffset,
+                                 offset,
                                  (pcOffset + offset));
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2789,16 +3099,24 @@ void VMEngine::execute(CallFrame entryFrame) {
                 const auto offset = get64BitImm(pc, 0);
                 if (!applyJump(_state, offset, functionBodyStart, endOfFunction, function)) {
                     const auto pcOffset = static_cast<int64_t>(_state.getPC() - functionBodyStart);
-                    NPU_VM_LOG_ERROR("je invalid target: pc+{} offset={} target={} (lhs={} rhs={})", pcOffset, offset,
-                                     (pcOffset + offset), lhs, rhs);
+                    NPU_VM_LOG_ERROR("je invalid target: pc+{} offset={} target={} (lhs={} rhs={})",
+                                     pcOffset,
+                                     offset,
+                                     (pcOffset + offset),
+                                     lhs,
+                                     rhs);
                     _state.setExecState(ExecState::Halted);
                     break;
                 }
                 NPU_VM_LOG_DEBUG("  je {}, {}, {} ({} == {} -> taken)", offset, lhsReg, rhsReg, lhs, rhs);
                 continue;
             }
-            NPU_VM_LOG_DEBUG("  je {}, {}, {} ({} == {} -> not taken)", get64BitImm(_state.getPC(), 0), lhsReg, rhsReg,
-                             lhs, rhs);
+            NPU_VM_LOG_DEBUG("  je {}, {}, {} ({} == {} -> not taken)",
+                             get64BitImm(_state.getPC(), 0),
+                             lhsReg,
+                             rhsReg,
+                             lhs,
+                             rhs);
             break;
         }
         case OpCode::JNE: {
@@ -2810,16 +3128,24 @@ void VMEngine::execute(CallFrame entryFrame) {
                 const auto offset = get64BitImm(pc, 0);
                 if (!applyJump(_state, offset, functionBodyStart, endOfFunction, function)) {
                     const auto pcOffset = static_cast<int64_t>(_state.getPC() - functionBodyStart);
-                    NPU_VM_LOG_ERROR("jne invalid target: pc+{} offset={} target={} (lhs={} rhs={})", pcOffset, offset,
-                                     (pcOffset + offset), lhs, rhs);
+                    NPU_VM_LOG_ERROR("jne invalid target: pc+{} offset={} target={} (lhs={} rhs={})",
+                                     pcOffset,
+                                     offset,
+                                     (pcOffset + offset),
+                                     lhs,
+                                     rhs);
                     _state.setExecState(ExecState::Halted);
                     break;
                 }
                 NPU_VM_LOG_DEBUG("  jne {}, {}, {} ({} != {} -> taken)", offset, lhsReg, rhsReg, lhs, rhs);
                 continue;
             }
-            NPU_VM_LOG_DEBUG("  jne {}, {}, {} ({} != {} -> not taken)", get64BitImm(_state.getPC(), 0), lhsReg, rhsReg,
-                             lhs, rhs);
+            NPU_VM_LOG_DEBUG("  jne {}, {}, {} ({} != {} -> not taken)",
+                             get64BitImm(_state.getPC(), 0),
+                             lhsReg,
+                             rhsReg,
+                             lhs,
+                             rhs);
             break;
         }
         case OpCode::CONVERT_I8_TO_F32: {
@@ -3116,8 +3442,13 @@ bool isValid(T* ptr) {
     return true;
 }
 
-npu_vm_result vmCallImpl(npu_vm_engine* engine, const char* name, uint32_t numArguments, const npu_vm_value* arguments,
-                         uint32_t numResults, npu_vm_value* results, const char* callerFunction) {
+npu_vm_result vmCallImpl(npu_vm_engine* engine,
+                         const char* name,
+                         uint32_t numArguments,
+                         const npu_vm_value* arguments,
+                         uint32_t numResults,
+                         npu_vm_value* results,
+                         const char* callerFunction) {
     if (!isValid(engine)) {
         NPU_VM_LOG_ERROR("Null pointer to engine instance");
         return NPU_VM_ERROR_INVALID_NULL_POINTER;
@@ -3162,7 +3493,9 @@ npu_vm_result vmCallImpl(npu_vm_engine* engine, const char* name, uint32_t numAr
 
 // NOLINTBEGIN(readability-identifier-naming) - C API identifiers must follow C naming conventions
 
-NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_print(const uint8_t* bytecode, uint32_t bytecode_size, int print_full,
+NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_print(const uint8_t* bytecode,
+                                                        uint32_t bytecode_size,
+                                                        int print_full,
                                                         uint32_t indent_level) {
     if (bytecode == nullptr || bytecode_size == 0) {
         NPU_VM_LOG_ERROR("Null pointer or empty bytecode passed");
@@ -3184,7 +3517,8 @@ NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_print(const uint8_t* bytecode,
     }
 }
 
-NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_parse_module(const uint8_t* bytecode, uint32_t bytecode_size,
+NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_parse_module(const uint8_t* bytecode,
+                                                               uint32_t bytecode_size,
                                                                npu_vm_module** module_out) {
     if (module_out == nullptr) {
         NPU_VM_LOG_ERROR("Null pointer passed for module_out");
@@ -3229,7 +3563,8 @@ NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_destroy_module(npu_vm_module* 
     return NPU_VM_SUCCESS;
 }
 
-NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_get_function_info(npu_vm_module* module, const char* name,
+NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_get_function_info(npu_vm_module* module,
+                                                                    const char* name,
                                                                     npu_vm_function_info** info_out) {
     if (!isValid(module)) {
         NPU_VM_LOG_ERROR("Null pointer to module instance");
@@ -3369,7 +3704,8 @@ NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_destroy_engine(npu_vm_engine* 
     return NPU_VM_SUCCESS;
 }
 
-NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_load_module(npu_vm_engine* engine, npu_vm_module_load_params* params,
+NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_load_module(npu_vm_engine* engine,
+                                                              npu_vm_module_load_params* params,
                                                               npu_vm_module* module) {
     if (!isValid(engine)) {
         NPU_VM_LOG_ERROR("Null pointer to engine instance");
@@ -3408,14 +3744,18 @@ NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_reset_state(npu_vm_engine* eng
     }
 }
 
-NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_call(npu_vm_engine* engine, const char* name, uint32_t num_arguments,
+NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_call(npu_vm_engine* engine,
+                                                       const char* name,
+                                                       uint32_t num_arguments,
                                                        const npu_vm_value* arguments) {
     return vmCallImpl(engine, name, num_arguments, arguments, /*numResults=*/0, /*results=*/nullptr, "npu_vm_call");
 }
 
-NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_call_with_results(npu_vm_engine* engine, const char* name,
+NPU_VM_EXPORT npu_vm_result NPU_VM_APICALL npu_vm_call_with_results(npu_vm_engine* engine,
+                                                                    const char* name,
                                                                     uint32_t num_arguments,
-                                                                    const npu_vm_value* arguments, uint32_t num_results,
+                                                                    const npu_vm_value* arguments,
+                                                                    uint32_t num_results,
                                                                     npu_vm_value* results) {
     return vmCallImpl(engine, name, num_arguments, arguments, num_results, results, "npu_vm_call_with_results");
 }

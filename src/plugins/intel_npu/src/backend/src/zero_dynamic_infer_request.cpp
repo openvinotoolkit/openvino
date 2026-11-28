@@ -43,8 +43,8 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
         const auto originalShape =
             levelZeroTensor != nullptr ? std::make_optional(levelZeroTensor->get_shape()) : std::nullopt;
 
-        const auto& descriptor = foundPort.is_input() ? _metadata.inputs.at(foundPort.idx)
-                                                      : _metadata.outputs.at(foundPort.idx);
+        const auto& descriptor =
+            foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx);
         const bool keepMaxShape = descriptor.relatedDescriptorIndex.has_value();
 
         if (keepMaxShape) {
@@ -57,9 +57,10 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
                 levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);
             } catch (const ZeroMemException& exception) {
-                _logger.debug("sync_zero_tensor_with_graph - exception caught while trying to create a Level Zero tensor "
-                              "from the user tensor: %s",
-                              exception.what());
+                _logger.debug(
+                    "sync_zero_tensor_with_graph - exception caught while trying to create a Level Zero tensor "
+                    "from the user tensor: %s",
+                    exception.what());
 
                 if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
                     levelZeroTensor->get_byte_size() < tensor->get_byte_size()) {
@@ -67,8 +68,9 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
                     OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
                     levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input());
                 } else {
-                    _logger.debug("sync_zero_tensor_with_graph - reusing the level zero tensor since it is not shared with "
-                                  "the user, and old L0 tensor is large enough");
+                    _logger.debug(
+                        "sync_zero_tensor_with_graph - reusing the level zero tensor since it is not shared with "
+                        "the user, and old L0 tensor is large enough");
                     levelZeroTensor->set_shape(tensor->get_shape());
                 }
             }
