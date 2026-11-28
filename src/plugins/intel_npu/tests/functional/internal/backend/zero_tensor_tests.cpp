@@ -165,6 +165,20 @@ TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
     }
 }
 
+TEST_P(ZeroTensorTests, CheckSetOverflowingShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 1, 1, 1};
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element_type, shape, false);
+
+    // A shape whose element count overflows size_t must be rejected instead of silently wrapping to a small byte size.
+    constexpr size_t overflowing_dim = size_t{1} << 32;
+    auto new_shape = Shape{overflowing_dim, overflowing_dim, 1, 1};
+
+    ASSERT_THROW(zero_tensor->set_shape(new_shape), ov::Exception);
+    EXPECT_EQ(shape, zero_tensor->get_shape());
+}
+
 TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensorScalar) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
