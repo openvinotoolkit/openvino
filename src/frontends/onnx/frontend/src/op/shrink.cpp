@@ -6,10 +6,9 @@
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/multiply.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 using namespace ov::op;
 
@@ -35,27 +34,13 @@ ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
 
     const auto bias_tensor = v0::Constant::create(input_element_type, ov::Shape{}, {bias});
 
-    // Create a mask indicating locations of values that need to be adjusted
-    // by adding and subtracting bias
-    // All other values indicated by 'false' in the masks need to be zeroed out
-    std::shared_ptr<ov::Node> values_below_neg_lambd = std::make_shared<v1::Less>(input, negative_lambd);
-    std::shared_ptr<ov::Node> values_above_pos_lambd = std::make_shared<v1::Greater>(input, positive_lambd);
-
-    // Convert from bool to the input type to be able to multiply adjusted inputs
-    // by the created masks
-    values_below_neg_lambd = std::make_shared<v0::Convert>(values_below_neg_lambd, input_element_type);
-    values_above_pos_lambd = std::make_shared<v0::Convert>(values_above_pos_lambd, input_element_type);
-
-    std::shared_ptr<ov::Node> input_minus_bias = std::make_shared<v1::Subtract>(input, bias_tensor);
-    std::shared_ptr<ov::Node> input_plus_bias = std::make_shared<v1::Add>(input, bias_tensor);
-
-    // multiply by the corresponding mask to zero-out the values within
-    // the <-lambd;lambd> range and keep the bias-adjusted values from outside of it
-    input_minus_bias = std::make_shared<v1::Multiply>(values_above_pos_lambd, input_minus_bias);
-
-    input_plus_bias = std::make_shared<v1::Multiply>(values_below_neg_lambd, input_plus_bias);
-
-    return {std::make_shared<v1::Add>(input_plus_bias, input_minus_bias)};
+    const auto zero = v0::Constant::create(input_element_type, ov::Shape{}, {0});
+    const auto below = std::make_shared<v1::Less>(input, negative_lambd);
+    const auto above = std::make_shared<v1::Greater>(input, positive_lambd);
+    const auto plus_bias = std::make_shared<v1::Add>(input, bias_tensor);
+    const auto minus_bias = std::make_shared<v1::Subtract>(input, bias_tensor);
+    const auto positive_or_zero = std::make_shared<v1::Select>(above, minus_bias, zero);
+    return {std::make_shared<v1::Select>(below, plus_bias, positive_or_zero)};
 }
 
 ONNX_OP("Shrink", OPSET_SINCE(1), ai_onnx::opset_1::shrink);

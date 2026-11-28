@@ -282,6 +282,7 @@ IE_GPU.onnx_model_sinh
 IE_GPU.onnx_model_cosh
 IE_GPU.onnx_model_sign
 IE_GPU.onnx_model_shrink_float
+IE_GPU.onnx_model_shrink_nonfinite
 IE_GPU.onnx_model_shrink_int
 IE_GPU.onnx_model_lp_norm_p1
 IE_GPU.onnx_model_reverse_sequence_0_batch_1

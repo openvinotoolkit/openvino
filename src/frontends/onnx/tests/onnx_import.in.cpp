@@ -3851,6 +3851,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shrink_float) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shrink_nonfinite) {
+    const auto model = convert_model("shrink_float.onnx");
+    const auto inf = std::numeric_limits<float>::infinity();
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-inf, -2.f, -1.5f, -1.f, 0.f, nan, 1.f, 1.5f, 2.f, inf, 3.f});
+    test_case.add_expected_output<float>(Shape{11}, {-inf, -1.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.5f, inf, 2.5f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shrink_int) {
     const auto model = convert_model("shrink_int.onnx");
 
