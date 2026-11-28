@@ -46,6 +46,11 @@ public:
         static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 12;  ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
 
         static constexpr size_t COUNT = 13;
+
+        // DSA k-pool mode (Config::dsa_kpool) only; see QSAIndexer::Config::dsa_kpool.
+        static constexpr size_t POOL_APE = 13;      ///< [D_idx, r]
+        static constexpr size_t HEAD_WEIGHTS = 14;  ///< [tokens, H_iq]
+        static constexpr size_t COUNT_DSA = 15;
     };
 
     struct Config {
@@ -58,6 +63,9 @@ public:
         float scale = 0.0f;      ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
         bool query_norm = true;  ///< Query RMSNorm is fused; false is an intermediate fusion state only.
         bool query_rope = true;  ///< Query RoPE is fused; false is an intermediate fusion state only.
+        /// DSA k-pool mode: raw_index_keys / index_key_cache rows are [key | gate] (2 * D_idx per index key head),
+        /// gated-softmax pooling with pool_ape, the query used as given, per-token head weights in the score.
+        bool dsa_kpool = false;
     };
 
     PagedQSAIndexer() = default;
