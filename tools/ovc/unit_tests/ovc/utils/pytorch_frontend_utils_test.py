@@ -4,7 +4,7 @@
 from argparse import Namespace
 
 from openvino.tools.ovc.cli_parser import _InputCutInfo, input_to_input_cut_info
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import extract_input_info_from_example
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import extract_input_info_from_example, to_torch_tensor
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
@@ -114,3 +114,48 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
         self.assertEqual(list(shapes_by_name["a"]), [1, 3, 224, 224])
         self.assertEqual(list(shapes_by_name["b"]), [1])
+
+
+class TestToTorchTensor(UnitTestWithMockedTelemetry):
+    def test_to_torch_tensor_bf16_mocked(self):
+        from unittest.mock import MagicMock, patch
+        import numpy as np
+        from openvino import Tensor, Type
+
+        mock_torch = MagicMock()
+        mock_torch.Tensor = type("MockTorchTensor", (), {})
+        mock_torch.bfloat16 = "mock_bfloat16"
+
+        with patch.dict("sys.modules", {"torch": mock_torch}):
+            ov_tensor = Tensor(Type.bf16, [2, 3])
+            to_torch_tensor(ov_tensor)
+            self.assertTrue(mock_torch.tensor.called)
+            created_arg = mock_torch.tensor.call_args[0][0]
+            self.assertEqual(created_arg.dtype, np.int16)
+            self.assertEqual(list(created_arg.shape), [2, 3])
+            mock_torch.tensor.return_value.view.assert_called_once_with(mock_torch.bfloat16)
+
+    def test_to_torch_tensor_bf16_real(self):
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("PyTorch is not installed")
+        from openvino import Tensor, Type
+
+        ov_tensor = Tensor(Type.bf16, [2, 3])
+        torch_tensor = to_torch_tensor(ov_tensor)
+        self.assertEqual(torch_tensor.dtype, torch.bfloat16)
+        self.assertEqual(list(torch_tensor.shape), [2, 3])
+
+    def test_to_torch_tensor_f32_real(self):
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("PyTorch is not installed")
+        from openvino import Tensor, Type
+
+        ov_tensor = Tensor(Type.f32, [2, 3])
+        torch_tensor = to_torch_tensor(ov_tensor)
+        self.assertEqual(torch_tensor.dtype, torch.float32)
+        self.assertEqual(list(torch_tensor.shape), [2, 3])
+
