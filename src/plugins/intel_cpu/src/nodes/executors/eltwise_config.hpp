@@ -12,6 +12,7 @@
 
 #include "cpu_types.h"
 #include "executor_config.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 
 namespace ov::intel_cpu {
@@ -23,6 +24,11 @@ enum class EltwiseBroadcastingPolicy : uint8_t {
     PerTensor,
     Undefined,
 };
+
+inline bool isByteDivide(Algorithm algorithm, ov::element::Type inputPrecision) {
+    return algorithm == Algorithm::EltwiseDivide &&
+           (inputPrecision == ov::element::i8 || inputPrecision == ov::element::u8);
+}
 
 struct EltwiseData {
     Algorithm algo = Algorithm::Default;
