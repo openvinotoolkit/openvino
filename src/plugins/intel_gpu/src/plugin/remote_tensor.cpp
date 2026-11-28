@@ -183,7 +183,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
         // Resolve the "derive from tensor shape" size (-1) before the cache key is computed, so that the cache key,
         // the imported host buffer and the reported cpu_va_size always agree. Otherwise re-wrapping the memory with
         // the reported (explicit) size would miss the cache and import the same host memory into a second buffer.
-        // Zero dimensions are counted as 1, in the same way allocate() imports empty tensors.
+        // A host buffer cannot be imported with a size of 0 (both clCreateBuffer and zeMemAllocHost reject it), so zero
+        // dimensions are counted as 1 and an empty tensor still imports a non-empty buffer.
         auto import_shape = m_shape;
         for (auto& dim : import_shape) {
             if (dim == 0) {
