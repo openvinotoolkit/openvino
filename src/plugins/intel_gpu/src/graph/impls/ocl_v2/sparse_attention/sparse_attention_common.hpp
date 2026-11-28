@@ -167,9 +167,11 @@ protected:
             break;
         case AttKind::Gqa:
             jit.make("QSA_IS_CAUSAL", desc->causal ? 1 : 0);
+            jit.make("QSA_GQA_WORKERS", gqa_workers);
             break;
         case AttKind::GqaSplit:
             jit.make("QSA_IS_CAUSAL", desc->causal ? 1 : 0);
+            jit.make("QSA_GQA_WORKERS", gqa_workers);
             jit.make("QSA_GQA_SPLIT", 1);
             jit.make("QSA_SPLIT_PARTITIONS", gqa_split_partitions);
             break;
@@ -177,7 +179,7 @@ protected:
             jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
             break;
         case AttKind::Reduce:
-            jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*desc, page, params.get_device_info()));
+            jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*desc, page, params.get_device_info(), params.get_program().get_config()));
             jit.make("QSA_REDUCE_COLS", split_reduce_cols(desc->v_head_size));
             break;
         default:

@@ -132,10 +132,10 @@ public:
     }
 
     static bool use_dpas_attention(const kernel_impl_params& params) {
-        return qsa::can_use_dpas_attention(*params.typed_desc<sparse_sdpa>(), std::nullopt, params.get_device_info());
+        return qsa::can_use_dpas_attention(*params.typed_desc<sparse_sdpa>(), std::nullopt, params.get_device_info(), params.get_program().get_config());
     }
     static bool use_gqa_dpas_attention(const kernel_impl_params& params) {
-        return qsa::can_use_gqa_dpas_attention(*params.typed_desc<sparse_sdpa>(), std::nullopt, params.get_device_info());
+        return qsa::can_use_gqa_dpas_attention(*params.typed_desc<sparse_sdpa>(), std::nullopt, params.get_device_info(), params.get_program().get_config());
     }
 
     // Split-selected-KV is only a decode fallback for configs without the GQA systolic kernel.
@@ -155,7 +155,7 @@ public:
         std::vector<BufferDescriptor> bufs;
         // Only decode-shaped calls dispatch the split kernels, where batch * seq_len == batch is small.
         const auto split_rows = is_decode_shape(params) ? batch * seq_len : size_t{1};
-        const auto partitions = qsa::decode_split_partitions(*desc, std::nullopt, params.get_device_info());
+        const auto partitions = qsa::decode_split_partitions(*desc, std::nullopt, params.get_device_info(), params.get_program().get_config());
         bufs.emplace_back(split_rows * desc->num_heads * partitions * desc->v_head_size, ov::element::f32);  // SPLIT_ACC
         bufs.emplace_back(split_rows * desc->num_heads * partitions * 2, ov::element::f32);                  // SPLIT_ML
         return bufs;

@@ -74,6 +74,8 @@
 #include <utility>
 #include <vector>
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/qsa_indexer.hpp"
 #include "openvino/runtime/core.hpp"
@@ -645,11 +647,39 @@ paged_inputs paged_inputs_synthetic(const split_dims& dims, size_t past_len, siz
 
 enum class Stage { Pair, IndexerOnly, AttentionOnly };
 
+/// BLOCK_SCORES scratch budget applied to every network built by the tests; 0 keeps the default.
+int& test_score_budget_bytes() {
+    static int bytes = 0;
+    return bytes;
+}
+
 ExecutionConfig make_config(engine& engine) {
     ExecutionConfig cfg = get_test_default_config(engine);
+    if (test_score_budget_bytes() > 0) {
+        cfg.set_property(ov::intel_gpu::qsa_score_budget_bytes(test_score_budget_bytes()));
+    }
     cfg.set_property(ov::intel_gpu::optimize_data(true));
     cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     return cfg;
+}
+
+/// `caching`: the program is exported to a blob and the network runs the imported program (model cache round trip).
+std::unique_ptr<network> make_network(engine& engine, topology& topo, bool caching) {
+    if (!caching) {
+        return std::make_unique<network>(engine, topo, make_config(engine));
+    }
+    membuf mem_buf;
+    {
+        std::ostream out_mem(&mem_buf);
+        BinaryOutputBuffer ob(out_mem);
+        ob.set_stream(get_test_stream_ptr().get());
+        program::build_program(engine, topo, make_config(engine))->save(ob);
+    }
+    std::istream in_mem(&mem_buf);
+    BinaryInputBuffer ib(in_mem, engine);
+    auto imported = std::make_shared<program>(engine, make_config(engine));
+    imported->load(ib);
+    return std::make_unique<network>(imported);
 }
 
 /// Adds a per-call tensor: a constant in a static topology, a network input (with the given
@@ -711,7 +741,7 @@ void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stag
 /// so ONE network serves any (past_len, q_len) through the shape-agnostic impls.
 /// `split_qkv` (attention stages, static only): query / key / value are the three VariadicSplit outputs of one fused
 /// projection input "qkv" instead of three inputs, the layout a split of a fused QKV projection hands to sparse_pa.
-std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs& in, Stage stage, bool dynamic = false, bool split_qkv = false) {
+std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs& in, Stage stage, bool dynamic = false, bool caching = false, bool split_qkv = false) {
     const auto& d = in.d;
     const auto dyn = [dynamic](int64_t v) {
         return dynamic ? int64_t{-1} : v;
@@ -823,7 +853,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
                            scale));
     }
 
-    auto net = std::make_unique<network>(engine, topo, make_config(engine));
+    auto net = make_network(engine, topo, caching);
     set_paged_inputs(engine, *net, in, stage, dynamic, split_qkv);
     return net;
 }
@@ -1026,7 +1056,7 @@ void set_dense_inputs(engine& engine, network& net, const dense_inputs& in, Stag
 
 /// `dynamic`: B/L/S and the summary capacity are dynamic and every per-call tensor is an
 /// input, so ONE network serves any (batch, key_length, q_len) through the shape-agnostic impls.
-std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs& in, Stage stage, bool dynamic = false) {
+std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs& in, Stage stage, bool dynamic = false, bool caching = false) {
     const auto& d = in.d;
     const auto dyn = [dynamic](int64_t v) {
         return dynamic ? int64_t{-1} : v;
@@ -1100,7 +1130,7 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
                              1.0f / std::sqrt(static_cast<float>(d.Dh))));
     }
 
-    auto net = std::make_unique<network>(engine, topo, make_config(engine));
+    auto net = make_network(engine, topo, caching);
     set_dense_inputs(engine, *net, in, stage, dynamic);
     return net;
 }
@@ -1113,6 +1143,7 @@ struct pair_outputs {
     selection_plan plan;      // GPU indexer outputs, flat
     std::vector<float> attn;  // token-major [q_len, Hq*Dv]
     std::vector<std::string> indexer_kernels, attention_kernels;
+    size_t score_scratch_bytes = 0;  // BLOCK_SCORES of the indexer
 };
 
 /// Kernels the primitive's last execute() enqueued, in order, without the `_ocl_<hash>` suffix.
@@ -1126,6 +1157,12 @@ std::vector<std::string> executed_kernels(network& net, const primitive_id& id) 
     return names;
 }
 
+/// Size the indexer asks for BLOCK_SCORES (its second internal buffer); the memory pool may hand out a larger shared buffer.
+size_t block_scores_bytes(primitive_inst& indexer) {
+    const auto bufs = indexer.get_impl()->get_internal_buffer_descs(*indexer.get_impl_params());
+    return bufs.size() > 1 ? bufs[1].m_layout.bytes_count() : 0;
+}
+
 void read_pair_outputs(network& net, pair_outputs& out) {
     auto indexer = net.get_primitive("indexer");
     out.plan.sel = read_i32(indexer->output_memory_ptr(0));
@@ -1135,33 +1172,36 @@ void read_pair_outputs(network& net, pair_outputs& out) {
     out.plan.count.resize(indexer->get_output_layout(1).count());
     out.indexer_kernels = executed_kernels(net, "indexer");
     out.attention_kernels = executed_kernels(net, "attn");
+    out.score_scratch_bytes = block_scores_bytes(*indexer);
 }
 
 enum class IndexerPath { Decode, Dpas, Fused };
 enum class AttnPath { Scalar, Dpas, GqaDpas, GqaSplit, Split };
 
-/// Expected kernel routing of one pair execution; `decode_chunks` counts BLOCK_SCORES row chunks.
+/// Expected kernel routing of one pair execution; `score_chunks` counts BLOCK_SCORES row chunks and
+/// `score_scratch_bytes` (0: not checked) is the size of the BLOCK_SCORES buffer.
 struct route {
     IndexerPath indexer;
     AttnPath attention;
-    size_t decode_chunks = 1;
+    size_t score_chunks = 1;
+    size_t score_scratch_bytes = 0;
 };
 
 std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
     std::vector<std::string> k = {paged ? "qsa_indexer_prepare_paged" : "qsa_indexer_prepare_dense"};
-    switch (r.indexer) {
-    case IndexerPath::Decode:
-        for (size_t i = 0; i < r.decode_chunks; i++) {
+    for (size_t i = 0; i < r.score_chunks; i++) {
+        switch (r.indexer) {
+        case IndexerPath::Decode:
             k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk_decode"});
+            break;
+        case IndexerPath::Dpas:
+            k.insert(k.end(), {"qsa_indexer_score_dpas", "qsa_indexer_topk"});
+            break;
+        case IndexerPath::Fused:
+            // There is no single-thread fused kernel: partition scorer + prefill top-k.
+            k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
+            break;
         }
-        break;
-    case IndexerPath::Dpas:
-        k.insert(k.end(), {"qsa_indexer_score_dpas", "qsa_indexer_topk"});
-        break;
-    case IndexerPath::Fused:
-        // There is no single-thread fused kernel: partition scorer + prefill top-k.
-        k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
-        break;
     }
     return k;
 }
@@ -1192,13 +1232,16 @@ std::vector<std::string> expected_attention_kernels(bool paged, const route& r) 
     return k;
 }
 
-/// Mirrors qsa::xmx_allowed(): the systolic kernels are only routed on Xe2+ (so not on DG2) and can be switched off.
+/// Mirrors qsa::xmx_allowed(): the systolic kernels are only routed on Xe2+ (so not on DG2) and can be switched off by
+/// the QSA_OCL_DISABLE_XMX debug option (env OV_GPU_QSA_OCL_DISABLE_XMX).
 bool xmx_routes_enabled() {
-    const char* v = std::getenv("OV_GPU_QSA_OCL_DISABLE_XMX");
-    if (v != nullptr && std::string(v) == "1") {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.finalize(engine);
+    if (GPU_DEBUG_VALUE_OR(config.get_qsa_ocl_disable_xmx(), false)) {
         return false;
     }
-    const auto& info = get_test_engine().get_device_info();
+    const auto& info = engine.get_device_info();
     return info.arch >= gpu_arch::xe2 && info.supports_immad;
 }
 
@@ -1224,6 +1267,9 @@ void expect_route(bool paged, const pair_outputs& gpu, const route& expected, si
     const auto r = resolve_route(expected, paged, kv_len);
     EXPECT_EQ(gpu.indexer_kernels, expected_indexer_kernels(paged, r));
     EXPECT_EQ(gpu.attention_kernels, expected_attention_kernels(paged, r));
+    if (r.score_scratch_bytes != 0) {
+        EXPECT_EQ(gpu.score_scratch_bytes, r.score_scratch_bytes);
+    }
 }
 
 pair_outputs run_paged_pair(engine& engine, const split_reference& ref) {
@@ -1503,9 +1549,9 @@ void validate_dense_outputs(network& net, const dense_inputs& in, const std::vec
 }
 
 /// One static dense network over `refs` (one batch row each), validated row by row.
-void run_dense_rows(engine& engine, const std::vector<split_reference>& refs, const route& r, float atol, float rtol) {
+void run_dense_rows(engine& engine, const std::vector<split_reference>& refs, const route& r, float atol, float rtol, bool caching = false) {
     const auto in = dense_inputs_from_references(refs);
-    auto net = build_dense_network(engine, in, Stage::Pair);
+    auto net = build_dense_network(engine, in, Stage::Pair, false, caching);
     net->execute();
     validate_dense_outputs(*net, in, refs, &r, atol, rtol);
 }
@@ -1620,13 +1666,18 @@ void validate_slices(bool paged, const std::vector<split_reference>& refs, const
 }
 
 /// Multi-sequence paged batch: all decode (q_len == 1 each) or mixed decode/prefill.
-void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs, const route& r, float rtol, float atol = 2e-3f) {
+void run_paged_batch_test(const split_dims& d,
+                          const std::vector<std::pair<size_t, size_t>>& seqs,
+                          const route& r,
+                          float rtol,
+                          float atol = 2e-3f,
+                          bool caching = false) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     const auto refs = make_batch_references(d, seqs);
-    auto net = build_paged_network(engine, pack_paged_inputs(refs), Stage::Pair);
+    auto net = build_paged_network(engine, pack_paged_inputs(refs), Stage::Pair, false, caching);
     auto outputs = net->execute();
     pair_outputs all;
     all.attn = read_f16(outputs.at("attn").get_memory());
@@ -1637,11 +1688,16 @@ void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_
 /// Dense batch, one row per (past_len, q_len). Rows may differ in key length (their K/V
 /// are left-padded to the longest row); a row with q_len below the longest q_len must have
 /// past_len == 0 and is left-padded.
-void run_dense_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& rows, const route& r, float rtol, float atol = 2e-3f) {
+void run_dense_batch_test(const split_dims& d,
+                          const std::vector<std::pair<size_t, size_t>>& rows,
+                          const route& r,
+                          float rtol,
+                          float atol = 2e-3f,
+                          bool caching = false) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
-    run_dense_rows(get_test_engine(), make_batch_references(d, rows), r, atol, rtol);
+    run_dense_rows(get_test_engine(), make_batch_references(d, rows), r, atol, rtol, caching);
 }
 
 /// Dense batch of `batch` identical-length rows.
@@ -1716,30 +1772,13 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
     }
 }
 
-// setenv/unsetenv are POSIX-only; MSVC provides _putenv_s, where an empty value removes the variable.
-void set_env_var(const char* name, const char* value) {
-#ifdef _WIN32
-    _putenv_s(name, value);
-#else
-    setenv(name, value, 1);
-#endif
-}
-
-void unset_env_var(const char* name) {
-#ifdef _WIN32
-    _putenv_s(name, "");
-#else
-    unsetenv(name);
-#endif
-}
-
-/// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
+/// Caps the BLOCK_SCORES scratch of every network built by the tests, so the score chunk loop runs several times.
 struct scoped_score_budget {
-    explicit scoped_score_budget(const char* bytes) {
-        set_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes);
+    explicit scoped_score_budget(size_t bytes) {
+        test_score_budget_bytes() = static_cast<int>(bytes);
     }
     ~scoped_score_budget() {
-        unset_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES");
+        test_score_budget_bytes() = 0;
     }
 };
 
@@ -1764,7 +1803,7 @@ TEST(qsa_ops_gpu_test, paged_sparse_attention_reads_split_qkv_inputs) {
     auto plain = build_paged_network(engine, in, Stage::AttentionOnly);
     const auto expected = read_f16(plain->execute().at("attn").get_memory());
 
-    auto split = build_paged_network(engine, in, Stage::AttentionOnly, false, true);
+    auto split = build_paged_network(engine, in, Stage::AttentionOnly, false, false, true);
     for (const char* id : {"query", "key", "value"}) {
         EXPECT_FALSE(split->get_primitive(id)->can_be_optimized()) << id << " must stay a real copy: sparse_pa reads dense rows";
     }
@@ -1799,13 +1838,13 @@ TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_matches_reference) {
 // (past_lens stay in GPU memory), i.e. the whole page pool, so only one row fits per
 // chunk: 3 chunks of one sequence each.
 TEST(qsa_ops_gpu_test, gqa_paged_batch_decode_chunked_scores_match_reference) {
-    scoped_score_budget budget("1");
+    scoped_score_budget budget(1);
     run_paged_batch_test(gqa_dims(), {{2051, 1}, {2100, 1}, {2300, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 // Budget of two rows: a full chunk followed by a partial one.
 TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_partial_last_chunk_matches_reference) {
-    scoped_score_budget budget("6144");
+    scoped_score_budget budget(6144);
     run_dense_batch_test(gqa_dims(), 3, 2051, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
@@ -2060,7 +2099,7 @@ struct dynamic_step {
     route r;
 };
 
-void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dynamic_step>& steps, float rtol, float atol = 2e-3f) {
+void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dynamic_step>& steps, float rtol, float atol = 2e-3f, bool caching = false) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
@@ -2078,14 +2117,14 @@ void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dy
             if (net) {
                 set_paged_inputs(engine, *net, in, Stage::Pair, true);
             } else {
-                net = build_paged_network(engine, in, Stage::Pair, true);
+                net = build_paged_network(engine, in, Stage::Pair, true, caching);
             }
         } else {
             dense_in = dense_inputs_from_reference(ref);
             if (net) {
                 set_dense_inputs(engine, *net, dense_in, Stage::Pair, true);
             } else {
-                net = build_dense_network(engine, dense_in, Stage::Pair, true);
+                net = build_dense_network(engine, dense_in, Stage::Pair, true, caching);
             }
         }
         auto outputs = net->execute();
@@ -3591,7 +3630,7 @@ void expect_compile_error(ov::Core& core, const std::shared_ptr<ov::Node>& op, c
     }
     auto model = std::make_shared<ov::Model>(results, params);
     try {
-        core.compile_model(model, "GPU", props);
+        core.compile_model(model, get_engine_gpu_device_name(), props);
         ADD_FAILURE() << "compile_model unexpectedly succeeded; expected an error containing '" << needle << "'";
     } catch (const ov::Exception& e) {
         EXPECT_NE(std::string(e.what()).find(needle), std::string::npos) << e.what();
@@ -3796,7 +3835,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
 // Per-kernel sweep driver for external GPU tracing (e.g. onetrace -d): one dense (QSAIndexer +
 // SparseSDPA) or paged (PagedQSAIndexer + SparsePA) pair with large-GQA dims, configured via the
 // environment: QSA_PERF_IMPL=dense|paged, QSA_PERF_PHASE=prefill|decode, QSA_PERF_B, QSA_PERF_LEN
-// (prompt length / history length), QSA_PERF_ITERS, QSA_PERF_WARMUP, QSA_PERF_FLUSH_MB (writes
+// (prompt length / history length), QSA_PERF_PAST (history before a prefill chunk), QSA_PERF_ITERS, QSA_PERF_WARMUP,
+// QSA_PERF_FLUSH_MB (writes
 // that many MiB between iterations to evict L2), QSA_PERF_STAGES (comma list of pair|indexer|attention, default pair).
 TEST(qsa_ops_perf_sweep, DISABLED_pair) {
     if (!qsa_ops_available()) {
@@ -3819,7 +3859,7 @@ TEST(qsa_ops_perf_sweep, DISABLED_pair) {
     const char* impl_env = std::getenv("QSA_PERF_IMPL");
     const std::string impl = impl_env ? impl_env : "dense";
     ASSERT_TRUE(impl == "dense" || impl == "paged") << impl;
-    const size_t past = phase == "prefill" ? 0 : len;
+    const size_t past = phase == "prefill" ? env_size("QSA_PERF_PAST", 0) : len;
     const size_t q_len = phase == "prefill" ? len : 1;
     const char* stages_env = std::getenv("QSA_PERF_STAGES");
     std::stringstream stages(stages_env ? stages_env : "pair");
@@ -3858,8 +3898,10 @@ TEST(qsa_ops_perf_sweep, DISABLED_pair) {
             total += ms;
             best = std::min(best, ms);
         }
-        std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
-                  << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << " stage=" << stage_name << std::endl;
+        const double scores_mb = stage == Stage::AttentionOnly ? 0.0 : static_cast<double>(block_scores_bytes(*net->get_primitive("indexer"))) / (1 << 20);
+        std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " past=" << past << " len=" << len << " calls=" << warmup + iterations
+                  << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << " stage=" << stage_name
+                  << " block_scores_mb=" << scores_mb << std::endl;
     }
 }
 

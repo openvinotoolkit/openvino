@@ -13,7 +13,9 @@
 // JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_SCALE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_ADDRESS_MODE,
 //      QSA_SCORE_WG, SUBGROUP_SIZE and (paged) QSA_PAGE_SIZE
 // Dispatch: gws = [num_tiles * QSA_SCORE_WG * SG, 1, 1], lws = [QSA_SCORE_WG * SG, 1, 1]; one work-group owns one
-// 16-query tile. `pitch` is the row pitch of block_scores, a multiple of 8 so the 8-wide stores stay inside the row.
+// 16-query tile. block_scores holds rows [row_begin, row_end) only: work-group 0 takes the tile that holds row_begin, and
+// a tile straddling a chunk edge is scored in both chunks with each chunk storing its own rows. `pitch` is the row pitch
+// of block_scores, a multiple of 8 so the 8-wide stores stay inside the row.
 
 #define QSA_INDEXER_HELPERS
 #include "qsa_common.cl"
@@ -34,7 +36,7 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
                                const __global int* block_indices,        // [used_blocks]
                                const __global int* block_indices_begins, // [num_seqs+1]
 #endif
-                               __global float* block_scores,             // [tokens, pitch]
+                               __global float* block_scores,             // [row_end - row_begin, pitch]
                                const uint num_tiles,
 #if QSA_ADDRESS_MODE == 0
                                const uint num_seqs,
@@ -42,7 +44,9 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
                                const uint seq_len,
                                const uint summary_stride,
 #endif
-                               const uint pitch) {
+                               const uint pitch,
+                               const uint row_begin,
+                               const uint row_end) {
     const uint HIQ = QSA_IDX_QUERY_HEADS;
     const uint DI = QSA_IDX_HEAD_DIM;
     const uint R = QSA_COMPRESS_RATIO;
@@ -65,7 +69,8 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
     uint anchor = 0;       // paged: sequence; dense: batch row
     uint token_begin = 0;  // paged: global first token; dense: first position within the row
 #if QSA_ADDRESS_MODE == 0
-    if (!FUNC_CALL(qsa_resolve_tile_paged)(subsequence_begins, num_seqs, wg, NQ, &anchor, &token_begin)) {
+    const uint tile = FUNC_CALL(qsa_first_tile_paged)(subsequence_begins, num_seqs, row_begin, NQ) + wg;
+    if (!FUNC_CALL(qsa_resolve_tile_paged)(subsequence_begins, num_seqs, tile, NQ, &anchor, &token_begin) || token_begin >= row_end) {
         return;
     }
     const uint seq_begin = (uint)subsequence_begins[anchor];
@@ -78,10 +83,14 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
     const uint n_complete_lane = (lane + first_abs + 1) / R;
 #else
     const uint tiles_per_row = (seq_len + NQ - 1) / NQ;
-    anchor = wg / tiles_per_row;
-    token_begin = (wg % tiles_per_row) * NQ;
-    const uint past_len = (uint)past_lens[anchor];
+    const uint tile = (row_begin / seq_len) * tiles_per_row + (row_begin % seq_len) / NQ + wg;
+    anchor = tile / tiles_per_row;
+    token_begin = (tile % tiles_per_row) * NQ;
     const uint token0 = anchor * seq_len + token_begin;
+    if (token0 >= row_end) {
+        return;
+    }
+    const uint past_len = (uint)past_lens[anchor];
     uint valid = seq_len > token_begin ? seq_len - token_begin : 0;
     // Dense: past_lens holds key_length; position = key_length - seq_len + l, left padding sees no block.
     const uint shifted = lane + past_len + token_begin;
@@ -145,14 +154,7 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
             unroll_for (uint k = 0; k < QSA_KT; k++) {
                 const short8 a = (short8)((short)rowd[0][k], (short)rowd[1][k], (short)rowd[2][k], (short)rowd[3][k],
                                           (short)rowd[4][k], (short)rowd[5][k], (short)rowd[6][k], (short)rowd[7][k]);
-#ifdef cl_intel_subgroup_local_block_io
-                const int8 bq = as_int8(intel_sub_group_block_read8(&slm_q[h * QSA_KT + k][0][0]));
-#else
-                const int8 bq = (int8)(as_int(slm_q[h * QSA_KT + k][0][lane]), as_int(slm_q[h * QSA_KT + k][1][lane]),
-                                       as_int(slm_q[h * QSA_KT + k][2][lane]), as_int(slm_q[h * QSA_KT + k][3][lane]),
-                                       as_int(slm_q[h * QSA_KT + k][4][lane]), as_int(slm_q[h * QSA_KT + k][5][lane]),
-                                       as_int(slm_q[h * QSA_KT + k][6][lane]), as_int(slm_q[h * QSA_KT + k][7][lane]));
-#endif
+                const int8 bq = BLOCK_READN_SLM(int, 8, &slm_q[h * QSA_KT + k][0][0], 0);
                 st = intel_sub_group_f16_f16_matrix_mad_k16(a, bq, st);
             }
             // ReLU per indexer head, strictly before the head reduction.
@@ -161,8 +163,9 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
         acc *= (float)QSA_IDX_SCALE;
 
         // A row of a dense prefix is never published.
-        if (lane < valid && n_complete_lane > (uint)QSA_BLOCK_TOPK) {
-            vstore8(acc, 0, block_scores + (size_t)(token0 + lane) * pitch + b0);
+        const uint row = token0 + lane;
+        if (lane < valid && row >= row_begin && row < row_end && n_complete_lane > (uint)QSA_BLOCK_TOPK) {
+            vstore8(acc, 0, block_scores + (size_t)(row - row_begin) * pitch + b0);
         }
     }
 }

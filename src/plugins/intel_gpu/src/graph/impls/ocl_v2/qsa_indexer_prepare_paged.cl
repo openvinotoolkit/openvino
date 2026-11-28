@@ -152,13 +152,13 @@ KERNEL(qsa_indexer_prepare_paged)(const __global half* q_idx,                  /
     if (block_start >= past_len) {
         const uint first_token = seq_begin + (block_start - past_len);
         FUNC_CALL(qsa_rope)(acc, rope_cos + first_token * ROT, rope_sin + first_token * ROT, 1);
-        FUNC_CALL(qsa_wr_f32)(summary_row, acc, QSA_NE);
+        FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
     } else {
         const uint row = (page * SPP + qsa_block % SPP) * 2 * ROT;
         FUNC_CALL(qsa_rope)(acc, rope_cache + row, rope_cache + row + 1, 2);
-        FUNC_CALL(qsa_wr_f32)(summary_row, acc, QSA_NE);
+        FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
     }
 #else
-    FUNC_CALL(qsa_wr_f32)(summary_row, acc, QSA_NE);
+    FUNC_CALL(qsa_wr_f32_lanes)(summary_row, acc, QSA_NE);
 #endif
 }
