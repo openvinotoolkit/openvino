@@ -1480,6 +1480,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ov::pass::TransposeSinking>();
+        // Before activations scaling inserts scalar Multiply ops after the QKV split.
+        manager.register_pass<ov::intel_gpu::SinkTransposeThroughSplitForSDPA>();
 
         if (!unroll_loop) {
             manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();

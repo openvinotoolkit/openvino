@@ -4,7 +4,10 @@
 
 #include "transpose_fusion.hpp"
 
+#include <algorithm>
 #include <iostream>
+#include <limits>
+#include <optional>
 #include <ostream>
 #include <vector>
 
@@ -19,11 +22,17 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/any.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -642,6 +651,271 @@ TransposeSplitMatcher::TransposeSplitMatcher() {
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(split_m, "TransposeSplitMatcher");
     this->register_matcher(matcher, callback);
+}
+
+namespace {
+
+std::optional<int64_t> get_scalar_const_i64(const ov::Output<ov::Node>& output) {
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+    if (!constant || ov::shape_size(constant->get_shape()) != 1) {
+        return std::nullopt;
+    }
+    return constant->cast_vector<int64_t>()[0];
+}
+
+bool is_scalar_const(const ov::Output<ov::Node>& output) {
+    return ov::is_type<ov::op::v0::Constant>(output.get_node()) && ov::shape_size(output.get_shape()) == 1;
+}
+
+// True if every consumer of `output` is a Q/K/V input of an SDPA, either directly or
+// through a Multiply by a scalar constant whose consumers are all Q/K/V inputs of an SDPA.
+bool feeds_only_sdpa_qkv(const ov::Output<ov::Node>& output) {
+    const auto is_sdpa_qkv = [](const ov::Input<ov::Node>& in) {
+        return ov::is_type<ov::op::v13::ScaledDotProductAttention>(in.get_node()) && in.get_index() < 3;
+    };
+    const auto& consumers = output.get_target_inputs();
+    const auto is_sdpa_qkv_or_scaled = [&](const ov::Input<ov::Node>& in) {
+        if (is_sdpa_qkv(in)) {
+            return true;
+        }
+        auto* mul = ov::as_type<ov::op::v1::Multiply>(in.get_node());
+        if (mul == nullptr || !is_scalar_const(mul->input_value(1 - in.get_index()))) {
+            return false;
+        }
+        const auto& mul_consumers = mul->get_output_target_inputs(0);
+        return !mul_consumers.empty() && std::all_of(mul_consumers.begin(), mul_consumers.end(), is_sdpa_qkv);
+    };
+    return !consumers.empty() && std::all_of(consumers.begin(), consumers.end(), is_sdpa_qkv_or_scaled);
+}
+
+// True if `node` only removes the axis `axis` of its input, which is statically 1: Squeeze(axis),
+// or a Reshape whose static output shape is the static input shape without that axis.
+bool removes_unit_axis(const std::shared_ptr<ov::Node>& node, size_t axis, int64_t rank) {
+    if (ov::is_type<ov::op::util::SqueezeBase>(node)) {
+        if (node->get_input_size() != 2) {
+            return false;
+        }
+        auto squeeze_axis = get_scalar_const_i64(node->input_value(1));
+        if (!squeeze_axis || (*squeeze_axis < 0 ? *squeeze_axis + rank : *squeeze_axis) != static_cast<int64_t>(axis)) {
+            return false;
+        }
+        // Squeeze keeps a selected axis whose size is not 1, so the slice must be statically unit.
+        const auto& dim = node->get_input_partial_shape(0)[axis];
+        return dim.is_static() && dim.get_length() == 1;
+    }
+    if (ov::is_type<ov::op::v1::Reshape>(node)) {
+        const auto& in = node->get_input_partial_shape(0);
+        const auto& out = node->get_output_partial_shape(0);
+        if (in.is_dynamic() || out.is_dynamic() || in.size() != out.size() + 1 || in[axis] != 1) {
+            return false;
+        }
+        auto expected = in.to_shape();
+        expected.erase(expected.begin() + axis);
+        return expected == out.to_shape();
+    }
+    return false;
+}
+
+// Order of the transpose that remains after removing axis `removed_pos` of `order`.
+std::vector<int64_t> drop_axis_from_order(const std::vector<int64_t>& order, size_t removed_pos) {
+    const int64_t removed_axis = order[removed_pos];
+    std::vector<int64_t> reduced;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (i != removed_pos) {
+            reduced.push_back(order[i] > removed_axis ? order[i] - 1 : order[i]);
+        }
+    }
+    return reduced;
+}
+
+bool keeps_last_axis(const std::vector<int64_t>& order) {
+    return !order.empty() && order.back() == static_cast<int64_t>(order.size()) - 1;
+}
+
+// Rewrites one Transpose whose consumers unpack it along one axis into SDPA inputs; see the header.
+bool sink_transpose_through_split(const std::shared_ptr<ov::op::v1::Transpose>& transpose) {
+    const auto order_const = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+    const auto input = transpose->input_value(0);
+    if (!order_const || input.get_partial_shape().rank().is_dynamic()) {
+        return false;
+    }
+    const auto rank = input.get_partial_shape().rank().get_length();
+    const auto order = order_const->cast_vector<int64_t>();
+    if (rank < 2 || static_cast<int64_t>(order.size()) != rank) {
+        return false;
+    }
+    const auto normalize = [rank](int64_t axis) -> std::optional<size_t> {
+        axis = axis < 0 ? axis + rank : axis;
+        if (axis < 0 || axis >= rank) {
+            return std::nullopt;
+        }
+        return static_cast<size_t>(axis);
+    };
+
+    const auto consumers = transpose->get_output_target_inputs(0);
+    if (consumers.empty()) {
+        return false;
+    }
+
+    // Each branch is a node whose output is "transposed input with axis a removed at index i".
+    // Complete unpacks (all slices along a) are rewritten as one split; anything else as
+    // per-branch Gathers.
+    std::optional<size_t> a;
+    std::vector<std::shared_ptr<ov::Node>> branches;  // indexed by slice position
+    std::vector<std::pair<std::shared_ptr<ov::op::util::GatherBase>, size_t>> partial_gathers;
+    std::vector<std::shared_ptr<ov::Node>> replaced = {transpose};
+
+    auto split_node = consumers.begin()->get_node()->shared_from_this();
+    if (consumers.size() == 1 && (ov::is_type<ov::op::v1::Split>(split_node) || ov::is_type<ov::op::v1::VariadicSplit>(split_node))) {
+        const auto split_axis = get_scalar_const_i64(split_node->input_value(1));
+        a = split_axis ? normalize(*split_axis) : std::nullopt;
+        if (!a) {
+            return false;
+        }
+        for (const auto& out : split_node->outputs()) {
+            const auto& targets = out.get_target_inputs();
+            if (targets.size() != 1) {
+                return false;
+            }
+            auto squeeze = targets.begin()->get_node()->shared_from_this();
+            if (!removes_unit_axis(squeeze, *a, rank) || !feeds_only_sdpa_qkv(squeeze->output(0))) {
+                return false;
+            }
+            branches.push_back(squeeze);
+        }
+        replaced.push_back(split_node);
+    } else {
+        for (const auto& in : consumers) {
+            auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(in.get_node()->shared_from_this());
+            if (!gather || in.get_index() != 0 || gather->get_batch_dims() != 0 ||
+                gather->get_input_partial_shape(1).rank().is_dynamic() || gather->get_input_partial_shape(1).rank().get_length() != 0 ||
+                !feeds_only_sdpa_qkv(gather->output(0))) {
+                return false;
+            }
+            const auto index = get_scalar_const_i64(gather->input_value(1));
+            const auto gather_axis = get_scalar_const_i64(gather->input_value(2));
+            if (!index || !gather_axis || !normalize(*gather_axis)) {
+                return false;
+            }
+            const size_t axis = *normalize(*gather_axis);
+            const auto& dim = transpose->get_output_partial_shape(0)[axis];
+            if (dim.is_dynamic() || *index < -dim.get_length() || *index >= dim.get_length()) {
+                return false;
+            }
+            partial_gathers.emplace_back(gather, *index < 0 ? *index + dim.get_length() : *index);
+            if (!a) {
+                a = axis;
+            } else if (*a != axis) {
+                a = std::numeric_limits<size_t>::max();
+            }
+        }
+        // All gathers on one axis, each slice taken exactly once: equivalent to a split.
+        if (*a != std::numeric_limits<size_t>::max() &&
+            static_cast<int64_t>(partial_gathers.size()) == transpose->get_output_partial_shape(0)[*a].get_length()) {
+            branches.assign(partial_gathers.size(), nullptr);
+            for (const auto& [gather, index] : partial_gathers) {
+                if (branches[index]) {
+                    break;
+                }
+                branches[index] = gather;
+            }
+            if (std::all_of(branches.begin(), branches.end(), [](const auto& b) { return b != nullptr; })) {
+                partial_gathers.clear();
+            } else {
+                branches.clear();
+            }
+        }
+    }
+
+    const auto make_transpose = [](const ov::Output<ov::Node>& in, const std::vector<int64_t>& reduced_order) {
+        // One order constant per Transpose: TransposeSDPAMatcher requires a single consumer.
+        return std::make_shared<ov::op::v1::Transpose>(
+            in, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reduced_order.size()}, reduced_order));
+    };
+
+    if (!branches.empty()) {
+        const auto reduced_order = drop_axis_from_order(order, *a);
+        if (!keeps_last_axis(reduced_order)) {
+            return false;
+        }
+        const int64_t new_axis = order[*a];
+        const auto& in_pshape = input.get_partial_shape();
+        const auto num_slices = static_cast<int64_t>(branches.size());
+        auto new_axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {new_axis});
+
+        // Prefer merging the split axis with the next one ([.., n, H, ..] -> [.., n*H, ..]) so that
+        // each slice keeps the rank of the SDPA input and no Squeeze is needed: the split outputs
+        // can then be consumed in place. This needs static dims from the split axis on; dims
+        // before it are kept via special_zero.
+        bool can_merge = new_axis + 1 < rank;
+        for (int64_t i = new_axis; can_merge && i < rank; ++i) {
+            can_merge = in_pshape[i].is_static();
+        }
+        std::shared_ptr<ov::Node> new_split;
+        if (can_merge) {
+            std::vector<int64_t> merged_shape(new_axis, 0);
+            merged_shape.push_back(in_pshape[new_axis].get_length() * in_pshape[new_axis + 1].get_length());
+            for (int64_t i = new_axis + 2; i < rank; ++i) {
+                merged_shape.push_back(in_pshape[i].get_length());
+            }
+            auto merged = std::make_shared<ov::op::v1::Reshape>(
+                input, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{merged_shape.size()}, merged_shape), true);
+            new_split = std::make_shared<ov::op::v1::Split>(merged, new_axis_const, num_slices);
+            ov::copy_runtime_info(replaced, merged);
+        } else {
+            new_split = std::make_shared<ov::op::v1::Split>(input, new_axis_const, num_slices);
+        }
+        new_split->set_friendly_name(replaced.back()->get_friendly_name());
+        ov::copy_runtime_info(replaced, new_split);
+
+        for (size_t i = 0; i < branches.size(); ++i) {
+            ov::Output<ov::Node> slice = new_split->output(i);
+            if (!can_merge) {
+                slice = std::make_shared<ov::op::v0::Squeeze>(slice, new_axis_const);
+                ov::copy_runtime_info({transpose, branches[i]}, slice.get_node_shared_ptr());
+            }
+            auto new_transpose = make_transpose(slice, reduced_order);
+            new_transpose->set_friendly_name(branches[i]->get_friendly_name());
+            ov::copy_runtime_info({transpose, branches[i]}, new_transpose);
+            branches[i]->output(0).replace(new_transpose->output(0));
+        }
+        return true;
+    }
+
+    if (partial_gathers.empty()) {
+        return false;
+    }
+    for (const auto& [gather, index] : partial_gathers) {
+        const size_t axis = *normalize(*get_scalar_const_i64(gather->input_value(2)));
+        if (!keeps_last_axis(drop_axis_from_order(order, axis))) {
+            return false;
+        }
+    }
+    for (const auto& [gather, index] : partial_gathers) {
+        const size_t axis = *normalize(*get_scalar_const_i64(gather->input_value(2)));
+        auto new_gather = std::make_shared<ov::op::v8::Gather>(
+            input, gather->input_value(1), ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {order[axis]}));
+        auto new_transpose = make_transpose(new_gather, drop_axis_from_order(order, axis));
+        new_gather->set_friendly_name(gather->get_friendly_name() + "/gather");
+        new_transpose->set_friendly_name(gather->get_friendly_name());
+        ov::copy_runtime_info({transpose, gather}, {new_gather, new_transpose});
+        gather->output(0).replace(new_transpose->output(0));
+    }
+    return true;
+}
+
+}  // namespace
+
+bool SinkTransposeThroughSplitForSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    // A ModelPass: the rewrite replaces the consumers (Split/Squeeze/Gather branches) of the Transpose.
+    bool changed = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(node);
+        if (transpose && !transformation_callback(transpose)) {
+            changed |= sink_transpose_through_split(transpose);
+        }
+    }
+    return changed;
 }
 
 }  // namespace ov::intel_gpu
