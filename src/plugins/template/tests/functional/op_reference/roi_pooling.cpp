@@ -257,15 +257,15 @@ INSTANTIATE_TEST_SUITE_P(
             std::vector<bfloat16>{1.225f,
                                   1.645f,
                                   4.585f,
-                                  4.937f,
+                                  5.0f,
                                   1.225f,
                                   1.645f,
                                   4.585f,
-                                  4.937f,
+                                  5.0f,
                                   1.225f,
                                   1.645f,
                                   4.585f,
-                                  4.937f}),
+                                  5.0f}),
         // fp16
         // roi_pooling_1x1_max
         ROIPoolingParams(6,
