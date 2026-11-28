@@ -40,6 +40,9 @@ tools:
   repo-memory:
     branch-name: memory/ci-doctor-mq              # read-only access to the CI Doctor (Merge Queue) knowledge base
     allowed-extensions: [".md", ".json", ".jsonl"]
+    max-file-size: 1048576
+    max-patch-size: 1048576
+    max-file-count: 1000
 
 timeout-minutes: 20
 ---
