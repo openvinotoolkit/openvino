@@ -150,6 +150,10 @@ void check_shape_against_port(const ov::PartialShape& portPartialShape,
 }
 
 ov::Shape getInitialTensorShape(const intel_npu::IODescriptor& descriptor, const ov::SoPtr<ov::ITensor>& userTensor) {
+    if (descriptor.relatedDescriptorIndex.has_value()) {
+        return descriptor.shapeFromCompiler.get_max_shape();
+    }
+
     if (userTensor != nullptr) {
         return userTensor->get_shape();
     }
@@ -1176,7 +1180,7 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
         allocatedTensorShape = getInitialTensorShape(descriptor, {});
     }
 
-    if (batchSize.has_value()) {
+    if (batchSize.has_value() && !descriptor.relatedDescriptorIndex.has_value()) {
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
@@ -1591,7 +1595,7 @@ void ZeroInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
     OPENVINO_ASSERT(
         tensors.size() != 1,
         "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
-    // The shapes are indexed by the batch dimension below, so scalar tensors must be rejected before that
+       // The shapes are indexed by the batch dimension below, so scalar tensors must be rejected before that
 
     for (const auto& item : tensors) {
         OPENVINO_ASSERT(item, "Uninitialized tensor is provided!");

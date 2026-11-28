@@ -28,6 +28,10 @@ namespace intel_npu {
 namespace {
 
 ov::Shape getInitialMemRefShape(const IODescriptor& descriptor) {
+    if (descriptor.relatedDescriptorIndex.has_value()) {
+        return descriptor.shapeFromCompiler.get_max_shape();
+    }
+
     if (descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->is_static()) {
         return descriptor.shapeFromIRModel->get_shape();
     }

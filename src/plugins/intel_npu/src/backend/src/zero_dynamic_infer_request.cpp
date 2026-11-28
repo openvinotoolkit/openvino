@@ -43,29 +43,34 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
         const auto originalShape =
             levelZeroTensor != nullptr ? std::make_optional(levelZeroTensor->get_shape()) : std::nullopt;
 
-        try {
-            _logger.debug("sync_zero_tensor_with_graph - create zero tensor");
-            OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
-            // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
-            // context.
-            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);
-        } catch (const ZeroMemException& exception) {
-            _logger.debug("sync_zero_tensor_with_graph - exception caught while trying to create a Level Zero tensor "
-                          "from the user tensor: %s",
-                          exception.what());
+        const auto& descriptor = foundPort.is_input() ? _metadata.inputs.at(foundPort.idx)
+                                                      : _metadata.outputs.at(foundPort.idx);
+        const bool keepMaxShape = descriptor.relatedDescriptorIndex.has_value();
 
-            // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
-            // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
-            if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
-                (levelZeroTensor != nullptr && (levelZeroTensor->get_byte_size() < tensor->get_byte_size()))) {
-                _logger.debug("sync_zero_tensor_with_graph - allocate locally L0 tensor");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
-
+        if (keepMaxShape) {
+            if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
                 levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input());
-            } else {
-                _logger.debug("sync_zero_tensor_with_graph - reusing the level zero tensor since it is not shared with "
-                              "the user, and old L0 tensor is large enough");
-                levelZeroTensor->set_shape(tensor->get_shape());
+            }
+        } else {
+            try {
+                _logger.debug("sync_zero_tensor_with_graph - create zero tensor");
+                OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
+                levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);
+            } catch (const ZeroMemException& exception) {
+                _logger.debug("sync_zero_tensor_with_graph - exception caught while trying to create a Level Zero tensor "
+                              "from the user tensor: %s",
+                              exception.what());
+
+                if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
+                    levelZeroTensor->get_byte_size() < tensor->get_byte_size()) {
+                    _logger.debug("sync_zero_tensor_with_graph - allocate locally L0 tensor");
+                    OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
+                    levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input());
+                } else {
+                    _logger.debug("sync_zero_tensor_with_graph - reusing the level zero tensor since it is not shared with "
+                                  "the user, and old L0 tensor is large enough");
+                    levelZeroTensor->set_shape(tensor->get_shape());
+                }
             }
         }
 
@@ -119,7 +124,7 @@ void ZeroDynamicInferRequest::sync_zero_tensors_with_graph(const ZeroInferReques
 
     if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
         levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
-    } else {
+    } else if (!_metadata.inputs.at(foundPort.idx).relatedDescriptorIndex.has_value()) {
         levelZeroTensor->set_shape(batchedShape);
     }
 
@@ -142,6 +147,10 @@ namespace {
 
 ov::Shape getInitialDynamicTensorShape(const intel_npu::IODescriptor& descriptor,
                                        const ov::SoPtr<ov::ITensor>& userTensor) {
+    if (descriptor.relatedDescriptorIndex.has_value()) {
+        return descriptor.shapeFromCompiler.get_max_shape();
+    }
+
     if (userTensor != nullptr) {
         return userTensor->get_shape();
     }
@@ -185,7 +194,7 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(const size_
 
     ov::Shape allocatedTensorShape = getInitialDynamicTensorShape(descriptor, userTensor);
 
-    if (isInput && is_batched_input(index)) {
+    if (isInput && is_batched_input(index) && !descriptor.relatedDescriptorIndex.has_value()) {
         const auto& batchedInputs = get_user_inputs(index);
         if (!batchedInputs.empty()) {
             allocatedTensorShape[utils::BATCH_AXIS] = batchedInputs.size();
@@ -341,7 +350,7 @@ void ZeroDynamicInferRequest::prepare_outputs() {
 
         // Resize the output buffer to the predicted shape (former update_tensor behavior). set_shape may
         // reallocate the buffer, so the single graph-argument refresh below must run after it.
-        if (reshapeToPredicted) {
+        if (reshapeToPredicted && !_metadata.outputs.at(outputIndex).relatedDescriptorIndex.has_value()) {
             const ov::Shape& predictedShape = _predictedShapes[outputIndex];
             if (levelZeroTensor->get_shape() != predictedShape) {
                 _logger.info("prepare_outputs - reshape output tensor %zu from %s to predicted shape %s",
