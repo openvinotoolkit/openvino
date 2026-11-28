@@ -9744,3 +9744,27 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24_beta_input) {
 
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
+
+// Standard ONNX opset-28 SwiGLU: Y = Swish_alpha(A) * B. The translator maps the gate activation to
+// ov::op::v4::Swish and multiplies it by the value input.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_opset28) {
+    auto model = convert_model("swiglu_opset28.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {-4.0f, -1.0f, -0.5f, 0.0f, 0.5f, 4.0f});
+    test_case.add_input<float>(Shape{6}, {2.0f, -3.0f, 0.5f, 7.0f, -1.5f, 0.25f});
+    test_case.add_expected_output<float>(Shape{6}, {-0.14389f, 0.806824f, -0.094385f, 0.0f, -0.466844f, 0.982014f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swiglu_opset28_alpha) {
+    auto model = convert_model("swiglu_opset28_alpha.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {-4.0f, -1.0f, -0.5f, 0.0f, 0.5f, 4.0f});
+    test_case.add_input<float>(Shape{6}, {2.0f, -3.0f, 0.5f, 7.0f, -1.5f, 0.25f});
+    test_case.add_expected_output<float>(Shape{6}, {-0.0089f, 0.463396f, -0.074858f, 0.0f, -0.525425f, 0.998887f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
