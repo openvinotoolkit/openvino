@@ -377,7 +377,18 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                 }
             }
         }
-        FusedOpsConfiguration conf_vec = { "_VEC", {"b", "f", "(y + write_id)", "x"},
+        // Output dims above 4D (w, z) must reach the fused-op index, otherwise a fused eltwise input always reads w = z = 0.
+        const auto out_rank = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
+        auto make_fused_idx_order = [out_rank](const std::string& x_idx) {
+            std::vector<std::string> order = {"b", "f", "(y + write_id)", x_idx};
+            if (out_rank == 5) {
+                order = {"b", "f", "z", "(y + write_id)", x_idx};
+            } else if (out_rank == 6) {
+                order = {"b", "f", "w", "z", "(y + write_id)", x_idx};
+            }
+            return order;
+        };
+        FusedOpsConfiguration conf_vec = { "_VEC", make_fused_idx_order("x"),
                                            "dequantized",
                                            input_dt,
                                            b_vec_size,
@@ -386,7 +397,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                            IndexType::TENSOR_COORD,
                                            Tensor::DataChannelName::X };
 
-        FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "xs"},
+        FusedOpsConfiguration conf_scalar = { "_SCALAR", make_fused_idx_order("xs"),
                                                "dequantized_scalar",
                                                input_dt,
                                                1,
