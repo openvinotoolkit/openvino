@@ -298,4 +298,5 @@ class Histc;
 class QSAPrepare;
 class SparseAttention;
 class SparseAttentionIndexer;
+class RandomPoisson;
 }  // namespace ov::op::v17
