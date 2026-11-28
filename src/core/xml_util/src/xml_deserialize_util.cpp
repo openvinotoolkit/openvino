@@ -5,7 +5,6 @@
 #include "openvino/xml_util/xml_deserialize_util.hpp"
 
 #include <fstream>
-#include <ranges>
 #include <regex>
 #include <stack>
 #include <string_view>
@@ -109,9 +108,10 @@ std::unordered_set<std::string> deserialize_tensor_names(std::string_view tensor
     std::unordered_set<std::string> output_names;
     std::string name;  // name being assembled from parts joined by escaped commas
 
-    for (const auto part : tensor_names | std::views::split(delim)) {
-        const std::string_view segment(part.begin(), part.end());
-        if (segment.ends_with(esc_char) && part.end() != tensor_names.end()) {
+    for (size_t start = 0, end = 0; end != std::string_view::npos; start = end + 1) {
+        end = tensor_names.find(delim, start);
+        const auto segment = tensor_names.substr(start, end - start);
+        if (end != std::string_view::npos && segment.ends_with(esc_char)) {
             // The comma after this part is escaped: it belongs to the name.
             name.append(segment.substr(0, segment.size() - 1)).push_back(delim);
         } else if (name.empty()) {
