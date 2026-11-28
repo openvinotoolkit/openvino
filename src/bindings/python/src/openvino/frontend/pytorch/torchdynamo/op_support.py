@@ -102,6 +102,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.copy_.default": None,
             "torch.ops.aten.cos.default": None,
             "torch.ops.aten.cosh.default": None,
+            "torch.ops.aten.cumprod.default": None,
             "torch.ops.aten.cumsum.default": None,
             "torch.ops.aten.detach.default": None,
             "torch.ops.aten.detach_.default": None,
