@@ -3220,7 +3220,7 @@ public:
             if (_weight_provider->is_offloaded()) {
                 const auto weight_type = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type;
                 if (weight_type == data_types::u4 && !_has_shared_expert && token_num > batched_gemv_threshold) {
-                    return exec_grouped_prefill_waves(events, stream, instance, scratch);
+                    return exec_grouped_prefill_waves(events, stream, instance, scratch, token_num);
                 }
                 // OTD: unique experts > capacity → explicit fallback to per-expert loop
                 return exec_per_expert_onednn_linear(events, stream, instance, scratch);
@@ -3274,10 +3274,9 @@ public:
     cldnn::event::ptr exec_grouped_prefill_waves(const std::vector<cldnn::event::ptr>& events,
                                                cldnn::stream& stream,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                               scratch_buffers& scratch) {
+                                               scratch_buffers& scratch,
+                                               size_t token_num) {
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
-        auto hidden_layout = instance.input_memory_ptr(0)->get_layout();
-        const size_t token_num = get_seq_len(hidden_layout);
         const size_t pair_count = token_num * config.top_k;
         const size_t capacity = resident_slot_count();
         OPENVINO_ASSERT(capacity > 0, "Grouped MoE waves require resident slots");
