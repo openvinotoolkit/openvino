@@ -309,6 +309,13 @@ ov::npuw::PACompiledModel::DynamicModel ov::npuw::PACompiledModel::compile_dynam
         }
         inner_config.emplace(key, value);
     }
+    if (is_gpu(device)) {
+        // GPU workaround. With its compressed cache, the default for a model
+        // with 4-bit weights, a GPU gives NaN from a PA op of a fixed token
+        // count, as the variants have them. An f16 cache does not, so the GPU
+        // gets one unless the caller asks for a precision.
+        inner_config.emplace(ov::hint::kv_cache_precision.name(), ov::element::f16);
+    }
 
     LOG_INFO("PA: compiling the dynamic PA model 1:1 on " << device);
     auto compiled = plugin->get_core()->compile_model(model, device, inner_config);
