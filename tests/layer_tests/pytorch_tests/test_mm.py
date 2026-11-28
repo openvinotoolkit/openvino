@@ -85,3 +85,24 @@ class TestMatMul(PytorchLayerTest):
     def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::matmul'), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)
+
+    def create_model_dtype(self):
+        import torch
+
+        class aten_mm_dtype(torch.nn.Module):
+            def forward(self, m1, m2):
+                return torch.mm(m1, m2, out_dtype=torch.float32)
+
+        return aten_mm_dtype(), "aten::mm"
+
+    @pytest.mark.parametrize("kwargs_to_prepare_input", [
+        {'matrix1_shape': (3, 3), 'matrix2_shape': (3, 3)},
+        {'matrix1_shape': (2, 3), 'matrix2_shape': (3, 2)},
+        {'matrix1_shape': (10, 5), 'matrix2_shape': (5, 1)},
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_mm_dtype(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
+        self._test(*self.create_model_dtype(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)

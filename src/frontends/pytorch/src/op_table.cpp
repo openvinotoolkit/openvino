@@ -372,6 +372,7 @@ OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
 // Extensions
 OP_CONVERTER(translate_bmm_ext);
+OP_CONVERTER(translate_mm_dtype);
 OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
@@ -479,6 +480,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // {"aten::bitwise_right_shift", op::translate_bitwise_right_shift}, - temporarily disable
         {"aten::bitwise_xor", op::translate_bitwise_xor},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten::bmm.dtype", op::translate_mm_dtype},
         {"aten::Bool", op::translate_bool},
         // aten::broadcast_tensors - Supported in limited set of patterns
         {"aten::broadcast_to", op::translate_expand},
@@ -667,6 +669,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::minimum", op::translate_minimum},
         {"aten::mish", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Mish>},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten::mm.dtype", op::translate_mm_dtype},
         {"aten::movedim", op::translate_movedim},
         {"aten::mul", op::translate_mul},
         {"aten::mul_", op::translate_mul_},
@@ -924,6 +927,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.baddbmm.default", op::translate_addmm_fx},
         // {"aten.bitwise_right_shift.Tensor", op::translate_bitwise_right_shift}, - temporarily disable
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
+        {"aten.bmm.dtype", op::translate_mm_dtype},
         {"aten.broadcast_tensors.default", op::translate_list_unpack_fx},
         {"aten.cat.default", op::translate_cat_fx},
         {"aten.chunk.default", op::translate_list_view_fx},
@@ -955,6 +959,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.mean.dim", op::translate_mean_fx},
         {"aten.meshgrid.default", op::translate_meshgrid},
         {"aten.meshgrid.indexing", op::translate_meshgrid},
+        {"aten.mm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
+        {"aten.mm.dtype", op::translate_mm_dtype},
         {"aten.native_batch_norm.default", op::translate_batch_norm_legit_fx},
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
