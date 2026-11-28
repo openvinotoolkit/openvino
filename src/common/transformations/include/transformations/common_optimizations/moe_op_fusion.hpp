@@ -28,14 +28,15 @@ public:
 class ov::pass::Convert3GatherMatmulMoeBlockToMoeOp : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Convert3GatherMatmulMoeBlockToMoeOp");
-    Convert3GatherMatmulMoeBlockToMoeOp();
+    // allow_scale_expansion = false leaves GEMMs that would need per-channel scale expansion unfused.
+    explicit Convert3GatherMatmulMoeBlockToMoeOp(bool allow_scale_expansion = true);
 };
 
 class ov::pass::MoeOpFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("MoeOpFusion");
-    MoeOpFusion() {
+    explicit MoeOpFusion(bool allow_scale_expansion = true) {
         add_matcher<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
-        add_matcher<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+        add_matcher<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(allow_scale_expansion);
     }
 };
