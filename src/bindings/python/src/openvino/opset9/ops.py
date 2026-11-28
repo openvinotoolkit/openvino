@@ -243,7 +243,7 @@ def multiclass_nms(
     :param keep_top_k: Specifies maximum number of boxes to be selected per batch element, -1
                        meaning to keep all boxes
     :param background_class: Specifies the background class id, -1 meaning to keep all classes
-    :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
+    :param nms_eta: Specifies eta parameter for adaptive NMS, in close range [0, 1.0]
     :param normalized: Specifies whether boxes are normalized or not
     :param name: The optional name for the output node
     :return: The new node which performs MuticlassNms

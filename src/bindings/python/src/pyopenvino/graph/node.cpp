@@ -174,7 +174,7 @@ void regclass_graph_Node(py::module m) {
     // Python will call this method whenever requested attribute hasn't already been defined,
     // so all other properties like shape or name are prioritized from bindings itself.
     // TODO: is it possible to append these attributes to the instance of Node itself
-    //       directly from pybind without returning class itself everytime?
+    //       directly from pybind without returning class itself every time?
     node.def("__getattr__", [](const std::shared_ptr<ov::Node>& self, const std::string& name) {
         // TODO: is it possible to cache serializer and regex?
         util::DictAttributeSerializer dict_serializer(self);

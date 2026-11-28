@@ -329,9 +329,9 @@ void regclass_Tensor(py::module m) {
 
             For tensors with string element type, returns a numpy array of bytes
             without any decoding.
-            To change the underlaying data use `str_data`/`bytes_data` properties
+            To change the underlying data use `str_data`/`bytes_data` properties
             or the `copy_from` function.
-            Warning: Data of string type is always a copy of underlaying memory!
+            Warning: Data of string type is always a copy of underlying memory!
 
             :rtype: numpy.array
         )");
@@ -357,9 +357,9 @@ void regclass_Tensor(py::module m) {
             Access to Tensor's data with string Type in `np.bytes_` dtype.
 
             Getter returns a numpy array with corresponding shape and dtype.
-            Warning: Data of string type is always a copy of underlaying memory!
+            Warning: Data of string type is always a copy of underlying memory!
 
-            Setter fills underlaying Tensor's memory by copying strings from `other`.
+            Setter fills underlying Tensor's memory by copying strings from `other`.
             `other` must have the same size (number of elements) as the Tensor.
             Tensor's shape is not changed by performing this operation!
         )");
@@ -385,9 +385,9 @@ void regclass_Tensor(py::module m) {
             Access to Tensor's data with string Type in `np.str_` dtype.
 
             Getter returns a numpy array with corresponding shape and dtype.
-            Warning: Data of string type is always a copy of underlaying memory!
+            Warning: Data of string type is always a copy of underlying memory!
 
-            Setter fills underlaying Tensor's memory by copying strings from `other`.
+            Setter fills underlying Tensor's memory by copying strings from `other`.
             `other` must have the same size (number of elements) as the Tensor.
             Tensor's shape is not changed by performing this operation!
         )");

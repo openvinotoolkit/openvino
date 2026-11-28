@@ -34,7 +34,7 @@ def interpolate(
     axes: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """Perfors the interpolation of the input tensor.
+    """Performs the interpolation of the input tensor.
 
     :param  image:         The node providing input tensor with data for interpolation.
     :param  scales_or_sizes:

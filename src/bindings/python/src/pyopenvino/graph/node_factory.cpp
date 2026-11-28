@@ -108,7 +108,7 @@ public:
     }
 
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
-        // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
+        // Load extension library, search for operation extensions (derived from ov::BaseOpExtension) and keep
         // them in m_opset_extensions for future use in create methods.
         // NodeFactory provides a simplified API for node creation without involving version of operation.
         // It means all operations share the same name space and real operation versions (opsets) from extension
@@ -125,7 +125,7 @@ public:
     }
 
     void add_extension(const std::filesystem::path& lib_path) {
-        // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
+        // Load extension library, search for operation extensions (derived from ov::BaseOpExtension) and keep
         // them in m_opset_extensions for future use in create methods.
         // NodeFactory provides a simplified API for node creation without involving version of operation.
         // It means all operations share the same name space and real operation versions (opsets) from extension

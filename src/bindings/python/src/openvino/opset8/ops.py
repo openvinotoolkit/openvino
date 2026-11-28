@@ -95,7 +95,7 @@ def adaptive_avg_pool(
     """Return a node which performs AdaptiveAvgPool operation.
 
     :param data: The list of input nodes
-    :param output_shape: the shape of spatial dimentions after operation
+    :param output_shape: the shape of spatial dimensions after operation
     :param name: Optional output node name.
     :return: The new node performing AdaptiveAvgPool operation on the data
     """
@@ -113,7 +113,7 @@ def adaptive_max_pool(
     """Return a node which performs AdaptiveMaxPool operation.
 
     :param data: The list of input nodes
-    :param output_shape: the shape of spatial dimentions after operation
+    :param output_shape: the shape of spatial dimensions after operation
     :param index_element_type: Type of indices output.
     :param name: Optional output node name.
     :return: The new node performing AdaptiveMaxPool operation on the data
@@ -162,7 +162,7 @@ def multiclass_nms(
     :param keep_top_k: Specifies maximum number of boxes to be selected per batch element, -1
                        meaning to keep all boxes
     :param background_class: Specifies the background class id, -1 meaning to keep all classes
-    :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
+    :param nms_eta: Specifies eta parameter for adaptive NMS, in close range [0, 1.0]
     :param normalized: Specifies whether boxes are normalized or not
     :param name: Optional output node name.
     :return: The new node which performs MuticlassNms

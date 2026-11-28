@@ -74,7 +74,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 * *trans_std*
 
-  * **Description**: *trans_std* is the value that all third input values (offests) are multiplied with to modulate the magnitude of the offsets.
+  * **Description**: *trans_std* is the value that all third input values (offsets) are multiplied with to modulate the magnitude of the offsets.
   * **Range of values**: floating-point number
   * **Type**: ``float``
   * **Default value**: 1

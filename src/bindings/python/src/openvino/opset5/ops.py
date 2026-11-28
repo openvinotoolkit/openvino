@@ -46,7 +46,7 @@ def batch_norm_inference(
     epsilon: float,
     name: Optional[str] = None,
 ) -> Node:
-    """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
+    """Perform layer normalizes a input tensor by mean and variance with applying scale and offset.
 
     :param data: The input tensor with data for normalization.
     :param gamma: The scalar scaling for normalized value.
@@ -164,7 +164,7 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     """Apply Round operation on each element of input tensor.
 
     :param data: The tensor providing input data.
-    :param mode: Rule to round halfway cases. If set to 'half_to_even' then halfs round to the nearest even
+    :param mode: Rule to round halfway cases. If set to 'half_to_even' then halves round to the nearest even
         integer or rounding in such a way that the result heads away from zero if `mode` attribute is
         'half_away_from_zero`.
     :param name: An optional name of the output node.

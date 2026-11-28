@@ -301,7 +301,7 @@ def constant(
     :param value: One of: array of values or scalar to initialize node with.
     :param dtype: The data type of provided data.
                   If dtype does not match, data will be converted.
-                  Note: disables sharing of the memory when convertion occurs.
+                  Note: disables sharing of the memory when conversion occurs.
     :param name: Optional name for output node.
     :param shared_memory: keyword-only argument.
                           If `True`, this Constant's memory is being shared with a host,

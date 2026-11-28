@@ -38,7 +38,7 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
 
     :raises     UserInputError:
 
-    returns:    True if attribute satisfies all criterias. Otherwise False.
+    returns:    True if attribute satisfies all criteria. Otherwise False.
     """
     if not np.issubdtype(type(value), val_type):
         raise UserInputError(
@@ -59,13 +59,13 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
     :param attr_dict:   Dictionary containing key-value attributes to check.
     :param attr_key:    Key value for validated attribute.
     :param val_type:    Value type for validated attribute.
-    :param cond:        Any callable wich accept attribute value and returns True or False.
+    :param cond:        Any callable which accept attribute value and returns True or False.
     :param required:    Whether provided attribute key is not required. This mean it may be missing
                         from provided dictionary.
 
     :raises     UserInputError:
 
-    returns True if attribute satisfies all criterias. Otherwise False.
+    returns True if attribute satisfies all criteria. Otherwise False.
     """
     result = True
 
@@ -107,7 +107,7 @@ def check_valid_attributes(
 
     :raises     UserInputError:
 
-    :returns True if all attributes satisfies criterias. Otherwise False.
+    :returns True if all attributes satisfies criteria. Otherwise False.
     """
     for attr, required, val_type, cond in requirements:
         check_valid_attribute(op_name, attributes, attr, val_type, cond, required)

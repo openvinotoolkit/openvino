@@ -160,7 +160,7 @@ def batch_norm_inference(
     epsilon: float,
     name: Optional[str] = None,
 ) -> Node:
-    """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
+    """Perform layer normalizes a input tensor by mean and variance with applying scale and offset.
 
     :param data: The input tensor with data for normalization.
     :param gamma: The scalar scaling for normalized value.
@@ -1099,7 +1099,7 @@ def group_convolution(
     :param pads_end:    The number of pixels to add at the end along each axis.
     :param dilations:   The distance in width and height between elements (weights) in the filter.
     :param auto_pad:    Describes how to perform padding. Possible values:
-                        EXPLICIT:   Pad dimensions are explicity specified
+                        EXPLICIT:   Pad dimensions are explicitly specified
                         SAME_LOWER: Pad dimensions computed to match input shape
                         Ceil(num_dims/2) at the beginning and
                         Floor(num_dims/2) at the end
@@ -1150,7 +1150,7 @@ def group_convolution_backprop_data(
     :param dilations:       The distance in width and height between elements (weights)
                             in the filter.
     :param auto_pad:        Describes how to perform padding. Possible values:
-                            EXPLICIT:   Pad dimensions are explicity specified
+                            EXPLICIT:   Pad dimensions are explicitly specified
                             SAME_LOWER: Pad dimensions computed to match input shape
                             Ceil(num_dims/2) at the beginning and
                             Floor(num_dims/2) at the end
@@ -2820,9 +2820,9 @@ def strided_slice(
     :param      end:               1D tensor with end indexes for input blob slicing
     :param      strides:           The slicing strides
     :param      begin_mask:        A mask applied to the 'begin' input indicating which elements
-                                   shoud be ignored
+                                   should be ignored
     :param      end_mask:          A mask applied to the 'end' input indicating which elements
-                                   shoud be ignored
+                                   should be ignored
     :param      new_axis_mask:     A mask indicating dimensions where '1' should be inserted
     :param      shrink_axis_mask:  A mask indicating which dimensions should be deleted
     :param      ellipsis_mask:     Indicates positions where missing dimensions should be inserted

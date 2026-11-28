@@ -256,7 +256,7 @@ class CompiledModel(openvino._pyopenvino.CompiledModel):
         """
     def query_state(self) -> None:
         """
-        Gets state control interface for the underlaying infer request.
+        Gets state control interface for the underlying infer request.
         
                 :return: list of VariableState objects.
                 :rtype: list[openvino.VariableState]
@@ -264,7 +264,7 @@ class CompiledModel(openvino._pyopenvino.CompiledModel):
         """
     def reset_state(self) -> None:
         """
-        Resets all internal variable states of the underlaying infer request.
+        Resets all internal variable states of the underlying infer request.
         
                 Resets all internal variable states to a value specified as default for
                 the corresponding `ReadValue` node.

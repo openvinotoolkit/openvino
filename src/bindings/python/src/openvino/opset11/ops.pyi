@@ -14,7 +14,7 @@ Factory functions for all openvino ops.
 __all__: list[str] = ['Node', 'NodeInput', 'as_nodes', 'interpolate', 'nameable_op', 'partial', 'topk']
 def interpolate(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
-    Perfors the interpolation of the input tensor.
+    Performs the interpolation of the input tensor.
     
         :param  image:         The node providing input tensor with data for interpolation.
         :param  scales_or_sizes:

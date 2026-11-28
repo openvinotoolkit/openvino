@@ -316,7 +316,7 @@ Mapping to Multiple Operations with ConversionExtension
 Previous sections cover the case when a single operation is mapped to a single operation with optional
 adjustment in names and attribute values. That is likely enough for your own custom operation with existing
 C++ kernel implementation. In this case your framework representation and OpenVINO representation for the
-operation are under your control and inputs/outpus/attributes can be aligned to make ``OpExtension`` usable.
+operation are under your control and inputs/outputs/attributes can be aligned to make ``OpExtension`` usable.
 
 In case if one-to-one mapping is not possible, *decomposition to multiple operations* should be considered.
 It is achieved by using more verbose and less automated ``ConversionExtension`` class.

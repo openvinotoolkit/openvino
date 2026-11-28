@@ -30,7 +30,7 @@ class OVDict(collections.abc.Mapping):
         It is prohibited to assign new items or edit them.
     
         To revert to the previous behavior use `to_dict` method which
-        return shallow copy of underlaying dictionary.
+        return shallow copy of underlying dictionary.
         Note: It removes addressing feature! New dictionary keeps
               only `ConstOutput` keys.
     
