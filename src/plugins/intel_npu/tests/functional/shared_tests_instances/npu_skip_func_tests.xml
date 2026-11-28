@@ -427,4 +427,12 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- EISW-243525 -->
+    <skip_config>
+        <message>Skipping tests which force error states in driver</message>
+        <filters>
+            <filter>.*OVCompiledGraphImportExportTestNPU.ImportingEncryptedBlobThrows.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
