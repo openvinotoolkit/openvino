@@ -6,11 +6,15 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <limits>
+#include <optional>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/float8_e4m3.hpp"
+#include "openvino/core/type/float8_e5m2.hpp"
 #include "openvino/core/type/nf4.hpp"
 
 #if !defined(OS_CHROMEOS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
@@ -31,11 +35,47 @@ constexpr bool is_nf4_iterator() {
            std::is_same<it, element::Iterator<element::nf4, T>>::value;
 }
 
+template <class ElementIter>
+constexpr bool is_i4_iterator() {
+    using it = typename std::decay<ElementIter>::type;
+    using T = fundamental_type_for<element::i4>;
+    return std::is_same<it, element::Iterator<element::i4, const T>>::value ||
+           std::is_same<it, element::Iterator<element::i4, T>>::value;
+}
+
 namespace reference {
 namespace detail {
 
+// float16/bfloat16/float8 are class types, not std::is_floating_point. char is handled separately.
+template <typename TI, typename TO>
+constexpr bool is_float_to_int =
+    (std::is_floating_point<TI>::value || std::is_same<TI, float16>::value || std::is_same<TI, bfloat16>::value ||
+     std::is_same<TI, float8_e4m3>::value || std::is_same<TI, float8_e5m2>::value) &&
+    std::is_integral<TO>::value && !std::is_same<TO, bool>::value;
+
+// Converting NaN or +-Inf to an integer is undefined behavior ([conv.fpint]), so define it here:
+// NaN -> 0, +Inf -> hi, -Inf -> lo.
+// Returns std::nullopt for finite values; the caller then casts them as before,
+// so results for finite inputs are unchanged.
+template <typename TI, typename TO>
+constexpr std::optional<TO> map_non_finite(const TI v, const TO lo, const TO hi) {
+    using FP = std::conditional_t<std::is_floating_point<TI>::value, TI, float>;
+    const auto f = static_cast<FP>(v);
+    if (f != f)  // NaN
+        return static_cast<TO>(0);
+    if (f == std::numeric_limits<FP>::infinity())
+        return hi;
+    if (f == -std::numeric_limits<FP>::infinity())
+        return lo;
+    return std::nullopt;
+}
+
 template <typename TI, typename TO>
 constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+    if constexpr (is_float_to_int<TI, TO>) {
+        if (const auto r = map_non_finite(v, std::numeric_limits<TO>::lowest(), std::numeric_limits<TO>::max()))
+            return *r;
+    }
     return static_cast<TO>(v);
 }
 
@@ -56,7 +96,16 @@ void convert(InputIt arg, OutputIt out, const size_t count) {
     using To =
         typename std::conditional<is_nf4_iterator<OutputIt>() && !std::is_integral<IN_T>::value, float, OUT_T>::type;
 
-    std::transform(arg, arg + count, out, detail::convert<From, To>);
+    if constexpr (is_i4_iterator<OutputIt>() && detail::is_float_to_int<From, To>) {
+        // i4 values are stored in int8_t but only keep 4 bits, so +-Inf must map to the i4 range (-8..7),
+        // not to int8_t's limits (127/-128), which would be truncated to -1/0.
+        std::transform(arg, arg + count, out, [](const From v) {
+            const auto r = detail::map_non_finite(v, To{-8}, To{7});
+            return r ? *r : static_cast<To>(v);
+        });
+    } else {
+        std::transform(arg, arg + count, out, detail::convert<From, To>);
+    }
 }
 
 template <typename TI, typename TO>

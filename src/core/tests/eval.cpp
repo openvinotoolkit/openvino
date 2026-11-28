@@ -65,6 +65,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "sequence_generator.hpp"
 #include "utils/eval_utils.hpp"
@@ -109,6 +110,103 @@ TEST(eval, evaluate_shape_of) {
     auto result_shape = read_vector<int64_t>(result);
     vector<int64_t> arg_shape{2, 3};
     ASSERT_EQ(result_shape, arg_shape);
+}
+
+TEST(eval, evaluate_convert_f32_nan_inf_to_i32_no_ub) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4});
+    auto convert = make_shared<op::v0::Convert>(p, element::i32);
+    auto model = make_shared<Model>(OutputVector{convert}, ParameterVector{p});
+
+    const float nan_v = std::numeric_limits<float>::quiet_NaN();
+    const float pos_inf = std::numeric_limits<float>::infinity();
+    const float neg_inf = -std::numeric_limits<float>::infinity();
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{4}, {nan_v, pos_inf, neg_inf, 7.0f})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::i32);
+    EXPECT_EQ(result.get_shape(), (Shape{4}));
+
+    auto result_val = read_vector<int32_t>(result);
+    // NaN -> 0
+    EXPECT_EQ(result_val[0], 0);
+    // +Inf -> max
+    EXPECT_EQ(result_val[1], std::numeric_limits<int32_t>::max());
+    // -Inf -> min
+    EXPECT_EQ(result_val[2], std::numeric_limits<int32_t>::min());
+    // finite in-range value converts normally
+    EXPECT_EQ(result_val[3], 7);
+}
+
+TEST(eval, evaluate_convert_f8_non_finite_to_i32_no_ub) {
+    auto p_e4m3 = make_shared<ov::op::v0::Parameter>(element::f8e4m3, PartialShape{3});
+    auto p_e5m2 = make_shared<ov::op::v0::Parameter>(element::f8e5m2, PartialShape{3});
+    auto model = make_shared<Model>(OutputVector{make_shared<op::v0::Convert>(p_e4m3, element::i32),
+                                                 make_shared<op::v0::Convert>(p_e5m2, element::i32)},
+                                    ParameterVector{p_e4m3, p_e5m2});
+
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::f8e4m3>(Shape{3}, {std::numeric_limits<ov::float8_e4m3>::quiet_NaN(), 0.0f, 1.0f}),
+        make_tensor<element::Type_t::f8e5m2>(Shape{3},
+                                             {std::numeric_limits<ov::float8_e5m2>::quiet_NaN(),
+                                              std::numeric_limits<ov::float8_e5m2>::infinity(),
+                                              -std::numeric_limits<ov::float8_e5m2>::infinity()})};
+    auto out_vector = ov::TensorVector{ov::Tensor(), ov::Tensor()};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+
+    EXPECT_EQ(read_vector<int32_t>(out_vector[0]), (std::vector<int32_t>{0, 0, 1}));
+    EXPECT_EQ(read_vector<int32_t>(out_vector[1]),
+              (std::vector<int32_t>{0, std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::min()}));
+}
+
+TEST(eval, evaluate_convert_f32_inf_to_i4_uses_logical_range) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4});
+    auto model = make_shared<Model>(OutputVector{make_shared<op::v0::Convert>(p, element::i4)}, ParameterVector{p});
+
+    const float inf = std::numeric_limits<float>::infinity();
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::f32>(Shape{4}, {inf, -inf, std::numeric_limits<float>::quiet_NaN(), 3.0f})};
+    auto out_vector = ov::TensorVector{ov::Tensor()};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+
+    auto it = element::iterator<element::i4>(static_cast<const int8_t*>(out_vector[0].data()));
+    EXPECT_EQ(static_cast<int8_t>(*(it + 0)), 7);
+    EXPECT_EQ(static_cast<int8_t>(*(it + 1)), -8);
+    EXPECT_EQ(static_cast<int8_t>(*(it + 2)), 0);
+    EXPECT_EQ(static_cast<int8_t>(*(it + 3)), 3);
+}
+
+// float/f16 -> int8 pointer overloads (formerly JIT-only) must follow the same non-finite policy as the scalar path.
+TEST(eval, reference_convert_f32_f16_non_finite_to_i8) {
+    const float inf = std::numeric_limits<float>::infinity();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+
+    // 40 elements so both the vectorized body and the tail are exercised.
+    std::vector<float> f32(40, 1.0f);
+    f32[0] = inf;
+    f32[1] = -inf;
+    f32[2] = nan;
+    f32[35] = inf;
+    f32[36] = -inf;
+    std::vector<ov::float16> f16(f32.begin(), f32.end());
+
+    std::vector<int8_t> out_f32(f32.size()), out_f16(f32.size());
+    ov::reference::convert<float, int8_t>(f32.data(), out_f32.data(), f32.size());
+    ov::reference::convert<ov::float16, int8_t>(f16.data(), out_f16.data(), f16.size());
+
+    for (const auto& out : {out_f32, out_f16}) {
+        EXPECT_EQ(out[0], std::numeric_limits<int8_t>::max());
+        EXPECT_EQ(out[1], std::numeric_limits<int8_t>::min());
+        EXPECT_EQ(out[2], 0);
+        EXPECT_EQ(out[3], 1);
+        EXPECT_EQ(out[35], std::numeric_limits<int8_t>::max());
+        EXPECT_EQ(out[36], std::numeric_limits<int8_t>::min());
+    }
 }
 
 TEST(eval, evaluate_dynamic_range_sum) {
