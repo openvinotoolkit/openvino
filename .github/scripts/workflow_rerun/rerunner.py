@@ -75,11 +75,18 @@ def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: i
                       errors_file: Path, is_dry_run: bool, session: requests.Session):
     with tempfile.TemporaryDirectory() as temp_dir:
         logs_dir = Path(temp_dir)
-        collect_logs_for_run(
-            run=run,
-            logs_dir=logs_dir,
-            session=session
-        )
+        try:
+            collect_logs_for_run(
+                run=run,
+                logs_dir=logs_dir,
+                session=session
+            )
+        except requests.HTTPError as error:
+            # No log archive exists for the run (for example, it has no jobs), so there is nothing to analyze
+            if error.response is not None and error.response.status_code == 404:
+                LOGGER.info(f'LOGS FOR {run.html_url} ARE NOT AVAILABLE (HTTP 404). NOT RETRIGGERING')
+                return
+            raise
 
         log_analyzer = LogAnalyzer(
             path_to_logs=logs_dir,
