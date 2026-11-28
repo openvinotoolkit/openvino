@@ -9,10 +9,15 @@
 
 #include "gguf.hpp"
 
+#ifdef _WIN32
+#    include <malloc.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <iomanip>
@@ -32,6 +37,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/math_util.hpp"
+#include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "weights.hpp"
@@ -374,11 +380,44 @@ GgufWeight::GgufWeight(const ov::Tensor& tensor) : data(tensor), shape(tensor.ge
     OPENVINO_THROW("Unsupported generated GGUF weight element type ", tensor.get_element_type());
 }
 
+namespace {
+// Decoded weights of 1 MiB and more get page-aligned storage, so an integrated-GPU plugin can use the host memory
+// directly instead of copying it (the weights are then not held twice while the model compiles).
+struct PageAlignedAllocator {
+    void* allocate(size_t bytes, size_t) {
+        const auto page = static_cast<size_t>(ov::util::get_system_page_size());
+        const size_t n = std::max(ov::util::align_size_up(bytes, page), page);
+#ifdef _WIN32
+        return _aligned_malloc(n, page);
+#else
+        return std::aligned_alloc(page, n);
+#endif
+    }
+    void deallocate(void* p, size_t, size_t) noexcept {
+#ifdef _WIN32
+        _aligned_free(p);
+#else
+        std::free(p);
+#endif
+    }
+    bool is_equal(const PageAlignedAllocator&) const {
+        return true;
+    }
+};
+
+ov::Tensor make_weight_tensor(const ov::element::Type& type, const ov::Shape& shape) {
+    if (ov::shape_size(shape) * type.bitwidth() / 8 >= (size_t{1} << 20)) {
+        return ov::Tensor(type, shape, ov::Allocator(PageAlignedAllocator{}));
+    }
+    return ov::Tensor(type, shape);
+}
+}  // namespace
+
 WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape) {
     WeightTensors result;
     const auto layout = quant_layout(source.qtype, source.source_name);
     if (!layout) {
-        result.weight = ov::Tensor(source.data.get_element_type(), shape);
+        result.weight = make_weight_tensor(source.data.get_element_type(), shape);
         return result;
     }
     OPENVINO_ASSERT(!shape.empty() && shape.back() % layout->group_size == 0 && shape.back() % layout->weight_div == 0,
@@ -388,8 +427,8 @@ WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& sh
     weight_shape.back() /= layout->weight_div;
     auto scale_shape = shape;
     scale_shape.back() /= layout->group_size;
-    result.weight = ov::Tensor(layout->weight_type, weight_shape);
-    result.scales = ov::Tensor(layout->scale_type, scale_shape);
+    result.weight = make_weight_tensor(layout->weight_type, weight_shape);
+    result.scales = make_weight_tensor(layout->scale_type, scale_shape);
     if (layout->asymmetric)
         result.zero_point = ov::Tensor(gguf_zero_point_type(source.source_name, source.qtype), scale_shape);
     return result;
