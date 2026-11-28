@@ -83,18 +83,29 @@ template <class TGemm>
 bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
                                    FQMulAddPattern pattern,
                                    bool optional_swish_allowed = false,
+                                   bool optional_subtract_allowed = false,
                                    const ov::pass::pattern::op::Predicate& act_pred = {},
                                    const std::function<bool(const std::shared_ptr<const ov::Node>&)>& extra = {}) {
     using namespace ov::pass::pattern;
 
-    auto mulAdd_gemm = wrap_type<TGemm>({any_input(act_pred), any_input()});
+    auto mulAdd_activation = any_input(act_pred);
+    auto mulAdd_zero_point = any_input();
+    auto mulAdd_gemm_input = optional_subtract_allowed
+                                 ? optional<ov::op::v1::Subtract>({mulAdd_activation, mulAdd_zero_point})
+                                 : mulAdd_activation;
+    auto mulAdd_gemm = wrap_type<TGemm>({mulAdd_gemm_input, any_input()});
     auto mulAdd_mul = wrap_type<ov::op::v1::Multiply>({mulAdd_gemm, any_input()});
     auto mulAdd_add = wrap_type<ov::op::v1::Add>({mulAdd_mul, any_input()});
     auto mulAdd_fq =
         wrap_type<ov::op::v0::FakeQuantize>({mulAdd_add, any_input(), any_input(), any_input(), any_input()});
     Matcher mulAdd_matcher(mulAdd_fq);
 
-    auto addMul_gemm = wrap_type<TGemm>({any_input(act_pred), any_input()});
+    auto addMul_activation = any_input(act_pred);
+    auto addMul_zero_point = any_input();
+    auto addMul_gemm_input = optional_subtract_allowed
+                                 ? optional<ov::op::v1::Subtract>({addMul_activation, addMul_zero_point})
+                                 : addMul_activation;
+    auto addMul_gemm = wrap_type<TGemm>({addMul_gemm_input, any_input()});
     auto addMul_add = wrap_type<ov::op::v1::Add>({addMul_gemm, any_input()});
     auto addMul_mul = wrap_type<ov::op::v1::Multiply>({addMul_add, any_input()});
     auto addMul_fq_parent = optional_swish_allowed ? optional<ov::op::v4::Swish>({addMul_mul}) : addMul_mul;
@@ -104,14 +115,13 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
 
     const bool is_mul_add = (pattern == FQMulAddPattern::ConvMulAdd);
     auto& matcher = is_mul_add ? mulAdd_matcher : addMul_matcher;
-    const auto& gemm_m = is_mul_add ? mulAdd_gemm : addMul_gemm;
+    const auto& activation_m = is_mul_add ? mulAdd_activation : addMul_activation;
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
         return false;
     }
 
     const auto& pattern_map = matcher.get_pattern_value_map();
-    const auto gemm_node = pattern_map.at(gemm_m).get_node_shared_ptr();
-    if (gemm_node->get_input_element_type(0) != node->get_output_element_type(0)) {
+    if (pattern_map.at(activation_m).get_element_type() != node->get_output_element_type(0)) {
         return false;
     }
 
