@@ -9,6 +9,7 @@
 
 namespace ov::pass {
 class TRANSFORMATIONS_API MultiScaleDeformableAttnGridSampleFusion;
+class TRANSFORMATIONS_API SingleScaleDeformableAttnGridSampleFusion;
 }  // namespace ov::pass
 
 /**
@@ -82,4 +83,27 @@ class ov::pass::MultiScaleDeformableAttnGridSampleFusion : public ov::pass::Matc
 public:
     OPENVINO_MATCHER_PASS_RTTI("MultiScaleDeformableAttnGridSampleFusion");
     MultiScaleDeformableAttnGridSampleFusion();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Fuses the single-level deformable attention subgraph (no VariadicSplit, no level Concat) into MSDA with L = 1.
+ *
+ * Single-scale detectors such as RF-DETR sample one feature level, so the samples go straight into the Multiply:
+ *
+ *     value [B,S,H*D] -> Transpose(0,2,1) -> Reshape(s) [B*H,D,h,w] --------------+
+ *     locations [B,Q,H,P,2] -> *2 -> -1 -> [identity Slice] -> Transpose(0,2,1,3,4)  |
+ *                           -> Reshape [B*H,Q,P,2] --------------------- GridSample [B*H,D,Q,P]
+ *     weights [B,Q,H,P] -> Transpose(0,2,1,3) -> Reshape [B*H,1,Q,P] ----- Multiply
+ *                                                         ReduceSum(-1) | AvgPool*P -> [Reshape]
+ *                                                                  Reshape [B,H*D,Q]
+ *
+ * becomes Transpose(0,2,1)(MSDA(value [B,S,H,D], locations [B,Q,H,1,P,2], weights [B,Q,H,1,P])), with a Convert
+ * when the replaced Reshape has another element type. The same GridSample and static-shape conditions as
+ * MultiScaleDeformableAttnGridSampleFusion apply.
+ */
+class ov::pass::SingleScaleDeformableAttnGridSampleFusion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SingleScaleDeformableAttnGridSampleFusion");
+    SingleScaleDeformableAttnGridSampleFusion();
 };
