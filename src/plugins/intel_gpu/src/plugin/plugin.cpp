@@ -5,11 +5,14 @@
 #include "intel_gpu/plugin/plugin.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -21,8 +24,8 @@
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/hsm_reader_handler.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-#include "plugin/ops/moe_offload_constant.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/dispatch_probe.hpp"
@@ -47,6 +50,7 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "plugin/ops/moe_offload_constant.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -63,7 +67,6 @@
 
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
-thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
 
@@ -79,6 +82,67 @@ ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& con
     auto ctx = property_it->second.as<ov::internal::WeightSharingCtxPtr>();
     config.erase(property_it);
     return ctx;
+}
+
+constexpr auto hsm_magic = ov::runtime::hsm::BlobMagic::single.value;
+
+bool has_hsm_magic(const void* data, size_t size) {
+    return size >= hsm_magic.size() && std::memcmp(data, hsm_magic.data(), hsm_magic.size()) == 0;
+}
+
+// GPU's legacy decoder uses bulk reads; replay the format probe on a forward-only stream.
+class LegacyPrefixBuffer final : public std::streambuf {
+public:
+    LegacyPrefixBuffer(std::streambuf& source, const char* prefix, std::streamsize size) : m_source(source) {
+        std::memcpy(m_prefix.data(), prefix, static_cast<size_t>(size));
+        setg(m_prefix.data(), m_prefix.data(), m_prefix.data() + size);
+    }
+
+protected:
+    std::streamsize xsgetn(char* destination, std::streamsize size) override {
+        if (size <= 0) {
+            return 0;
+        }
+        const auto copied = std::min<std::streamsize>(size, egptr() - gptr());
+        std::memcpy(destination, gptr(), static_cast<size_t>(copied));
+        gbump(static_cast<int>(copied));
+        const auto read = copied == size ? copied : copied + m_source.sgetn(destination + copied, size - copied);
+        m_offset += read;
+        return read;
+    }
+
+    pos_type seekoff(off_type offset, std::ios_base::seekdir direction, std::ios_base::openmode mode) override {
+        return offset == 0 && direction == std::ios_base::cur && mode == std::ios_base::in ? pos_type(m_offset) : pos_type(-1);
+    }
+
+    pos_type seekpos(pos_type position, std::ios_base::openmode mode) override {
+        const auto target = static_cast<off_type>(position);
+        if (mode != std::ios_base::in || target < m_offset) {
+            return pos_type(-1);
+        }
+        // The legacy graph reader skips alignment padding with forward seeks.
+        std::array<char, 4096> padding{};
+        while (m_offset < target) {
+            const auto count = std::min<off_type>(target - m_offset, padding.size());
+            if (xsgetn(padding.data(), count) != count) {
+                return pos_type(-1);
+            }
+        }
+        return position;
+    }
+
+private:
+    std::streambuf& m_source;
+    std::array<char, hsm_magic.size()> m_prefix{};
+    off_type m_offset = 0;
+};
+
+void set_gpu_user_properties(ExecutionConfig& config, ov::AnyMap properties) {
+    // Keep the transition switch writable without accepting other internal options.
+    if (auto hsm = properties.extract(ov::intel_gpu::export_hsm_format.name()); !hsm.empty()) {
+        config.set_user_property({{hsm.key(), hsm.mapped()}}, OptionVisibility::RELEASE_INTERNAL);
+    }
+    config.set_user_property(properties, OptionVisibility::RELEASE);
 }
 
 }  // namespace
@@ -115,7 +179,8 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
-bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) {
+namespace {
+bool is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) {
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
 
     for (const auto& node : model->get_ordered_ops()) {
@@ -132,7 +197,7 @@ bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::
     return false;
 }
 
-void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) {
+void set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) {
     uint32_t offset = 0;
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
 
@@ -146,7 +211,7 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
     }
 }
 
-void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) {
+void create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) {
     uint32_t offset = 0;
 
     std::shared_ptr<GpuWeightlessCacheMap>cache_attr_map = std::make_shared<GpuWeightlessCacheMap>();
@@ -160,6 +225,7 @@ void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::
 
     config.set_property(ov::intel_gpu::weightless_attr(cache_attr_map));
 }
+}  // namespace
 
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
@@ -300,7 +366,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
-    config.set_user_property(user_config, OptionVisibility::RELEASE);
+    set_gpu_user_properties(config, std::move(user_config));
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
@@ -332,7 +398,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
-    config.set_user_property(user_config, OptionVisibility::RELEASE);
+    set_gpu_user_properties(config, std::move(user_config));
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
@@ -396,7 +462,7 @@ void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_ma
 
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
-        config.set_user_property(user_config, OptionVisibility::RELEASE);
+        set_gpu_user_properties(config, user_config);
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -440,7 +506,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto ctx = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    set_gpu_user_properties(config, orig_config);
     config.finalize(ctx.get(), model.get());
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -473,9 +539,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, co
     return import_model(model, { context, nullptr }, config);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& orig_config) const {
+namespace {
+// A null stream means an HSM tensor; a stream with a backing tensor is always legacy.
+std::shared_ptr<CompiledModel> import_blob(std::istream* model,
+                                           const ov::Tensor* blob,
+                                           const ov::SoPtr<ov::IRemoteContext>& context,
+                                           ov::AnyMap config_properties,
+                                           const std::map<std::string, ExecutionConfig>& configs,
+                                           const std::shared_ptr<const ov::IPlugin>& plugin) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
 
     auto context_impl = get_context_impl(context);
@@ -485,37 +556,67 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     GPU_DEBUG_SET_ACTIVE_LUID(context_impl->get_device().get_info().luid);
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.
-    auto _orig_config = orig_config;
-    const auto& it = _orig_config.find(ov::loaded_from_cache.name());
+    const auto it = config_properties.find(ov::loaded_from_cache.name());
     bool loaded_from_cache = false;
-    if (it != _orig_config.end()) {
+    if (it != config_properties.end()) {
         loaded_from_cache = it->second.as<bool>();
-        _orig_config.erase(it);
+        config_properties.erase(it);
     }
 
-    if (auto blob_it = _orig_config.find(ov::hint::compiled_blob.name()); blob_it != _orig_config.end()) {
-        _orig_config.erase(blob_it);
-    }
+    config_properties.erase(ov::hint::compiled_blob.name());
+    auto weight_sharing_context = extract_weight_sharing_context(config_properties);
+    ExecutionConfig config = configs.at(device_id);
+    set_gpu_user_properties(config, std::move(config_properties));
 
-    auto weight_sharing_context = extract_weight_sharing_context(_orig_config);
+    const auto encryption_callbacks = config.get_cache_encryption_callbacks();
 
-    ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(_orig_config, OptionVisibility::RELEASE);
-    config.apply_weightless_options();
-
-    ov::CacheMode cache_mode = config.get_cache_mode();
-    ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
-
-    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt
-            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
-            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
-    auto& ib = *ib_ptr;
-
+    auto& engine = context_impl->get_engine();
+    std::optional<hsm::ReaderHandler> hsm_reader;
+    std::optional<LegacyPrefixBuffer> replay;
+    std::istream legacy_stream(nullptr);
+    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr;
+    cldnn::BinaryInputBuffer* ib = nullptr;
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
-    ib >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
+    if (model == nullptr) {
+        auto reader = ov::runtime::hsm::Reader::open(static_cast<const std::byte*>(blob->data()), blob->get_byte_size());
+        OPENVINO_ASSERT(reader, "[GPU] Cannot import compiled blob: invalid HSM container.");
+        hsm_reader.emplace(*reader, engine);
+        ib = &hsm_reader->open_model(*blob, encryption_callbacks);
+    } else if (blob == nullptr) {
+        auto* source = model->rdbuf();
+        OPENVINO_ASSERT(source, "[GPU] Missing compiled blob stream buffer");
+        const auto start = source->pubseekoff(0, std::ios::cur, std::ios::in);
+        std::array<char, hsm_magic.size()> prefix{};
+        const auto size = source->sgetn(prefix.data(), prefix.size());
+        const bool is_hsm = has_hsm_magic(prefix.data(), static_cast<size_t>(size));
+        if (start == std::streampos(-1) || source->pubseekpos(start, std::ios::in) == std::streampos(-1)) {
+            OPENVINO_ASSERT(!is_hsm, "[GPU] HSM import requires a seekable input stream");
+            replay.emplace(*source, prefix.data(), size);
+            legacy_stream.rdbuf(&*replay);
+            model = &legacy_stream;
+        } else if (is_hsm) {
+            auto reader = ov::runtime::hsm::Reader::open(*model);
+            OPENVINO_ASSERT(reader, "[GPU] Cannot import compiled blob: invalid HSM container.");
+            hsm_reader.emplace(*reader, engine);
+            ib = &hsm_reader->open_model(*model, start, encryption_callbacks);
+        }
+    }
+    if (hsm_reader) {
+        loaded_cache_mode = hsm_reader->cache_mode();
+        if (config.get_user_properties().count(ov::cache_mode.name()) == 0) {
+            config.set_user_property({ov::cache_mode(loaded_cache_mode)}, OptionVisibility::RELEASE);
+        }
+    } else {
+        const auto* tensor_base = blob != nullptr ? static_cast<const size_t*>(blob->data()) : nullptr;
+        ib_ptr = encryption_callbacks.decrypt
+            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(*model, engine, encryption_callbacks.decrypt)
+            : std::make_unique<cldnn::BinaryInputBuffer>(*model, engine, tensor_base);
+        ib = ib_ptr.get();
+        *ib >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
+    }
 
-    if (loaded_cache_mode != cache_mode) {
+    config.apply_weightless_options();
+    if (loaded_cache_mode != config.get_cache_mode()) {
         return nullptr;
     }
 
@@ -540,7 +641,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         }
     }
 
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache, weight_sharing_context);
+    return std::make_shared<CompiledModel>(*ib,
+                                           plugin,
+                                           context_impl,
+                                           config,
+                                           loaded_from_cache,
+                                           weight_sharing_context);
+}
+}  // namespace
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& orig_config) const {
+    return import_blob(&model, nullptr, context, orig_config, m_configs_map, shared_from_this());
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
@@ -552,27 +665,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& config) const{
-    // Store tensor base in thread-local storage
-    g_current_tensor_base = static_cast<const size_t*>(model.data());
-    std::unique_ptr<std::streambuf> buf;
-    const bool use_prefetch = ov::intel_gpu::PrefetchStreamBuf::is_supported(model);
-    if (!use_prefetch) {
-        // Memory without hints (e.g. user provided) or not a byte blob, keep the pread path for user file mappings.
-        buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
+                                                         const ov::AnyMap& config) const {
+    std::shared_ptr<CompiledModel> compiled_model;
+    if (has_hsm_magic(model.data(), model.get_byte_size())) {
+        compiled_model = import_blob(nullptr, &model, context, config, m_configs_map, shared_from_this());
     } else {
-        buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);
+        std::unique_ptr<std::streambuf> buf;
+        const bool use_prefetch = ov::intel_gpu::PrefetchStreamBuf::is_supported(model);
+        if (!use_prefetch) {
+            // Memory without hints (e.g. user provided) or not a byte blob, keep the pread path for user file mappings.
+            buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
+        } else {
+            buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);
+        }
+        std::istream stream(buf.get());
+        compiled_model = import_blob(&stream, &model, context, config, m_configs_map, shared_from_this());
     }
-    std::istream stream(buf.get());
-    auto compiled_model = import_model(stream, context, config);
-
-    // Clear thread-local storage
-    g_current_tensor_base = nullptr;
 
     // Ensure the tensor stays alive as long as the compiled model
-    auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
-    if (gpu_model) {
-        gpu_model->set_backing_tensor(std::make_shared<ov::Tensor>(model));
+    if (compiled_model) {
+        compiled_model->set_backing_tensor(std::make_shared<ov::Tensor>(model));
     }
 
     return compiled_model;
@@ -647,7 +759,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
                                            "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
-    if (is_metric(name)) {
+    if (name != ov::internal::emit_hsm_format.name() && is_metric(name)) {
         return get_metric(name, options);
     }
 
@@ -658,6 +770,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
+    if (name == ov::internal::emit_hsm_format || name == ov::intel_gpu::export_hsm_format) {
+        if (const auto option = options.find(ov::intel_gpu::export_hsm_format.name()); option != options.end()) {
+            auto config = c;
+            config.set_user_property({*option}, OptionVisibility::RELEASE_INTERNAL);
+            return config.get_export_hsm_format();
+        }
+        return c.get_property(ov::intel_gpu::export_hsm_format.name(), OptionVisibility::RELEASE_INTERNAL).as<bool>();
+    }
     return c.get_property(name, OptionVisibility::RELEASE);
 }
 
@@ -846,6 +966,8 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() {
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
+        // Separate legacy and HSM cache entries.
+        ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -915,6 +1037,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},

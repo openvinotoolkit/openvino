@@ -71,6 +71,9 @@ public:
     // [DO NOT CHANGE THIS CONSTANT] changing it breaks import of every previously exported blob.
     static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
+    // Upper bound on descriptor bytes before allocation, independent of memory alignment.
+    static constexpr size_t runtime_requirements_max_size = 4096;
+
     void set_property(const ov::AnyMap& properties) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. Set property "
                                        "to Core::compile_model during compilation");
@@ -101,16 +104,19 @@ public:
     }
 
 private:
+    void export_payload(cldnn::BinaryOutputBuffer& ob) const;
+
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
     std::string m_model_name;
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
+    // Must outlive m_graphs, whose host-USM buffers can reference this storage.
+    std::shared_ptr<ov::Tensor> _backing_tensor;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
-    std::shared_ptr<ov::Tensor> _backing_tensor;
 
     // The member m_weight_sharing_context holds the context for weight sharing currently used by cross-plugin sharing.
     // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the source buffer, where the weights are stored.

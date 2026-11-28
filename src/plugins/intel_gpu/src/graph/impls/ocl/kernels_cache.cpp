@@ -553,13 +553,9 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);
         if (iter == _cached_binaries.end()) {
-            _cached_binaries[program_binaries] = id_gen++;
+            iter = _cached_binaries.emplace(std::move(program_binaries), id_gen++).first;
         }
-        auto key = get_cached_kernel_id(kernel);
-
-        if (_cached_kernels.find(key) == _cached_kernels.end()) {
-            _cached_kernels[key] = kernel;
-        }
+        _cached_kernels.try_emplace(kernel->get_id() + "@" + std::to_string(iter->second), kernel);
     }
 }
 

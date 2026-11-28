@@ -4,20 +4,39 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <limits>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "behavior/compiled_model/import_export.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "intel_gpu/plugin/hsm_common.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/native_streambuf.hpp"
 #include "openvino/util/parallel_io.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 using namespace ov::test::behavior;
 
@@ -241,4 +260,348 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelWithCacheEncryptionTest,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
                          CompileModelWithCacheEncryptionTest::getTestCaseName);
+
+class GPUHsmRegressionTest : public OVCompiledModelHsmBlobTest {
+public:
+    void TearDown() override {
+        if (!cache_path.empty()) {
+            std::filesystem::remove(cache_path.string() + ".mapped");
+            ov::test::utils::removeIRFiles(cache_path.string() + ".xml", cache_path.string() + ".bin");
+        }
+        OVCompiledModelHsmBlobTest::TearDown();
+    }
+};
+
+TEST_P(GPUHsmRegressionTest, StandaloneExportCanReplacePathCacheEntry) {
+    const auto xml = cache_path.string() + ".xml";
+    const auto bin = cache_path.string() + ".bin";
+    ov::serialize(model, xml, bin);
+    const auto standalone = export_blob(core.compile_model(xml, target_device, configuration));
+    ASSERT_TRUE(is_hsm(standalone));
+
+    auto config = configuration;
+    config.emplace(ov::cache_path(cache_path));
+    auto first = core.compile_model(xml, target_device, config);
+    ASSERT_FALSE(first.get_property(ov::loaded_from_cache));
+    const auto cache_blob = read_cache_blob();
+    EXPECT_EQ(cache_blob, export_blob(first));
+    std::stringstream stream(cache_blob);
+    auto imported = core.import_model(stream, target_device);
+    expect_same_inference(imported);
+
+    ASSERT_NO_FATAL_FAILURE(write_cache_blob(standalone));
+    for (const bool use_mmap : {false, true}) {
+        SCOPED_TRACE(use_mmap);
+        core.set_property(ov::enable_mmap(use_mmap));
+        auto cached = core.compile_model(xml, target_device, config);
+        EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+        expect_same_inference(cached);
+        EXPECT_EQ(read_cache_blob(), standalone);
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, ImportUsesStoredCacheMode) {
+    const auto xml = cache_path.string() + ".xml";
+    const auto bin = cache_path.string() + ".bin";
+    ov::serialize(model, xml, bin);
+    auto config = configuration;
+    config.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+    const auto blob = export_blob(core.compile_model(xml, target_device, config));
+    ASSERT_TRUE(is_hsm(blob));
+
+    std::stringstream stream(blob);
+    auto imported = core.import_model(stream, target_device, {ov::weights_path(bin)});
+    EXPECT_EQ(imported.get_property(ov::cache_mode), ov::CacheMode::OPTIMIZE_SIZE);
+    expect_same_inference(imported);
+}
+
+TEST_P(GPUHsmRegressionTest, WeightlessExportRoundTripsSharedKernels) {
+    const ov::Shape input_shape{4, 32};
+    auto first = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto second = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto weights = ov::op::v0::Constant::create(ov::element::f32, {32, 32}, {0.25f});
+    auto first_matmul = std::make_shared<ov::op::v0::MatMul>(first, weights);
+    auto second_matmul = std::make_shared<ov::op::v0::MatMul>(second, weights);
+    auto shared_kernel_model = std::make_shared<ov::Model>(ov::OutputVector{first_matmul, second_matmul},
+                                                           ov::ParameterVector{first, second});
+    const auto xml = cache_path.string() + ".xml";
+    const auto bin = cache_path.string() + ".bin";
+    ov::serialize(shared_kernel_model, xml, bin);
+
+    auto first_input = ov::test::utils::create_and_fill_tensor(ov::element::f32, input_shape);
+    auto second_input = ov::test::utils::create_and_fill_tensor(ov::element::f32, input_shape);
+    std::fill_n(second_input.data<float>(), second_input.get_size(), 2.f);
+    const auto infer = [&](ov::CompiledModel& compiled) {
+        auto request = compiled.create_infer_request();
+        request.set_input_tensor(0, first_input);
+        request.set_input_tensor(1, second_input);
+        request.infer();
+        return request;
+    };
+
+    for (const bool use_hsm : {false, true}) {
+        SCOPED_TRACE(use_hsm);
+        auto config = configuration;
+        config.insert_or_assign(ov::intel_gpu::export_hsm_format.name(), use_hsm);
+        config.insert_or_assign(ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SIZE);
+        auto compiled = core.compile_model(xml, target_device, config);
+        const auto blob = export_blob(compiled);
+        ASSERT_EQ(is_hsm(blob), use_hsm);
+        auto expected = infer(compiled);
+
+        std::stringstream stream(blob);
+        ov::AnyMap import_config{ov::weights_path(bin)};
+        if (!use_hsm) {
+            import_config.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
+        auto imported = core.import_model(stream, target_device, import_config);
+        EXPECT_EQ(imported.get_property(ov::cache_mode), ov::CacheMode::OPTIMIZE_SIZE);
+        auto actual = infer(imported);
+        for (size_t output = 0; output < shared_kernel_model->get_output_size(); ++output) {
+            ov::test::utils::compare(expected.get_output_tensor(output), actual.get_output_tensor(output));
+        }
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, CacheHitsUsePerCallExportFormat) {
+    for (const bool use_mmap : {false, true}) {
+        core.set_property(ov::enable_mmap(use_mmap));
+        for (const bool use_hsm : {false, true}) {
+            SCOPED_TRACE(::testing::Message() << "mmap=" << use_mmap << ", HSM=" << use_hsm);
+            ov::test::utils::removeFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+            core.set_property(target_device, ov::intel_gpu::export_hsm_format(!use_hsm));
+            const ov::AnyMap config{ov::cache_path(cache_path), ov::intel_gpu::export_hsm_format(use_hsm)};
+            auto first = core.compile_model(model, target_device, config);
+            EXPECT_FALSE(first.get_property(ov::loaded_from_cache));
+            const auto exported = export_blob(first);
+            EXPECT_EQ(is_hsm(exported), use_hsm);
+            const auto cached_blob = read_cache_blob();
+            EXPECT_EQ(is_hsm(cached_blob), use_hsm);
+            if (use_hsm) {
+                EXPECT_EQ(cached_blob, exported);
+            }
+            auto cached = core.compile_model(model, target_device, config);
+            EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+            EXPECT_EQ(is_hsm(export_blob(cached)), use_hsm);
+            expect_same_inference(cached);
+        }
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, CacheHitsUseSelectedDeviceExportFormat) {
+    const auto devices = core.get_property(target_device, ov::available_devices);
+    if (devices.size() < 2) {
+        GTEST_SKIP() << "Requires two GPU device IDs";
+    }
+
+    const auto first_device = target_device + "." + devices[0];
+    const auto second_device = target_device + "." + devices[1];
+    core.set_property(first_device, ov::intel_gpu::export_hsm_format(false));
+    core.set_property(second_device, ov::intel_gpu::export_hsm_format(true));
+    const ov::AnyMap config{ov::cache_path(cache_path)};
+    for (const auto& device : {first_device, second_device}) {
+        SCOPED_TRACE(device);
+        auto first = core.compile_model(model, device, config);
+        EXPECT_EQ(is_hsm(export_blob(first)), device == second_device);
+        auto cached = core.compile_model(model, device, config);
+        EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+        expect_same_inference(cached);
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, RejectsTensorPrefixOfLargerMappedFile) {
+    namespace wire = ov::runtime::hsm;
+    auto blob = export_blob(compile(false));
+    const auto prefix_size = std::max(blob.size(), ov::util::default_parallel_io_threshold);
+    blob.resize(prefix_size + ov::util::min_page_alignment, '\0');
+    auto header = wire::Header::view(blob.data());
+    header.container_size = blob.size();
+    std::memcpy(blob.data(), &header, sizeof(header));
+    const auto path = cache_path.string() + ".mapped";
+    {
+        std::ofstream file(path, std::ios::binary);
+        ASSERT_LE(blob.size(), static_cast<uintmax_t>(std::numeric_limits<std::streamsize>::max()));
+        file.write(blob.data(), static_cast<std::streamsize>(blob.size()));
+        ASSERT_TRUE(file.good());
+    }
+    auto mapping = ov::load_mmap_object(path);
+    // Keep the full mapping valid so a missing tensor-extent check fails without an unmapped read.
+    ov::Tensor prefix(ov::element::u8, ov::Shape{prefix_size}, mapping->data());
+    EXPECT_THROW(core.import_model(prefix, target_device, configuration), ov::Exception);
+
+    ov::Tensor full(ov::element::u8, ov::Shape{blob.size()}, mapping->data());
+    auto imported = core.import_model(full, target_device, configuration);
+    expect_same_inference(imported);
+}
+
+TEST_P(GPUHsmRegressionTest, EnablingEncryptionReplacesPlaintextCache) {
+    ASSERT_FALSE(compile(true).get_property(ov::loaded_from_cache));
+    ASSERT_TRUE(compile(true).get_property(ov::loaded_from_cache));
+
+    size_t encrypt_calls = 0;
+    size_t decrypt_calls = 0;
+    ov::EncryptionCallbacks callbacks;
+    callbacks.encrypt = [&](const std::string& data) {
+        ++encrypt_calls;
+        return ov::util::codec_xor(data);
+    };
+    callbacks.decrypt = [&](const std::string& data) {
+        ++decrypt_calls;
+        return ov::util::codec_xor(data);
+    };
+    auto config = configuration;
+    config.emplace(ov::cache_encryption_callbacks(callbacks));
+    config.emplace(ov::cache_path(cache_path));
+
+    EXPECT_FALSE(core.compile_model(model, target_device, config).get_property(ov::loaded_from_cache));
+    EXPECT_EQ(encrypt_calls, 1u);
+    auto cached = core.compile_model(model, target_device, config);
+    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+    EXPECT_EQ(decrypt_calls, 1u);
+    expect_same_inference(cached);
+}
+
+TEST_P(GPUHsmRegressionTest, EncryptedPayloadRoundTripsThroughOffsetStreamAndTensors) {
+    ov::EncryptionCallbacks callbacks;
+    callbacks.encrypt = ov::util::codec_xor;
+    callbacks.decrypt = ov::util::codec_xor;
+    auto config = configuration;
+    config.insert_or_assign(ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED);
+    config.emplace(ov::cache_encryption_callbacks(callbacks));
+    auto compiled = core.compile_model(model, target_device, config);
+    const auto blob = export_blob(compiled);
+    ASSERT_TRUE(is_hsm(blob));
+
+    const std::string prefix = "embedded HSM blob";
+    std::stringstream stream(prefix + blob);
+    stream.seekg(prefix.size());
+    auto from_stream = core.import_model(stream, target_device, config);
+    expect_same_inference(from_stream);
+
+    ov::CompiledModel from_tensor;
+    {
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
+        std::memcpy(tensor.data(), blob.data(), blob.size());
+        from_tensor = core.import_model(tensor, target_device, config);
+    }
+    expect_same_inference(from_tensor);
+
+    const auto path = cache_path.string() + ".mapped";
+    {
+        std::ofstream file(path, std::ios::binary);
+        file.write(blob.data(), static_cast<std::streamsize>(blob.size()));
+        ASSERT_TRUE(file.good());
+    }
+    const auto mapping = ov::load_mmap_object(path);
+    ov::Tensor mapped_tensor(ov::element::u8, ov::Shape{blob.size()}, mapping->data());
+    auto from_mapping = core.import_model(mapped_tensor, target_device, config);
+    expect_same_inference(from_mapping);
+}
+
+TEST_P(GPUHsmRegressionTest, ForwardOnlyStreamRejectsHsmButReadsLegacy) {
+    class ForwardOnlyBuffer final : public std::stringbuf {
+    public:
+        explicit ForwardOnlyBuffer(const std::string& data) : std::stringbuf(data, std::ios::in) {}
+
+    protected:
+        pos_type seekoff(off_type /*offset*/, std::ios_base::seekdir /*direction*/, std::ios_base::openmode /*mode*/) override {
+            return pos_type(off_type(-1));
+        }
+        pos_type seekpos(pos_type /*position*/, std::ios_base::openmode /*mode*/) override {
+            return pos_type(off_type(-1));
+        }
+    };
+
+    ForwardOnlyBuffer hsm_buffer(export_blob(compile(false)));
+    std::istream hsm_stream(&hsm_buffer);
+    OV_EXPECT_THROW(core.import_model(hsm_stream, target_device, configuration),
+                    ov::Exception,
+                    ::testing::HasSubstr("HSM import requires a seekable input stream"));
+
+    auto legacy_config = configuration;
+    legacy_config[ov::intel_gpu::export_hsm_format.name()] = false;
+    ForwardOnlyBuffer legacy_buffer(export_blob(core.compile_model(model, target_device, legacy_config)));
+    std::istream legacy_stream(&legacy_buffer);
+    auto imported = core.import_model(legacy_stream, target_device, configuration);
+    expect_same_inference(imported);
+}
+
+TEST_P(GPUHsmRegressionTest, AlignedTensorImportRetainsStorageWithZeroCopyRequested) {
+    struct RestoreZeroCopySetting {
+        RestoreZeroCopySetting() {
+            const auto* value = std::getenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
+            was_set = value != nullptr;
+            previous = value ? value : "";
+        }
+        ~RestoreZeroCopySetting() {
+            if (was_set)
+                set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", previous.c_str());
+            else
+                unset_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
+        }
+        bool was_set;
+        std::string previous;
+    } restore;
+    for (const bool pad_for_zero_copy : {false, true}) {
+        SCOPED_TRACE(::testing::Message() << "pad_for_zero_copy=" << pad_for_zero_copy);
+        set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", pad_for_zero_copy ? "YES" : "NO");
+        const auto blob = export_blob(compile(false));
+        set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES");
+        ov::CompiledModel imported;
+        {
+            const auto alignment = std::max(ov::util::min_page_alignment, static_cast<size_t>(ov::util::get_system_page_size()));
+            ov::Tensor storage(ov::element::u8, ov::Shape{blob.size() + alignment});
+            const auto offset = (alignment - reinterpret_cast<uintptr_t>(storage.data()) % alignment) % alignment;
+            ov::Tensor tensor(storage, {offset}, {offset + blob.size()});
+            std::memcpy(tensor.data(), blob.data(), blob.size());
+            imported = core.import_model(tensor, target_device, configuration);
+        }
+        expect_same_inference(imported);
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, RejectsMissingMalformedAndTruncatedSections) {
+    namespace wire = ov::runtime::hsm;
+    namespace gpu_hsm = ov::intel_gpu::hsm;
+    const auto original = export_blob(compile(false));
+    std::vector<std::pair<std::string, std::string>> invalid;
+    for (const auto& id : {gpu_hsm::payload_info, gpu_hsm::runtime_requirements, gpu_hsm::compile_options, gpu_hsm::model}) {
+        invalid.emplace_back("missing tag " + std::to_string(id.tag.id()),
+                             hsm_repack(original, [&](std::vector<HsmEntry>& entries) {
+                                 entries.erase(std::remove_if(entries.begin(), entries.end(), [&](const HsmEntry& entry) {
+                                                   return entry.device == id.device && entry.tag.tag.id() == id.tag.id();
+                                               }),
+                                               entries.end());
+                             }));
+    }
+    auto malformed = original;
+    auto header = wire::Header::view(malformed.data());
+    header.manifest_offset = header.container_size;
+    std::memcpy(malformed.data(), &header, sizeof(header));
+    invalid.emplace_back("manifest outside container", malformed);
+    invalid.emplace_back("truncated container", original.substr(0, original.size() - 1));
+    for (const auto& [name, blob] : invalid) {
+        SCOPED_TRACE(name);
+        std::stringstream stream(blob);
+        EXPECT_THROW(core.import_model(stream, target_device, configuration), ov::Exception);
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
+        std::memcpy(tensor.data(), blob.data(), blob.size());
+        EXPECT_THROW(core.import_model(tensor, target_device, configuration), ov::Exception);
+    }
+    std::stringstream stream(original);
+    auto imported = core.import_model(stream, target_device, configuration);
+    expect_same_inference(imported);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hsm_GPU,
+                        OVCompiledModelHsmBlobTest,
+                        ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                           ::testing::Values(ov::AnyMap{ov::intel_gpu::export_hsm_format(true)})),
+                        OVCompiledModelHsmBlobTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hsm_GPU,
+                        GPUHsmRegressionTest,
+                        ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                           ::testing::Values(ov::AnyMap{ov::intel_gpu::export_hsm_format(true)})),
+                        GPUHsmRegressionTest::getTestCaseName);
 } // namespace

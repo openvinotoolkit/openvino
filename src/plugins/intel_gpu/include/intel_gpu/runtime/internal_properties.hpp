@@ -13,6 +13,9 @@
 
 namespace ov::intel_gpu {
 
+// Internal transition switch, intentionally absent from the installed public GPU properties.
+static constexpr Property<bool> export_hsm_format{"GPU_EXPORT_HSM_FORMAT"};
+
 /**
  * @brief Read-only property to get GPU driver version
  */
