@@ -301,6 +301,17 @@ struct convert<MAP::Ptr> {
                 THROW_ERROR("Metric \"map\" attribute \"num_classes\" must be positive!");
             }
         }
+        if (node["box_format"]) {
+            const auto box_format = node["box_format"].as<std::string>();
+            if (box_format == "cxcywh") {
+                params.box_format = MAP::BoxFormat::CXCYWH;
+            } else if (box_format == "xyxy") {
+                params.box_format = MAP::BoxFormat::XYXY;
+            } else {
+                THROW_ERROR("Metric \"map\" attribute \"box_format\" must be \"cxcywh\" or \"xyxy\", but got: "
+                            << box_format);
+            }
+        }
         metric = std::make_shared<MAP>(params);
         return true;
     }

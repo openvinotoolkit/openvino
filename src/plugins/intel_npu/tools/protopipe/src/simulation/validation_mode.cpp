@@ -84,6 +84,7 @@ void OutputDataVisitor::operator()(const std::string& path_str) {
     auto layers_data = uploadData(path, infer.tag, infer.output_layers, LayersType::OUTPUT);
     for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
         const auto& layer = infer.output_layers[i];
+        per_layer_metrics.at(layer.name)->bindLayer(layer.dims);
         LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
         metas[i].set(Validate{std::move(validator), layers_data.at(layer.name)});
     }
