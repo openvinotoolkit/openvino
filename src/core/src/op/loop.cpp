@@ -41,6 +41,7 @@ void Loop::validate_and_infer_types() {
                           "Loop contains output descriptions for other bodies");
 
     if (m_special_body_ports.current_iteration_input_idx >= 0) {
+        NODE_VALIDATION_CHECK(this, m_bodies[0] != nullptr, "Body is not set");
         const auto& cur_iter_rank = m_bodies[0]
                                         ->get_parameters()
                                         .at(m_special_body_ports.current_iteration_input_idx)
@@ -72,6 +73,7 @@ void Loop::validate_and_infer_types() {
         // special body ports were not set yet, so we can't calculate output shape
         return;
 
+    NODE_VALIDATION_CHECK(this, m_bodies[0] != nullptr, "Body is not set");
     const auto& body_execution_condition =
         m_bodies[0]->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
@@ -388,6 +390,12 @@ bool Loop::has_evaluate() const {
 }
 
 void Loop::clone_to(Loop& dst, const OutputVector& new_args) const {
+    OPENVINO_ASSERT(get_function() != nullptr,
+                    "Cannot clone ",
+                    description(),
+                    " operation with name ",
+                    get_friendly_name(),
+                    ": body is not set");
     dst.set_arguments(new_args);
     dst.set_output_size(m_output_descriptions.size());
 

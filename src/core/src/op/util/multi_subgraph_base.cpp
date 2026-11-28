@@ -151,6 +151,7 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
 void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
     const std::shared_ptr<ov::Model>& body,
     const ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& input_descriptors) {
+    NODE_VALIDATION_CHECK(this, body != nullptr, "Body is not set");
     const auto& params = body->get_parameters();
     for (const auto& input_description : input_descriptors) {
         auto index = input_description->m_input_index;

@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <tuple>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -446,4 +449,24 @@ TEST(type_prop, if_invalid_false_body) {
     if_op->validate_and_infer_types();
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
+}
+
+TEST(type_prop, if_without_bodies) {
+    const auto cond = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{1});
+    const auto if_op = make_shared<op::v8::If>(cond);
+
+    OV_EXPECT_THROW(if_op->validate_and_infer_types(), NodeValidationFailure, testing::HasSubstr("Body is not set"));
+    OV_EXPECT_THROW(std::ignore = if_op->clone_with_new_inputs(if_op->input_values()),
+                    ov::AssertFailure,
+                    testing::HasSubstr("then and else bodies must be set"));
+}
+
+TEST(type_prop, if_constant_condition_validates_only_the_taken_body) {
+    const auto cond = ov::op::v0::Constant::create(element::boolean, Shape{1}, {true});
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+    const auto result = make_shared<ov::op::v0::Result>(param);
+    const auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(make_shared<ov::Model>(ResultVector{result}, ParameterVector{param}));
+
+    EXPECT_NO_THROW(if_op->validate_and_infer_types());
 }

@@ -5,8 +5,10 @@
 #include "openvino/op/tensor_iterator.hpp"
 
 #include <map>
+#include <tuple>
 
 #include "common_test_utils/node_builders/reshape.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -263,4 +265,15 @@ TEST(type_prop, tensor_iterator_dyn_slice) {
     EXPECT_EQ(tensor_iterator->get_num_iterations(), -1);
     PartialShape ref_ps = {N, part_size, I};
     EXPECT_EQ(X->get_partial_shape(), ref_ps);
+}
+
+TEST(type_prop, tensor_iterator_without_body) {
+    const auto tensor_iterator = make_shared<op::v0::TensorIterator>();
+
+    OV_EXPECT_THROW(tensor_iterator->validate_and_infer_types(),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Body is not set"));
+    OV_EXPECT_THROW(std::ignore = tensor_iterator->clone_with_new_inputs({}),
+                    ov::AssertFailure,
+                    testing::HasSubstr("body is not set"));
 }
