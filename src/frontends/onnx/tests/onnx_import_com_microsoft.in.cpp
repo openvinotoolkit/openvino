@@ -10101,3 +10101,40 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_causal_conv_with_state_past_bias) {
+    const auto model = convert_model("com.microsoft/causal_conv_with_state_past_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_input<float>(Shape{2, 1, 3}, {1.f, 0.f, -1.f, 0.5f, 1.f, 2.f});
+    test_case.add_input<float>(Shape{2}, {0.1f, -0.2f});
+    test_case.add_input<float>(Shape{1, 2, 2}, {-1.f, 2.f, 3.f, -4.f});
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, {-1.9f, 0.1f, -1.9f, 5.3f, 11.8f, 18.8f});
+    test_case.add_expected_output<float>(Shape{1, 2, 2}, {2.f, 3.f, 5.f, 6.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_causal_conv_with_state_silu_dilation) {
+    const auto model = convert_model("com.microsoft/causal_conv_with_state_silu_dilation.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 4}, {1.f, 2.f, 3.f, 4.f, -1.f, 0.f, 1.f, 2.f});
+    test_case.add_input<float>(Shape{2, 1, 2}, {1.f, 1.f, 2.f, -1.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4},
+        {0.7310586f, 1.761594f, 3.928055f, 5.9851646f, 0.7310586f, 0.f, -0.1422776f, -0.2384058f});
+    test_case.add_expected_output<float>(Shape{1, 2, 2}, {3.f, 4.f, 1.f, 2.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_causal_conv_with_state_channels_last_unsupported) {
+    try {
+        convert_model("com.microsoft/causal_conv_with_state_channels_last.onnx");
+        FAIL() << "ONNX Importer did not reject channels_last=1 for CausalConvWithState";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("channels_last=1 is not supported"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}

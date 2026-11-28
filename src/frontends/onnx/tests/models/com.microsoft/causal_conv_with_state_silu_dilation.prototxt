@@ -1,0 +1,112 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "weight"
+    output: "output"
+    output: "present_state"
+    name: "CausalConvWithState_1"
+    op_type: "CausalConvWithState"
+    domain: "com.microsoft"
+    attribute {
+      name: "ndim"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "dilation"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "activation"
+      s: "silu"
+      type: STRING
+    }
+  }
+  name: "test_graph"
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "weight"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_state"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 17
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}
