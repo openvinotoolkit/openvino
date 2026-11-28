@@ -56,6 +56,9 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_mix.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_pre.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_post.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_elements.cpp
@@ -137,6 +140,9 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/fake_convert_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/fully_connected_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/gated_delta_net_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/hyper_connection_mix_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/hyper_connection_pre_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/hyper_connection_post_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/gated_residual_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/gather_elements_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/gather_inst.h
@@ -310,6 +316,9 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/fake_convert_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/fully_connected_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gated_delta_net_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/hyper_connection_mix_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/hyper_connection_pre_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/hyper_connection_post_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gated_residual_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gather_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gather_matmul_impls.cpp
