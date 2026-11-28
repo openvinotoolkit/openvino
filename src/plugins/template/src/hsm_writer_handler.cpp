@@ -15,7 +15,9 @@
 #include "openvino/core/except.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/compilation_context.hpp"
+#include "openvino/runtime/hsm_model_struct.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/hash_util.hpp"
 
 namespace ov::template_plugin {
@@ -70,7 +72,26 @@ struct ModelStats {
     uint64_t hash = 0;  // of the serialized structure and the weights size, not the weight values
 };
 
-// Serializes into counting/hashing buffers only, so nothing of the model is kept in memory.
+// Streams the IR XML and weights to the given callbacks (either may be empty); nothing is kept in memory.
+void serialize(const std::shared_ptr<ov::Model>& model, ForwardingStreamBuf& xml_buf, ForwardingStreamBuf& bin_buf) {
+    std::ostream xml_out(&xml_buf), bin_out(&bin_buf);
+    ov::pass::Serialize(xml_out, bin_out).run_on_model(model);
+}
+
+// Serializes again at finalize() although measure_model() already produced the same XML; keeping it from there would
+// save a pass over the weights at the cost of holding the XML from handler construction to finalize().
+auto make_xml_producer(std::shared_ptr<ov::Model> model) {
+    return [model]() -> std::shared_ptr<ov::AlignedBuffer> {
+        auto xml = std::make_shared<std::string>();
+        ForwardingStreamBuf xml_buf{[&xml](ov::util::MemoryView chunk) {
+            xml->append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
+        }};
+        ForwardingStreamBuf bin_buf;
+        serialize(model, xml_buf, bin_buf);
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>(xml->data(), xml->size(), xml);
+    };
+}
+
 ModelStats measure_model(const std::shared_ptr<ov::Model>& model) {
     uint64_t hash = 0;
     ForwardingStreamBuf xml_buf{[&hash](ov::util::MemoryView chunk) {
@@ -78,59 +99,23 @@ ModelStats measure_model(const std::shared_ptr<ov::Model>& model) {
         hash = util::u64_hash_combine(hash, std::hash<std::string_view>{}(text));
     }};
     ForwardingStreamBuf bin_buf;
-    std::ostream xml(&xml_buf), bin(&bin_buf);
-    ov::pass::Serialize(xml, bin).run_on_model(model);
+    serialize(model, xml_buf, bin_buf);
     return {bin_buf.size(), util::u64_hash_combine(hash, bin_buf.size())};
 }
 
-// Serializes the model in one pass: write_weights() streams the weights as produced and keeps the small XML for
-// write_structure(), so calling them in that order avoids a second pass.
-class ModelSerializer {
+// Streams the weights straight to the section at IWriter::finalize() time. Temporary solution until a proper weights
+// encoder is implemented.
+class WeightsEncoder final : public runtime::hsm::ISectionEncoder {
 public:
-    explicit ModelSerializer(std::shared_ptr<ov::Model> model) : m_model(std::move(model)) {}
+    explicit WeightsEncoder(std::shared_ptr<ov::Model> model) : m_model(std::move(model)) {}
 
-    void write_weights(const runtime::hsm::SectionSink& sink) {
-        auto& xml = m_xml.emplace();
-        ForwardingStreamBuf xml_buf{[&xml](ov::util::MemoryView chunk) {
-            xml.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
-        }};
-        ForwardingStreamBuf bin_buf{sink};
-        std::ostream xml_out(&xml_buf), bin_out(&bin_buf);
-        ov::pass::Serialize(xml_out, bin_out).run_on_model(m_model);
-    }
-
-    // Runs its own pass when write_weights() was not called before.
-    void write_structure(const runtime::hsm::SectionSink& sink) {
-        if (m_xml) {
-            sink({reinterpret_cast<const std::byte*>(m_xml->data()), m_xml->size()});
-            m_xml.reset();
-        } else {
-            ForwardingStreamBuf xml_buf{sink}, discard_buf;
-            std::ostream xml_out(&xml_buf), bin_out(&discard_buf);
-            ov::pass::Serialize(xml_out, bin_out).run_on_model(m_model);
-        }
+    void encode(const runtime::hsm::SectionSink& sink) const override {
+        ForwardingStreamBuf xml_buf, bin_buf{sink};
+        serialize(m_model, xml_buf, bin_buf);
     }
 
 private:
     std::shared_ptr<ov::Model> m_model;
-    std::optional<std::string> m_xml;
-};
-
-class SerializeEncoder final : public runtime::hsm::ISectionEncoder {
-public:
-    using Write = void (ModelSerializer::*)(const runtime::hsm::SectionSink&);
-
-    SerializeEncoder(std::shared_ptr<ModelSerializer> serializer, Write write)
-        : m_serializer(std::move(serializer)),
-          m_write(write) {}
-
-    void encode(const runtime::hsm::SectionSink& sink) const override {
-        ((*m_serializer).*m_write)(sink);
-    }
-
-private:
-    std::shared_ptr<ModelSerializer> m_serializer;
-    Write m_write;
 };
 
 // Cache-relevant options plus the weights path, which a weightless blob needs on import; restored through
@@ -203,19 +188,16 @@ HsmWriterHandler::HsmWriterHandler(const std::shared_ptr<ov::Model>& model,
         Slot{hsm::compile_options,
              std::make_shared<BytesEncoder>(encode_compile_options(get_compile_options(cfg, cache_options)))});
 
-    const auto serializer = std::make_shared<ModelSerializer>(model);
     m_encoders.emplace(hsm::section_key(hsm::model_struct),
                        Slot{hsm::model_struct,
-                            std::make_shared<SerializeEncoder>(serializer, &ModelSerializer::write_structure),
+                            std::make_shared<runtime::hsm::ModelStructEncoder>(make_xml_producer(model)),
                             std::nullopt,
                             page_alignment});
 
     if (is_weights_embedded) {
-        m_encoders.emplace(hsm::section_key(hsm::weights),
-                           Slot{hsm::weights,
-                                std::make_shared<SerializeEncoder>(serializer, &ModelSerializer::write_weights),
-                                stats.weights_size,
-                                page_alignment});
+        m_encoders.emplace(
+            hsm::section_key(hsm::weights),
+            Slot{hsm::weights, std::make_shared<WeightsEncoder>(model), stats.weights_size, page_alignment});
     }
     m_encoders.emplace(hsm::section_key(hsm::blob_info), Slot{hsm::blob_info, BytesEncoder::from_value(info)});
 }
@@ -256,6 +238,7 @@ void HsmWriterHandler::handle_section(runtime::hsm::IWriter& writer) const {
     };
 
     // Weights first: the serialization pass streams them before the structure section is written.
+    // The structure and weights encoders run independent passes, so this order no longer changes their count.
     const auto weights_key = hsm::section_key(hsm::weights);
     if (const auto weights = m_encoders.find(weights_key); weights != m_encoders.end()) {
         add_slot(weights->first, weights->second);

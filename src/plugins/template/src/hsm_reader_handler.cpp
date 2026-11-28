@@ -9,6 +9,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/hsm_model_id_codec.hpp"
+#include "openvino/runtime/hsm_model_struct.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov::template_plugin {
@@ -63,7 +64,7 @@ void set_runtime_requirements(HsmReaderHandler& handler, const runtime::hsm::Sec
 }
 
 void set_model(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.m_model = decode_buffer(handler, section);
+    handler.m_model = runtime::hsm::decode_model_struct(section).value_or(nullptr);
 }
 
 void set_weights(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
