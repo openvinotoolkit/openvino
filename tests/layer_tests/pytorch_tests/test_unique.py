@@ -76,8 +76,27 @@ class TestUnique2(PytorchLayerTest):
     @pytest.mark.parametrize("return_counts", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_unique2(self, input_shape, sorted, return_inverse, return_counts, ie_device, precision, ir_version):
         if sys.platform == "win32" and input_shape == [16, 3, 32, 32] and parse_version(torch.__version__).release == (2, 4, 0):
             pytest.skip(reason="torch==2.4.0 fails on windows, but is fixed in nightly.")
         self.input_tensor = self.random.randint(0, 10, size=input_shape, dtype=np.int32)
-        self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version)
+        self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version,
+                   fx_kind="aten._unique2.default")
+
+    @pytest.mark.parametrize("sorted", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_unique2_empty_outputs(self, sorted, ie_device, precision, ir_version):
+        class aten_unique2_empty_outputs(torch.nn.Module):
+            def __init__(self, sorted):
+                super().__init__()
+                self.sorted = sorted
+
+            def forward(self, x):
+                return torch._unique2(x, self.sorted, False, False)
+
+        self.input_tensor = np.array([2, 1, 2, 3], dtype=np.int32)
+        self._test(aten_unique2_empty_outputs(sorted), "aten::_unique2", ie_device, precision, ir_version,
+                   fx_kind="aten._unique2.default")
