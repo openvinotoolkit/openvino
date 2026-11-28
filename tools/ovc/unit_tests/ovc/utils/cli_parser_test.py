@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import unittest
 
+import numpy as np
 import openvino as ov
 from openvino import PartialShape
 
@@ -332,6 +333,34 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_invalid_character_in_shape_last_input(self):
         argv_input = "inp1[1,2],inp2[1,2/3]"
         self.assertRaises(Error, parse_inputs, argv_input)
+
+
+class TestInputNumpyDtype(UnitTestWithMockedTelemetry):
+    # convert_model documents numpy.dtype as an input type: an np.dtype instance must work like the np.float32 class
+    def test_numpy_dtype_instance_as_input_type(self):
+        cases = [
+            (("inp1", [1, 2], np.dtype("float32")),
+             [_InputCutInfo(name="inp1", shape=PartialShape([1, 2]), type=ov.Type.f32)]),
+            ({"inp1": np.dtype("int32")}, [_InputCutInfo(name="inp1", type=ov.Type.i32)]),
+            (np.dtype("float32"), [_InputCutInfo(type=ov.Type.f32)]),
+            ([([1, 2], np.dtype("float32")), np.dtype("int32")],
+             [_InputCutInfo(shape=PartialShape([1, 2]), type=ov.Type.f32), _InputCutInfo(type=ov.Type.i32)]),
+        ]
+        for argv_input, inputs_ref in cases:
+            with self.subTest(argv_input=argv_input):
+                self.assertEqual(input_to_input_cut_info(argv_input), inputs_ref)
+
+    def test_numpy_dtype_instance_matches_numpy_type_class(self):
+        for dtype in [np.float32, np.float16, np.int64, np.uint8, np.bool_]:
+            with self.subTest(dtype=dtype):
+                self.assertEqual(input_to_input_cut_info(("inp1", [3], np.dtype(dtype))),
+                                 input_to_input_cut_info(("inp1", [3], dtype)))
+
+    def test_unsupported_numpy_dtype_instance_raises(self):
+        for dtype in [np.dtype("O"), np.dtype("V2"), np.dtype("complex64")]:
+            with self.subTest(dtype=dtype):
+                with self.assertRaises(Exception):
+                    input_to_input_cut_info(("inp1", [3], dtype))
 
 
 class PathCheckerFunctions(unittest.TestCase):

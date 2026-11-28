@@ -10,7 +10,7 @@ from openvino import Type
 
 
 def is_type(val):
-    if isinstance(val, (type, Type)):
+    if isinstance(val, (type, Type, np.dtype)):
         return True
     if 'tensorflow' in sys.modules:
         import tensorflow as tf # pylint: disable=import-error
