@@ -141,6 +141,7 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
     bool isInitInputWeights = false;
     bool isInitOutputWeights = false;
     bool isMainInputWeights = false;
+    bool isFatBlobTiles = false;
     if (isInput && isStateInputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
         isStateInput = true;
@@ -159,6 +160,8 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
     } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
         isMainInputWeights = true;
+    } else if (isInput && isFatBlobTilesName(nameFromCompiler)) {
+        isFatBlobTiles = true;
     }
 
     bool supportsStridedLayout = false;
@@ -184,6 +187,7 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
             isInitInputWeights,
             isInitOutputWeights,
             isMainInputWeights,
+            isFatBlobTiles,
             std::nullopt,
             std::move(debugFriendlyName),
             std::move(outputTensorNames),
@@ -650,7 +654,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name) &&
             !isInitInputWeightsName(arg.name) && !isInitOutputWeightsName(arg.name) &&
-            !isMainInputWeightsName(arg.name)) {
+            !isMainInputWeightsName(arg.name) && !isFatBlobTilesName(arg.name)) {
             _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
             ze_graph_argument_metadata_t metadata = {};
             metadata.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;

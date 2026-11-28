@@ -319,6 +319,10 @@ std::optional<size_t> Graph::determine_batch_size() {
 
     auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
         for (const IODescriptor& descriptor : descriptors) {
+            if (descriptor.isFatBlobTiles) {
+                continue;
+            }
+
             OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
                             "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
 
