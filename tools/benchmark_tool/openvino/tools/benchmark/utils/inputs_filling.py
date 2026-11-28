@@ -252,8 +252,8 @@ def get_numpy_tensors(numpy_paths: list[str], info: AppInputInfo, batch_sizes: l
                         f"input type {dtype}.")
 
                 if process_with_original_shapes:
-                    if len(info.partial_shape) - 1 == len(numpy_arr.shape):
-                        numpy_arr = np.expand_dims(numpy_arr, 0)
+                    if info.layout.has_name("N") and len(info.partial_shape) - 1 == len(numpy_arr.shape):
+                        numpy_arr = np.expand_dims(numpy_arr, info.layout.get_index_by_name("N"))
 
                     p_shape = PartialShape(numpy_arr.shape)
                     if info.partial_shape.compatible(p_shape):
@@ -265,7 +265,9 @@ def get_numpy_tensors(numpy_paths: list[str], info: AppInputInfo, batch_sizes: l
                 else:
                     try:
                         if info.layout.has_name("N"):
-                            numpy_arrays[[None] * info.layout.get_index_by_name("N") + [b]] = numpy_arr[b]
+                            batch_axis = info.layout.get_index_by_name("N") % len(shape)
+                            batch_slice = (slice(None),) * batch_axis + (b,)
+                            numpy_arrays[batch_slice] = numpy_arr[batch_slice]
                         else:
                             numpy_arrays = numpy_arr
                     except ValueError:
