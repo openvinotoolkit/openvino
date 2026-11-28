@@ -175,7 +175,7 @@ inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision)
 /**
  * @brief Preconditions common to every ACL executor, independent of the op/config type. ACL kernels
  * run on the ARMv8-A NEON baseline (ASIMD) and can only operate on ACL-representable precisions
- * (precisionToAclDataType != UNKNOWN; e.g. u4/i4/nf4/string must never reach an ACL kernel), so an
+ * (precisionToAclDataType != UNKNOWN; e.g. u4/i4/string must never reach an ACL kernel), so an
  * executor must not be selected when either is unmet. Op-specific checks (exact precisions, ranks,
  * post ops, layouts, ...) stay in each executor's own supports()/isSupported(). Pass the executor's
  * tensor descriptors; empty ones (e.g. an absent optional bias) are ignored. Usage:

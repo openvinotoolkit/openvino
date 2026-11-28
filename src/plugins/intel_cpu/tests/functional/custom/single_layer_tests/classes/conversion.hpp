@@ -29,7 +29,6 @@ public:
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    void validate() override;
     virtual void validate_out_prc() const;
 
     ov::element::Type inPrc, outPrc;

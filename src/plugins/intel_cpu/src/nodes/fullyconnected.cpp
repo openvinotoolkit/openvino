@@ -79,7 +79,6 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
             Type_t::i8,
             Type_t::u4,
             Type_t::i4,
-            Type_t::nf4,
             Type_t::f4e2m1,
             Type_t::u2,
             Type_t::u3,

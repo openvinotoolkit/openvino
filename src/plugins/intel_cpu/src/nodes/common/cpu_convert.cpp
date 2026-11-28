@@ -25,7 +25,6 @@
 #include "openvino/core/type/float8_e4m3.hpp"
 #include "openvino/core/type/float8_e5m2.hpp"
 #include "openvino/core/type/float8_e8m0.hpp"
-#include "openvino/core/type/nf4.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
@@ -984,8 +983,7 @@ struct ConvertFrom3BitPrecision<std::tuple<src_t, dst_t>> {
     INTEL_CPU_CVT(u4, f32), INTEL_CPU_CVT(u4, i32), INTEL_CPU_CVT(u4, bf16), INTEL_CPU_CVT(u4, f16),                 \
         INTEL_CPU_CVT(u4, i8), INTEL_CPU_CVT(u4, u8), INTEL_CPU_CVT(i4, f32), INTEL_CPU_CVT(i4, i32),                \
         INTEL_CPU_CVT(i4, bf16), INTEL_CPU_CVT(i4, f16), INTEL_CPU_CVT(i4, i8), INTEL_CPU_CVT(i4, u8),               \
-        INTEL_CPU_CVT(nf4, f32), INTEL_CPU_CVT(nf4, bf16), INTEL_CPU_CVT(nf4, f16), INTEL_CPU_CVT(nf4, i8),          \
-        INTEL_CPU_CVT(nf4, u8), INTEL_CPU_CVT(f4e2m1, f32), INTEL_CPU_CVT(f4e2m1, bf16), INTEL_CPU_CVT(f4e2m1, f16), \
+        INTEL_CPU_CVT(f4e2m1, f32), INTEL_CPU_CVT(f4e2m1, bf16), INTEL_CPU_CVT(f4e2m1, f16),                       \
         INTEL_CPU_CVT(f4e2m1, i8), INTEL_CPU_CVT(f4e2m1, u8)
 
 template <typename LoopPolicy>
@@ -1027,11 +1025,7 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
         using LoopPolicy = typename Ctx::loop_policy;
         const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
-        if (ctx.inType == ov::element::nf4) {
-            LoopPolicy::run(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(ConvertNF4::dequantize(get_u4(src[i / 2], (i % 2) != 0U)));
-            });
-        } else if (ctx.inType == ov::element::u4) {
+        if (ctx.inType == ov::element::u4) {
             LoopPolicy::run(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(get_u4(src[i / 2], (i % 2) != 0U));
             });
@@ -1045,55 +1039,6 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
             });
         } else {
             OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");
-        }
-        ctx.converted = true;
-    }
-};
-
-#define INTEL_CPU_CVT_TO_4BIT_LIST INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
-
-template <typename LoopPolicy>
-struct ConvertTo4BitContext {
-    using loop_policy = LoopPolicy;
-
-    ov::element::Type_t outType;
-    const void* srcPtr;
-    void* dstPtr;
-    size_t size;
-    bool converted;
-};
-
-template <typename T>
-struct ConvertTo4BitPrecision;
-
-template <typename src_t, typename dst_t>
-struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
-    template <typename Ctx>
-    void operator()(Ctx& ctx) {
-        using LoopPolicy = typename Ctx::loop_policy;
-        auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
-            uint8_t shift = high_half ? 4 : 0;
-            return dst | static_cast<uint8_t>(val << shift);
-        };
-
-        auto src = static_cast<const src_t*>(ctx.srcPtr);
-        auto* dst = static_cast<uint8_t*>(ctx.dstPtr);
-        // each byte must be fully processed within same thread
-        auto work_amount = ctx.size / 2;
-        auto has_tail = (ctx.size % 2) != 0;
-        if (ctx.outType == ov::element::nf4) {
-            LoopPolicy::run(work_amount, [&](size_t ib) {
-                size_t idx = ib * 2;
-                const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
-                dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx + 1])), true);
-            });
-
-            if (has_tail) {
-                dst[work_amount] =
-                    insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2 * work_amount])), false);
-            }
-        } else {
-            OPENVINO_THROW("cpu_convert doesn't support output data type: ", ctx.outType, ". Not implemented.");
         }
         ctx.converted = true;
     }
@@ -1229,10 +1174,6 @@ static void do_cpu_convert(const void* srcPtr,
         ConvertFrom4BitContext<LoopPolicy> ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-    } else if (dstPrc.bitwidth() == 4U) {
-        ConvertTo4BitContext<LoopPolicy> ctx{dstPrc, srcPtr, dstPtr, size, false};
-        OV_SWITCH(intel_cpu, ConvertTo4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
-        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (srcPrc == ov::element::f8e8m0) {
         ConvertFromByteFPContext<LoopPolicy> ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu,
@@ -1309,7 +1250,6 @@ bool is_supported_convert([[maybe_unused]] ov::element::Type srcPrc, [[maybe_unu
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_3BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
-    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
     return ctx.isSupported;
 }
 
