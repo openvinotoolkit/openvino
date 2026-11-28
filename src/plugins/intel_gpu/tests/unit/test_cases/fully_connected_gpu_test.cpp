@@ -7585,6 +7585,7 @@ struct ternary_fc_params {
     bool out_f32;
     bool int8_prefill;
     bool hadamard;
+    bool legacy_shape_infer = false;  // static network without allow_new_shape_infer (simple static models)
 };
 
 std::ostream& operator<<(std::ostream& os, const ternary_fc_params& p) {
@@ -7699,7 +7700,7 @@ public:
         const bool read_f32 = p.out_f32 || fused_epilogue;
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(!p.legacy_shape_infer));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::ternocl_int2_int8_prefill(p.int8_prefill));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
@@ -7796,6 +7797,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, false, false},
                              ternary_fc_params{33, 512, 512, ternary_epilogue::none, false, false, false},
                              ternary_fc_params{70, 256, 1024, ternary_epilogue::none, false, false, false},
+                             // a static batch of 16 without new shape infer (the FC shape rule otherwise picks a yxfb output)
+                             ternary_fc_params{16, 256, 1024, ternary_epilogue::none, false, false, false, true},
+                             ternary_fc_params{16, 256, 1024, ternary_epilogue::none, false, true, false, true},
+                             ternary_fc_params{32, 256, 1024, ternary_epilogue::none, false, false, false, true},
                              // as many groups as output columns: [N, groups] and [groups, N] scales have equal shapes
                              ternary_fc_params{1, 16, 2048, ternary_epilogue::none, false, false, false},
                              // epilogues and output type
