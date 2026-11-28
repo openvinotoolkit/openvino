@@ -60,6 +60,28 @@ TEST(FrontEndConvertModelTest, set_value_invalid_attr_sizes) {
     }
 }
 
+TEST(FrontEndConvertModelTest, group_norm_unsupported_data_layout) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) +
+        std::string("group_norm_unsupported_layout/group_norm_unsupported_layout.pdmodel"));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    ASSERT_NE(inputModel, nullptr);
+    try {
+        std::shared_ptr<ov::Model> model = frontEnd->convert(inputModel);
+        FAIL() << "Expected conversion failure for an unsupported group_norm data layout";
+    } catch (const OpConversionFailure& ex) {
+        EXPECT_NE(std::string(ex.what()).find("Only NCHW and NHWC data layouts are supported"), std::string::npos)
+            << "Unexpected error message: " << ex.what();
+    } catch (const std::exception& ex) {
+        FAIL() << "Unexpected exception type: " << typeid(ex).name() << ": " << ex.what();
+    }
+}
+
 TEST(FrontEndConvertModelTest, lstm_weightlist_size_mismatch) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
