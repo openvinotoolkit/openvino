@@ -14,6 +14,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "cpu_types.h"
@@ -146,10 +147,13 @@ private:
     inline void calc_process_dst_dims(std::vector<int>& reduce_axes, const VectorDims& dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float* in_ptr, float* out_ptr);
-    void reduce_ref_process(const float* in_ptr,
-                            float* out_ptr,
-                            float init_value,
-                            std::function<float(float, float)> func);
+    inline void reduce_ref_i64(const int64_t* in_ptr, int64_t* out_ptr);
+    int64_t i64_init_value() const;
+    template <typename T>
+    void reduce_ref_process(const T* in_ptr,
+                            T* out_ptr,
+                            std::type_identity_t<T> init_value,
+                            std::type_identity_t<std::function<T(T, T)>> func);
     void create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp);
     inline void reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
     void nspc2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const;
@@ -164,6 +168,7 @@ private:
     static const size_t REDUCE_INDEXES = 1;
     bool jit_beyond_5D = false;
     bool jit_mode = true;
+    bool i64_ref_mode = false;  // exact i64 reference path (oneDNN/JIT have no i64 support)
     bool keep_dims = true;
     bool round_to_zero = false;
     bool is_hybrid_layout = false;

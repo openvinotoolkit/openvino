@@ -629,6 +629,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/fc_bias_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/insert_convert_after_extension.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/keep_reduce_prod_i64.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/keep_reduce_prod_i64.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/ngram_fusion.cpp

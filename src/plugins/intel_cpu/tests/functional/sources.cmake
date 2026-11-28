@@ -262,6 +262,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/range_dynamic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/read_value_assign.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reduce_prod_i64.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/remove_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_chain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_fc.cpp
@@ -830,6 +831,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/range_dynamic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/read_value_assign.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reduce_prod_i64.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/remove_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_chain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_fc.cpp

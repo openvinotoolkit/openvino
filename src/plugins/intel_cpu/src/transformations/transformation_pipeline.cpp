@@ -161,6 +161,7 @@
 #include "transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp"
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
+#include "transformations/cpu_opset/common/pass/keep_reduce_prod_i64.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
@@ -643,6 +644,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Fuses int64 n-gram hashes (all orders) into one NGramHashFunction that keeps the int64 math inside its kernel,
     // before ConvertPrecision would otherwise downcast the products/xors to i32.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::NGramHashFunctionFusion);
+    // Keeps integer ReduceProd in i64 (exact products beyond the i32 range), opting it out of the i64->i32 lowering.
+    // Registered for x64 only: the i64 reference path of the Reduce node is not validated with the ACL executor yet.
+    CPU_REGISTER_PASS_X64(manager, KeepReduceProdI64);
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);

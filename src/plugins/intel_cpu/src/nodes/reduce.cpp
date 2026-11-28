@@ -22,6 +22,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
@@ -2125,7 +2126,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     output_prec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(input_prec)) &&
+    // oneDNN has no i64 data type: i64 is handled by the exact reference path only (see reduce_ref_i64)
+    const bool is_i64 = any_of(ov::element::i64, input_prec, output_prec);
+    if (!is_i64 && !isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(input_prec)) &&
         !isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(output_prec))) {
         round_to_zero = true;
     }
@@ -2279,6 +2282,14 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 }
             }
         }
+    } else if (input_prec == ov::element::i64 && output_prec == ov::element::i64 &&
+               any_of(algorithm,
+                      Algorithm::ReduceProd,
+                      Algorithm::ReduceSum,
+                      Algorithm::ReduceMax,
+                      Algorithm::ReduceMin)) {
+        // exact integer reduction without lowering to i32 / f32 (keeps e.g. integer products beyond the i32 range)
+        pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::i64, ov::element::i64, impl_desc_type::ref);
     } else {
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
     }
@@ -2402,6 +2413,18 @@ void Reduce::createPrimitive() {
     }
 
     auto* selectedPD = getSelectedPrimitiveDescriptor();
+    i64_ref_mode = selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision() == ov::element::i64;
+    if (i64_ref_mode) {
+        // the i64 reference path needs no JIT kernels (and oneDNN has no i64 data type)
+        compile_post_kernel = false;
+        if (inputShapesDefined()) {
+            if (needPrepareParams()) {
+                prepareParams();
+            }
+            updateLastInputDims();
+        }
+        return;
+    }
     jcp = jit_reduce_config_params();
     jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(
         selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
@@ -2487,6 +2510,11 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* src_data = srcMemPtr->getDataAs<const uint8_t>();
     auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
 
+    if (empty_input && dst_size > 0 && i64_ref_mode) {
+        auto* out_ptr = reinterpret_cast<int64_t*>(dst_data);
+        std::fill(out_ptr, out_ptr + dst_size / sizeof(int64_t), i64_init_value());
+        return;
+    }
     if (empty_input && dst_size > 0) {
 #if defined(OPENVINO_ARCH_X86_64)
         output_info_reassign(&dst_data);
@@ -2518,7 +2546,9 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
         aclExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<const void*>(postOpsDataPtrs.data()));
 #endif
     } else {
-        if (layout == ReduceLayoutType::reduce_ncsp) {
+        if (i64_ref_mode) {
+            reduce_ref_i64(reinterpret_cast<const int64_t*>(src_data), reinterpret_cast<int64_t*>(dst_data));
+        } else if (layout == ReduceLayoutType::reduce_ncsp) {
             const auto* in_ptr = reinterpret_cast<const float*>(src_data);
             auto* out_ptr = reinterpret_cast<float*>(dst_data);
             reduce_ref(in_ptr, out_ptr);
@@ -3655,10 +3685,55 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
     }
 }
 
-void Reduce::reduce_ref_process(const float* in_ptr,
-                                float* out_ptr,
-                                float init_value,
-                                std::function<float(float, float)> func) {
+int64_t Reduce::i64_init_value() const {
+    switch (algorithm) {
+    case Algorithm::ReduceProd:
+        return 1;
+    case Algorithm::ReduceSum:
+        return 0;
+    case Algorithm::ReduceMax:
+        return std::numeric_limits<int64_t>::lowest();
+    case Algorithm::ReduceMin:
+        return std::numeric_limits<int64_t>::max();
+    default:
+        CPU_NODE_THROW("gets unsupported reduce mode for i64.");
+    }
+}
+
+inline void Reduce::reduce_ref_i64(const int64_t* in_ptr, int64_t* out_ptr) {
+    // Overflow wraps around (two's complement, as in PyTorch); computed in uint64 to avoid signed-overflow UB.
+    const int64_t init = i64_init_value();
+    switch (algorithm) {
+    case Algorithm::ReduceProd:
+        reduce_ref_process<int64_t>(in_ptr, out_ptr, init, [](int64_t x, int64_t y) {
+            return static_cast<int64_t>(static_cast<uint64_t>(x) * static_cast<uint64_t>(y));
+        });
+        break;
+    case Algorithm::ReduceSum:
+        reduce_ref_process<int64_t>(in_ptr, out_ptr, init, [](int64_t x, int64_t y) {
+            return static_cast<int64_t>(static_cast<uint64_t>(x) + static_cast<uint64_t>(y));
+        });
+        break;
+    case Algorithm::ReduceMax:
+        reduce_ref_process<int64_t>(in_ptr, out_ptr, init, [](int64_t x, int64_t y) {
+            return std::max(x, y);
+        });
+        break;
+    case Algorithm::ReduceMin:
+        reduce_ref_process<int64_t>(in_ptr, out_ptr, init, [](int64_t x, int64_t y) {
+            return std::min(x, y);
+        });
+        break;
+    default:
+        CPU_NODE_THROW("gets unsupported reduce mode for i64.");
+    }
+}
+
+template <typename T>
+void Reduce::reduce_ref_process(const T* in_ptr,
+                                T* out_ptr,
+                                std::type_identity_t<T> init_value,
+                                std::type_identity_t<std::function<T(T, T)>> func) {
     size_t work_amount_dst = 1;
     size_t reduced_dims_work_amount = 1;
     for (size_t process_dst_dim : process_dst_dims) {
@@ -3683,7 +3758,7 @@ void Reduce::reduce_ref_process(const float* in_ptr,
             i /= process_dst_dims[j];
         }
         for (size_t src_idx = 0, dst_idx = start; dst_idx < end; ++dst_idx) {
-            float reduce_prod = init_value;
+            T reduce_prod = init_value;
             bool update_idx = true;
             VectorDims src_counters = dst_counters;
             for (i = 0; i < reduced_dims_work_amount; ++i) {
@@ -3716,7 +3791,9 @@ void Reduce::reduce_ref_process(const float* in_ptr,
         }
     });
 
-    reduce_ref_map(out_ptr, work_amount_dst, reduced_dims_work_amount);
+    if constexpr (std::is_same_v<T, float>) {
+        reduce_ref_map(out_ptr, work_amount_dst, reduced_dims_work_amount);
+    }
 }
 
 inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount) {
