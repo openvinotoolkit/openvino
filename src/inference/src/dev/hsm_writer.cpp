@@ -19,6 +19,8 @@ public:
         switch (static_cast<WriteErrc>(ev)) {
         case WriteErrc::write_failed:
             return "the destination ran out of room, or a write failed";
+        case WriteErrc::invalid_blob:
+            return "the blob is not a valid HSM container";
         default:
             return "unknown error";
         }

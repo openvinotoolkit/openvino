@@ -49,6 +49,20 @@ public:
      */
     static std::optional<DeferredWriter> open(std::byte* dst, size_t size);
 
+    /**
+     * @brief Opens a DeferredWriter that writes one model blob (#BlobMagic::single) into @p sink.
+     * Pointer-mode sections are aligned to `sink.origin() + offset`, so they line up with offsets in the
+     * whole file.
+     *
+     * @param sink The sink to write into. Must remain valid until #finalize() returns, and be empty.
+     * @return A DeferredWriter instance if @p sink is good() and has nothing written yet; std::nullopt
+     * otherwise.
+     * @note No retry: a sink can't go back to its start, so if an exception escapes #finalize(), calling
+     * it again returns WriteErrc::write_failed. Let the exception reach the sink's owner (e.g.
+     * MultiBlobWriter), which discards the partial blob.
+     */
+    static std::optional<DeferredWriter> open(IBlobSink& sink);
+
     /// @note Move-only: copying would silently duplicate owned/generated section payloads.
     DeferredWriter(const DeferredWriter&) = delete;
     DeferredWriter& operator=(const DeferredWriter&) = delete;
@@ -74,13 +88,15 @@ public:
      *
      * @return A repeated call after success, or after a normal (non-throwing) failure, just reports the
      * same outcome again. A repeated call after a thrown exception instead retries the whole attempt
-     * from the container's start - each #ISectionEncoder may run again.
+     * from the container's start - each #ISectionEncoder may run again. The one exception is an
+     * #IBlobSink destination, which can't retry - see #open(IBlobSink&).
      */
     std::error_code finalize() override;
 
 private:
     explicit DeferredWriter(std::ostream& stream) noexcept;
     DeferredWriter(std::byte* dst, size_t capacity) noexcept;
+    explicit DeferredWriter(IBlobSink& sink) noexcept;
 
     // A section produced on demand at finalize() time - its size is known up front.
     struct PendingEncode {
@@ -117,6 +133,12 @@ private:
         size_t size = 0;           // bytes written so far (the write cursor)
         bool good = true;          // false once a write has failed (sticky)
     };
+    struct SinkDestination {
+        IBlobSink* sink = nullptr;  // destination sink, its offset 0 is the container's first byte
+        size_t size = 0;            // bytes written so far (the write cursor)
+        bool good = true;           // false once a write has failed (sticky)
+        bool started = false;       // a finalize() attempt has already begun - a sink can't be rewound
+    };
 
     static std::optional<size_t> reserve(BufferDestination& destination, size_t extra);
 
@@ -124,16 +146,20 @@ private:
     void write_zeros(size_t count);
     void patch(size_t offset, ov::util::MemoryView data);
     size_t written_size() const;
+    size_t origin() const;
     bool destination_good() const;
     void reset_destination();
     void fail_destination();
 
     static void write_into(StreamDestination& destination, ov::util::MemoryView data);
     static void write_into(BufferDestination& destination, ov::util::MemoryView data);
+    static void write_into(SinkDestination& destination, ov::util::MemoryView data);
     static void patch_into(StreamDestination& destination, size_t offset, ov::util::MemoryView data);
     static void patch_into(BufferDestination& destination, size_t offset, ov::util::MemoryView data);
+    static void patch_into(SinkDestination& destination, size_t offset, ov::util::MemoryView data);
     static bool is_good(const StreamDestination& destination);
     static bool is_good(const BufferDestination& destination);
+    static bool is_good(const SinkDestination& destination);
 
     ManifestEntry write_section(DeviceId device,
                                 SectionTagReserved tag,
@@ -148,7 +174,7 @@ private:
                                 SectionAlignment alignment,
                                 const SectionEncoderPtr& encoder);
 
-    std::variant<StreamDestination, BufferDestination> m_destination;
+    std::variant<StreamDestination, BufferDestination, SinkDestination> m_destination;
     std::vector<PendingSection> m_sections;
     std::optional<std::error_code> m_result;
     bool m_has_unsized_section;
