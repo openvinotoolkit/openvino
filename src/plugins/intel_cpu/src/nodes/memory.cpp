@@ -903,6 +903,13 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
                 subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
             }
 
+            // External state updates may reshape the shared output without running the initialization subgraph.
+            // Restore its last output descriptor to keep the memory consistent with the subgraph's cached parameters.
+            // Note that ReadValue output shares its Memory object with the initialization subgraph output.
+            if (lastInitGraphOutputDesc && !lastInitGraphOutputDesc->isCompatible(dst->getDesc())) {
+                dst->redefineDesc(lastInitGraphOutputDesc->clone());
+            }
+
             subGraph->ResetInferCount();
             subGraph->Infer();
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
@@ -910,6 +917,8 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
             // memory
             CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
+            // Keep an independent snapshot: the output memory itself is shared with the outer graph.
+            lastInitGraphOutputDesc = src->getDesc().clone();
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
             // edges, attached to the output ports has to be updated after an inference of the inner graph finished
