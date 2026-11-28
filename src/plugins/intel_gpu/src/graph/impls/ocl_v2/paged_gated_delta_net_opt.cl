@@ -185,13 +185,34 @@
 #else
 #    define PGDN_V_READ(dst, p) dst = PGDN_SDEC(V_KT, BLOCK_READN(INPUT2_TYPE, 1, p, 0))
 #endif
+// PER_KEY_GATE (Kimi Delta Attention): the gate is [tokens, H, K], one decay per
+// key dimension, read like the k row (lane-interleaved) and decaying state row k
+// by g[k]. Otherwise it is one decay per head.
+#if PER_KEY_GATE
+#    define PGDN_G_DECL(name) float name[K_LANE_ELEMS]
+#    define PGDN_G_COPY(dst, src) unroll_for(int _g = 0; _g < K_LANE_ELEMS; ++_g) dst[_g] = src[_g]
+#    define PGDN_G_READ(g)                                                     \
+        do {                                                                   \
+            PGDN_READ_LANE(INPUT4_TYPE, G_KT, g, gp, 0);                       \
+            unroll_for(int _g = 0; _g < K_LANE_ELEMS; ++_g) g[_g] = exp(g[_g]);  \
+        } while (0)
+#    define G_TOKEN_STRIDE (V_HEAD_NUM * K_HEAD_DIM)
+#    define G_HEAD_OFFSET(h) ((long)(h) * K_HEAD_DIM)
+#else
+#    define PGDN_G_DECL(name) float name
+#    define PGDN_G_COPY(dst, src) dst = src
+#    define PGDN_G_READ(g) g = exp(PGDN_SDEC(G_KT, *gp))
+#    define G_TOKEN_STRIDE V_HEAD_NUM
+#    define G_HEAD_OFFSET(h) ((long)(h))
+#endif
+
 #define PGDN_READ_TOKEN(q, k, v, g, b)                                         \
     do {                                                                       \
         Q_READ(q, qp, 0);                                                      \
         K_READ(k, kp, 0);                                                      \
         FUNC_CALL(l2_normalize_qk)(q, k, scale_factor);                        \
         PGDN_V_READ(v, vp);                                                    \
-        g = exp(PGDN_SDEC(G_KT, *gp));                                         \
+        PGDN_G_READ(g);                                                        \
         b = PGDN_SDEC(B_KT, *bp);                                              \
     } while (0)
 
@@ -309,33 +330,52 @@ inline void FUNC(d_on_lanes_token)(float state[V_BLOCK_SIZE][K_LANE_ELEMS],
                                 const float* qv,
                                 const float* kv,
                                 const float* v_val,
+#if PER_KEY_GATE
+                                const float* b_g,
+#else
                                 float b_g,
+#endif
                                 float b_beta,
                                 float* o_val) {
     float update[V_BLOCK_SIZE];
+#if PER_KEY_GATE
+    // Per-key decay: (diag(g) S)^T k = S^T (g o k), so the gate folds into k here.
+    float gk[K_LANE_ELEMS];
+    unroll_for(int c = 0; c < K_LANE_ELEMS; ++c) gk[c] = b_g[c] * kv[c];
+#    define PGDN_HK_K gk
+#    define PGDN_HK_SCALE 1.0f
+#    define PGDN_DECAY(c) b_g[c]
+#else
+#    define PGDN_HK_K kv
+#    define PGDN_HK_SCALE b_g
+#    define PGDN_DECAY(c) b_g
+#endif
     unroll_for(int p = 0; p < V_BLOCK_SIZE; ++p) {
         float acc[WAYS_D];
-        unroll_for(int a = 0; a < WAYS_D; ++a) acc[a] = state[p][a] * kv[a];
-        unroll_for(int c = WAYS_D; c < K_LANE_ELEMS; ++c) acc[c % WAYS_D] += state[p][c] * kv[c];
+        unroll_for(int a = 0; a < WAYS_D; ++a) acc[a] = state[p][a] * PGDN_HK_K[a];
+        unroll_for(int c = WAYS_D; c < K_LANE_ELEMS; ++c) acc[c % WAYS_D] += state[p][c] * PGDN_HK_K[c];
         float part = 0.0f;
         unroll_for(int a = 0; a < WAYS_D; ++a) part += acc[a];
-        const float h_k = sub_group_reduce_add(part) * b_g;
+        const float h_k = sub_group_reduce_add(part) * PGDN_HK_SCALE;
         update[p] = (v_val[p] - h_k) * b_beta;
     }
     unroll_for(int p = 0; p < V_BLOCK_SIZE; ++p) {
         float acc[WAYS_D];
         unroll_for(int a = 0; a < WAYS_D; ++a) {
-            state[p][a] = state[p][a] * b_g + update[p] * kv[a];
+            state[p][a] = state[p][a] * PGDN_DECAY(a) + update[p] * kv[a];
             acc[a] = state[p][a] * qv[a];
         }
         unroll_for(int c = WAYS_D; c < K_LANE_ELEMS; ++c) {
-            state[p][c] = state[p][c] * b_g + update[p] * kv[c];
+            state[p][c] = state[p][c] * PGDN_DECAY(c) + update[p] * kv[c];
             acc[c % WAYS_D] += state[p][c] * qv[c];
         }
         float part = 0.0f;
         unroll_for(int a = 0; a < WAYS_D; ++a) part += acc[a];
         o_val[p] = sub_group_reduce_add(part);
     }
+#undef PGDN_HK_K
+#undef PGDN_HK_SCALE
+#undef PGDN_DECAY
 }
 
 // Each lane holds its interleaved share of each v row, so a snapshot is
@@ -440,7 +480,7 @@ KERNEL(paged_gated_delta_net_opt)
     const __global INPUT0_TYPE* qp = query + (long)token * q_token_stride + q_head_base;
     const __global INPUT1_TYPE* kp = key + (long)token * k_token_stride + k_head_base;
     const __global INPUT2_TYPE* vp = value + (long)token * v_token_stride + v_head_base + start_iv;
-    const __global INPUT4_TYPE* gp = gate + (long)token * V_HEAD_NUM + h;
+    const __global INPUT4_TYPE* gp = gate + (long)token * G_TOKEN_STRIDE + G_HEAD_OFFSET(h);
     const __global INPUT5_TYPE* bp = beta + (long)token * V_HEAD_NUM + h;
     __global OUTPUT_TYPE* op = output + (long)(token * V_HEAD_NUM + h) * V_HEAD_DIM + start_iv;
 
@@ -461,7 +501,8 @@ KERNEL(paged_gated_delta_net_opt)
 #else
     float v_pre;
 #endif
-    float g_pre, b_pre;
+    PGDN_G_DECL(g_pre);
+    float b_pre;
     PGDN_READ_TOKEN(q_pre, k_pre, v_pre, g_pre, b_pre);
 #endif
 
@@ -470,7 +511,8 @@ KERNEL(paged_gated_delta_net_opt)
 
 #if PLAIN_TOKEN_LOOP
         for (; token < chunk_end; ++token) {
-            float qv[K_LANE_ELEMS], kv[K_LANE_ELEMS], v_val[V_BLOCK_SIZE], o_val[V_BLOCK_SIZE], b_g, b_beta;
+            float qv[K_LANE_ELEMS], kv[K_LANE_ELEMS], v_val[V_BLOCK_SIZE], o_val[V_BLOCK_SIZE], b_beta;
+            PGDN_G_DECL(b_g);
             PGDN_READ_TOKEN(qv, kv, v_val, b_g, b_beta);
             FUNC_CALL(d_on_lanes_token)(state, qv, kv, v_val, b_g, b_beta, o_val);
             if (lane == 0)
@@ -478,7 +520,7 @@ KERNEL(paged_gated_delta_net_opt)
             qp += q_token_stride;
             kp += k_token_stride;
             vp += v_token_stride;
-            gp += V_HEAD_NUM;
+            gp += G_TOKEN_STRIDE;
             bp += V_HEAD_NUM;
             op += V_HEAD_NUM * V_HEAD_DIM;
         }
@@ -509,7 +551,7 @@ KERNEL(paged_gated_delta_net_opt)
             const int qs = (seg < 2) ? q_token_stride : 0;
             const int ks = (seg < 2) ? k_token_stride : 0;
             const int vs = (seg < 2) ? v_token_stride : 0;
-            const int gs = (seg < 2) ? V_HEAD_NUM : 0;
+            const int gs = (seg < 2) ? G_TOKEN_STRIDE : 0;
             const int bs = (seg < 2) ? V_HEAD_NUM : 0;
             const int pq = (seg < 1) ? q_token_stride : 0;
             const int pk = (seg < 1) ? k_token_stride : 0;
@@ -527,7 +569,8 @@ KERNEL(paged_gated_delta_net_opt)
 #else
                 const float v_val = v_pre;
 #endif
-                const float b_g = g_pre;
+                PGDN_G_DECL(b_g);
+                PGDN_G_COPY(b_g, g_pre);
                 const float b_beta = b_pre;
 
                 {
@@ -570,12 +613,17 @@ KERNEL(paged_gated_delta_net_opt)
                 // NOTE: Measured on Panther Lake at (128, 128), decaying the state
                 // in pass 1 here is faster in f32 on long subsequences.
                 float hk_acc[ACC_WAYS];
+#if PER_KEY_GATE
+#    define PGDN_GD(d) KD(b_g, d)
+#else
+#    define PGDN_GD(d) b_g
+#endif
                 unroll_for(int a = 0; a < ACC_WAYS; ++a) {
-                    state[a] *= b_g;
+                    state[a] *= PGDN_GD(a);
                     hk_acc[a] = state[a] * KD(kv, a);
                 }
                 unroll_for(int d = ACC_WAYS; d < K_HEAD_DIM; ++d) {
-                    state[d] *= b_g;
+                    state[d] *= PGDN_GD(d);
                     hk_acc[d % ACC_WAYS] += state[d] * KD(kv, d);
                 }
                 float h_k = 0.0f;

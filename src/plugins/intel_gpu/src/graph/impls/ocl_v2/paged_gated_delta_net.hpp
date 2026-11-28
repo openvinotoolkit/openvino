@@ -78,6 +78,9 @@ struct PagedGatedDeltaNetOpt : public PagedGatedDeltaNetBase {
 
 protected:
     bool validate_internal(const program_node& node) const override {
+        // A per-key gate [tokens, H, K] (Kimi Delta Attention) runs on the opt kernel's
+        // PER_KEY_GATE path; the short kernel decays by one scalar per head, so per-key
+        // calls never take the short stage (see uses_short_stage()).
         const auto& q_shape = node.get_input_layout(paged_gated_delta_net::QUERY).get_partial_shape();
         const auto& v_shape = node.get_input_layout(paged_gated_delta_net::VALUE).get_partial_shape();
 

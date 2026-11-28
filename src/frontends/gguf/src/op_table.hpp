@@ -34,6 +34,7 @@ GGUF_OP_CONVERTER(translate_view);
 GGUF_OP_CONVERTER(translate_norm);
 GGUF_OP_CONVERTER(translate_rms_norm);
 GGUF_OP_CONVERTER(translate_l2_norm);
+GGUF_OP_CONVERTER(translate_hc_mix);
 
 // Matmul / attention.
 GGUF_OP_CONVERTER(translate_mulmat);

@@ -43,6 +43,9 @@ bool QSAIndexer::validate_config(const Config& c, std::string& reason) {
     if (c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
         return fail("indexer_rotary_dim must be even and not exceed indexer_head_dim");
     }
+    if (c.dsa_kpool && (c.query_norm || c.query_rope || c.indexer_rotary_dim != 0)) {
+        return fail("dsa_kpool uses the index query as given: query_norm and query_rope false, indexer_rotary_dim 0");
+    }
     if (!std::isfinite(c.scale) || c.scale < 0.0F) {
         return fail("scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))");
     }
@@ -78,15 +81,17 @@ bool QSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("scale", m_config.scale);
     visitor.on_attribute("query_norm", m_config.query_norm);
     visitor.on_attribute("query_rope", m_config.query_rope);
+    visitor.on_attribute("dsa_kpool", m_config.dsa_kpool);
     return true;
 }
 
 void QSAIndexer::validate_and_infer_types() {
     OV_OP_SCOPE(internal_QSAIndexer_validate_and_infer_types);
+    const size_t expected_inputs = m_config.dsa_kpool ? InputIdx::COUNT_DSA : InputIdx::COUNT;
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == InputIdx::COUNT,
+                          get_input_size() == expected_inputs,
                           "QSAIndexer expects ",
-                          InputIdx::COUNT,
+                          expected_inputs,
                           " inputs, got ",
                           get_input_size());
 
@@ -129,6 +134,8 @@ void QSAIndexer::validate_and_infer_types() {
 
     const auto r = static_cast<int64_t>(m_config.key_block_size);
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
+    // A raw key row is [key | gate] in DSA k-pool mode.
+    const ov::Dimension raw_di(static_cast<int64_t>(m_config.indexer_head_dim * (m_config.dsa_kpool ? 2 : 1)));
     const ov::Dimension rot(static_cast<int64_t>(m_config.indexer_rotary_dim));
     const ov::Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));
     const auto batch = index_query_ps.rank().is_static() ? index_query_ps[0] : ov::Dimension::dynamic();
@@ -141,8 +148,9 @@ void QSAIndexer::validate_and_infer_types() {
                           "QSAIndexer expects index_query shaped [B, L, H_iq, indexer_head_dim], got ",
                           index_query_ps);
     NODE_VALIDATION_CHECK(this,
-                          raw_index_keys_ps.compatible(ov::PartialShape{batch, length, h_ik, di}),
-                          "QSAIndexer expects raw_index_keys shaped [B, L, H_ik, indexer_head_dim], got ",
+                          raw_index_keys_ps.compatible(ov::PartialShape{batch, length, h_ik, raw_di}),
+                          "QSAIndexer expects raw_index_keys shaped [B, L, H_ik, indexer_head_dim] "
+                          "([B, L, H_ik, 2*indexer_head_dim] in dsa_kpool mode), got ",
                           raw_index_keys_ps);
     NODE_VALIDATION_CHECK(this,
                           get_input_partial_shape(InputIdx::ROPE_COS).compatible(ov::PartialShape{batch, length, rot}),
@@ -165,17 +173,37 @@ void QSAIndexer::validate_and_infer_types() {
         get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE).compatible(ov::PartialShape{batch, h_ik, -1, di}),
         "QSAIndexer expects block_index_keys_cache shaped [B, H_ik, blocks, indexer_head_dim], got ",
         get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE));
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(InputIdx::PAST_INCOMPLETE_RAW_K).compatible(ov::PartialShape{batch, h_ik, r - 1, di}),
-        "QSAIndexer expects past_incomplete_raw_k shaped "
-        "[B, H_ik, key_block_size-1, indexer_head_dim], got ",
-        get_input_partial_shape(InputIdx::PAST_INCOMPLETE_RAW_K));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::PAST_INCOMPLETE_RAW_K)
+                              .compatible(ov::PartialShape{batch, h_ik, r - 1, raw_di}),
+                          "QSAIndexer expects past_incomplete_raw_k shaped "
+                          "[B, H_ik, key_block_size-1, indexer_head_dim], got ",
+                          get_input_partial_shape(InputIdx::PAST_INCOMPLETE_RAW_K));
     NODE_VALIDATION_CHECK(
         this,
         get_input_partial_shape(InputIdx::PAST_INCOMPLETE_ROPE).compatible(ov::PartialShape{batch, rope_row}),
         "QSAIndexer expects past_incomplete_rope shaped [B, 2*indexer_rotary_dim], got ",
         get_input_partial_shape(InputIdx::PAST_INCOMPLETE_ROPE));
+
+    if (m_config.dsa_kpool) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_partial_shape(InputIdx::POOL_APE).compatible(ov::PartialShape{di, r}),
+                              "QSAIndexer expects pool_ape shaped [indexer_head_dim, key_block_size], got ",
+                              get_input_partial_shape(InputIdx::POOL_APE));
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(InputIdx::HEAD_WEIGHTS).compatible(ov::PartialShape{batch, length, h_iq}),
+            "QSAIndexer expects head_weights shaped [B, L, H_iq], got ",
+            get_input_partial_shape(InputIdx::HEAD_WEIGHTS));
+        for (const auto idx : {InputIdx::POOL_APE, InputIdx::HEAD_WEIGHTS}) {
+            NODE_VALIDATION_CHECK(this,
+                                  element::Type::merge(float_et, float_et, get_input_element_type(idx)),
+                                  "QSAIndexer expects all floating-point inputs to share one element type; input ",
+                                  idx,
+                                  " is ",
+                                  get_input_element_type(idx));
+        }
+    }
 
     // The kernels read key_length as int32_t.
     const auto& key_length_et = get_input_element_type(InputIdx::KEY_LENGTH);

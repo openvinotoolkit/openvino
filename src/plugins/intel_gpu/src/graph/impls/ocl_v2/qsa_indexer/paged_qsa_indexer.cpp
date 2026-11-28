@@ -54,7 +54,9 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const paged_qsa_in
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_ADDRESS_MODE", 0);
     jit.add(qsa::float_constant("QSA_IDX_NORM_EPS", desc->epsilon));
-    jit.add(qsa::float_constant("QSA_IDX_SCALE", ov::op::internal::PagedQSAIndexer::effective_scale(desc->get_config())));
+    // DSA k-pool mode: see qsa_indexer.cpp make_jit (the head weights carry the scale).
+    jit.make("QSA_DSA", desc->dsa_kpool ? 1 : 0);
+    jit.add(qsa::float_constant("QSA_IDX_SCALE", desc->dsa_kpool ? 1.0F : ov::op::internal::PagedQSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
 
@@ -83,7 +85,8 @@ bool may_prefill(const kernel_impl_params& params) {
 
 /// Whether the systolic qsa_indexer_score_dpas kernel can be used (a property of the descriptor and the device).
 bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t page_size, size_t h_iq, const cldnn::device_info& info) {
-    if (!qsa::xmx_allowed(info)) {
+    // DSA k-pool weights each head per token, which only the partition scorer does.
+    if (desc.dsa_kpool || !qsa::xmx_allowed(info)) {
         return false;
     }
     if (desc.indexer_head_dim % qsa::dpas_k_step != 0 || desc.indexer_head_dim * sizeof(ov::float16) < 64) {
@@ -130,24 +133,32 @@ protected:
         return make_jit(QsaGenerator::get_jit_constants(params), params.typed_desc<paged_qsa_indexer>(), params);
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        for (auto idx : {QSAIn::INDEX_QUERY,
-                         QSAIn::RAW_INDEX_KEYS,
-                         QSAIn::Q_NORM_WEIGHT,
-                         QSAIn::K_NORM_WEIGHT,
-                         QSAIn::ROPE_COS,
-                         QSAIn::ROPE_SIN,
-                         QSAIn::PAST_LENS,
+        // Without rotation the RoPE tensors are zero-size and are not bound (QSA_IDX_ROTARY_DIM == 0 in the kernel).
+        const bool rope = params.typed_desc<paged_qsa_indexer>()->indexer_rotary_dim > 0;
+        for (auto idx : {QSAIn::INDEX_QUERY, QSAIn::RAW_INDEX_KEYS, QSAIn::Q_NORM_WEIGHT, QSAIn::K_NORM_WEIGHT}) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
+        }
+        if (rope) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::ROPE_COS)});
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::ROPE_SIN)});
+        }
+        for (auto idx : {QSAIn::PAST_LENS,
                          QSAIn::SUBSEQUENCE_BEGINS,
                          QSAIn::BLOCK_INDICES,
                          QSAIn::BLOCK_INDICES_BEGINS,
                          QSAIn::INDEX_KEY_CACHE,
-                         QSAIn::BLOCK_INDEX_KEYS_CACHE,
-                         QSAIn::INDEX_BLOCK_ROPE_CACHE}) {
+                         QSAIn::BLOCK_INDEX_KEYS_CACHE}) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
         }
+        if (rope) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::INDEX_BLOCK_ROPE_CACHE)});
+        }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
+        if (params.typed_desc<paged_qsa_indexer>()->dsa_kpool) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::POOL_APE)});
+        }
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
         return args;
@@ -287,13 +298,16 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
         for (auto idx : {QSAIn::BLOCK_INDEX_KEYS_CACHE, QSAIn::PAST_LENS, QSAIn::SUBSEQUENCE_BEGINS, QSAIn::BLOCK_INDICES, QSAIn::BLOCK_INDICES_BEGINS}) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
         }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::BLOCK_SCORES});
+        if (params.typed_desc<paged_qsa_indexer>()->dsa_kpool) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(QSAIn::HEAD_WEIGHTS)});
+        }
         for (uint32_t i = 0; i < 6; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
@@ -477,7 +491,7 @@ bool PagedQSAIndexerImplementationManager::validate_impl(const cldnn::program_no
         return false;
     }
     if (raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() < 2 || raw_index_keys_ps[1].is_dynamic() ||
-        static_cast<size_t>(raw_index_keys_ps[1].get_length()) != desc->indexer_head_dim) {
+        static_cast<size_t>(raw_index_keys_ps[1].get_length()) != desc->indexer_head_dim * (desc->dsa_kpool ? 2 : 1)) {
         return false;
     }
 

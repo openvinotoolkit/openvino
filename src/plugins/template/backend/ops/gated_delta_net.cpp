@@ -32,7 +32,8 @@ bool evaluate(const std::shared_ptr<ov::op::internal::GatedDeltaNet>& op,
                                       inputs[2].get_shape(),
                                       op->get_fuse_qk_l2norm(),
                                       static_cast<T>(op->get_q_l2_norm_eps()),
-                                      static_cast<T>(op->get_k_l2_norm_eps()));
+                                      static_cast<T>(op->get_k_l2_norm_eps()),
+                                      inputs[4].get_shape().size() == 4);
     return true;
 }
 
