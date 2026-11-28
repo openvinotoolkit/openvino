@@ -15,7 +15,7 @@ Visual Studio 2019 remains the documented minimum but is not exercised by the cu
 - Microsoft Visual Studio 2019 or higher, version 16.8 or later (MSVC 19.28, required for C++20)
   > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
 - Python 3.11 - 3.15 for OpenVINO Runtime Python API
-- [Git for Windows*]
+- [Git for Windows*](https://git-scm.com/download/win)
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
   > **NOTE**: After installation, make sure `clang-cl` compiler is available from `PATH`.
 
@@ -74,13 +74,18 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     ```
     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/<platform>/tbb/bin
-    set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
     ```
   or install the wheel with pip:
   ```
   pip install build/wheels/openvino-2026.2.1-9612-cp313-cp313-win_arm64.whl
   ```
   > **NOTE**: Wheels are generated under the `<build>/wheels/` directory. Substitute the filename with the artifact that matches your Python version and target architecture.
+
+  The `ovc` command is a Python console entry point, so it is only available after installing the wheel with pip. To use the OpenVINO Model Converter directly from the source tree instead, run it as a module, passing the model path as a positional argument:
+  ```sh
+  python -m openvino.tools.ovc <path/to/model>
+  ```
+  This requires the `PYTHONPATH` and `OPENVINO_LIB_PATHS` shown above: `PYTHONPATH` must contain both `<openvino_repo>/bin/<arch>/Release/python` and `<openvino_repo>/tools/ovc`, and `OPENVINO_LIB_PATHS` must point to the build output directory that contains `openvino.dll`.
 
 ### Building OpenVINO with Ninja* Build System
 
